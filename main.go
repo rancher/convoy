@@ -3,10 +3,110 @@ package main
 import (
 	"flag"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
+	"github.com/alecthomas/kingpin"
+	"github.com/yasker/volmgr/drivers"
+	"github.com/yasker/volmgr/utils"
 	"os"
+	"path/filepath"
 )
 
+var (
+	flagApp   = kingpin.New("volmgr", "A volume manager capable of snapshot and delta backup")
+	flagDebug = flagApp.Flag("debug", "Enable debug mode.").Default("true").Bool()
+
+	flagInitialize           = flagApp.Command("init", "initialize volmgr")
+	flagInitializeDriver     = flagInitialize.Flag("driver", "Driver for volume manager, only support \"devicemapper\" currently").Default("devicemapper").String()
+	flagInitializeDriverOpts = flagInitialize.Flag("driver-opts", "options for driver").StringMap()
+
+	flagVolume           = flagApp.Command("volume", "volume related operations")
+	flagVolumeCreate     = flagVolume.Command("create", "create a new volume")
+	flagVolumeCreateSize = flagVolumeCreate.Flag("size", "size of volume").Required().Uint64()
+	flagVolumeDelete     = flagVolume.Command("delete", "delete a volume with all of it's snapshots")
+	flagVolumeDeleteUUID = flagVolumeDelete.Arg("uuid", "uuid of volume").Required().String()
+	flagVolumeUpdate     = flagVolume.Command("update", "update info about volume")
+	flagVolumeUpdateUUID = flagVolumeUpdate.Arg("uuid", "uuid of volume").Required().String()
+	flagVolumeUpdateSize = flagVolumeUpdate.Flag("size", "size of volume").Required().Uint64()
+	flagVolumeList       = flagVolume.Command("list", "list all managed volumes")
+
+	flagInfo = flagApp.Command("info", "information about volmgr")
+)
+
+const (
+	LOCKFILE   = "lock"
+	CONFIGFILE = "volmgr.cfg"
+	ROOTDIR    = "/var/lib/volmgr/"
+)
+
+type Config struct {
+	Root   string
+	Driver string
+}
+
+type Manager struct {
+	root   string
+	driver drivers.Driver
+}
+
 func main() {
+	log.SetOutput(os.Stderr)
+
+	if len(os.Args) == 1 {
+		fmt.Println("Use --help to see command list")
+		os.Exit(-1)
+	}
+
+	command := kingpin.MustParse(flagApp.Parse(os.Args[1:]))
+	if *flagDebug {
+		log.SetLevel(log.DebugLevel)
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
+	configFile := filepath.Join(ROOTDIR, CONFIGFILE)
+
+	if command == flagInitialize.FullCommand() {
+		if _, err := os.Stat(configFile); err == nil {
+			log.Errorf("Configuration file %v existed. Don't need to initialize.", configFile)
+			os.Exit(-1)
+		}
+
+		err := doInitialize(ROOTDIR, *flagInitializeDriver, *flagInitializeDriverOpts)
+		if err != nil {
+			log.Errorln("Failed to initialize volmgr.", err)
+			os.Exit(-1)
+		}
+		os.Exit(0)
+	}
+
+	config := Config{}
+	err := utils.LoadConfig(configFile, &config)
+	if err != nil {
+		log.Errorln("Failed to load config.", err)
+		os.Exit(-1)
+	}
+
+	switch command {
+	case flagVolumeCreate.FullCommand():
+		doVolumeCreate(&config, *flagVolumeCreateSize)
+	case flagVolumeDelete.FullCommand():
+		doVolumeDelete(&config, *flagVolumeDeleteUUID)
+	case flagVolumeUpdate.FullCommand():
+		doVolumeUpdate(&config, *flagVolumeUpdateUUID, *flagVolumeUpdateSize)
+	case flagVolumeList.FullCommand():
+		doVolumeList(&config)
+	case flagInfo.FullCommand():
+		err = doInfo(&config)
+		if err != nil {
+			log.Errorln("Failed to load complete info.", err)
+			os.Exit(-1)
+		}
+	default:
+		log.Errorln("Unrecognized command")
+		os.Exit(-1)
+	}
+}
+
+func oldMain() {
 	exportArg := flag.Bool("export", false, "Export blocks according to metadata")
 	dataArg := flag.String("d", "", "Data device location")
 	metaArg := flag.String("m", "", "Metadata device location")
