@@ -12,6 +12,12 @@ type Device struct {
 	ThinpoolDevice    string
 	ThinpoolSize      uint64
 	ThinpoolBlockSize uint32
+	Volumes           map[string]Volume
+}
+
+type Volume struct {
+	DevId int
+	Size  uint64
 }
 
 func TestSaveLoadConfig(t *testing.T) {
@@ -24,12 +30,20 @@ func TestSaveLoadConfig(t *testing.T) {
 		ThinpoolBlockSize: 4096,
 	}
 
+	dev.Volumes = make(map[string]Volume)
 	err := SaveConfig("/tmp/cfg", &dev)
 	if err != nil {
 		t.Fatal("Fail to save config!", err)
 	}
 
 	dev.ThinpoolBlockSize = 2048
+
+	volume := Volume{
+		DevId: 1,
+		Size:  1000000,
+	}
+	dev.Volumes["123"] = volume
+
 	err = SaveConfig("/tmp/cfg", &dev)
 	if err != nil {
 		t.Fatal("Fail to update config!", err)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	_ "github.com/yasker/volmgr/devmapper"
@@ -10,16 +11,20 @@ import (
 	"path/filepath"
 )
 
+func getDriverRoot(root, driverName string) string {
+	return filepath.Join(root, driverName) + "/"
+}
+
 func doInitialize(root, driverName string, driverOpts map[string]string) error {
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		if err := os.MkdirAll(root, os.ModeDir|0700); err != nil {
 			return err
 		}
 	}
-	log.Debug("Config root is", root)
+	log.Debug("Config root is ", root)
 
-	driverRoot := filepath.Join(root, driverName) + "/"
-	log.Debug("Driver root is", driverRoot)
+	driverRoot := getDriverRoot(root, driverName)
+	log.Debug("Driver root is ", driverRoot)
 	if _, err := os.Stat(driverRoot); os.IsNotExist(err) {
 		if err := os.MkdirAll(driverRoot, os.ModeDir|0700); err != nil {
 			return err
@@ -40,28 +45,46 @@ func doInitialize(root, driverName string, driverOpts map[string]string) error {
 	return err
 }
 
-func doInfo(config *Config) error {
+func doInfo(config *Config, driver drivers.Driver) error {
 	fmt.Println("Driver: " + config.Driver)
-	driver, err := drivers.GetDriver(config.Driver, filepath.Join(config.Root, config.Driver)+"/", nil)
-	if err != nil {
-		return err
-	}
-	err = driver.Info()
+	err := driver.Info()
 	return err
 }
 
-func doVolumeCreate(config *Config, size uint64) error {
+func doVolumeCreate(config *Config, driver drivers.Driver, size uint64) error {
+	uuid := uuid.New()
+	base := ""
+	err := driver.CreateVolume(uuid, base, size)
+	return err
+}
+
+func doVolumeDelete(config *Config, driver drivers.Driver, uuid string) error {
+	log.Debug("Deleting volume using ", config.Driver)
+	err := driver.DeleteVolume(uuid)
+	return err
+}
+
+func doVolumeUpdate(config *Config, driver drivers.Driver, uuid string, size uint64) error {
 	return nil
 }
 
-func doVolumeDelete(config *Config, uuid string) error {
-	return nil
+func doVolumeList(config *Config, driver drivers.Driver) error {
+	err := driver.ListVolumes()
+	return err
 }
 
-func doVolumeUpdate(config *Config, uuid string, size uint64) error {
-	return nil
+func doSnapshotCreate(config *Config, driver drivers.Driver, volumeUUID string) error {
+	uuid := uuid.New()
+	err := driver.CreateSnapshot(uuid, volumeUUID)
+	return err
 }
 
-func doVolumeList(config *Config) error {
-	return nil
+func doSnapshotDelete(config *Config, driver drivers.Driver, uuid, volumeUUID string) error {
+	err := driver.DeleteSnapshot(uuid, volumeUUID)
+	return err
+}
+
+func doSnapshotList(config *Config, driver drivers.Driver, volumeUUID string) error {
+	err := driver.ListSnapshot(volumeUUID)
+	return err
 }

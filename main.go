@@ -23,11 +23,20 @@ var (
 	flagVolumeCreate     = flagVolume.Command("create", "create a new volume")
 	flagVolumeCreateSize = flagVolumeCreate.Flag("size", "size of volume").Required().Uint64()
 	flagVolumeDelete     = flagVolume.Command("delete", "delete a volume with all of it's snapshots")
-	flagVolumeDeleteUUID = flagVolumeDelete.Arg("uuid", "uuid of volume").Required().String()
+	flagVolumeDeleteUUID = flagVolumeDelete.Flag("uuid", "uuid of volume").Required().String()
 	flagVolumeUpdate     = flagVolume.Command("update", "update info about volume")
-	flagVolumeUpdateUUID = flagVolumeUpdate.Arg("uuid", "uuid of volume").Required().String()
+	flagVolumeUpdateUUID = flagVolumeUpdate.Flag("uuid", "uuid of volume").Required().String()
 	flagVolumeUpdateSize = flagVolumeUpdate.Flag("size", "size of volume").Required().Uint64()
 	flagVolumeList       = flagVolume.Command("list", "list all managed volumes")
+
+	flagSnapshot                 = flagApp.Command("snapshot", "snapshot related operations")
+	flagSnapshotCreate           = flagSnapshot.Command("create", "create a snapshot")
+	flagSnapshotCreateVolumeUUID = flagSnapshotCreate.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
+	flagSnapshotDelete           = flagSnapshot.Command("delete", "delete a snapshot")
+	flagSnapshotDeleteUUID       = flagSnapshotDelete.Flag("uuid", "uuid of snapshot").Required().String()
+	flagSnapshotDeleteVolumeUUID = flagSnapshotDelete.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
+	flagSnapshotList             = flagSnapshot.Command("list", "list snapshots")
+	flagSnapshotListVolumeUUID   = flagSnapshotList.Flag("volume-uuid", "uuid of volume for snapshot").String()
 
 	flagInfo = flagApp.Command("info", "information about volmgr")
 )
@@ -41,11 +50,6 @@ const (
 type Config struct {
 	Root   string
 	Driver string
-}
-
-type Manager struct {
-	root   string
-	driver drivers.Driver
 }
 
 func main() {
@@ -85,23 +89,35 @@ func main() {
 		os.Exit(-1)
 	}
 
+	driver, err := drivers.GetDriver(config.Driver, getDriverRoot(config.Root, config.Driver), nil)
+	if err != nil {
+		log.Errorln("Failed to load driver.", err)
+		os.Exit(-1)
+	}
+
 	switch command {
-	case flagVolumeCreate.FullCommand():
-		doVolumeCreate(&config, *flagVolumeCreateSize)
-	case flagVolumeDelete.FullCommand():
-		doVolumeDelete(&config, *flagVolumeDeleteUUID)
-	case flagVolumeUpdate.FullCommand():
-		doVolumeUpdate(&config, *flagVolumeUpdateUUID, *flagVolumeUpdateSize)
-	case flagVolumeList.FullCommand():
-		doVolumeList(&config)
 	case flagInfo.FullCommand():
-		err = doInfo(&config)
-		if err != nil {
-			log.Errorln("Failed to load complete info.", err)
-			os.Exit(-1)
-		}
+		err = doInfo(&config, driver)
+	case flagVolumeCreate.FullCommand():
+		err = doVolumeCreate(&config, driver, *flagVolumeCreateSize)
+	case flagVolumeDelete.FullCommand():
+		err = doVolumeDelete(&config, driver, *flagVolumeDeleteUUID)
+	case flagVolumeUpdate.FullCommand():
+		err = doVolumeUpdate(&config, driver, *flagVolumeUpdateUUID, *flagVolumeUpdateSize)
+	case flagVolumeList.FullCommand():
+		err = doVolumeList(&config, driver)
+	case flagSnapshotCreate.FullCommand():
+		err = doSnapshotCreate(&config, driver, *flagSnapshotCreateVolumeUUID)
+	case flagSnapshotDelete.FullCommand():
+		err = doSnapshotDelete(&config, driver, *flagSnapshotDeleteUUID, *flagSnapshotDeleteVolumeUUID)
+	case flagSnapshotList.FullCommand():
+		err = doSnapshotList(&config, driver, *flagSnapshotListVolumeUUID)
 	default:
 		log.Errorln("Unrecognized command")
+		os.Exit(-1)
+	}
+	if err != nil {
+		log.Errorln("Failed to complete", command, err)
 		os.Exit(-1)
 	}
 }

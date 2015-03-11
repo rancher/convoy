@@ -8,10 +8,12 @@ type InitFunc func(root string, config map[string]string) (Driver, error)
 
 type Driver interface {
 	Name() string
-	CreateVolume(id, baseId string) error
+	CreateVolume(id, baseId string, size uint64) error
 	DeleteVolume(id string) error
+	ListVolumes() error
 	CreateSnapshot(id, volumeId string) error
-	DeleteSnapshot(id string) error
+	DeleteSnapshot(id, volumeId string) error
+	ListSnapshot(volumeId string) error
 	ExportSnapshot(id, path string, blockSize uint32) error
 	Info() error
 }
