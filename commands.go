@@ -4,7 +4,6 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	_ "github.com/yasker/volmgr/devmapper"
 	"github.com/yasker/volmgr/drivers"
 	"github.com/yasker/volmgr/utils"
 	"os"
