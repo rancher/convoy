@@ -32,7 +32,7 @@ const (
 
 type Driver struct {
 	configFile string
-	*Device
+	Device
 }
 
 type Volume struct {
@@ -107,7 +107,7 @@ func Init(root string, config map[string]string) (drivers.Driver, error) {
 		if err != nil {
 			return d, err
 		}
-		d.Device = &dev
+		d.Device = dev
 		d.configFile = driverConfig
 		return d, nil
 	}
@@ -149,7 +149,8 @@ func Init(root string, config map[string]string) (drivers.Driver, error) {
 		return nil, err
 	}
 	d := &Driver{
-		Device: dev,
+		configFile: driverConfig,
+		Device:     *dev,
 	}
 	return d, nil
 }
