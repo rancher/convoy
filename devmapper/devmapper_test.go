@@ -3,6 +3,7 @@ package devmapper
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"reflect"
@@ -62,48 +63,39 @@ func TestInit(t *testing.T) {
 	config := make(map[string]string)
 
 	_, err := Init(devRoot, config)
-	if err == nil || err.Error() != "data device or metadata device unspecified" {
-		t.Fatal("Expected error doesn't happened")
-	}
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "data device or metadata device unspecified")
+
 	config[DM_DATA_DEV] = dataDev
 	config[DM_METADATA_DEV] = metadataDev
 	config[DM_THINPOOL_BLOCK_SIZE] = "100"
 	_, err = Init(devRoot, config)
-	if err == nil || !strings.HasPrefix(err.Error(), "Block size must") {
-		t.Fatal("Expected error doesn't happened")
-	}
+	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "Block size must"))
 
 	config[DM_THINPOOL_NAME] = "test_pool"
 	delete(config, DM_THINPOOL_BLOCK_SIZE)
 
 	driver, err := Init(devRoot, config)
-	if err != nil {
-		t.Fatal("Fail to init volmgr", err)
-	}
+	assert.Nil(t, err)
 
 	newDriver, err := Init(devRoot, config)
-	if err != nil {
-		t.Fatal("Fail to reload device mapper driver", err)
-	}
+	assert.Nil(t, err)
 
 	drv1, ok := driver.(*Driver)
-	if !ok {
-		t.Fatal("Fail to convert type")
-	}
+	assert.True(t, ok)
 	drv2, ok := newDriver.(*Driver)
-	if !ok {
-		t.Fatal("Fail to convert type")
-	}
+	assert.True(t, ok)
 
 	if !reflect.DeepEqual(*drv1, *drv2) {
 		t.Fatal("Fail to verify the information from driver config")
 	}
 
-	if drv1.configFile != devRoot+"/devmapper.cfg" {
-		t.Fatal("Failed driver.configFile")
-	}
+	assert.Equal(t, drv1.configFile, devRoot+"/devicemapper.cfg")
 
-	if drv1.DataDevice != dataDev || drv1.MetadataDevice != metadataDev {
-		t.Fatal("Failed device.DataDevice or dev.MetadataDevice check")
-	}
+	assert.Equal(t, drv1.DataDevice, dataDev)
+	assert.Equal(t, drv1.MetadataDevice, metadataDev)
+}
+
+func TestVolumeCreate(t *testing.T) {
 }
