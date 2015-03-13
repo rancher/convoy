@@ -175,6 +175,11 @@ func (d *Driver) CreateVolume(id, baseId string, size uint64) error {
 		return fmt.Errorf("Size must be multiple of block size")
 
 	}
+	volume, exists := d.Volumes[id]
+	if exists {
+		return fmt.Errorf("Already has volume with uuid %v", id)
+	}
+
 	devId := d.LastDevId
 	log.Debugf("Creating device, uuid %v(devid %v)", id, devId)
 	err := devicemapper.CreateDevice(d.ThinpoolDevice, devId)
@@ -192,7 +197,7 @@ func (d *Driver) CreateVolume(id, baseId string, size uint64) error {
 	}
 	log.Debug("Activated device")
 
-	volume := Volume{
+	volume = Volume{
 		DevId:     devId,
 		Size:      size,
 		Snapshots: make(map[string]Snapshot),
@@ -257,6 +262,11 @@ func (d *Driver) CreateSnapshot(id, volumeId string) error {
 	}
 	devId := d.LastDevId
 
+	snapshot, exists := volume.Snapshots[id]
+	if exists {
+		return fmt.Errorf("Already has snapshot with uuid %v", id)
+	}
+
 	log.Debugf("Creating snapshot %v for volume %v", id, volumeId)
 	err := devicemapper.CreateSnapDevice(d.ThinpoolDevice, devId, volumeId, volume.DevId)
 	if err != nil {
@@ -264,7 +274,7 @@ func (d *Driver) CreateSnapshot(id, volumeId string) error {
 	}
 	log.Debugf("Created snapshot")
 
-	snapshot := Snapshot{
+	snapshot = Snapshot{
 		DevId: devId,
 	}
 	volume.Snapshots[id] = snapshot
