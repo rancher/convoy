@@ -2,8 +2,10 @@
 package devmapper
 
 import (
+	"code.google.com/p/go-uuid/uuid"
 	"fmt"
-	"github.com/stretchr/testify/assert"
+	log "github.com/Sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
 	"reflect"
@@ -16,9 +18,13 @@ const (
 	metadataDev = "/dev/loop1"
 	poolName    = "test_pool"
 	devRoot     = "/tmp/devmapper"
+	volumeSize  = 1 << 27
 )
 
 func setUp() error {
+	log.SetLevel(log.DebugLevel)
+	log.SetOutput(os.Stderr)
+
 	cmd := exec.Command("mkdir", "-p", devRoot)
 	err := cmd.Run()
 	if err != nil {
@@ -28,12 +34,12 @@ func setUp() error {
 }
 
 func tearDown() error {
-	cmd := exec.Command("dmsetup", "remove", poolName)
+	cmd := exec.Command("rm", "-rf", devRoot)
 	err := cmd.Run()
 	if err != nil {
 		return err
 	}
-	cmd = exec.Command("rm", "-rf", devRoot)
+	cmd = exec.Command("dmsetup", "remove", poolName)
 	err = cmd.Run()
 	if err != nil {
 		return err
@@ -63,39 +69,100 @@ func TestInit(t *testing.T) {
 	config := make(map[string]string)
 
 	_, err := Init(devRoot, config)
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "data device or metadata device unspecified")
+	require.NotNil(t, err)
+	require.Equal(t, err.Error(), "data device or metadata device unspecified")
 
 	config[DM_DATA_DEV] = dataDev
 	config[DM_METADATA_DEV] = metadataDev
 	config[DM_THINPOOL_BLOCK_SIZE] = "100"
 	_, err = Init(devRoot, config)
-	assert.NotNil(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "Block size must"))
+	require.NotNil(t, err)
+	require.True(t, strings.HasPrefix(err.Error(), "Block size must"))
 
 	config[DM_THINPOOL_NAME] = "test_pool"
 	delete(config, DM_THINPOOL_BLOCK_SIZE)
 
 	driver, err := Init(devRoot, config)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	newDriver, err := Init(devRoot, config)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	drv1, ok := driver.(*Driver)
-	assert.True(t, ok)
+	require.True(t, ok)
 	drv2, ok := newDriver.(*Driver)
-	assert.True(t, ok)
+	require.True(t, ok)
 
 	if !reflect.DeepEqual(*drv1, *drv2) {
 		t.Fatal("Fail to verify the information from driver config")
 	}
 
-	assert.Equal(t, drv1.configFile, devRoot+"/devicemapper.cfg")
+	require.Equal(t, drv1.configFile, devRoot+"/devicemapper.cfg")
 
-	assert.Equal(t, drv1.DataDevice, dataDev)
-	assert.Equal(t, drv1.MetadataDevice, metadataDev)
+	require.Equal(t, drv1.DataDevice, dataDev)
+	require.Equal(t, drv1.MetadataDevice, metadataDev)
 }
 
-func TestVolumeCreate(t *testing.T) {
+func TestVolume(t *testing.T) {
+	driver, err := Init(devRoot, nil)
+	require.Nil(t, err)
+
+	drv := driver.(*Driver)
+	lastDevId := drv.LastDevId
+	volumeId := uuid.New()
+	err = driver.CreateVolume(volumeId, "", volumeSize)
+	require.Nil(t, err)
+
+	require.Equal(t, drv.LastDevId, lastDevId+1)
+
+	volumeId2 := uuid.New()
+
+	err = driver.CreateVolume(volumeId2, "", volumeSize)
+	require.Nil(t, err)
+
+	err = driver.ListVolumes()
+	require.Nil(t, err)
+
+	err = driver.DeleteVolume(volumeId2)
+	require.Nil(t, err)
+
+	err = driver.DeleteVolume(volumeId)
+	require.Nil(t, err)
+}
+
+func TestSnapshot(t *testing.T) {
+	driver, err := Init(devRoot, nil)
+	require.Nil(t, err)
+
+	volumeId := uuid.New()
+	err = driver.CreateVolume(volumeId, "", volumeSize)
+	require.Nil(t, err)
+
+	snapshotId := uuid.New()
+	err = driver.CreateSnapshot(snapshotId, volumeId)
+	require.Nil(t, err)
+
+	snapshotId2 := uuid.New()
+	err = driver.CreateSnapshot(snapshotId2, volumeId)
+	require.Nil(t, err)
+
+	err = driver.ListSnapshot("")
+	require.Nil(t, err)
+
+	err = driver.ListSnapshot(volumeId)
+	require.Nil(t, err)
+
+	err = driver.DeleteSnapshot(snapshotId, volumeId)
+	require.Nil(t, err)
+
+	err = driver.DeleteVolume(volumeId)
+	require.NotNil(t, err)
+	require.True(t, strings.HasSuffix(err.Error(), "delete snapshots first"))
+
+	err = driver.DeleteSnapshot(snapshotId2, volumeId)
+	require.Nil(t, err)
+
+	err = driver.DeleteVolume(volumeId)
+	require.Nil(t, err)
+
 }
