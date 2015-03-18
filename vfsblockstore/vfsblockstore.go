@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-type VfsBlockStore struct {
+type VfsBlockStoreDriver struct {
 	Id   string
 	Path string
 }
@@ -21,11 +21,11 @@ const (
 )
 
 func init() {
-	blockstores.Register(KIND, initFunc)
+	blockstores.RegisterDriver(KIND, initFunc)
 }
 
-func initFunc(configFile, id string, config map[string]string) (blockstores.BlockStore, error) {
-	b := &VfsBlockStore{}
+func initFunc(configFile, id string, config map[string]string) (blockstores.BlockStoreDriver, error) {
+	b := &VfsBlockStoreDriver{}
 	if _, err := os.Stat(configFile); err == nil {
 		err := utils.LoadConfig(configFile, b)
 		if err != nil {
@@ -49,22 +49,26 @@ func initFunc(configFile, id string, config map[string]string) (blockstores.Bloc
 	return b, nil
 }
 
-func (v *VfsBlockStore) Kind() string {
+func (v *VfsBlockStoreDriver) Kind() string {
 	return KIND
 }
 
-func (v *VfsBlockStore) FileExists(fileName string) bool {
+func (v *VfsBlockStoreDriver) FileExists(fileName string) bool {
 	file := filepath.Join(v.Path, fileName)
 	st, err := os.Stat(file)
 	return err == nil && !st.IsDir()
 }
 
-func (v *VfsBlockStore) MkDir(dirName string) error {
-	return os.MkdirAll(dirName, os.ModeDir|0700)
+func (v *VfsBlockStoreDriver) MkDirAll(dirName string) error {
+	return os.MkdirAll(filepath.Join(v.Path, dirName), os.ModeDir|0700)
 }
 
-func (v *VfsBlockStore) Read(srcPath, srcFileName string, data []byte) error {
-	file, err := os.Open(filepath.Join(srcPath, srcFileName))
+func (v *VfsBlockStoreDriver) RemoveAll(dirName string) error {
+	return os.RemoveAll(filepath.Join(v.Path, dirName))
+}
+
+func (v *VfsBlockStoreDriver) Read(srcPath, srcFileName string, data []byte) error {
+	file, err := os.Open(filepath.Join(v.Path, srcPath, srcFileName))
 	if err != nil {
 		return err
 	}
@@ -73,8 +77,8 @@ func (v *VfsBlockStore) Read(srcPath, srcFileName string, data []byte) error {
 	return err
 }
 
-func (v *VfsBlockStore) Write(data []byte, dstPath, dstFileName string) error {
-	file, err := os.Create(filepath.Join(dstPath, dstFileName))
+func (v *VfsBlockStoreDriver) Write(data []byte, dstPath, dstFileName string) error {
+	file, err := os.Create(filepath.Join(v.Path, dstPath, dstFileName))
 	if err != nil {
 		return err
 	}
@@ -83,7 +87,7 @@ func (v *VfsBlockStore) Write(data []byte, dstPath, dstFileName string) error {
 	return err
 }
 
-func (v *VfsBlockStore) CopyToPath(srcFileName string, path string) error {
-	err := exec.Command("cp", srcFileName, path).Run()
+func (v *VfsBlockStoreDriver) CopyToPath(srcFileName string, path string) error {
+	err := exec.Command("cp", filepath.Join(v.Path, srcFileName), path).Run()
 	return err
 }

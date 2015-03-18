@@ -7,8 +7,6 @@ import (
 	"github.com/yasker/volmgr/blockstores"
 	"github.com/yasker/volmgr/drivers"
 	"github.com/yasker/volmgr/utils"
-	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -17,20 +15,12 @@ func getDriverRoot(root, driverName string) string {
 }
 
 func doInitialize(root, driverName string, driverOpts map[string]string) error {
-	if _, err := os.Stat(root); os.IsNotExist(err) {
-		if err := os.MkdirAll(root, os.ModeDir|0700); err != nil {
-			return err
-		}
-	}
+	utils.MkdirIfNotExists(root)
 	log.Debug("Config root is ", root)
 
 	driverRoot := getDriverRoot(root, driverName)
+	utils.MkdirIfNotExists(driverRoot)
 	log.Debug("Driver root is ", driverRoot)
-	if _, err := os.Stat(driverRoot); os.IsNotExist(err) {
-		if err := os.MkdirAll(driverRoot, os.ModeDir|0700); err != nil {
-			return err
-		}
-	}
 
 	_, err := drivers.GetDriver(driverName, driverRoot, driverOpts)
 	if err != nil {
@@ -94,19 +84,28 @@ const (
 	BLOCKSTORE_PATH = "blockstore"
 )
 
-func getBlockStoreConfigFilename(config *Config, kind, id string) string {
-	return filepath.Join(filepath.Join(config.Root, BLOCKSTORE_PATH)+"/", kind+"-"+id+".cfg")
+func getBlockStoreRoot(root string) string {
+	return filepath.Join(root, BLOCKSTORE_PATH) + "/"
 }
 
 func doBlockStoreRegister(config *Config, kind string, opts map[string]string) error {
 	id := uuid.New()
-	configFile := getBlockStoreConfigFilename(config, kind, id)
-	_, err := blockstores.GetBlockStore(kind, configFile, id, opts)
-	return err
+	path := getBlockStoreRoot(config.Root)
+	err := utils.MkdirIfNotExists(path)
+	if err != nil {
+		return err
+	}
+	return blockstores.Register(path, kind, id, opts)
 }
 
 func doBlockStoreDeregister(config *Config, kind, id string) error {
-	configFile := getBlockStoreConfigFilename(config, kind, id)
-	err := exec.Command("rm", "-f", configFile).Run()
-	return err
+	return blockstores.Deregister(getBlockStoreRoot(config.Root), kind, id)
+}
+
+func doBlockStoreAdd(config *Config, blockstoreId, volumeId string) error {
+	return blockstores.AddVolume(getBlockStoreRoot(config.Root), blockstoreId, volumeId)
+}
+
+func doBlockStoreRemove(config *Config, blockstoreId, volumeId string) error {
+	return blockstores.RemoveVolume(getBlockStoreRoot(config.Root), blockstoreId, volumeId)
 }

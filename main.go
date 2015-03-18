@@ -42,13 +42,13 @@ var (
 	flagBlockStoreRegister         = flagBlockStore.Command("register", "register a existed blockstore")
 	flagBlockStoreRegisterKind     = flagBlockStoreRegister.Flag("kind", "kind of blockstore").Required().String()
 	flagBlockStoreRegisterOpts     = flagBlockStoreRegister.Flag("opts", "options used to register blockstore").StringMap()
-	flagBlockStoreDeregister       = flagBlockStore.Command("delete", "delete a blockstore")
+	flagBlockStoreDeregister       = flagBlockStore.Command("deregister", "delete a blockstore")
 	flagBlockStoreDeregisterKind   = flagBlockStoreDeregister.Flag("kind", "kind of blockstore").Required().String()
 	flagBlockStoreDeregisterUUID   = flagBlockStoreDeregister.Flag("uuid", "uuid of blockstore").Required().String()
 	flagBlockStoreAdd              = flagBlockStore.Command("add", "add a volume to blockstore, one volume can only associate with one block store")
 	flagBlockStoreAddUUID          = flagBlockStoreAdd.Flag("uuid", "uuid of blockstore").Required().String()
 	flagBlockStoreAddVolumeUUID    = flagBlockStoreAdd.Flag("volume-uuid", "uuid of volume").Required().String()
-	flagBlockStoreRemove           = flagBlockStore.Command("remove", "remove a volume from blockstore, all the data about the volume in this blockstore would be removed")
+	flagBlockStoreRemove           = flagBlockStore.Command("remove", "remove a volume from blockstore, WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!")
 	flagBlockStoreRemoveUUID       = flagBlockStoreRemove.Flag("uuid", "uuid of blockstore").Required().String()
 	flagBlockStoreRemoveVolumeUUID = flagBlockStoreRemove.Flag("volume-uuid", "uuid of volume").Required().String()
 	flagBlockStoreInfo             = flagBlockStore.Command("info", "info of blockstores")
@@ -141,7 +141,11 @@ func main() {
 	case flagBlockStoreRegister.FullCommand():
 		err = doBlockStoreRegister(&config, *flagBlockStoreRegisterKind, *flagBlockStoreRegisterOpts)
 	case flagBlockStoreDeregister.FullCommand():
-		err = doBlockStoreDeregister(&config, *flagBlockStoreRegisterKind, *flagBlockStoreDeregisterUUID)
+		err = doBlockStoreDeregister(&config, *flagBlockStoreDeregisterKind, *flagBlockStoreDeregisterUUID)
+	case flagBlockStoreAdd.FullCommand():
+		err = doBlockStoreAdd(&config, *flagBlockStoreAddUUID, *flagBlockStoreAddVolumeUUID)
+	case flagBlockStoreRemove.FullCommand():
+		err = doBlockStoreRemove(&config, *flagBlockStoreRemoveUUID, *flagBlockStoreRemoveVolumeUUID)
 	default:
 		log.Errorln("Unrecognized command")
 		os.Exit(-1)
