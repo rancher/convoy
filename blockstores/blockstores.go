@@ -138,18 +138,23 @@ func AddVolume(root, id, volumeId string) error {
 	if err != nil {
 		return err
 	}
+
+	if _, exists := b.Volumes[volumeId]; exists {
+		return fmt.Errorf("volume %v already exists in blockstore %v", volumeId, id)
+	}
+
 	driverConfigFile := getDriverConfigFilename(root, b.Kind, id)
 	driver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, id, nil)
 	if err != nil {
 		return err
 	}
 
-	volumeBase := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeId)
-	err = driver.MkDirAll(volumeBase)
+	volumeDir := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeId)
+	err = driver.MkDirAll(volumeDir)
 	if err != nil {
 		return err
 	}
-	log.Debug("Created volume base: ", volumeBase)
+	log.Debug("Created volume directory: ", volumeDir)
 	volume := b.Volumes[id]
 	volume.Blocks = make(map[string]bool)
 	if err = utils.SaveConfig(configFile, b); err != nil {
@@ -165,18 +170,22 @@ func RemoveVolume(root, id, volumeId string) error {
 	if err != nil {
 		return err
 	}
+	if _, exists := b.Volumes[volumeId]; !exists {
+		return fmt.Errorf("volume %v doesn't exist in blockstore %v", volumeId, id)
+	}
+
 	driverConfigFile := getDriverConfigFilename(root, b.Kind, id)
 	driver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, id, nil)
 	if err != nil {
 		return err
 	}
 
-	volumeBase := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeId)
-	err = driver.RemoveAll(volumeBase)
+	volumeDir := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeId)
+	err = driver.RemoveAll(volumeDir)
 	if err != nil {
 		return err
 	}
-	log.Debug("Removed volume base: ", volumeBase)
+	log.Debug("Removed volume directory: ", volumeDir)
 	delete(b.Volumes, id)
 
 	if err = utils.SaveConfig(configFile, b); err != nil {

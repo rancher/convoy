@@ -73,9 +73,16 @@ const (
 	ROOTDIR    = "/var/lib/volmgr/"
 )
 
+type Volume struct {
+	Base      string
+	Size      uint64
+	Snapshots map[string]bool
+}
+
 type Config struct {
-	Root   string
-	Driver string
+	Root    string
+	Driver  string
+	Volumes map[string]Volume
 }
 
 func main() {
