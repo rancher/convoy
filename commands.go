@@ -4,9 +4,11 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/yasker/volmgr/blockstores"
 	"github.com/yasker/volmgr/drivers"
 	"github.com/yasker/volmgr/utils"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -85,5 +87,26 @@ func doSnapshotDelete(config *Config, driver drivers.Driver, uuid, volumeUUID st
 
 func doSnapshotList(config *Config, driver drivers.Driver, volumeUUID string) error {
 	err := driver.ListSnapshot(volumeUUID)
+	return err
+}
+
+const (
+	BLOCKSTORE_PATH = "blockstore"
+)
+
+func getBlockStoreConfigFilename(config *Config, kind, id string) string {
+	return filepath.Join(filepath.Join(config.Root, BLOCKSTORE_PATH)+"/", kind+"-"+id+".cfg")
+}
+
+func doBlockStoreRegister(config *Config, kind string, opts map[string]string) error {
+	id := uuid.New()
+	configFile := getBlockStoreConfigFilename(config, kind, id)
+	_, err := blockstores.GetBlockStore(kind, configFile, id, opts)
+	return err
+}
+
+func doBlockStoreDeregister(config *Config, kind, id string) error {
+	configFile := getBlockStoreConfigFilename(config, kind, id)
+	err := exec.Command("rm", "-f", configFile).Run()
 	return err
 }
