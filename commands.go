@@ -140,11 +140,12 @@ func doBlockStoreDeregister(config *Config, kind, id string) error {
 }
 
 func doBlockStoreAdd(config *Config, blockstoreId, volumeId string) error {
-	if _, exists := config.Volumes[volumeId]; !exists {
+	volume, exists := config.Volumes[volumeId]
+	if !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeId)
 	}
 
-	return blockstores.AddVolume(getBlockStoreRoot(config.Root), blockstoreId, volumeId)
+	return blockstores.AddVolume(getBlockStoreRoot(config.Root), blockstoreId, volumeId, volume.Base, volume.Size)
 }
 
 func doBlockStoreRemove(config *Config, blockstoreId, volumeId string) error {
@@ -153,4 +154,15 @@ func doBlockStoreRemove(config *Config, blockstoreId, volumeId string) error {
 	}
 
 	return blockstores.RemoveVolume(getBlockStoreRoot(config.Root), blockstoreId, volumeId)
+}
+
+func doSnapshotBackup(config *Config, driver drivers.Driver, snapshotId, volumeId, blockstoreId string) error {
+	if _, exists := config.Volumes[volumeId]; !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeId)
+	}
+	if _, exists := config.Volumes[volumeId].Snapshots[snapshotId]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotId, volumeId)
+	}
+
+	return blockstores.BackupSnapshot(getBlockStoreRoot(config.Root), snapshotId, volumeId, blockstoreId, driver)
 }

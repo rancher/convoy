@@ -8,40 +8,65 @@ import (
 	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 )
 
 const (
-	dataDev     = "/dev/loop0"
-	metadataDev = "/dev/loop1"
-	poolName    = "test_pool"
-	devRoot     = "/tmp/devmapper"
-	volumeSize  = 1 << 27
+	dataFile     = "data.vol"
+	metadataFile = "metadata.vol"
+	poolName     = "test_pool"
+	devRoot      = "/tmp/devmapper"
+	volumeSize   = 1 << 27
+	maxThin      = 10000
+)
+
+var (
+	dataDev     string
+	metadataDev string
 )
 
 func setUp() error {
 	log.SetLevel(log.DebugLevel)
 	log.SetOutput(os.Stderr)
 
-	cmd := exec.Command("mkdir", "-p", devRoot)
-	err := cmd.Run()
+	if err := exec.Command("mkdir", "-p", devRoot).Run(); err != nil {
+		return err
+	}
+
+	if err := exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, dataFile), "bs=4096", "count=262114").Run(); err != nil {
+		return err
+	}
+
+	if err := exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, metadataFile), "bs=4096", "count=10000").Run(); err != nil {
+		return err
+	}
+
+	out, err := exec.Command("losetup", "-v", "-f", filepath.Join(devRoot, dataFile)).Output()
 	if err != nil {
 		return err
 	}
+	dataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
+
+	out, err = exec.Command("losetup", "-v", "-f", filepath.Join(devRoot, metadataFile)).Output()
+	if err != nil {
+		return err
+	}
+	metadataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
+
 	return nil
 }
 
 func tearDown() error {
-	cmd := exec.Command("rm", "-rf", devRoot)
-	err := cmd.Run()
-	if err != nil {
+	if err := exec.Command("dmsetup", "remove", poolName).Run(); err != nil {
 		return err
 	}
-	cmd = exec.Command("dmsetup", "remove", poolName)
-	err = cmd.Run()
-	if err != nil {
+	if err := exec.Command("losetup", "-d", dataDev, metadataDev).Run(); err != nil {
+		return err
+	}
+	if err := exec.Command("rm", "-rf", devRoot).Run(); err != nil {
 		return err
 	}
 	return nil
@@ -135,7 +160,7 @@ func TestVolume(t *testing.T) {
 
 	err = driver.DeleteVolume("123")
 	require.NotNil(t, err)
-	require.True(t, strings.HasPrefix(err.Error(), "Cannot find volume with uuid"))
+	require.True(t, strings.HasPrefix(err.Error(), "cannot find volume"))
 
 	err = driver.DeleteVolume(volumeId2)
 	require.Nil(t, err)
@@ -175,7 +200,7 @@ func TestSnapshot(t *testing.T) {
 
 	err = driver.DeleteSnapshot(snapshotId, volumeId)
 	require.NotNil(t, err)
-	require.True(t, strings.HasPrefix(err.Error(), "Cannot find snapshot with uuid"))
+	require.True(t, strings.HasPrefix(err.Error(), "cannot find snapshot"))
 
 	err = driver.DeleteVolume(volumeId)
 	require.NotNil(t, err)

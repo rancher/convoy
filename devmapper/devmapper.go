@@ -6,8 +6,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/yasker/volmgr/drivers"
+	"github.com/yasker/volmgr/metadata"
 	"github.com/yasker/volmgr/utils"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 )
@@ -43,7 +45,8 @@ type Volume struct {
 }
 
 type Snapshot struct {
-	DevId int
+	DevId     int
+	Activated bool
 }
 
 type Device struct {
@@ -188,14 +191,11 @@ func (d *Driver) CreateVolume(id, baseId string, size uint64) error {
 	}
 	log.Debug("Created device")
 
-	log.Debugf("Activating device, uuid %v(devid %v)", id, devId)
-	err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, devId, size)
-	if err != nil {
+	if err = d.activateDevice(id, devId, size); err != nil {
 		devicemapper.DeleteDevice(d.ThinpoolDevice, devId)
 		log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devId)
 		return err
 	}
-	log.Debug("Activated device")
 
 	volume = Volume{
 		DevId:     devId,
@@ -213,20 +213,19 @@ func (d *Driver) CreateVolume(id, baseId string, size uint64) error {
 }
 
 func (d *Driver) DeleteVolume(id string) error {
+	var err error
 	volume, exists := d.Volumes[id]
 	if !exists {
-		return fmt.Errorf("Cannot find volume with uuid %v", id)
+		return fmt.Errorf("cannot find volume %v", id)
 	}
 	if len(volume.Snapshots) != 0 {
 		return fmt.Errorf("Volume %v still contains snapshots, delete snapshots first", id)
 	}
 
-	log.Debugf("Deactivating device, uuid %v(devid %v)", id, volume.DevId)
-	err := devicemapper.RemoveDevice(id)
-	if err != nil {
+	if err = d.deactivateDevice(id, volume.DevId); err != nil {
 		return err
 	}
-	log.Debug("Deactivatd device")
+
 	log.Debugf("Deleting device, uuid %v(devid %v)", id, volume.DevId)
 	err = devicemapper.DeleteDevice(d.ThinpoolDevice, volume.DevId)
 	if err != nil {
@@ -275,7 +274,8 @@ func (d *Driver) CreateSnapshot(id, volumeId string) error {
 	log.Debugf("Created snapshot")
 
 	snapshot = Snapshot{
-		DevId: devId,
+		DevId:     devId,
+		Activated: false,
 	}
 	volume.Snapshots[id] = snapshot
 	d.LastDevId++
@@ -287,18 +287,13 @@ func (d *Driver) CreateSnapshot(id, volumeId string) error {
 }
 
 func (d *Driver) DeleteSnapshot(id, volumeId string) error {
-	volume, exists := d.Volumes[volumeId]
-	if !exists {
-		return fmt.Errorf("Cannot find volume with uuid %v", volumeId)
-	}
-
-	snapshot, exists := volume.Snapshots[id]
-	if !exists {
-		return fmt.Errorf("Cannot find snapshot with uuid %v in volume %v", id, volumeId)
+	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeId)
+	if err != nil {
+		return err
 	}
 
 	log.Debugf("Deleting snapshot %v for volume %v", id, volumeId)
-	err := devicemapper.DeleteDevice(d.ThinpoolDevice, snapshot.DevId)
+	err = devicemapper.DeleteDevice(d.ThinpoolDevice, snapshot.DevId)
 	if err != nil {
 		return err
 	}
@@ -330,8 +325,26 @@ func (d *Driver) ListSnapshot(volumeId string) error {
 	return nil
 }
 
-func (d *Driver) ExportSnapshot(id, path string, blockSize uint32) error {
-	return nil
+func (d *Driver) CompareSnapshot(id, compareId, volumeId string, mapping *metadata.Mappings) error {
+	if compareId == "" {
+		compareId = id
+	}
+	snap1, _, err := d.getSnapshotAndVolume(id, volumeId)
+	if err != nil {
+		return err
+	}
+	snap2, _, err := d.getSnapshotAndVolume(compareId, volumeId)
+	if err != nil {
+		return err
+	}
+
+	dev := d.MetadataDevice
+	out, err := exec.Command("thin_delta", "--verbose", "--snap1", strconv.Itoa(snap1.DevId), "--snap2", strconv.Itoa(snap2.DevId), dev).Output()
+	if err != nil {
+		return err
+	}
+	err = metadata.DeviceMapperThinDeltaParser(out, d.ThinpoolBlockSize, mapping)
+	return err
 }
 
 func (d *Driver) Info() error {
@@ -344,6 +357,86 @@ func (d *Driver) Info() error {
 	fmt.Println("\tthinpool:", d.ThinpoolDevice)
 	fmt.Println("\tthinpool size:", d.ThinpoolSize)
 	fmt.Println("\tthinpool block size:", blockSize)
+
+	return nil
+}
+
+func (d *Driver) getSnapshotAndVolume(snapshotId, volumeId string) (*Snapshot, *Volume, error) {
+	volume, exists := d.Volumes[volumeId]
+	if !exists {
+		return nil, nil, fmt.Errorf("cannot find volume %v", volumeId)
+	}
+	snap, exists := volume.Snapshots[snapshotId]
+	if !exists {
+		return nil, nil, fmt.Errorf("cannot find snapshot %v of volume %v", snapshotId, volumeId)
+	}
+	return &snap, &volume, nil
+}
+
+func (d *Driver) activateDevice(id string, devId int, size uint64) error {
+	log.Debugf("Activating device, uuid %v(devid %v)", id, devId)
+	err := devicemapper.ActivateDevice(d.ThinpoolDevice, id, devId, size)
+	if err != nil {
+		return err
+	}
+	log.Debug("Activated device")
+	return nil
+}
+
+func (d *Driver) deactivateDevice(id string, devId int) error {
+	log.Debugf("Deactivating device, uuid %v(devid %v)", id, devId)
+	err := devicemapper.RemoveDevice(id)
+	if err != nil {
+		return err
+	}
+	log.Debug("Deactivated device")
+	return nil
+}
+
+func (d *Driver) OpenSnapshot(id, volumeId string) error {
+	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeId)
+	if err != nil {
+		return err
+	}
+
+	if err = d.activateDevice(id, snapshot.DevId, volume.Size); err != nil {
+		return err
+	}
+	snapshot.Activated = true
+
+	return d.updateConfig()
+}
+
+func (d *Driver) CloseSnapshot(id, volumeId string) error {
+	snapshot, _, err := d.getSnapshotAndVolume(id, volumeId)
+	if err != nil {
+		return err
+	}
+
+	if err := d.deactivateDevice(id, snapshot.DevId); err != nil {
+		return err
+	}
+	snapshot.Activated = false
+
+	return d.updateConfig()
+}
+
+func (d *Driver) ReadSnapshot(id, volumeId string, start uint64, data []byte) error {
+	_, _, err := d.getSnapshotAndVolume(id, volumeId)
+	if err != nil {
+		return err
+	}
+
+	dev := filepath.Join(DM_DIR, id)
+	devFile, err := os.Open(dev)
+	if err != nil {
+		return nil
+	}
+	defer devFile.Close()
+
+	if _, err = devFile.ReadAt(data, int64(start)); err != nil {
+		return err
+	}
 
 	return nil
 }

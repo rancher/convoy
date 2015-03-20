@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"fmt"
+	"github.com/yasker/volmgr/metadata"
 )
 
 type InitFunc func(root string, config map[string]string) (Driver, error)
@@ -14,7 +15,10 @@ type Driver interface {
 	CreateSnapshot(id, volumeId string) error
 	DeleteSnapshot(id, volumeId string) error
 	ListSnapshot(volumeId string) error
-	ExportSnapshot(id, path string, blockSize uint32) error
+	CompareSnapshot(id, compareId, volumeId string, mapping *metadata.Mappings) error
+	OpenSnapshot(id, volumeId string) error
+	ReadSnapshot(id, volumeId string, start uint64, data []byte) error
+	CloseSnapshot(id, volumeId string) error
 	Info() error
 }
 

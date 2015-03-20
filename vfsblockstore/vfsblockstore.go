@@ -53,18 +53,25 @@ func (v *VfsBlockStoreDriver) Kind() string {
 	return KIND
 }
 
-func (v *VfsBlockStoreDriver) FileExists(fileName string) bool {
-	file := filepath.Join(v.Path, fileName)
+func (v *VfsBlockStoreDriver) FileSize(path, fileName string) int64 {
+	file := filepath.Join(v.Path, path, fileName)
 	st, err := os.Stat(file)
-	return err == nil && !st.IsDir()
+	if err != nil || st.IsDir() {
+		return -1
+	}
+	return st.Size()
+}
+
+func (v *VfsBlockStoreDriver) FileExists(path, fileName string) bool {
+	return v.FileSize(path, fileName) >= 0
 }
 
 func (v *VfsBlockStoreDriver) MkDirAll(dirName string) error {
 	return os.MkdirAll(filepath.Join(v.Path, dirName), os.ModeDir|0700)
 }
 
-func (v *VfsBlockStoreDriver) RemoveAll(dirName string) error {
-	return os.RemoveAll(filepath.Join(v.Path, dirName))
+func (v *VfsBlockStoreDriver) RemoveAll(name string) error {
+	return os.RemoveAll(filepath.Join(v.Path, name))
 }
 
 func (v *VfsBlockStoreDriver) Read(srcPath, srcFileName string, data []byte) error {

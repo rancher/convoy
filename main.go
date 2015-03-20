@@ -153,6 +153,9 @@ func main() {
 		err = doBlockStoreAdd(&config, *flagBlockStoreAddUUID, *flagBlockStoreAddVolumeUUID)
 	case flagBlockStoreRemove.FullCommand():
 		err = doBlockStoreRemove(&config, *flagBlockStoreRemoveUUID, *flagBlockStoreRemoveVolumeUUID)
+	case flagSnapshotBackup.FullCommand():
+		err = doSnapshotBackup(&config, driver, *flagSnapshotBackupUUID, *flagSnapshotBackupVolumeUUID,
+			*flagSnapshotBackupBlockStoreUUID)
 	default:
 		log.Errorln("Unrecognized command")
 		os.Exit(-1)
