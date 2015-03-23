@@ -343,7 +343,7 @@ func (d *Driver) CompareSnapshot(id, compareId, volumeId string, mapping *metada
 	if err != nil {
 		return err
 	}
-	err = metadata.DeviceMapperThinDeltaParser(out, d.ThinpoolBlockSize, mapping)
+	err = metadata.DeviceMapperThinDeltaParser(out, d.ThinpoolBlockSize*SECTOR_SIZE, mapping)
 	return err
 }
 
@@ -421,7 +421,7 @@ func (d *Driver) CloseSnapshot(id, volumeId string) error {
 	return d.updateConfig()
 }
 
-func (d *Driver) ReadSnapshot(id, volumeId string, start uint64, data []byte) error {
+func (d *Driver) ReadSnapshot(id, volumeId string, offset uint64, data []byte) error {
 	_, _, err := d.getSnapshotAndVolume(id, volumeId)
 	if err != nil {
 		return err
@@ -430,11 +430,11 @@ func (d *Driver) ReadSnapshot(id, volumeId string, start uint64, data []byte) er
 	dev := filepath.Join(DM_DIR, id)
 	devFile, err := os.Open(dev)
 	if err != nil {
-		return nil
+		return err
 	}
 	defer devFile.Close()
 
-	if _, err = devFile.ReadAt(data, int64(start)); err != nil {
+	if _, err = devFile.ReadAt(data, int64(offset)); err != nil {
 		return err
 	}
 

@@ -1,8 +1,6 @@
 package blockstores
 
 import (
-	"crypto/sha512"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -15,16 +13,15 @@ import (
 )
 
 const (
-	BLOCKSTORE_BASE           = "rancher-blockstore"
-	VOLUME_DIRECTORY          = "volume"
-	VOLUME_CONFIG_FILE        = "volume.cfg"
-	SNAPSHOTS_DIRECTORY       = "snapshots"
-	SNAPSHOT_CONFIG_PREFIX    = "snapshot-"
-	BLOCKS_DIRECTORY          = "blocks"
-	BLOCK_SEPARATE_LAYER1     = 2
-	BLOCK_SEPARATE_LAYER2     = 4
-	DEFAULT_BLOCK_SIZE        = 2097152
-	PRESERVED_CHECKSUM_LENGTH = 64
+	BLOCKSTORE_BASE        = "rancher-blockstore"
+	VOLUME_DIRECTORY       = "volume"
+	VOLUME_CONFIG_FILE     = "volume.cfg"
+	SNAPSHOTS_DIRECTORY    = "snapshots"
+	SNAPSHOT_CONFIG_PREFIX = "snapshot-"
+	BLOCKS_DIRECTORY       = "blocks"
+	BLOCK_SEPARATE_LAYER1  = 2
+	BLOCK_SEPARATE_LAYER2  = 4
+	DEFAULT_BLOCK_SIZE     = 2097152
 )
 
 type InitFunc func(configFile, id string, config map[string]string) (BlockStoreDriver, error)
@@ -173,12 +170,16 @@ func AddVolume(root, id, volumeId, base string, size uint64) error {
 		return err
 	}
 
-	volumeDir := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeId)
-	err = driver.MkDirAll(volumeDir)
-	if err != nil {
+	if err := driver.MkDirAll(getVolumePath(volumeId)); err != nil {
 		return err
 	}
-	log.Debug("Created volume directory: ", volumeDir)
+	if err := driver.MkDirAll(getSnapshotsPath(volumeId)); err != nil {
+		return err
+	}
+	if err := driver.MkDirAll(getBlocksPath(volumeId)); err != nil {
+		return err
+	}
+	log.Debug("Created volume directory")
 	volume := Volume{
 		Size:           size,
 		Base:           base,
@@ -245,10 +246,14 @@ func getSnapshotsPath(volumeId string) string {
 	return filepath.Join(getVolumePath(volumeId), SNAPSHOTS_DIRECTORY)
 }
 
+func getBlocksPath(volumeId string) string {
+	return filepath.Join(getVolumePath(volumeId), BLOCKS_DIRECTORY)
+}
+
 func getBlockPathAndFileName(volumeId, checksum string) (string, string) {
 	blockSubDirLayer1 := checksum[0:BLOCK_SEPARATE_LAYER1]
 	blockSubDirLayer2 := checksum[BLOCK_SEPARATE_LAYER1:BLOCK_SEPARATE_LAYER2]
-	path := filepath.Join(getVolumePath(volumeId), BLOCKS_DIRECTORY, blockSubDirLayer1, blockSubDirLayer2)
+	path := filepath.Join(getBlocksPath(volumeId), blockSubDirLayer1, blockSubDirLayer2)
 	fileName := checksum + ".blk"
 
 	return path, fileName
@@ -280,23 +285,14 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 	lastSnapshotMap := &SnapshotMap{}
 	//We'd better check last snapshot config early, ensure it would go through
 	if lastSnapshotId != "" {
-		path := getSnapshotsPath(volumeId)
-		fileName := getSnapshotConfigName(lastSnapshotId)
-		fileSize := bsDriver.FileSize(path, fileName)
-		if fileSize < 0 {
-			return fmt.Errorf("Last snapshot %v doesn't existed in blockstore", lastSnapshotId)
-		}
-		data := make([]byte, fileSize)
-		if err := bsDriver.Read(path, fileName, data); err != nil {
+		log.Debug("Loading last snapshot", lastSnapshotId)
+		if err := loadSnapshotMap(lastSnapshotId, volumeId, bsDriver, lastSnapshotMap); err != nil {
 			return err
 		}
-		err := json.Unmarshal(data, lastSnapshotMap)
-		if err != nil {
-			return err
-		}
-		log.Debug("Loaded last snapshot %v", lastSnapshotId)
+		log.Debug("Loaded last snapshot", lastSnapshotId)
 	}
 
+	log.Debug("Generating snapshot metadata of", snapshotId)
 	delta := metadata.Mappings{}
 	if err = sDriver.CompareSnapshot(snapshotId, lastSnapshotId, volumeId, &delta); err != nil {
 		return err
@@ -304,10 +300,16 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 	if delta.BlockSize != b.BlockSize {
 		return fmt.Errorf("Currently doesn't support different block sizes between blockstore and driver")
 	}
+	log.Debug("Generated snapshot metadata of", snapshotId)
 
+	log.Debug("Creating snapshot changed blocks of ", snapshotId)
 	snapshotDeltaMap := &SnapshotMap{
 		Blocks: []BlockMapping{},
 	}
+	if err := sDriver.OpenSnapshot(snapshotId, volumeId); err != nil {
+		return err
+	}
+	defer sDriver.CloseSnapshot(snapshotId, volumeId)
 	for _, d := range delta.Mappings {
 		block := make([]byte, b.BlockSize)
 		for i := uint64(0); i < d.Size/uint64(delta.BlockSize); i++ {
@@ -316,21 +318,25 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 			if err != nil {
 				return err
 			}
-			checksumBytes := sha512.Sum512(block)
-			checksum := hex.EncodeToString(checksumBytes[:])[:PRESERVED_CHECKSUM_LENGTH]
+			checksum := utils.GetChecksum(block)
 			path, fileName := getBlockPathAndFileName(volumeId, checksum)
 			if bsDriver.FileSize(path, fileName) >= 0 {
-				log.Debugln("Found existed block match at ", path, fileName)
+				blockMapping := BlockMapping{
+					Offset: offset,
+					Block:  checksum,
+				}
+				snapshotDeltaMap.Blocks = append(snapshotDeltaMap.Blocks, blockMapping)
+				log.Debugf("Found existed block match at %v/%v", path, fileName)
 				continue
 			}
-			log.Debugln("Creating new block file at ", path, fileName)
+			log.Debugf("Creating new block file at %v/%v", path, fileName)
 			if err := bsDriver.MkDirAll(path); err != nil {
 				return err
 			}
 			if err := bsDriver.Write(block, path, fileName); err != nil {
 				return err
 			}
-			log.Debugln("Created new block file at ", path, fileName)
+			log.Debugf("Created new block file at %v/%v", path, fileName)
 
 			blockMapping := BlockMapping{
 				Offset: offset,
@@ -339,13 +345,47 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 			snapshotDeltaMap.Blocks = append(snapshotDeltaMap.Blocks, blockMapping)
 		}
 	}
+	log.Debug("Created snapshot changed blocks of", snapshotId)
 
 	snapshotMap := mergeSnapshotMap(snapshotId, snapshotDeltaMap, lastSnapshotMap)
+
+	if err := saveSnapshotConfig(snapshotId, volumeId, bsDriver, snapshotMap); err != nil {
+		return err
+	}
+	log.Debug("Created snapshot config of", snapshotId)
+	volume.LastSnapshotId = snapshotId
+	b.Volumes[volumeId] = volume
+	if err := utils.SaveConfig(configFile, b); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func loadSnapshotMap(snapshotId, volumeId string, bsDriver BlockStoreDriver, snapshotMap *SnapshotMap) error {
+	path := getSnapshotsPath(volumeId)
+	fileName := getSnapshotConfigName(snapshotId)
+	fileSize := bsDriver.FileSize(path, fileName)
+	if fileSize < 0 {
+		return fmt.Errorf("Snapshot %v doesn't existed in blockstore", snapshotId)
+	}
+	data := make([]byte, fileSize)
+	if err := bsDriver.Read(path, fileName, data); err != nil {
+		return err
+	}
+	err := json.Unmarshal(data, snapshotMap)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func saveSnapshotConfig(snapshotId, volumeId string, bsDriver BlockStoreDriver, snapshotMap *SnapshotMap) error {
 	path := getSnapshotsPath(volumeId)
 	fileName := getSnapshotConfigName(snapshotId)
 	if bsDriver.FileExists(path, fileName) {
 		file := filepath.Join(path, fileName)
-		log.Errorf("Snapshot configuration file %v already exists, would remove it\n", file)
+		log.Warnf("Snapshot configuration file %v already exists, would remove it\n", file)
 		if err := bsDriver.RemoveAll(file); err != nil {
 			return err
 		}
@@ -357,12 +397,6 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 	if err := bsDriver.Write(j, path, fileName); err != nil {
 		return err
 	}
-
-	volume.LastSnapshotId = snapshotId
-	if err := utils.SaveConfig(configFile, b); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -375,7 +409,8 @@ func mergeSnapshotMap(snapshotId string, deltaMap, lastMap *SnapshotMap) *Snapsh
 		Id:     snapshotId,
 		Blocks: []BlockMapping{},
 	}
-	for d, l := 0, 0; d < len(deltaMap.Blocks) && l < len(lastMap.Blocks); {
+	var d, l int
+	for d, l = 0, 0; d < len(deltaMap.Blocks) && l < len(lastMap.Blocks); {
 		dB := deltaMap.Blocks[d]
 		lB := lastMap.Blocks[l]
 		if dB.Offset == lB.Offset {
@@ -390,6 +425,12 @@ func mergeSnapshotMap(snapshotId string, deltaMap, lastMap *SnapshotMap) *Snapsh
 			sMap.Blocks = append(sMap.Blocks, lB)
 			l++
 		}
+	}
+
+	if d == len(deltaMap.Blocks) {
+		sMap.Blocks = append(sMap.Blocks, lastMap.Blocks[l:]...)
+	} else {
+		sMap.Blocks = append(sMap.Blocks, deltaMap.Blocks[d:]...)
 	}
 
 	return sMap

@@ -1,8 +1,14 @@
 package utils
 
 import (
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"os"
+)
+
+const (
+	PRESERVED_CHECKSUM_LENGTH = 64
 )
 
 func LoadConfig(fileName string, v interface{}) error {
@@ -62,4 +68,10 @@ func MkdirIfNotExists(path string) error {
 		}
 	}
 	return nil
+}
+
+func GetChecksum(data []byte) string {
+	checksumBytes := sha512.Sum512(data)
+	checksum := hex.EncodeToString(checksumBytes[:])[:PRESERVED_CHECKSUM_LENGTH]
+	return checksum
 }
