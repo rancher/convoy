@@ -1,11 +1,11 @@
 package metadata
 
 type Mapping struct {
-	Offset uint64
-	Size   uint64
+	Offset int64
+	Size   int64
 }
 
 type Mappings struct {
 	Mappings  []Mapping
-	BlockSize uint32
+	BlockSize int64
 }

@@ -11,13 +11,14 @@ type Driver interface {
 	Name() string
 	CreateVolume(id, baseId string, size uint64) error
 	DeleteVolume(id string) error
+	GetVolumeDevice(id string) (string, error)
 	ListVolumes() error
 	CreateSnapshot(id, volumeId string) error
 	DeleteSnapshot(id, volumeId string) error
 	ListSnapshot(volumeId string) error
 	CompareSnapshot(id, compareId, volumeId string, mapping *metadata.Mappings) error
 	OpenSnapshot(id, volumeId string) error
-	ReadSnapshot(id, volumeId string, start uint64, data []byte) error
+	ReadSnapshot(id, volumeId string, start int64, data []byte) error
 	CloseSnapshot(id, volumeId string) error
 	Info() error
 }

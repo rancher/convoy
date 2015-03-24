@@ -421,7 +421,7 @@ func (d *Driver) CloseSnapshot(id, volumeId string) error {
 	return d.updateConfig()
 }
 
-func (d *Driver) ReadSnapshot(id, volumeId string, offset uint64, data []byte) error {
+func (d *Driver) ReadSnapshot(id, volumeId string, offset int64, data []byte) error {
 	_, _, err := d.getSnapshotAndVolume(id, volumeId)
 	if err != nil {
 		return err
@@ -434,9 +434,18 @@ func (d *Driver) ReadSnapshot(id, volumeId string, offset uint64, data []byte) e
 	}
 	defer devFile.Close()
 
-	if _, err = devFile.ReadAt(data, int64(offset)); err != nil {
+	if _, err = devFile.ReadAt(data, offset); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (d *Driver) GetVolumeDevice(id string) (string, error) {
+	_, exists := d.Volumes[id]
+	if !exists {
+		return "", fmt.Errorf("Volume with uuid %v doesn't exist", id)
+	}
+
+	return filepath.Join(DM_DIR, id), nil
 }

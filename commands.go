@@ -166,3 +166,24 @@ func doSnapshotBackup(config *Config, driver drivers.Driver, snapshotId, volumeI
 
 	return blockstores.BackupSnapshot(getBlockStoreRoot(config.Root), snapshotId, volumeId, blockstoreId, driver)
 }
+
+func doSnapshotRestore(config *Config, driver drivers.Driver, snapshotId, originVolumeId, targetVolumeId, blockstoreId string) error {
+	originVol, exists := config.Volumes[originVolumeId]
+	if !exists {
+		return fmt.Errorf("volume %v doesn't exist", originVolumeId)
+	}
+	if _, exists := config.Volumes[originVolumeId].Snapshots[snapshotId]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotId, originVolumeId)
+	}
+	targetVol, exists := config.Volumes[targetVolumeId]
+	if !exists {
+		return fmt.Errorf("volume %v doesn't exist", targetVolumeId)
+	}
+	if originVol.Size != targetVol.Size || originVol.Base != targetVol.Base {
+		return fmt.Errorf("target volume %v doesn't match original volume %v's size or base",
+			targetVolumeId, originVolumeId)
+	}
+
+	return blockstores.RestoreSnapshot(getBlockStoreRoot(config.Root), snapshotId, originVolumeId,
+		targetVolumeId, blockstoreId, driver)
+}

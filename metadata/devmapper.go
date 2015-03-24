@@ -7,11 +7,11 @@ import (
 
 func DeviceMapperThinDeltaParser(data []byte, blockSize uint32, mapping *Mappings) error {
 	type DeltaRange struct {
-		Begin          uint64 `xml:"begin,attr"`
-		DataBegin      uint64 `xml:"data_begin,attr"`
-		LeftDataBegin  uint64 `xml:"left_data_begin,attr"`
-		RightDataBegin uint64 `xml:"right_data_begin,attr"`
-		Length         uint64 `xml:"length,attr"`
+		Begin          int64 `xml:"begin,attr"`
+		DataBegin      int64 `xml:"data_begin,attr"`
+		LeftDataBegin  int64 `xml:"left_data_begin,attr"`
+		RightDataBegin int64 `xml:"right_data_begin,attr"`
+		Length         int64 `xml:"length,attr"`
 	}
 
 	type ItemXml struct {
@@ -43,11 +43,11 @@ func DeviceMapperThinDeltaParser(data []byte, blockSize uint32, mapping *Mapping
 	mapping.Mappings = make([]Mapping, len(needProcess.DeltaRange))
 	for i, d := range needProcess.DeltaRange {
 		var m Mapping
-		m.Offset = d.Begin * uint64(blockSize)
-		m.Size = d.Length * uint64(blockSize)
+		m.Offset = d.Begin * int64(blockSize)
+		m.Size = d.Length * int64(blockSize)
 		mapping.Mappings[i] = m
 	}
-	mapping.BlockSize = blockSize
+	mapping.BlockSize = int64(blockSize)
 
 	return nil
 }

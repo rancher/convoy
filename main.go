@@ -53,18 +53,19 @@ var (
 	flagBlockStoreRemoveVolumeUUID = flagBlockStoreRemove.Flag("volume-uuid", "uuid of volume").Required().String()
 	flagBlockStoreInfo             = flagBlockStore.Command("info", "info of blockstores")
 
-	flagSnapshotBackup                = flagSnapshot.Command("backup", "backup an snapshot to blockstore")
-	flagSnapshotBackupUUID            = flagSnapshotBackup.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotBackupVolumeUUID      = flagSnapshotBackup.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-	flagSnapshotBackupBlockStoreUUID  = flagSnapshotBackup.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
-	flagSnapshotRestore               = flagSnapshot.Command("restore", "restore an snapshot from blockstore")
-	flagSnapshotRestoreUUID           = flagSnapshotRestore.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotRestoreVolumeUUID     = flagSnapshotRestore.Flag("volume-uuid", "uuid of volume to be restored to").Required().String()
-	flagSnapshotRestoreBlockStoreUUID = flagSnapshotRestore.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
-	flagSnapshotRemove                = flagSnapshot.Command("remove", "remove an snapshot in blockstore")
-	flagSnapshotRemoveUUID            = flagSnapshotRemove.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotRemoveVolumeUUID      = flagSnapshotRemove.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-	flagSnapshotRemoveBlockStoreUUID  = flagSnapshotRemove.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
+	flagSnapshotBackup                  = flagSnapshot.Command("backup", "backup an snapshot to blockstore")
+	flagSnapshotBackupUUID              = flagSnapshotBackup.Flag("uuid", "uuid of snapshot").Required().String()
+	flagSnapshotBackupVolumeUUID        = flagSnapshotBackup.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
+	flagSnapshotBackupBlockStoreUUID    = flagSnapshotBackup.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
+	flagSnapshotRestore                 = flagSnapshot.Command("restore", "restore an snapshot from blockstore")
+	flagSnapshotRestoreUUID             = flagSnapshotRestore.Flag("uuid", "uuid of snapshot").Required().String()
+	flagSnapshotRestoreOriginVolumeUUID = flagSnapshotRestore.Flag("origin-volume-uuid", "uuid of original volume of snapshot").Required().String()
+	flagSnapshotRestoreTargetVolumeUUID = flagSnapshotRestore.Flag("target-volume-uuid", "uuid of target volume for snapshot restore").Required().String()
+	flagSnapshotRestoreBlockStoreUUID   = flagSnapshotRestore.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
+	flagSnapshotRemove                  = flagSnapshot.Command("remove", "remove an snapshot in blockstore")
+	flagSnapshotRemoveUUID              = flagSnapshotRemove.Flag("uuid", "uuid of snapshot").Required().String()
+	flagSnapshotRemoveVolumeUUID        = flagSnapshotRemove.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
+	flagSnapshotRemoveBlockStoreUUID    = flagSnapshotRemove.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
 )
 
 const (
@@ -156,6 +157,9 @@ func main() {
 	case flagSnapshotBackup.FullCommand():
 		err = doSnapshotBackup(&config, driver, *flagSnapshotBackupUUID, *flagSnapshotBackupVolumeUUID,
 			*flagSnapshotBackupBlockStoreUUID)
+	case flagSnapshotRestore.FullCommand():
+		err = doSnapshotRestore(&config, driver, *flagSnapshotRestoreUUID, *flagSnapshotRestoreOriginVolumeUUID,
+			*flagSnapshotRestoreTargetVolumeUUID, *flagSnapshotRestoreBlockStoreUUID)
 	default:
 		log.Errorln("Unrecognized command")
 		os.Exit(-1)
