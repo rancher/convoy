@@ -4,7 +4,9 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"golang.org/x/sys/unix"
 	"os"
+	"os/exec"
 )
 
 const (
@@ -74,4 +76,27 @@ func GetChecksum(data []byte) string {
 	checksumBytes := sha512.Sum512(data)
 	checksum := hex.EncodeToString(checksumBytes[:])[:PRESERVED_CHECKSUM_LENGTH]
 	return checksum
+}
+
+func LockFile(fileName string) error {
+	f, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+	return unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+}
+
+func UnlockFile(fileName string) error {
+	f, err := os.Open(fileName)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := unix.Flock(int(f.Fd()), unix.LOCK_UN); err != nil {
+		return err
+	}
+	if err := exec.Command("rm", fileName).Run(); err != nil {
+		return err
+	}
+	return nil
 }

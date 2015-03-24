@@ -94,6 +94,14 @@ func main() {
 		os.Exit(-1)
 	}
 
+	lock := filepath.Join(ROOTDIR, LOCKFILE)
+	if err := utils.LockFile(lock); err != nil {
+		fmt.Println("Fail to lock the file", err)
+		os.Exit(-1)
+	}
+
+	defer utils.UnlockFile(lock)
+
 	command := kingpin.MustParse(flagApp.Parse(os.Args[1:]))
 	if *flagDebug {
 		log.SetLevel(log.DebugLevel)

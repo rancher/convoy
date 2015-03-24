@@ -2,6 +2,7 @@ package utils
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -57,5 +58,28 @@ func TestSaveLoadConfig(t *testing.T) {
 
 	if !reflect.DeepEqual(dev, devNew) {
 		t.Fatal("Fail to complete save/load config correctly!")
+	}
+}
+
+func TestLockFile(t *testing.T) {
+	file := "/tmp/t.lock"
+	if err := LockFile(file); err != nil {
+		t.Fatal("Failed to unlock the file!", err)
+	}
+	if err := LockFile(file); err == nil || strings.HasPrefix(err.Error(), "resource tempoarily unavailable") {
+		t.Fatal("Shouldn't allow double lock file!", err)
+	}
+	if err := LockFile(file); err == nil || strings.HasPrefix(err.Error(), "resource tempoarily unavailable") {
+		t.Fatal("Shouldn't allow double lock file!", err)
+	}
+	if err := UnlockFile(file); err != nil {
+		t.Fatal("Failed to unlock the file!", err)
+	}
+
+	if err := LockFile(file); err != nil {
+		t.Fatal("Failed to unlock the file!", err)
+	}
+	if err := UnlockFile(file); err != nil {
+		t.Fatal("Failed to unlock the file!", err)
 	}
 }
