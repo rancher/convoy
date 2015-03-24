@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -17,7 +18,7 @@ const (
 	VOLUME_DIRECTORY       = "volume"
 	VOLUME_CONFIG_FILE     = "volume.cfg"
 	SNAPSHOTS_DIRECTORY    = "snapshots"
-	SNAPSHOT_CONFIG_PREFIX = "snapshot-"
+	SNAPSHOT_CONFIG_PREFIX = "snapshot."
 	BLOCKS_DIRECTORY       = "blocks"
 	BLOCK_SEPARATE_LAYER1  = 2
 	BLOCK_SEPARATE_LAYER2  = 4
@@ -34,6 +35,7 @@ type BlockStoreDriver interface {
 	RemoveAll(name string) error
 	Read(srcPath, srcFileName string, data []byte) error
 	Write(data []byte, dstPath, dstFileName string) error
+	List(path string) ([]string, error)
 	CopyToPath(srcFileName string, path string) error
 }
 
@@ -403,7 +405,7 @@ func saveSnapshotConfig(snapshotId, volumeId string, bsDriver BlockStoreDriver, 
 }
 
 func mergeSnapshotMap(snapshotId string, deltaMap, lastMap *SnapshotMap) *SnapshotMap {
-	if len(lastMap.Blocks) == 0 {
+	if lastMap == nil {
 		deltaMap.Id = snapshotId
 		return deltaMap
 	}
@@ -450,9 +452,9 @@ func RestoreSnapshot(root, srcSnapshotId, srcVolumeId, dstVolumeId, blockstoreId
 	if err != nil {
 		return err
 	}
-	originVolume, exists := b.Volumes[srcVolumeId]
+	_, exists := b.Volumes[srcVolumeId]
 	if !exists {
-		return fmt.Errorf("cannot find volume %v in blockstore %v", originVolume, blockstoreId)
+		return fmt.Errorf("cannot find volume %v in blockstore %v", srcVolumeId, blockstoreId)
 	}
 
 	volDevName, err := sDriver.GetVolumeDevice(dstVolumeId)
@@ -483,4 +485,97 @@ func RestoreSnapshot(root, srcSnapshotId, srcVolumeId, dstVolumeId, blockstoreId
 	}
 
 	return nil
+}
+
+func RemoveSnapshot(root, snapshotId, volumeId, blockstoreId string) error {
+	configFile := getConfigFilename(root, blockstoreId)
+	b := &BlockStore{}
+	err := utils.LoadConfig(configFile, b)
+	if err != nil {
+		return err
+	}
+	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreId)
+	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, blockstoreId, nil)
+	if err != nil {
+		return err
+	}
+	v, exists := b.Volumes[volumeId]
+	if !exists {
+		return fmt.Errorf("cannot find volume %v in blockstore %v", volumeId, blockstoreId)
+	}
+
+	snapshotMap, err := loadSnapshotMap(snapshotId, volumeId, bsDriver)
+	if err != nil {
+		return err
+	}
+	discardBlockSet := make(map[string]bool)
+	for _, blk := range snapshotMap.Blocks {
+		discardBlockSet[blk.BlockChecksum] = true
+	}
+	discardBlockCounts := len(discardBlockSet)
+
+	snapshotPath := getSnapshotsPath(volumeId)
+	snapshotFile := getSnapshotConfigName(snapshotId)
+	discardFile := filepath.Join(snapshotPath, snapshotFile)
+	if err := bsDriver.RemoveAll(discardFile); err != nil {
+		return err
+	}
+	log.Debugf("Removed snapshot config file %v on blockstore", discardFile)
+
+	if snapshotId == v.LastSnapshotId {
+		v.LastSnapshotId = ""
+		b.Volumes[volumeId] = v
+		if err := utils.SaveConfig(configFile, b); err != nil {
+			return err
+		}
+	}
+
+	log.Debug("GC started")
+	snapshotsList, err := getSnapshotsList(volumeId, bsDriver)
+	if err != nil {
+		return err
+	}
+	for _, snapshotId := range snapshotsList {
+		snapshotMap, err := loadSnapshotMap(snapshotId, volumeId, bsDriver)
+		if err != nil {
+			return err
+		}
+		for _, blk := range snapshotMap.Blocks {
+			if _, exists := discardBlockSet[blk.BlockChecksum]; exists {
+				delete(discardBlockSet, blk.BlockChecksum)
+				discardBlockCounts--
+				if discardBlockCounts == 0 {
+					break
+				}
+			}
+		}
+		if discardBlockCounts == 0 {
+			break
+		}
+	}
+
+	for blk, _ := range discardBlockSet {
+		path, file := getBlockPathAndFileName(volumeId, blk)
+		if err := bsDriver.RemoveAll(filepath.Join(path, file)); err != nil {
+			return err
+		}
+		log.Debugf("Removed unused block %v for volume %v", blk, volumeId)
+	}
+
+	log.Debug("GC completed")
+
+	return nil
+}
+
+func getSnapshotsList(volumeId string, driver BlockStoreDriver) ([]string, error) {
+	fileList, err := driver.List(getSnapshotsPath(volumeId))
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+	for _, f := range fileList {
+		result = append(result, strings.Split(f, ".")[1])
+	}
+	return result, nil
 }

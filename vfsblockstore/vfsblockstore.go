@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type VfsBlockStoreDriver struct {
@@ -97,4 +98,17 @@ func (v *VfsBlockStoreDriver) Write(data []byte, dstPath, dstFileName string) er
 func (v *VfsBlockStoreDriver) CopyToPath(srcFileName string, path string) error {
 	err := exec.Command("cp", filepath.Join(v.Path, srcFileName), path).Run()
 	return err
+}
+
+func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
+	out, err := exec.Command("ls", "-1", filepath.Join(v.Path, path)).Output()
+	if err != nil {
+		return nil, err
+	}
+	var result []string
+	if len(out) == 0 {
+		return result, nil
+	}
+	result = strings.Split(strings.TrimSpace(string(out)), "\n")
+	return result, nil
 }

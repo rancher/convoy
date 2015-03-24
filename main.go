@@ -160,6 +160,8 @@ func main() {
 	case flagSnapshotRestore.FullCommand():
 		err = doSnapshotRestore(&config, driver, *flagSnapshotRestoreUUID, *flagSnapshotRestoreOriginVolumeUUID,
 			*flagSnapshotRestoreTargetVolumeUUID, *flagSnapshotRestoreBlockStoreUUID)
+	case flagSnapshotRemove.FullCommand():
+		err = doSnapshotRemove(&config, *flagSnapshotRemoveUUID, *flagSnapshotRemoveVolumeUUID, *flagSnapshotRemoveBlockStoreUUID)
 	default:
 		log.Errorln("Unrecognized command")
 		os.Exit(-1)
