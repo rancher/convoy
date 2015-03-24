@@ -18,7 +18,7 @@ const (
 	VOLUME_DIRECTORY       = "volume"
 	VOLUME_CONFIG_FILE     = "volume.cfg"
 	SNAPSHOTS_DIRECTORY    = "snapshots"
-	SNAPSHOT_CONFIG_PREFIX = "snapshot."
+	SNAPSHOT_CONFIG_PREFIX = "snapshot_"
 	BLOCKS_DIRECTORY       = "blocks"
 	BLOCK_SEPARATE_LAYER1  = 2
 	BLOCK_SEPARATE_LAYER2  = 4
@@ -575,7 +575,15 @@ func getSnapshotsList(volumeId string, driver BlockStoreDriver) ([]string, error
 
 	var result []string
 	for _, f := range fileList {
-		result = append(result, strings.Split(f, ".")[1])
+		parts := strings.Split(f, "_")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("incorrect filename format:", f)
+		}
+		parts = strings.Split(parts[1], ".")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("incorrect filename format:", f)
+		}
+		result = append(result, parts[0])
 	}
 	return result, nil
 }
