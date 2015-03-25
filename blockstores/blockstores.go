@@ -50,7 +50,6 @@ type Volume struct {
 type BlockStore struct {
 	Kind      string
 	BlockSize int64
-	Volumes   map[string]Volume
 }
 
 type BlockMapping struct {
@@ -94,6 +93,51 @@ func getConfigFilename(root, id string) string {
 	return filepath.Join(root, id+".cfg")
 }
 
+func loadBlockStoreConfig(path, name string, driver BlockStoreDriver, v interface{}) error {
+	size := driver.FileSize(path, name)
+	if size < 0 {
+		return fmt.Errorf("cannot find %v/%v in blockstore", path, name)
+	}
+	data := make([]byte, size)
+	if err := driver.Read(path, name, data); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, v); err != nil {
+		return err
+	}
+	return nil
+}
+
+func saveBlockStoreConfig(path, name string, driver BlockStoreDriver, v interface{}) error {
+	j, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	if err := driver.Write(j, path, name); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadVolumeConfig(volumeId string, driver BlockStoreDriver) (*Volume, error) {
+	v := Volume{}
+	volumePath := getVolumePath(volumeId)
+	volumeCfg := VOLUME_CONFIG_FILE
+	if err := loadBlockStoreConfig(volumePath, volumeCfg, driver, &v); err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func saveVolumeConfig(volumeId string, driver BlockStoreDriver, v *Volume) error {
+	volumePath := getVolumePath(volumeId)
+	volumeCfg := VOLUME_CONFIG_FILE
+	if err := saveBlockStoreConfig(volumePath, volumeCfg, driver, v); err != nil {
+		return err
+	}
+	return nil
+}
+
 func Register(root, kind, id string, config map[string]string) error {
 	configFile := getDriverConfigFilename(root, kind, id)
 	if _, err := os.Stat(configFile); err == nil {
@@ -115,7 +159,6 @@ func Register(root, kind, id string, config map[string]string) error {
 
 	bs := &BlockStore{
 		Kind:      kind,
-		Volumes:   make(map[string]Volume),
 		BlockSize: DEFAULT_BLOCK_SIZE,
 	}
 	configFile = getConfigFilename(root, id)
@@ -164,17 +207,19 @@ func AddVolume(root, id, volumeId, base string, size uint64) error {
 		return err
 	}
 
-	if _, exists := b.Volumes[volumeId]; exists {
-		return fmt.Errorf("volume %v already exists in blockstore %v", volumeId, id)
-	}
-
 	driverConfigFile := getDriverConfigFilename(root, b.Kind, id)
 	driver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, id, nil)
 	if err != nil {
 		return err
 	}
 
-	if err := driver.MkDirAll(getVolumePath(volumeId)); err != nil {
+	volumePath := getVolumePath(volumeId)
+	volumeCfg := VOLUME_CONFIG_FILE
+	if driver.FileExists(volumePath, volumeCfg) {
+		return fmt.Errorf("volume %v already exists in blockstore %v", volumeId, id)
+	}
+
+	if err := driver.MkDirAll(volumePath); err != nil {
 		return err
 	}
 	if err := driver.MkDirAll(getSnapshotsPath(volumeId)); err != nil {
@@ -189,24 +234,11 @@ func AddVolume(root, id, volumeId, base string, size uint64) error {
 		Base:           base,
 		LastSnapshotId: "",
 	}
-	b.Volumes[volumeId] = volume
-	if err = utils.SaveConfig(configFile, b); err != nil {
-		return err
-	}
 
-	j, err := json.Marshal(volume)
-	if err != nil {
+	if err := saveBlockStoreConfig(volumePath, volumeCfg, driver, &volume); err != nil {
 		return err
 	}
-	volumePath := getVolumePath(volumeId)
-	volumeFile := VOLUME_CONFIG_FILE
-	if driver.FileExists(volumePath, volumeFile) {
-		return fmt.Errorf("volume config file already existed in blockstore")
-	}
-	if err := driver.Write(j, volumePath, volumeFile); err != nil {
-		return err
-	}
-	log.Debug("Created volume configuration file done: ", filepath.Join(volumePath, volumeFile))
+	log.Debug("Created volume configuration file in blockstore done: ", filepath.Join(volumePath, volumeCfg))
 
 	return nil
 }
@@ -218,9 +250,6 @@ func RemoveVolume(root, id, volumeId string) error {
 	if err != nil {
 		return err
 	}
-	if _, exists := b.Volumes[volumeId]; !exists {
-		return fmt.Errorf("volume %v doesn't exist in blockstore %v", volumeId, id)
-	}
 
 	driverConfigFile := getDriverConfigFilename(root, b.Kind, id)
 	driver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, id, nil)
@@ -228,17 +257,19 @@ func RemoveVolume(root, id, volumeId string) error {
 		return err
 	}
 
+	volumePath := getVolumePath(volumeId)
+	volumeCfg := VOLUME_CONFIG_FILE
+	if !driver.FileExists(volumePath, volumeCfg) {
+		return fmt.Errorf("volume %v doesn't exist in blockstore %v", volumeId, id)
+	}
+
 	volumeDir := getVolumePath(volumeId)
 	err = driver.RemoveAll(volumeDir)
 	if err != nil {
 		return err
 	}
-	log.Debug("Removed volume directory: ", volumeDir)
-	delete(b.Volumes, volumeId)
+	log.Debug("Removed volume directory in blockstore: ", volumeDir)
 
-	if err = utils.SaveConfig(configFile, b); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -282,9 +313,9 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 		return err
 	}
 
-	volume, exists := b.Volumes[volumeId]
-	if !exists {
-		return fmt.Errorf("cannot find volume %v in blockstore %v", volumeId, blockstoreId)
+	volume, err := loadVolumeConfig(volumeId, bsDriver)
+	if err != nil {
+		return err
 	}
 
 	lastSnapshotId := volume.LastSnapshotId
@@ -360,13 +391,12 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 
 	snapshotMap := mergeSnapshotMap(snapshotId, snapshotDeltaMap, lastSnapshotMap)
 
-	if err := saveSnapshotConfig(snapshotId, volumeId, bsDriver, snapshotMap); err != nil {
+	if err := saveSnapshotMap(snapshotId, volumeId, bsDriver, snapshotMap); err != nil {
 		return err
 	}
 	log.Debug("Created snapshot config of", snapshotId)
 	volume.LastSnapshotId = snapshotId
-	b.Volumes[volumeId] = volume
-	if err := utils.SaveConfig(configFile, b); err != nil {
+	if err := saveVolumeConfig(volumeId, bsDriver, volume); err != nil {
 		return err
 	}
 
@@ -377,22 +407,14 @@ func loadSnapshotMap(snapshotId, volumeId string, bsDriver BlockStoreDriver) (*S
 	snapshotMap := SnapshotMap{}
 	path := getSnapshotsPath(volumeId)
 	fileName := getSnapshotConfigName(snapshotId)
-	fileSize := bsDriver.FileSize(path, fileName)
-	if fileSize < 0 {
-		return nil, fmt.Errorf("Snapshot %v doesn't existed in blockstore", snapshotId)
-	}
-	data := make([]byte, fileSize)
-	if err := bsDriver.Read(path, fileName, data); err != nil {
-		return nil, err
-	}
-	err := json.Unmarshal(data, &snapshotMap)
-	if err != nil {
+
+	if err := loadBlockStoreConfig(path, fileName, bsDriver, &snapshotMap); err != nil {
 		return nil, err
 	}
 	return &snapshotMap, nil
 }
 
-func saveSnapshotConfig(snapshotId, volumeId string, bsDriver BlockStoreDriver, snapshotMap *SnapshotMap) error {
+func saveSnapshotMap(snapshotId, volumeId string, bsDriver BlockStoreDriver, snapshotMap *SnapshotMap) error {
 	path := getSnapshotsPath(volumeId)
 	fileName := getSnapshotConfigName(snapshotId)
 	if bsDriver.FileExists(path, fileName) {
@@ -402,11 +424,7 @@ func saveSnapshotConfig(snapshotId, volumeId string, bsDriver BlockStoreDriver, 
 			return err
 		}
 	}
-	j, err := json.Marshal(*snapshotMap)
-	if err != nil {
-		return err
-	}
-	if err := bsDriver.Write(j, path, fileName); err != nil {
+	if err := saveBlockStoreConfig(path, fileName, bsDriver, snapshotMap); err != nil {
 		return err
 	}
 	return nil
@@ -460,9 +478,9 @@ func RestoreSnapshot(root, srcSnapshotId, srcVolumeId, dstVolumeId, blockstoreId
 	if err != nil {
 		return err
 	}
-	_, exists := b.Volumes[srcVolumeId]
-	if !exists {
-		return fmt.Errorf("cannot find volume %v in blockstore %v", srcVolumeId, blockstoreId)
+
+	if _, err := loadVolumeConfig(srcVolumeId, bsDriver); err != nil {
+		return fmt.Errorf("volume %v doesn't exist in blockstore %v", srcVolumeId, blockstoreId, err)
 	}
 
 	volDevName, err := sDriver.GetVolumeDevice(dstVolumeId)
@@ -507,9 +525,10 @@ func RemoveSnapshot(root, snapshotId, volumeId, blockstoreId string) error {
 	if err != nil {
 		return err
 	}
-	v, exists := b.Volumes[volumeId]
-	if !exists {
-		return fmt.Errorf("cannot find volume %v in blockstore %v", volumeId, blockstoreId)
+
+	v, err := loadVolumeConfig(volumeId, bsDriver)
+	if err != nil {
+		return fmt.Errorf("cannot find volume %v in blockstore %v", volumeId, blockstoreId, err)
 	}
 
 	snapshotMap, err := loadSnapshotMap(snapshotId, volumeId, bsDriver)
@@ -532,8 +551,7 @@ func RemoveSnapshot(root, snapshotId, volumeId, blockstoreId string) error {
 
 	if snapshotId == v.LastSnapshotId {
 		v.LastSnapshotId = ""
-		b.Volumes[volumeId] = v
-		if err := utils.SaveConfig(configFile, b); err != nil {
+		if err := saveVolumeConfig(volumeId, bsDriver, v); err != nil {
 			return err
 		}
 	}

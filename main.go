@@ -47,7 +47,7 @@ var (
 	flagSnapshotListVolumeUUID   = flagSnapshotList.Flag("volume-uuid", "uuid of volume for snapshot").String()
 
 	flagBlockStore                 = flagApp.Command("blockstore", "blockstore related operations")
-	flagBlockStoreRegister         = flagBlockStore.Command("register", "register a existed blockstore")
+	flagBlockStoreRegister         = flagBlockStore.Command("register", "register a blockstore, create it if it's not existed yet")
 	flagBlockStoreRegisterKind     = flagBlockStoreRegister.Flag("kind", "kind of blockstore").Required().String()
 	flagBlockStoreRegisterOpts     = flagBlockStoreRegister.Flag("opts", "options used to register blockstore").StringMap()
 	flagBlockStoreDeregister       = flagBlockStore.Command("deregister", "delete a blockstore")
