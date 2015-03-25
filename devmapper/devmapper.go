@@ -100,6 +100,39 @@ func verifyConfig(config map[string]string) (*Device, error) {
 	return &dv, nil
 }
 
+func (d *Driver) activatePool() error {
+	dev := d.Device
+	if _, err := os.Stat(dev.ThinpoolDevice); err == nil {
+		log.Debug("Found created pool, skip pool reinit")
+		return nil
+	}
+
+	dataDev, err := os.Open(dev.DataDevice)
+	if err != nil {
+		return err
+	}
+	defer dataDev.Close()
+
+	metadataDev, err := os.Open(dev.MetadataDevice)
+	if err != nil {
+		return err
+	}
+	defer metadataDev.Close()
+
+	if err := createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, dev.ThinpoolBlockSize); err != nil {
+		return err
+	}
+	log.Debug("Reinitialized the existing pool ", dev.ThinpoolDevice)
+
+	for id, volume := range dev.Volumes {
+		if err := d.activateDevice(id, volume.DevId, volume.Size); err != nil {
+			return err
+		}
+		log.Debug("Reactivated volume device", id)
+	}
+	return nil
+}
+
 func Init(root string, config map[string]string) (drivers.Driver, error) {
 	driverConfig := filepath.Join(root, DRIVER_NAME) + ".cfg"
 	if _, err := os.Stat(driverConfig); err == nil {
@@ -113,6 +146,9 @@ func Init(root string, config map[string]string) (drivers.Driver, error) {
 		}
 		d.Device = dev
 		d.configFile = driverConfig
+		if err := d.activatePool(); err != nil {
+			return d, err
+		}
 		return d, nil
 	}
 

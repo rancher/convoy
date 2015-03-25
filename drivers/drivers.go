@@ -3,6 +3,8 @@ package drivers
 import (
 	"fmt"
 	"github.com/yasker/volmgr/metadata"
+	"golang.org/x/sys/unix"
+	"os/exec"
 )
 
 type InitFunc func(root string, config map[string]string) (Driver, error)
@@ -44,4 +46,28 @@ func GetDriver(name, root string, config map[string]string) (Driver, error) {
 		return nil, fmt.Errorf("Driver %v is not supported!", name)
 	}
 	return initializers[name](root, config)
+}
+
+func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFormat bool) error {
+	dev, err := driver.GetVolumeDevice(volumeUUID)
+	if err != nil {
+		return err
+	}
+	if fstype != "ext4" {
+		return fmt.Errorf("unsupported filesystem ", fstype)
+	}
+	if needFormat {
+		if err := exec.Command("mkfs.ext4", dev, option).Run(); err != nil {
+			return err
+		}
+	}
+	var flags uintptr = unix.MS_MGC_VAL
+	if err := unix.Mount(dev, mountPoint, fstype, flags, option); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Unmount(driver Driver, mountPoint string) error {
+	return unix.Unmount(mountPoint, unix.MNT_DETACH)
 }

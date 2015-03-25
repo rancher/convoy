@@ -55,12 +55,13 @@ func doVolumeCreate(config *Config, driver drivers.Driver, size uint64) error {
 	}
 	log.Debug("Created volume using ", config.Driver)
 	config.Volumes[uuid] = Volume{
-		Base:      base,
-		Size:      size,
-		Snapshots: make(map[string]bool),
+		Base:       base,
+		Size:       size,
+		MountPoint: "",
+		FileSystem: "",
+		Snapshots:  make(map[string]bool),
 	}
-	err := utils.SaveConfig(getConfigFileName(config.Root), config)
-	return err
+	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
 func doVolumeDelete(config *Config, driver drivers.Driver, uuid string) error {
@@ -69,17 +70,45 @@ func doVolumeDelete(config *Config, driver drivers.Driver, uuid string) error {
 	}
 	log.Debug("Deleted volume using ", config.Driver)
 	delete(config.Volumes, uuid)
-	err := utils.SaveConfig(getConfigFileName(config.Root), config)
-	return err
+	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
 func doVolumeUpdate(config *Config, driver drivers.Driver, uuid string, size uint64) error {
-	return nil
+	return fmt.Errorf("Doesn't support change size of volume yet")
 }
 
 func doVolumeList(config *Config, driver drivers.Driver) error {
 	err := driver.ListVolumes()
 	return err
+}
+
+func doVolumeMount(config *Config, driver drivers.Driver, volumeUUID, mountPoint, fs, option string, needFormat bool) error {
+	volume, exists := config.Volumes[volumeUUID]
+	if !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+	if err := drivers.Mount(driver, volumeUUID, mountPoint, fs, option, needFormat); err != nil {
+		return err
+	}
+	log.Debugf("Mount %v to %v", volumeUUID, mountPoint)
+	volume.MountPoint = mountPoint
+	volume.FileSystem = fs
+	config.Volumes[volumeUUID] = volume
+	return utils.SaveConfig(getConfigFileName(config.Root), config)
+}
+
+func doVolumeUnmount(config *Config, driver drivers.Driver, volumeUUID string) error {
+	volume, exists := config.Volumes[volumeUUID]
+	if !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+	if err := drivers.Unmount(driver, volume.MountPoint); err != nil {
+		return err
+	}
+	log.Debugf("Unmount %v from %v", volumeUUID, volume.MountPoint)
+	volume.MountPoint = ""
+	config.Volumes[volumeUUID] = volume
+	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
 func doSnapshotCreate(config *Config, driver drivers.Driver, volumeUUID string) error {

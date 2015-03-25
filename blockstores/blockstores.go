@@ -17,6 +17,8 @@ const (
 	BLOCKSTORE_BASE        = "rancher-blockstore"
 	VOLUME_DIRECTORY       = "volume"
 	VOLUME_CONFIG_FILE     = "volume.cfg"
+	VOLUME_SEPARATE_LAYER1 = 2
+	VOLUME_SEPARATE_LAYER2 = 4
 	SNAPSHOTS_DIRECTORY    = "snapshots"
 	SNAPSHOT_CONFIG_PREFIX = "snapshot_"
 	BLOCKS_DIRECTORY       = "blocks"
@@ -226,7 +228,7 @@ func RemoveVolume(root, id, volumeId string) error {
 		return err
 	}
 
-	volumeDir := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeId)
+	volumeDir := getVolumePath(volumeId)
 	err = driver.RemoveAll(volumeDir)
 	if err != nil {
 		return err
@@ -241,7 +243,9 @@ func RemoveVolume(root, id, volumeId string) error {
 }
 
 func getVolumePath(volumeId string) string {
-	return filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeId)
+	volumeLayer1 := volumeId[0:VOLUME_SEPARATE_LAYER1]
+	volumeLayer2 := volumeId[VOLUME_SEPARATE_LAYER1:VOLUME_SEPARATE_LAYER2]
+	return filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeId)
 }
 
 func getSnapshotsPath(volumeId string) string {

@@ -19,15 +19,23 @@ var (
 	flagInitializeDriver     = flagInitialize.Flag("driver", "Driver for volume manager, only support \"devicemapper\" currently").Default("devicemapper").String()
 	flagInitializeDriverOpts = flagInitialize.Flag("driver-opts", "options for driver").Required().StringMap()
 
-	flagVolume           = flagApp.Command("volume", "volume related operations")
-	flagVolumeCreate     = flagVolume.Command("create", "create a new volume")
-	flagVolumeCreateSize = flagVolumeCreate.Flag("size", "size of volume").Required().Uint64()
-	flagVolumeDelete     = flagVolume.Command("delete", "delete a volume with all of it's snapshots")
-	flagVolumeDeleteUUID = flagVolumeDelete.Flag("uuid", "uuid of volume").Required().String()
-	flagVolumeUpdate     = flagVolume.Command("update", "update info about volume")
-	flagVolumeUpdateUUID = flagVolumeUpdate.Flag("uuid", "uuid of volume").Required().String()
-	flagVolumeUpdateSize = flagVolumeUpdate.Flag("size", "size of volume").Required().Uint64()
-	flagVolumeList       = flagVolume.Command("list", "list all managed volumes")
+	flagVolume             = flagApp.Command("volume", "volume related operations")
+	flagVolumeCreate       = flagVolume.Command("create", "create a new volume")
+	flagVolumeCreateSize   = flagVolumeCreate.Flag("size", "size of volume").Required().Uint64()
+	flagVolumeDelete       = flagVolume.Command("delete", "delete a volume with all of it's snapshots")
+	flagVolumeDeleteUUID   = flagVolumeDelete.Flag("uuid", "uuid of volume").Required().String()
+	flagVolumeUpdate       = flagVolume.Command("update", "update info about volume")
+	flagVolumeUpdateUUID   = flagVolumeUpdate.Flag("uuid", "uuid of volume").Required().String()
+	flagVolumeUpdateSize   = flagVolumeUpdate.Flag("size", "size of volume").Required().Uint64()
+	flagVolumeMount        = flagVolume.Command("mount", "mount a volume to an specific path")
+	flagVolumeMountUUID    = flagVolumeMount.Flag("uuid", "uuid of volume").Required().String()
+	flagVolumeMountPoint   = flagVolumeMount.Flag("mountpoint", "mountpoint of volume").String()
+	flagVolumeMountFS      = flagVolumeMount.Flag("fs", "filesystem of volume(supports ext4)").Default("ext4").String()
+	flagVolumeMountFormat  = flagVolumeMount.Flag("format", "format or not").Bool()
+	flagVolumeMountOptions = flagVolumeMount.Flag("option", "mount options").String()
+	flagVolumeUnmount      = flagVolume.Command("unmount", "umount a volume")
+	flagVolumeUnmountUUID  = flagVolumeUnmount.Flag("uuid", "uuid of volume").Required().String()
+	flagVolumeList         = flagVolume.Command("list", "list all managed volumes")
 
 	flagSnapshot                 = flagApp.Command("snapshot", "snapshot related operations")
 	flagSnapshotCreate           = flagSnapshot.Command("create", "create a snapshot")
@@ -75,9 +83,11 @@ const (
 )
 
 type Volume struct {
-	Base      string
-	Size      uint64
-	Snapshots map[string]bool
+	Base       string
+	Size       uint64
+	MountPoint string
+	FileSystem string
+	Snapshots  map[string]bool
 }
 
 type Config struct {
@@ -148,6 +158,10 @@ func main() {
 		err = doVolumeUpdate(&config, driver, *flagVolumeUpdateUUID, *flagVolumeUpdateSize)
 	case flagVolumeList.FullCommand():
 		err = doVolumeList(&config, driver)
+	case flagVolumeMount.FullCommand():
+		err = doVolumeMount(&config, driver, *flagVolumeMountUUID, *flagVolumeMountPoint, *flagVolumeMountFS, *flagVolumeMountOptions, *flagVolumeMountFormat)
+	case flagVolumeUnmount.FullCommand():
+		err = doVolumeUnmount(&config, driver, *flagVolumeUnmountUUID)
 	case flagSnapshotCreate.FullCommand():
 		err = doSnapshotCreate(&config, driver, *flagSnapshotCreateVolumeUUID)
 	case flagSnapshotDelete.FullCommand():
