@@ -290,13 +290,17 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 	lastSnapshotId := volume.LastSnapshotId
 	var lastSnapshotMap *SnapshotMap
 	//We'd better check last snapshot config early, ensure it would go through
-	if lastSnapshotId != "" {
+	if lastSnapshotId != "" && lastSnapshotId != snapshotId {
 		log.Debug("Loading last snapshot", lastSnapshotId)
 		lastSnapshotMap, err = loadSnapshotMap(lastSnapshotId, volumeId, bsDriver)
 		if err != nil {
 			return err
 		}
 		log.Debug("Loaded last snapshot", lastSnapshotId)
+	} else {
+		//Generate full snapshot if the snapshot has been backed up last time
+		lastSnapshotId = ""
+		log.Debug("Would create full snapshot metadata")
 	}
 
 	log.Debug("Generating snapshot metadata of", snapshotId)
