@@ -155,17 +155,16 @@ func getBlockStoreRoot(root string) string {
 }
 
 func doBlockStoreRegister(config *Config, kind string, opts map[string]string) error {
-	id := uuid.New()
 	path := getBlockStoreRoot(config.Root)
 	err := utils.MkdirIfNotExists(path)
 	if err != nil {
 		return err
 	}
-	return blockstores.Register(path, kind, id, opts)
+	return blockstores.Register(path, kind, opts)
 }
 
-func doBlockStoreDeregister(config *Config, kind, id string) error {
-	return blockstores.Deregister(getBlockStoreRoot(config.Root), kind, id)
+func doBlockStoreDeregister(config *Config, id string) error {
+	return blockstores.Deregister(getBlockStoreRoot(config.Root), id)
 }
 
 func doBlockStoreAdd(config *Config, blockstoreId, volumeId string) error {

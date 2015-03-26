@@ -51,7 +51,6 @@ var (
 	flagBlockStoreRegisterKind     = flagBlockStoreRegister.Flag("kind", "kind of blockstore").Required().String()
 	flagBlockStoreRegisterOpts     = flagBlockStoreRegister.Flag("opts", "options used to register blockstore").StringMap()
 	flagBlockStoreDeregister       = flagBlockStore.Command("deregister", "delete a blockstore")
-	flagBlockStoreDeregisterKind   = flagBlockStoreDeregister.Flag("kind", "kind of blockstore").Required().String()
 	flagBlockStoreDeregisterUUID   = flagBlockStoreDeregister.Flag("uuid", "uuid of blockstore").Required().String()
 	flagBlockStoreAdd              = flagBlockStore.Command("add", "add a volume to blockstore, one volume can only associate with one block store")
 	flagBlockStoreAddUUID          = flagBlockStoreAdd.Flag("uuid", "uuid of blockstore").Required().String()
@@ -171,7 +170,7 @@ func main() {
 	case flagBlockStoreRegister.FullCommand():
 		err = doBlockStoreRegister(&config, *flagBlockStoreRegisterKind, *flagBlockStoreRegisterOpts)
 	case flagBlockStoreDeregister.FullCommand():
-		err = doBlockStoreDeregister(&config, *flagBlockStoreDeregisterKind, *flagBlockStoreDeregisterUUID)
+		err = doBlockStoreDeregister(&config, *flagBlockStoreDeregisterUUID)
 	case flagBlockStoreAdd.FullCommand():
 		err = doBlockStoreAdd(&config, *flagBlockStoreAddUUID, *flagBlockStoreAddVolumeUUID)
 	case flagBlockStoreRemove.FullCommand():

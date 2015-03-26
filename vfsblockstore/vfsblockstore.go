@@ -25,16 +25,21 @@ func init() {
 	blockstores.RegisterDriver(KIND, initFunc)
 }
 
-func initFunc(configFile, id string, config map[string]string) (blockstores.BlockStoreDriver, error) {
+func initFunc(configFile string, config map[string]string) (blockstores.BlockStoreDriver, error) {
 	b := &VfsBlockStoreDriver{}
-	if _, err := os.Stat(configFile); err == nil {
-		err := utils.LoadConfig(configFile, b)
-		if err != nil {
-			return nil, err
+	if configFile != "" {
+		if _, err := os.Stat(configFile); err == nil {
+			err := utils.LoadConfig(configFile, b)
+			if err != nil {
+				return nil, err
+			}
+			return b, nil
+		} else {
+			return nil, fmt.Errorf("Wrong configuration file for VFS blockstore driver")
 		}
-		return b, nil
 	}
-	b.Id = id
+
+	//return temporily driver for loading blockstore config
 	b.Path = config[VFS_PATH]
 	if b.Path == "" {
 		return nil, fmt.Errorf("Cannot find required field %v", VFS_PATH)
@@ -42,12 +47,15 @@ func initFunc(configFile, id string, config map[string]string) (blockstores.Bloc
 	if st, err := os.Stat(b.Path); err != nil || !st.IsDir() {
 		return nil, fmt.Errorf("VFS path %v doesn't exist or is not a directory", b.Path)
 	}
-	err := utils.SaveConfig(configFile, b)
-	if err != nil {
-		return nil, err
-	}
-
 	return b, nil
+}
+
+func (v *VfsBlockStoreDriver) FinalizeInit(configFile, id string) error {
+	v.Id = id
+	if err := utils.SaveConfig(configFile, v); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (v *VfsBlockStoreDriver) Kind() string {
