@@ -364,19 +364,26 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 	}
 
 	lastSnapshotId := volume.LastSnapshotId
+
 	var lastSnapshotMap *SnapshotMap
-	//We'd better check last snapshot config early, ensure it would go through
-	if lastSnapshotId != "" && lastSnapshotId != snapshotId {
-		log.Debug("Loading last snapshot: ", lastSnapshotId)
-		lastSnapshotMap, err = loadSnapshotMap(lastSnapshotId, volumeId, bsDriver)
-		if err != nil {
-			return err
+	if lastSnapshotId != "" {
+		if lastSnapshotId == snapshotId {
+			//Generate full snapshot if the snapshot has been backed up last time
+			lastSnapshotId = ""
+			log.Debug("Would create full snapshot metadata")
+		} else if !sDriver.HasSnapshot(lastSnapshotId, volumeId) {
+			// It's possible that the snapshot in blockstore doesn't exist
+			// in local storage
+			lastSnapshotId = ""
+			log.Debug("Cannot find last snapshot %v in local storage, would process with full backup", lastSnapshotId)
+		} else {
+			log.Debug("Loading last snapshot: ", lastSnapshotId)
+			lastSnapshotMap, err = loadSnapshotMap(lastSnapshotId, volumeId, bsDriver)
+			if err != nil {
+				return err
+			}
+			log.Debug("Loaded last snapshot: ", lastSnapshotId)
 		}
-		log.Debug("Loaded last snapshot: ", lastSnapshotId)
-	} else {
-		//Generate full snapshot if the snapshot has been backed up last time
-		lastSnapshotId = ""
-		log.Debug("Would create full snapshot metadata")
 	}
 
 	log.Debug("Generating snapshot metadata of ", snapshotId)

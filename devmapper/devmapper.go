@@ -485,3 +485,11 @@ func (d *Driver) GetVolumeDevice(id string) (string, error) {
 
 	return filepath.Join(DM_DIR, id), nil
 }
+
+func (d *Driver) HasSnapshot(id, volumeId string) bool {
+	_, _, err := d.getSnapshotAndVolume(id, volumeId)
+	if err != nil {
+		return false
+	}
+	return true
+}

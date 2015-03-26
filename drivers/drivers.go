@@ -17,6 +17,7 @@ type Driver interface {
 	ListVolumes() error
 	CreateSnapshot(id, volumeId string) error
 	DeleteSnapshot(id, volumeId string) error
+	HasSnapshot(id, volumeId string) bool
 	ListSnapshot(volumeId string) error
 	CompareSnapshot(id, compareId, volumeId string, mapping *metadata.Mappings) error
 	OpenSnapshot(id, volumeId string) error
