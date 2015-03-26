@@ -4,6 +4,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/alecthomas/kingpin"
+	"github.com/yasker/volmgr/api"
 	"github.com/yasker/volmgr/drivers"
 	"github.com/yasker/volmgr/utils"
 	"os"
@@ -22,12 +23,12 @@ var (
 
 	flagVolume             = flagApp.Command("volume", "volume related operations")
 	flagVolumeCreate       = flagVolume.Command("create", "create a new volume")
-	flagVolumeCreateSize   = flagVolumeCreate.Flag("size", "size of volume").Required().Uint64()
+	flagVolumeCreateSize   = flagVolumeCreate.Flag("size", "size of volume").Required().Int64()
 	flagVolumeDelete       = flagVolume.Command("delete", "delete a volume with all of it's snapshots")
 	flagVolumeDeleteUUID   = flagVolumeDelete.Flag("uuid", "uuid of volume").Required().String()
 	flagVolumeUpdate       = flagVolume.Command("update", "update info about volume")
 	flagVolumeUpdateUUID   = flagVolumeUpdate.Flag("uuid", "uuid of volume").Required().String()
-	flagVolumeUpdateSize   = flagVolumeUpdate.Flag("size", "size of volume").Required().Uint64()
+	flagVolumeUpdateSize   = flagVolumeUpdate.Flag("size", "size of volume").Required().Int64()
 	flagVolumeMount        = flagVolume.Command("mount", "mount a volume to an specific path")
 	flagVolumeMountUUID    = flagVolumeMount.Flag("uuid", "uuid of volume").Required().String()
 	flagVolumeMountPoint   = flagVolumeMount.Flag("mountpoint", "mountpoint of volume").String()
@@ -37,6 +38,7 @@ var (
 	flagVolumeUnmount      = flagVolume.Command("unmount", "umount a volume")
 	flagVolumeUnmountUUID  = flagVolumeUnmount.Flag("uuid", "uuid of volume").Required().String()
 	flagVolumeList         = flagVolume.Command("list", "list all managed volumes")
+	flagVolumeListUUID     = flagVolumeUnmount.Flag("uuid", "uuid of volume").String()
 
 	flagSnapshot                 = flagApp.Command("snapshot", "snapshot related operations")
 	flagSnapshotCreate           = flagSnapshot.Command("create", "create a snapshot")
@@ -44,8 +46,6 @@ var (
 	flagSnapshotDelete           = flagSnapshot.Command("delete", "delete a snapshot")
 	flagSnapshotDeleteUUID       = flagSnapshotDelete.Flag("uuid", "uuid of snapshot").Required().String()
 	flagSnapshotDeleteVolumeUUID = flagSnapshotDelete.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-	flagSnapshotList             = flagSnapshot.Command("list", "list snapshots")
-	flagSnapshotListVolumeUUID   = flagSnapshotList.Flag("volume-uuid", "uuid of volume for snapshot").String()
 
 	flagBlockStore                 = flagApp.Command("blockstore", "blockstore related operations")
 	flagBlockStoreRegister         = flagBlockStore.Command("register", "register a blockstore, create it if it's not existed yet")
@@ -84,7 +84,7 @@ const (
 
 type Volume struct {
 	Base       string
-	Size       uint64
+	Size       int64
 	MountPoint string
 	FileSystem string
 	Snapshots  map[string]bool
@@ -102,24 +102,26 @@ func main() {
 		os.Exit(-1)
 	}
 
-	lock := filepath.Join(ROOTDIR, LOCKFILE)
-	if err := utils.LockFile(lock); err != nil {
-		fmt.Println("Fail to lock the file", err)
-		os.Exit(-1)
-	}
-
-	defer utils.UnlockFile(lock)
-
 	command := kingpin.MustParse(flagApp.Parse(os.Args[1:]))
+
 	if *flagDebug {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
+
+	lock := filepath.Join(ROOTDIR, LOCKFILE)
+	if err := utils.LockFile(lock); err != nil {
+		api.ResponseError("Fail to lock the file", err)
+		os.Exit(-1)
+	}
+
+	defer utils.UnlockFile(lock)
+
 	if *flagLog != "" {
 		f, err := os.OpenFile(*flagLog, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			fmt.Println(err)
+			api.ResponseLogAndError(err.Error())
 			os.Exit(-1)
 		}
 		defer f.Close()
@@ -133,13 +135,13 @@ func main() {
 
 	if command == flagInitialize.FullCommand() {
 		if _, err := os.Stat(configFile); err == nil {
-			log.Errorf("Configuration file %v existed. Don't need to initialize.", configFile)
+			api.ResponseLogAndError("Configuration file %v existed. Don't need to initialize.", configFile)
 			os.Exit(-1)
 		}
 
 		err := doInitialize(ROOTDIR, *flagInitializeDriver, *flagInitializeDriverOpts)
 		if err != nil {
-			log.Errorln("Failed to initialize volmgr.", err)
+			api.ResponseLogAndError("Failed to initialize volmgr.", err)
 			os.Exit(-1)
 		}
 		os.Exit(0)
@@ -148,13 +150,13 @@ func main() {
 	config := Config{}
 	err := utils.LoadConfig(configFile, &config)
 	if err != nil {
-		log.Errorln("Failed to load config.", err)
+		api.ResponseLogAndError("Failed to load config.", err)
 		os.Exit(-1)
 	}
 
 	driver, err := drivers.GetDriver(config.Driver, getDriverRoot(config.Root, config.Driver), nil)
 	if err != nil {
-		log.Errorln("Failed to load driver.", err)
+		api.ResponseLogAndError("Failed to load driver.", err)
 		os.Exit(-1)
 	}
 
@@ -168,7 +170,7 @@ func main() {
 	case flagVolumeUpdate.FullCommand():
 		err = doVolumeUpdate(&config, driver, *flagVolumeUpdateUUID, *flagVolumeUpdateSize)
 	case flagVolumeList.FullCommand():
-		err = doVolumeList(&config, driver)
+		err = doVolumeList(&config, driver, *flagVolumeListUUID)
 	case flagVolumeMount.FullCommand():
 		err = doVolumeMount(&config, driver, *flagVolumeMountUUID, *flagVolumeMountPoint, *flagVolumeMountFS, *flagVolumeMountOptions, *flagVolumeMountFormat)
 	case flagVolumeUnmount.FullCommand():
@@ -177,8 +179,6 @@ func main() {
 		err = doSnapshotCreate(&config, driver, *flagSnapshotCreateVolumeUUID)
 	case flagSnapshotDelete.FullCommand():
 		err = doSnapshotDelete(&config, driver, *flagSnapshotDeleteUUID, *flagSnapshotDeleteVolumeUUID)
-	case flagSnapshotList.FullCommand():
-		err = doSnapshotList(&config, driver, *flagSnapshotListVolumeUUID)
 	case flagBlockStoreRegister.FullCommand():
 		err = doBlockStoreRegister(&config, *flagBlockStoreRegisterKind, *flagBlockStoreRegisterOpts)
 	case flagBlockStoreDeregister.FullCommand():
@@ -196,11 +196,11 @@ func main() {
 	case flagSnapshotRemove.FullCommand():
 		err = doSnapshotRemove(&config, *flagSnapshotRemoveUUID, *flagSnapshotRemoveVolumeUUID, *flagSnapshotRemoveBlockStoreUUID)
 	default:
-		log.Errorln("Unrecognized command")
+		api.ResponseLogAndError("Unrecognized command", command)
 		os.Exit(-1)
 	}
 	if err != nil {
-		log.Errorln("Failed to complete", command, err)
+		api.ResponseLogAndError("Failed to complete", command, err)
 		os.Exit(-1)
 	}
 }

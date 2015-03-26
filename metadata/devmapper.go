@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 )
 
-func DeviceMapperThinDeltaParser(data []byte, blockSize uint32, mapping *Mappings) error {
+func DeviceMapperThinDeltaParser(data []byte, blockSize int64, mapping *Mappings) error {
 	type DeltaRange struct {
 		Begin          int64 `xml:"begin,attr"`
 		DataBegin      int64 `xml:"data_begin,attr"`
@@ -43,11 +43,11 @@ func DeviceMapperThinDeltaParser(data []byte, blockSize uint32, mapping *Mapping
 	mapping.Mappings = make([]Mapping, len(needProcess.DeltaRange))
 	for i, d := range needProcess.DeltaRange {
 		var m Mapping
-		m.Offset = d.Begin * int64(blockSize)
-		m.Size = d.Length * int64(blockSize)
+		m.Offset = d.Begin * blockSize
+		m.Size = d.Length * blockSize
 		mapping.Mappings[i] = m
 	}
-	mapping.BlockSize = int64(blockSize)
+	mapping.BlockSize = blockSize
 
 	return nil
 }

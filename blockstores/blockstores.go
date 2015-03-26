@@ -45,7 +45,7 @@ type BlockStoreDriver interface {
 }
 
 type Volume struct {
-	Size           uint64
+	Size           int64
 	Base           string
 	LastSnapshotId string
 }
@@ -161,16 +161,19 @@ func saveBlockStoreConfig(driver BlockStoreDriver, b *BlockStore) error {
 	return nil
 }
 
-func Register(root, kind string, config map[string]string) error {
+func Register(root, kind string, config map[string]string) (string, int64, error) {
 	driver, err := GetBlockStoreDriver(kind, "", config)
 	if err != nil {
-		return err
+		return "", 0, err
 	}
 
 	var id string
 	bs, err := loadBlockStoreConfig(driver)
 	if err == nil {
 		// BlockStore has already been created
+		if bs.Kind != kind {
+			return "", 0, fmt.Errorf("specific kind is different from config stored in blockstore")
+		}
 		id = bs.UUID
 		log.Debug("Loaded blockstore cfg in blockstore: ", id)
 		driver.FinalizeInit(getDriverConfigFilename(root, kind, id), id)
@@ -183,7 +186,7 @@ func Register(root, kind string, config map[string]string) error {
 		err = driver.MkDirAll(basePath)
 		if err != nil {
 			removeDriverConfigFile(root, kind, id)
-			return err
+			return "", 0, err
 		}
 		log.Debug("Created base directory of blockstore at ", basePath)
 
@@ -194,17 +197,17 @@ func Register(root, kind string, config map[string]string) error {
 		}
 
 		if err := saveBlockStoreConfig(driver, bs); err != nil {
-			return err
+			return "", 0, err
 		}
 		log.Debug("Created blockstore cfg in blockstore", bs.UUID)
 	}
 
 	configFile := getConfigFilename(root, id)
 	if err := utils.SaveConfig(configFile, bs); err != nil {
-		return err
+		return "", 0, err
 	}
 	log.Debug("Created local copy of ", configFile)
-	return nil
+	return bs.UUID, bs.BlockSize, nil
 }
 
 func removeDriverConfigFile(root, kind, id string) error {
@@ -244,7 +247,7 @@ func Deregister(root, id string) error {
 	return nil
 }
 
-func AddVolume(root, id, volumeId, base string, size uint64) error {
+func AddVolume(root, id, volumeId, base string, size int64) error {
 	configFile := getConfigFilename(root, id)
 	b := &BlockStore{}
 	err := utils.LoadConfig(configFile, b)

@@ -4,6 +4,7 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/yasker/volmgr/api"
 	"github.com/yasker/volmgr/blockstores"
 	"github.com/yasker/volmgr/drivers"
 	"github.com/yasker/volmgr/utils"
@@ -42,12 +43,11 @@ func doInitialize(root, driverName string, driverOpts map[string]string) error {
 }
 
 func doInfo(config *Config, driver drivers.Driver) error {
-	fmt.Println("Driver: " + config.Driver)
 	err := driver.Info()
 	return err
 }
 
-func doVolumeCreate(config *Config, driver drivers.Driver, size uint64) error {
+func doVolumeCreate(config *Config, driver drivers.Driver, size int64) error {
 	uuid := uuid.New()
 	base := "" //Doesn't support base for now
 	if err := driver.CreateVolume(uuid, base, size); err != nil {
@@ -61,7 +61,15 @@ func doVolumeCreate(config *Config, driver drivers.Driver, size uint64) error {
 		FileSystem: "",
 		Snapshots:  make(map[string]bool),
 	}
-	return utils.SaveConfig(getConfigFileName(config.Root), config)
+	if err := utils.SaveConfig(getConfigFileName(config.Root), config); err != nil {
+		return err
+	}
+	api.ResponseOutput(api.VolumeResponse{
+		UUID: uuid,
+		Base: base,
+		Size: size,
+	})
+	return nil
 }
 
 func doVolumeDelete(config *Config, driver drivers.Driver, uuid string) error {
@@ -73,12 +81,12 @@ func doVolumeDelete(config *Config, driver drivers.Driver, uuid string) error {
 	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
-func doVolumeUpdate(config *Config, driver drivers.Driver, uuid string, size uint64) error {
+func doVolumeUpdate(config *Config, driver drivers.Driver, uuid string, size int64) error {
 	return fmt.Errorf("Doesn't support change size of volume yet")
 }
 
-func doVolumeList(config *Config, driver drivers.Driver) error {
-	err := driver.ListVolumes()
+func doVolumeList(config *Config, driver drivers.Driver, id string) error {
+	err := driver.ListVolume(id)
 	return err
 }
 
@@ -122,8 +130,14 @@ func doSnapshotCreate(config *Config, driver drivers.Driver, volumeUUID string) 
 	log.Debugf("Created snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
 
 	config.Volumes[volumeUUID].Snapshots[uuid] = true
-	err := utils.SaveConfig(getConfigFileName(config.Root), config)
-	return err
+	if err := utils.SaveConfig(getConfigFileName(config.Root), config); err != nil {
+		return err
+	}
+	api.ResponseOutput(api.SnapshotResponse{
+		UUID:       uuid,
+		VolumeUUID: volumeUUID,
+	})
+	return nil
 }
 
 func doSnapshotDelete(config *Config, driver drivers.Driver, uuid, volumeUUID string) error {
@@ -133,17 +147,13 @@ func doSnapshotDelete(config *Config, driver drivers.Driver, uuid, volumeUUID st
 	if _, exists := config.Volumes[volumeUUID].Snapshots[uuid]; !exists {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", uuid, volumeUUID)
 	}
-	err := driver.DeleteSnapshot(uuid, volumeUUID)
+	if err := driver.DeleteSnapshot(uuid, volumeUUID); err != nil {
+		return err
+	}
 	log.Debugf("Deleted snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
 
 	delete(config.Volumes[volumeUUID].Snapshots, uuid)
-	err = utils.SaveConfig(getConfigFileName(config.Root), config)
-	return err
-}
-
-func doSnapshotList(config *Config, driver drivers.Driver, volumeUUID string) error {
-	err := driver.ListSnapshot(volumeUUID)
-	return err
+	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
 const (
@@ -160,7 +170,17 @@ func doBlockStoreRegister(config *Config, kind string, opts map[string]string) e
 	if err != nil {
 		return err
 	}
-	return blockstores.Register(path, kind, opts)
+	id, blockSize, err := blockstores.Register(path, kind, opts)
+	if err != nil {
+		return err
+	}
+
+	api.ResponseOutput(api.BlockStoreResponse{
+		UUID:      id,
+		Kind:      kind,
+		BlockSize: blockSize,
+	})
+	return nil
 }
 
 func doBlockStoreDeregister(config *Config, id string) error {

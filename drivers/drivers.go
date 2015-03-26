@@ -11,14 +11,13 @@ type InitFunc func(root string, config map[string]string) (Driver, error)
 
 type Driver interface {
 	Name() string
-	CreateVolume(id, baseId string, size uint64) error
+	CreateVolume(id, baseId string, size int64) error
 	DeleteVolume(id string) error
 	GetVolumeDevice(id string) (string, error)
-	ListVolumes() error
+	ListVolume(id string) error
 	CreateSnapshot(id, volumeId string) error
 	DeleteSnapshot(id, volumeId string) error
 	HasSnapshot(id, volumeId string) bool
-	ListSnapshot(volumeId string) error
 	CompareSnapshot(id, compareId, volumeId string, mapping *metadata.Mappings) error
 	OpenSnapshot(id, volumeId string) error
 	ReadSnapshot(id, volumeId string, start int64, data []byte) error

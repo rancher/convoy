@@ -5,6 +5,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/yasker/volmgr/api"
 	"github.com/yasker/volmgr/drivers"
 	"github.com/yasker/volmgr/metadata"
 	"github.com/yasker/volmgr/utils"
@@ -40,7 +41,7 @@ type Driver struct {
 
 type Volume struct {
 	DevId     int
-	Size      uint64
+	Size      int64
 	Snapshots map[string]Snapshot
 }
 
@@ -54,8 +55,8 @@ type Device struct {
 	DataDevice        string
 	MetadataDevice    string
 	ThinpoolDevice    string
-	ThinpoolSize      uint64
-	ThinpoolBlockSize uint32
+	ThinpoolSize      int64
+	ThinpoolBlockSize int64
 	LastDevId         int
 	Volumes           map[string]Volume
 }
@@ -84,12 +85,10 @@ func verifyConfig(config map[string]string) (*Device, error) {
 	}
 
 	blockSizeString := config[DM_THINPOOL_BLOCK_SIZE]
-	blockSizeTmp, err := strconv.Atoi(blockSizeString)
+	blockSize, err := strconv.ParseInt(blockSizeString, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("Illegal block size specified")
 	}
-	blockSize := uint32(blockSizeTmp)
-
 	if blockSize < BLOCK_SIZE_MIN || blockSize > BLOCK_SIZE_MAX || blockSize%BLOCK_SIZE_MULTIPLIER != 0 {
 		return nil, fmt.Errorf("Block size must between %v and %v, and must be a multiple of %v",
 			BLOCK_SIZE_MIN, BLOCK_SIZE_MAX, BLOCK_SIZE_MULTIPLIER)
@@ -119,13 +118,13 @@ func (d *Driver) activatePool() error {
 	}
 	defer metadataDev.Close()
 
-	if err := createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, dev.ThinpoolBlockSize); err != nil {
+	if err := createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, uint32(dev.ThinpoolBlockSize)); err != nil {
 		return err
 	}
 	log.Debug("Reinitialized the existing pool ", dev.ThinpoolDevice)
 
 	for id, volume := range dev.Volumes {
-		if err := d.activateDevice(id, volume.DevId, volume.Size); err != nil {
+		if err := d.activateDevice(id, volume.DevId, uint64(volume.Size)); err != nil {
 			return err
 		}
 		log.Debug("Reactivated volume device", id)
@@ -176,10 +175,10 @@ func Init(root string, config map[string]string) (drivers.Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	dev.ThinpoolSize = thinpSize
+	dev.ThinpoolSize = int64(thinpSize)
 	dev.LastDevId = 1
 
-	err = createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, dev.ThinpoolBlockSize)
+	err = createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, uint32(dev.ThinpoolBlockSize))
 	if err != nil {
 		return nil, err
 	}
@@ -209,8 +208,8 @@ func (d *Driver) Name() string {
 	return DRIVER_NAME
 }
 
-func (d *Driver) CreateVolume(id, baseId string, size uint64) error {
-	if size%uint64(d.ThinpoolBlockSize*SECTOR_SIZE) != 0 {
+func (d *Driver) CreateVolume(id, baseId string, size int64) error {
+	if size%(d.ThinpoolBlockSize*SECTOR_SIZE) != 0 {
 		return fmt.Errorf("Size must be multiple of block size")
 
 	}
@@ -227,7 +226,7 @@ func (d *Driver) CreateVolume(id, baseId string, size uint64) error {
 	}
 	log.Debug("Created device")
 
-	if err = d.activateDevice(id, devId, size); err != nil {
+	if err = d.activateDevice(id, devId, uint64(size)); err != nil {
 		devicemapper.DeleteDevice(d.ThinpoolDevice, devId)
 		log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devId)
 		return err
@@ -277,12 +276,37 @@ func (d *Driver) DeleteVolume(id string) error {
 	return nil
 }
 
-func (d *Driver) ListVolumes() error {
-	for uuid, volume := range d.Volumes {
-		fmt.Printf("volume %v\n", uuid)
-		fmt.Println("\tdev id:", volume.DevId)
-		fmt.Println("\tsize:", volume.Size)
+func getVolumeInfo(uuid string, volume Volume) *api.DeviceMapperVolume {
+	result := api.DeviceMapperVolume{
+		UUID:  uuid,
+		DevId: volume.DevId,
+		Size:  volume.Size,
 	}
+	for uuid, snapshot := range volume.Snapshots {
+		s := api.DeviceMapperSnapshot{
+			UUID:  uuid,
+			DevId: snapshot.DevId,
+		}
+		result.Snapshots = append(result.Snapshots, s)
+	}
+	return &result
+}
+
+func (d *Driver) ListVolume(id string) error {
+	volumes := api.DeviceMapperVolumes{}
+	if id != "" {
+		volume, exists := d.Volumes[id]
+		if !exists {
+			return fmt.Errorf("volume %v doesn't exists", id)
+		}
+		volumes.Volumes = append(volumes.Volumes, *getVolumeInfo(id, volume))
+
+	} else {
+		for uuid, volume := range d.Volumes {
+			volumes.Volumes = append(volumes.Volumes, *getVolumeInfo(uuid, volume))
+		}
+	}
+	api.ResponseOutput(volumes)
 	return nil
 }
 
@@ -342,25 +366,6 @@ func (d *Driver) DeleteSnapshot(id, volumeId string) error {
 	return nil
 }
 
-func listVolumeSnapshot(volumeId string, volume Volume) {
-	fmt.Printf("Volume %v\n", volumeId)
-	for uuid, snapshot := range volume.Snapshots {
-		fmt.Printf("snapshot %v\n", uuid)
-		fmt.Println("\tdev id:", snapshot.DevId)
-	}
-}
-
-func (d *Driver) ListSnapshot(volumeId string) error {
-	if volumeId == "" {
-		for uuid, volume := range d.Volumes {
-			listVolumeSnapshot(uuid, volume)
-		}
-	}
-	volume := d.Volumes[volumeId]
-	listVolumeSnapshot(volumeId, volume)
-	return nil
-}
-
 func (d *Driver) CompareSnapshot(id, compareId, volumeId string, mapping *metadata.Mappings) error {
 	if compareId == "" {
 		compareId = id
@@ -387,12 +392,17 @@ func (d *Driver) Info() error {
 	// from sector count to byte
 	blockSize := d.ThinpoolBlockSize * 512
 
-	fmt.Println("\tworking directory:", d.Root)
-	fmt.Println("\tdata device:", d.DataDevice)
-	fmt.Println("\tmetadata device:", d.MetadataDevice)
-	fmt.Println("\tthinpool:", d.ThinpoolDevice)
-	fmt.Println("\tthinpool size:", d.ThinpoolSize)
-	fmt.Println("\tthinpool block size:", blockSize)
+	dmInfo := api.DeviceMapperInfo{
+		Driver:            d.Name(),
+		Root:              d.Root,
+		DataDevice:        d.DataDevice,
+		MetadataDevice:    d.MetadataDevice,
+		ThinpoolDevice:    d.ThinpoolDevice,
+		ThinpoolSize:      d.ThinpoolSize,
+		ThinpoolBlockSize: blockSize,
+	}
+
+	api.ResponseOutput(dmInfo)
 
 	return nil
 }
@@ -435,7 +445,7 @@ func (d *Driver) OpenSnapshot(id, volumeId string) error {
 		return err
 	}
 
-	if err = d.activateDevice(id, snapshot.DevId, volume.Size); err != nil {
+	if err = d.activateDevice(id, snapshot.DevId, uint64(volume.Size)); err != nil {
 		return err
 	}
 	snapshot.Activated = true
