@@ -13,6 +13,7 @@ import (
 var (
 	flagApp   = kingpin.New("volmgr", "A volume manager capable of snapshot and delta backup")
 	flagDebug = flagApp.Flag("debug", "Enable debug mode.").Default("true").Bool()
+	flagLog   = flagApp.Flag("log", "specific output log file, otherwise output to stderr by default").String()
 	flagInfo  = flagApp.Command("info", "information about volmgr")
 
 	flagInitialize           = flagApp.Command("init", "initialize volmgr")
@@ -96,8 +97,6 @@ type Config struct {
 }
 
 func main() {
-	log.SetOutput(os.Stderr)
-
 	if len(os.Args) == 1 {
 		fmt.Println("Use --help to see command list")
 		os.Exit(-1)
@@ -117,6 +116,19 @@ func main() {
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
+	if *flagLog != "" {
+		f, err := os.OpenFile(*flagLog, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+		defer f.Close()
+		log.SetFormatter(&log.JSONFormatter{})
+		log.SetOutput(f)
+	} else {
+		log.SetOutput(os.Stderr)
+	}
+
 	configFile := filepath.Join(ROOTDIR, CONFIGFILE)
 
 	if command == flagInitialize.FullCommand() {
