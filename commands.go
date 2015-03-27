@@ -12,7 +12,7 @@ import (
 )
 
 func getDriverRoot(root, driverName string) string {
-	return filepath.Join(root, driverName) + "/"
+	return filepath.Join(root, driverName)
 }
 
 func getConfigFileName(root string) string {

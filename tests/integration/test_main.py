@@ -2,6 +2,7 @@
 
 import subprocess
 import os
+import json
 
 ROOT_DIR = "/tmp/volmgr_test/volmgr"
 DATA_DIR = "/tmp/volmgr_test/"
@@ -10,14 +11,19 @@ METADATA_FILE = "metadata.vol"
 DATA_DEVICE_SIZE = 1073618944 
 METADATA_DEVICE_SIZE = 40960000
 DD_BLOCK_SIZE = 4096
-POOL_NAME = "test_pool"
+POOL_NAME = "volmgr_test_pool"
 VOLMGR_CMDLINE = ["../../volmgr", "--debug", "--log=/tmp/volmgr.log",
     "--root=" + ROOT_DIR]
+
+DM_DIR = "/dev/mapper"
+DM_BLOCK_SIZE = 2097152
+
+VOLUME_SIZE = 524288000
 
 data_dev = ""
 metadata_dev = ""
 
-def setup():
+def setup_module():
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
         assert os.path.exists(DATA_DIR)
@@ -42,7 +48,7 @@ def setup():
             metadata_file]).strip().split(" ")[3]
     assert metadata_dev.startswith("/dev/loop")
 
-def teardown():
+def teardown_module():
     subprocess.check_call(["rm", "-rf", ROOT_DIR])
 
     subprocess.check_call(["dmsetup", "remove", POOL_NAME])
@@ -53,5 +59,15 @@ def test_init():
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
 	"--driver-opts", "dm.thinpoolname=" + POOL_NAME])
-    pass
+
+def test_info():
+    data = subprocess.check_output(VOLMGR_CMDLINE + ["info"])
+    info = json.loads(data)
+    assert info["Driver"] == "devicemapper"
+    assert info["Root"] == os.path.join(ROOT_DIR, "devicemapper")
+    assert info["DataDevice"] == data_dev
+    assert info["MetadataDevice"] == metadata_dev
+    assert info["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME)
+    assert info["ThinpoolSize"] == DATA_DEVICE_SIZE
+    assert info["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 

@@ -78,7 +78,7 @@ func verifyConfig(config map[string]string) (*Device, error) {
 	if _, exists := config[DM_THINPOOL_NAME]; !exists {
 		config[DM_THINPOOL_NAME] = DEFAULT_THINPOOL_NAME
 	}
-	dv.ThinpoolDevice = DM_DIR + config[DM_THINPOOL_NAME]
+	dv.ThinpoolDevice = filepath.Join(DM_DIR, config[DM_THINPOOL_NAME])
 
 	if _, exists := config[DM_THINPOOL_BLOCK_SIZE]; !exists {
 		config[DM_THINPOOL_BLOCK_SIZE] = DEFAULT_BLOCK_SIZE
