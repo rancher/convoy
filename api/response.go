@@ -7,7 +7,7 @@ import (
 )
 
 type ErrorResponse struct {
-	Error string `json:"error"`
+	Error string
 }
 
 type VolumeResponse struct {
