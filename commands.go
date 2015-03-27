@@ -20,7 +20,6 @@ func getConfigFileName(root string) string {
 }
 
 func doInitialize(root, driverName string, driverOpts map[string]string) error {
-	utils.MkdirIfNotExists(root)
 	log.Debug("Config root is ", root)
 
 	driverRoot := getDriverRoot(root, driverName)

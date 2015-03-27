@@ -15,6 +15,7 @@ var (
 	flagApp   = kingpin.New("volmgr", "A volume manager capable of snapshot and delta backup")
 	flagDebug = flagApp.Flag("debug", "Enable debug mode.").Default("true").Bool()
 	flagLog   = flagApp.Flag("log", "specific output log file, otherwise output to stderr by default").String()
+	flagRoot  = flagApp.Flag("root", "specific root directory of volmgr").Default("/var/lib/volmgr").String()
 	flagInfo  = flagApp.Command("info", "information about volmgr")
 
 	flagInitialize           = flagApp.Command("init", "initialize volmgr")
@@ -79,7 +80,6 @@ var (
 const (
 	LOCKFILE   = "lock"
 	CONFIGFILE = "volmgr.cfg"
-	ROOTDIR    = "/var/lib/volmgr/"
 )
 
 type Volume struct {
@@ -110,7 +110,17 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	lock := filepath.Join(ROOTDIR, LOCKFILE)
+	root := *flagRoot
+	if root == "" {
+		fmt.Println("Have to specific root directory")
+		os.Exit(-1)
+	}
+	if err := utils.MkdirIfNotExists(root); err != nil {
+		fmt.Println("Invalid root directory:", err)
+		os.Exit(-1)
+	}
+
+	lock := filepath.Join(root, LOCKFILE)
 	if err := utils.LockFile(lock); err != nil {
 		api.ResponseError("Fail to lock the file", err)
 		os.Exit(-1)
@@ -131,7 +141,7 @@ func main() {
 		log.SetOutput(os.Stderr)
 	}
 
-	configFile := filepath.Join(ROOTDIR, CONFIGFILE)
+	configFile := filepath.Join(root, CONFIGFILE)
 
 	if command == flagInitialize.FullCommand() {
 		if _, err := os.Stat(configFile); err == nil {
@@ -139,7 +149,7 @@ func main() {
 			os.Exit(-1)
 		}
 
-		err := doInitialize(ROOTDIR, *flagInitializeDriver, *flagInitializeDriverOpts)
+		err := doInitialize(root, *flagInitializeDriver, *flagInitializeDriverOpts)
 		if err != nil {
 			api.ResponseLogAndError("Failed to initialize volmgr.", err)
 			os.Exit(-1)
