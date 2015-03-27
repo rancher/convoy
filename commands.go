@@ -186,62 +186,62 @@ func doBlockStoreDeregister(config *Config, id string) error {
 	return blockstores.Deregister(getBlockStoreRoot(config.Root), id)
 }
 
-func doBlockStoreAdd(config *Config, blockstoreId, volumeId string) error {
-	volume, exists := config.Volumes[volumeId]
+func doBlockStoreAdd(config *Config, blockstoreID, volumeID string) error {
+	volume, exists := config.Volumes[volumeID]
 	if !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeId)
+		return fmt.Errorf("volume %v doesn't exist", volumeID)
 	}
 
-	return blockstores.AddVolume(getBlockStoreRoot(config.Root), blockstoreId, volumeId, volume.Base, volume.Size)
+	return blockstores.AddVolume(getBlockStoreRoot(config.Root), blockstoreID, volumeID, volume.Base, volume.Size)
 }
 
-func doBlockStoreRemove(config *Config, blockstoreId, volumeId string) error {
-	if _, exists := config.Volumes[volumeId]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeId)
+func doBlockStoreRemove(config *Config, blockstoreID, volumeID string) error {
+	if _, exists := config.Volumes[volumeID]; !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeID)
 	}
 
-	return blockstores.RemoveVolume(getBlockStoreRoot(config.Root), blockstoreId, volumeId)
+	return blockstores.RemoveVolume(getBlockStoreRoot(config.Root), blockstoreID, volumeID)
 }
 
-func doSnapshotBackup(config *Config, driver drivers.Driver, snapshotId, volumeId, blockstoreId string) error {
-	if _, exists := config.Volumes[volumeId]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeId)
+func doSnapshotBackup(config *Config, driver drivers.Driver, snapshotID, volumeID, blockstoreID string) error {
+	if _, exists := config.Volumes[volumeID]; !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeID)
 	}
-	if _, exists := config.Volumes[volumeId].Snapshots[snapshotId]; !exists {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotId, volumeId)
+	if _, exists := config.Volumes[volumeID].Snapshots[snapshotID]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotID, volumeID)
 	}
 
-	return blockstores.BackupSnapshot(getBlockStoreRoot(config.Root), snapshotId, volumeId, blockstoreId, driver)
+	return blockstores.BackupSnapshot(getBlockStoreRoot(config.Root), snapshotID, volumeID, blockstoreID, driver)
 }
 
-func doSnapshotRestore(config *Config, driver drivers.Driver, snapshotId, originVolumeId, targetVolumeId, blockstoreId string) error {
-	originVol, exists := config.Volumes[originVolumeId]
+func doSnapshotRestore(config *Config, driver drivers.Driver, snapshotID, originVolumeID, targetVolumeID, blockstoreID string) error {
+	originVol, exists := config.Volumes[originVolumeID]
 	if !exists {
-		return fmt.Errorf("volume %v doesn't exist", originVolumeId)
+		return fmt.Errorf("volume %v doesn't exist", originVolumeID)
 	}
-	if _, exists := config.Volumes[originVolumeId].Snapshots[snapshotId]; !exists {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotId, originVolumeId)
+	if _, exists := config.Volumes[originVolumeID].Snapshots[snapshotID]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotID, originVolumeID)
 	}
-	targetVol, exists := config.Volumes[targetVolumeId]
+	targetVol, exists := config.Volumes[targetVolumeID]
 	if !exists {
-		return fmt.Errorf("volume %v doesn't exist", targetVolumeId)
+		return fmt.Errorf("volume %v doesn't exist", targetVolumeID)
 	}
 	if originVol.Size != targetVol.Size || originVol.Base != targetVol.Base {
 		return fmt.Errorf("target volume %v doesn't match original volume %v's size or base",
-			targetVolumeId, originVolumeId)
+			targetVolumeID, originVolumeID)
 	}
 
-	return blockstores.RestoreSnapshot(getBlockStoreRoot(config.Root), snapshotId, originVolumeId,
-		targetVolumeId, blockstoreId, driver)
+	return blockstores.RestoreSnapshot(getBlockStoreRoot(config.Root), snapshotID, originVolumeID,
+		targetVolumeID, blockstoreID, driver)
 }
 
-func doSnapshotRemove(config *Config, snapshotId, volumeId, blockstoreId string) error {
-	if _, exists := config.Volumes[volumeId]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeId)
+func doSnapshotRemove(config *Config, snapshotID, volumeID, blockstoreID string) error {
+	if _, exists := config.Volumes[volumeID]; !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeID)
 	}
-	if _, exists := config.Volumes[volumeId].Snapshots[snapshotId]; !exists {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotId, volumeId)
+	if _, exists := config.Volumes[volumeID].Snapshots[snapshotID]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotID, volumeID)
 	}
 
-	return blockstores.RemoveSnapshot(getBlockStoreRoot(config.Root), snapshotId, volumeId, blockstoreId)
+	return blockstores.RemoveSnapshot(getBlockStoreRoot(config.Root), snapshotID, volumeID, blockstoreID)
 }

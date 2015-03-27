@@ -133,39 +133,42 @@ func TestVolume(t *testing.T) {
 	require.Nil(t, err)
 
 	drv := driver.(*Driver)
-	lastDevId := drv.LastDevId
-	volumeId := uuid.New()
+	lastDevID := drv.LastDevID
+	volumeID := uuid.New()
 
-	err = driver.CreateVolume(volumeId, "", volumeSize)
+	err = driver.CreateVolume(volumeID, "", volumeSize)
 	require.Nil(t, err)
 
-	require.Equal(t, drv.LastDevId, lastDevId+1)
+	require.Equal(t, drv.LastDevID, lastDevID+1)
 
-	err = driver.CreateVolume(volumeId, "", volumeSize)
+	err = driver.CreateVolume(volumeID, "", volumeSize)
 	require.NotNil(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "Already has volume with uuid"))
 
-	volumeId2 := uuid.New()
+	volumeID2 := uuid.New()
 
-	wrongVolumeSize := uint64(13333333)
-	err = driver.CreateVolume(volumeId2, "", wrongVolumeSize)
+	wrongVolumeSize := int64(13333333)
+	err = driver.CreateVolume(volumeID2, "", wrongVolumeSize)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "Size must be multiple of block size")
 
-	err = driver.CreateVolume(volumeId2, "", volumeSize)
+	err = driver.CreateVolume(volumeID2, "", volumeSize)
 	require.Nil(t, err)
 
-	err = driver.ListVolumes()
+	err = driver.ListVolume("")
+	require.Nil(t, err)
+
+	err = driver.ListVolume(volumeID)
 	require.Nil(t, err)
 
 	err = driver.DeleteVolume("123")
 	require.NotNil(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "cannot find volume"))
 
-	err = driver.DeleteVolume(volumeId2)
+	err = driver.DeleteVolume(volumeID2)
 	require.Nil(t, err)
 
-	err = driver.DeleteVolume(volumeId)
+	err = driver.DeleteVolume(volumeID)
 	require.Nil(t, err)
 }
 
@@ -173,42 +176,36 @@ func TestSnapshot(t *testing.T) {
 	driver, err := Init(devRoot, nil)
 	require.Nil(t, err)
 
-	volumeId := uuid.New()
-	err = driver.CreateVolume(volumeId, "", volumeSize)
+	volumeID := uuid.New()
+	err = driver.CreateVolume(volumeID, "", volumeSize)
 	require.Nil(t, err)
 
-	snapshotId := uuid.New()
-	err = driver.CreateSnapshot(snapshotId, volumeId)
+	snapshotID := uuid.New()
+	err = driver.CreateSnapshot(snapshotID, volumeID)
 	require.Nil(t, err)
 
-	err = driver.CreateSnapshot(snapshotId, volumeId)
+	err = driver.CreateSnapshot(snapshotID, volumeID)
 	require.NotNil(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "Already has snapshot with uuid"))
 
-	snapshotId2 := uuid.New()
-	err = driver.CreateSnapshot(snapshotId2, volumeId)
+	snapshotID2 := uuid.New()
+	err = driver.CreateSnapshot(snapshotID2, volumeID)
 	require.Nil(t, err)
 
-	err = driver.ListSnapshot("")
+	err = driver.DeleteSnapshot(snapshotID, volumeID)
 	require.Nil(t, err)
 
-	err = driver.ListSnapshot(volumeId)
-	require.Nil(t, err)
-
-	err = driver.DeleteSnapshot(snapshotId, volumeId)
-	require.Nil(t, err)
-
-	err = driver.DeleteSnapshot(snapshotId, volumeId)
+	err = driver.DeleteSnapshot(snapshotID, volumeID)
 	require.NotNil(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "cannot find snapshot"))
 
-	err = driver.DeleteVolume(volumeId)
+	err = driver.DeleteVolume(volumeID)
 	require.NotNil(t, err)
 	require.True(t, strings.HasSuffix(err.Error(), "delete snapshots first"))
 
-	err = driver.DeleteSnapshot(snapshotId2, volumeId)
+	err = driver.DeleteSnapshot(snapshotID2, volumeID)
 	require.Nil(t, err)
 
-	err = driver.DeleteVolume(volumeId)
+	err = driver.DeleteVolume(volumeID)
 	require.Nil(t, err)
 }

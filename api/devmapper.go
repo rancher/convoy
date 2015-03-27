@@ -16,12 +16,12 @@ type DeviceMapperVolumes struct {
 
 type DeviceMapperVolume struct {
 	UUID      string
-	DevId     int
+	DevID     int
 	Size      int64
 	Snapshots []DeviceMapperSnapshot
 }
 
 type DeviceMapperSnapshot struct {
 	UUID  string
-	DevId int
+	DevID int
 }

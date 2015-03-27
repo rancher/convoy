@@ -17,7 +17,7 @@ type Device struct {
 }
 
 type Volume struct {
-	DevId int
+	DevID int
 	Size  uint64
 }
 
@@ -40,7 +40,7 @@ func TestSaveLoadConfig(t *testing.T) {
 	dev.ThinpoolBlockSize = 2048
 
 	volume := Volume{
-		DevId: 1,
+		DevID: 1,
 		Size:  1000000,
 	}
 	dev.Volumes["123"] = volume

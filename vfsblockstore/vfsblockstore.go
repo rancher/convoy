@@ -11,7 +11,7 @@ import (
 )
 
 type VfsBlockStoreDriver struct {
-	Id   string
+	ID   string
 	Path string
 }
 
@@ -51,7 +51,7 @@ func initFunc(configFile string, config map[string]string) (blockstores.BlockSto
 }
 
 func (v *VfsBlockStoreDriver) FinalizeInit(configFile, id string) error {
-	v.Id = id
+	v.ID = id
 	if err := utils.SaveConfig(configFile, v); err != nil {
 		return err
 	}

@@ -47,7 +47,7 @@ type BlockStoreDriver interface {
 type Volume struct {
 	Size           int64
 	Base           string
-	LastSnapshotId string
+	LastSnapshotID string
 }
 
 type BlockStore struct {
@@ -62,7 +62,7 @@ type BlockMapping struct {
 }
 
 type SnapshotMap struct {
-	Id     string
+	ID     string
 	Blocks []BlockMapping
 }
 
@@ -123,9 +123,9 @@ func saveConfigInBlockStore(path, name string, driver BlockStoreDriver, v interf
 	return nil
 }
 
-func loadVolumeConfig(volumeId string, driver BlockStoreDriver) (*Volume, error) {
+func loadVolumeConfig(volumeID string, driver BlockStoreDriver) (*Volume, error) {
 	v := &Volume{}
-	path := getVolumePath(volumeId)
+	path := getVolumePath(volumeID)
 	file := VOLUME_CONFIG_FILE
 	if err := loadConfigInBlockStore(path, file, driver, v); err != nil {
 		return nil, err
@@ -133,8 +133,8 @@ func loadVolumeConfig(volumeId string, driver BlockStoreDriver) (*Volume, error)
 	return v, nil
 }
 
-func saveVolumeConfig(volumeId string, driver BlockStoreDriver, v *Volume) error {
-	path := getVolumePath(volumeId)
+func saveVolumeConfig(volumeID string, driver BlockStoreDriver, v *Volume) error {
+	path := getVolumePath(volumeID)
 	file := VOLUME_CONFIG_FILE
 	if err := saveConfigInBlockStore(path, file, driver, v); err != nil {
 		return err
@@ -247,7 +247,7 @@ func Deregister(root, id string) error {
 	return nil
 }
 
-func AddVolume(root, id, volumeId, base string, size int64) error {
+func AddVolume(root, id, volumeID, base string, size int64) error {
 	configFile := getConfigFilename(root, id)
 	b := &BlockStore{}
 	err := utils.LoadConfig(configFile, b)
@@ -261,26 +261,26 @@ func AddVolume(root, id, volumeId, base string, size int64) error {
 		return err
 	}
 
-	volumePath := getVolumePath(volumeId)
+	volumePath := getVolumePath(volumeID)
 	volumeCfg := VOLUME_CONFIG_FILE
 	if driver.FileExists(volumePath, volumeCfg) {
-		return fmt.Errorf("volume %v already exists in blockstore %v", volumeId, id)
+		return fmt.Errorf("volume %v already exists in blockstore %v", volumeID, id)
 	}
 
 	if err := driver.MkDirAll(volumePath); err != nil {
 		return err
 	}
-	if err := driver.MkDirAll(getSnapshotsPath(volumeId)); err != nil {
+	if err := driver.MkDirAll(getSnapshotsPath(volumeID)); err != nil {
 		return err
 	}
-	if err := driver.MkDirAll(getBlocksPath(volumeId)); err != nil {
+	if err := driver.MkDirAll(getBlocksPath(volumeID)); err != nil {
 		return err
 	}
 	log.Debug("Created volume directory")
 	volume := Volume{
 		Size:           size,
 		Base:           base,
-		LastSnapshotId: "",
+		LastSnapshotID: "",
 	}
 
 	if err := saveConfigInBlockStore(volumePath, volumeCfg, driver, &volume); err != nil {
@@ -291,7 +291,7 @@ func AddVolume(root, id, volumeId, base string, size int64) error {
 	return nil
 }
 
-func RemoveVolume(root, id, volumeId string) error {
+func RemoveVolume(root, id, volumeID string) error {
 	configFile := getConfigFilename(root, id)
 	b := &BlockStore{}
 	err := utils.LoadConfig(configFile, b)
@@ -305,13 +305,13 @@ func RemoveVolume(root, id, volumeId string) error {
 		return err
 	}
 
-	volumePath := getVolumePath(volumeId)
+	volumePath := getVolumePath(volumeID)
 	volumeCfg := VOLUME_CONFIG_FILE
 	if !driver.FileExists(volumePath, volumeCfg) {
-		return fmt.Errorf("volume %v doesn't exist in blockstore %v", volumeId, id)
+		return fmt.Errorf("volume %v doesn't exist in blockstore %v", volumeID, id)
 	}
 
-	volumeDir := getVolumePath(volumeId)
+	volumeDir := getVolumePath(volumeID)
 	err = driver.RemoveAll(volumeDir)
 	if err != nil {
 		return err
@@ -321,24 +321,24 @@ func RemoveVolume(root, id, volumeId string) error {
 	return nil
 }
 
-func getVolumePath(volumeId string) string {
-	volumeLayer1 := volumeId[0:VOLUME_SEPARATE_LAYER1]
-	volumeLayer2 := volumeId[VOLUME_SEPARATE_LAYER1:VOLUME_SEPARATE_LAYER2]
-	return filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeId)
+func getVolumePath(volumeID string) string {
+	volumeLayer1 := volumeID[0:VOLUME_SEPARATE_LAYER1]
+	volumeLayer2 := volumeID[VOLUME_SEPARATE_LAYER1:VOLUME_SEPARATE_LAYER2]
+	return filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeID)
 }
 
-func getSnapshotsPath(volumeId string) string {
-	return filepath.Join(getVolumePath(volumeId), SNAPSHOTS_DIRECTORY)
+func getSnapshotsPath(volumeID string) string {
+	return filepath.Join(getVolumePath(volumeID), SNAPSHOTS_DIRECTORY)
 }
 
-func getBlocksPath(volumeId string) string {
-	return filepath.Join(getVolumePath(volumeId), BLOCKS_DIRECTORY)
+func getBlocksPath(volumeID string) string {
+	return filepath.Join(getVolumePath(volumeID), BLOCKS_DIRECTORY)
 }
 
-func getBlockPathAndFileName(volumeId, checksum string) (string, string) {
+func getBlockPathAndFileName(volumeID, checksum string) (string, string) {
 	blockSubDirLayer1 := checksum[0:BLOCK_SEPARATE_LAYER1]
 	blockSubDirLayer2 := checksum[BLOCK_SEPARATE_LAYER1:BLOCK_SEPARATE_LAYER2]
-	path := filepath.Join(getBlocksPath(volumeId), blockSubDirLayer1, blockSubDirLayer2)
+	path := filepath.Join(getBlocksPath(volumeID), blockSubDirLayer1, blockSubDirLayer2)
 	fileName := checksum + ".blk"
 
 	return path, fileName
@@ -348,75 +348,75 @@ func getSnapshotConfigName(id string) string {
 	return SNAPSHOT_CONFIG_PREFIX + id + ".cfg"
 }
 
-func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver drivers.Driver) error {
-	configFile := getConfigFilename(root, blockstoreId)
+func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver drivers.Driver) error {
+	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
 	err := utils.LoadConfig(configFile, b)
 	if err != nil {
 		return err
 	}
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreId)
+	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
 	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
 	if err != nil {
 		return err
 	}
 
-	volume, err := loadVolumeConfig(volumeId, bsDriver)
+	volume, err := loadVolumeConfig(volumeID, bsDriver)
 	if err != nil {
 		return err
 	}
 
-	lastSnapshotId := volume.LastSnapshotId
+	lastSnapshotID := volume.LastSnapshotID
 
 	var lastSnapshotMap *SnapshotMap
-	if lastSnapshotId != "" {
-		if lastSnapshotId == snapshotId {
+	if lastSnapshotID != "" {
+		if lastSnapshotID == snapshotID {
 			//Generate full snapshot if the snapshot has been backed up last time
-			lastSnapshotId = ""
+			lastSnapshotID = ""
 			log.Debug("Would create full snapshot metadata")
-		} else if !sDriver.HasSnapshot(lastSnapshotId, volumeId) {
+		} else if !sDriver.HasSnapshot(lastSnapshotID, volumeID) {
 			// It's possible that the snapshot in blockstore doesn't exist
 			// in local storage
-			lastSnapshotId = ""
-			log.Debug("Cannot find last snapshot %v in local storage, would process with full backup", lastSnapshotId)
+			lastSnapshotID = ""
+			log.Debug("Cannot find last snapshot %v in local storage, would process with full backup", lastSnapshotID)
 		} else {
-			log.Debug("Loading last snapshot: ", lastSnapshotId)
-			lastSnapshotMap, err = loadSnapshotMap(lastSnapshotId, volumeId, bsDriver)
+			log.Debug("Loading last snapshot: ", lastSnapshotID)
+			lastSnapshotMap, err = loadSnapshotMap(lastSnapshotID, volumeID, bsDriver)
 			if err != nil {
 				return err
 			}
-			log.Debug("Loaded last snapshot: ", lastSnapshotId)
+			log.Debug("Loaded last snapshot: ", lastSnapshotID)
 		}
 	}
 
-	log.Debug("Generating snapshot metadata of ", snapshotId)
+	log.Debug("Generating snapshot metadata of ", snapshotID)
 	delta := metadata.Mappings{}
-	if err = sDriver.CompareSnapshot(snapshotId, lastSnapshotId, volumeId, &delta); err != nil {
+	if err = sDriver.CompareSnapshot(snapshotID, lastSnapshotID, volumeID, &delta); err != nil {
 		return err
 	}
 	if delta.BlockSize != b.BlockSize {
 		return fmt.Errorf("Currently doesn't support different block sizes between blockstore and driver")
 	}
-	log.Debug("Generated snapshot metadata of ", snapshotId)
+	log.Debug("Generated snapshot metadata of ", snapshotID)
 
-	log.Debug("Creating snapshot changed blocks of ", snapshotId)
+	log.Debug("Creating snapshot changed blocks of ", snapshotID)
 	snapshotDeltaMap := &SnapshotMap{
 		Blocks: []BlockMapping{},
 	}
-	if err := sDriver.OpenSnapshot(snapshotId, volumeId); err != nil {
+	if err := sDriver.OpenSnapshot(snapshotID, volumeID); err != nil {
 		return err
 	}
-	defer sDriver.CloseSnapshot(snapshotId, volumeId)
+	defer sDriver.CloseSnapshot(snapshotID, volumeID)
 	for _, d := range delta.Mappings {
 		block := make([]byte, b.BlockSize)
 		for i := int64(0); i < d.Size/delta.BlockSize; i++ {
 			offset := d.Offset + i*delta.BlockSize
-			err := sDriver.ReadSnapshot(snapshotId, volumeId, offset, block)
+			err := sDriver.ReadSnapshot(snapshotID, volumeID, offset, block)
 			if err != nil {
 				return err
 			}
 			checksum := utils.GetChecksum(block)
-			path, fileName := getBlockPathAndFileName(volumeId, checksum)
+			path, fileName := getBlockPathAndFileName(volumeID, checksum)
 			if bsDriver.FileSize(path, fileName) >= 0 {
 				blockMapping := BlockMapping{
 					Offset:        offset,
@@ -442,26 +442,26 @@ func BackupSnapshot(root, snapshotId, volumeId, blockstoreId string, sDriver dri
 			snapshotDeltaMap.Blocks = append(snapshotDeltaMap.Blocks, blockMapping)
 		}
 	}
-	log.Debug("Created snapshot changed blocks of", snapshotId)
+	log.Debug("Created snapshot changed blocks of", snapshotID)
 
-	snapshotMap := mergeSnapshotMap(snapshotId, snapshotDeltaMap, lastSnapshotMap)
+	snapshotMap := mergeSnapshotMap(snapshotID, snapshotDeltaMap, lastSnapshotMap)
 
-	if err := saveSnapshotMap(snapshotId, volumeId, bsDriver, snapshotMap); err != nil {
+	if err := saveSnapshotMap(snapshotID, volumeID, bsDriver, snapshotMap); err != nil {
 		return err
 	}
-	log.Debug("Created snapshot config of", snapshotId)
-	volume.LastSnapshotId = snapshotId
-	if err := saveVolumeConfig(volumeId, bsDriver, volume); err != nil {
+	log.Debug("Created snapshot config of", snapshotID)
+	volume.LastSnapshotID = snapshotID
+	if err := saveVolumeConfig(volumeID, bsDriver, volume); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func loadSnapshotMap(snapshotId, volumeId string, bsDriver BlockStoreDriver) (*SnapshotMap, error) {
+func loadSnapshotMap(snapshotID, volumeID string, bsDriver BlockStoreDriver) (*SnapshotMap, error) {
 	snapshotMap := SnapshotMap{}
-	path := getSnapshotsPath(volumeId)
-	fileName := getSnapshotConfigName(snapshotId)
+	path := getSnapshotsPath(volumeID)
+	fileName := getSnapshotConfigName(snapshotID)
 
 	if err := loadConfigInBlockStore(path, fileName, bsDriver, &snapshotMap); err != nil {
 		return nil, err
@@ -469,9 +469,9 @@ func loadSnapshotMap(snapshotId, volumeId string, bsDriver BlockStoreDriver) (*S
 	return &snapshotMap, nil
 }
 
-func saveSnapshotMap(snapshotId, volumeId string, bsDriver BlockStoreDriver, snapshotMap *SnapshotMap) error {
-	path := getSnapshotsPath(volumeId)
-	fileName := getSnapshotConfigName(snapshotId)
+func saveSnapshotMap(snapshotID, volumeID string, bsDriver BlockStoreDriver, snapshotMap *SnapshotMap) error {
+	path := getSnapshotsPath(volumeID)
+	fileName := getSnapshotConfigName(snapshotID)
 	if bsDriver.FileExists(path, fileName) {
 		file := filepath.Join(path, fileName)
 		log.Warnf("Snapshot configuration file %v already exists, would remove it\n", file)
@@ -485,13 +485,13 @@ func saveSnapshotMap(snapshotId, volumeId string, bsDriver BlockStoreDriver, sna
 	return nil
 }
 
-func mergeSnapshotMap(snapshotId string, deltaMap, lastMap *SnapshotMap) *SnapshotMap {
+func mergeSnapshotMap(snapshotID string, deltaMap, lastMap *SnapshotMap) *SnapshotMap {
 	if lastMap == nil {
-		deltaMap.Id = snapshotId
+		deltaMap.ID = snapshotID
 		return deltaMap
 	}
 	sMap := &SnapshotMap{
-		Id:     snapshotId,
+		ID:     snapshotID,
 		Blocks: []BlockMapping{},
 	}
 	var d, l int
@@ -521,24 +521,24 @@ func mergeSnapshotMap(snapshotId string, deltaMap, lastMap *SnapshotMap) *Snapsh
 	return sMap
 }
 
-func RestoreSnapshot(root, srcSnapshotId, srcVolumeId, dstVolumeId, blockstoreId string, sDriver drivers.Driver) error {
-	configFile := getConfigFilename(root, blockstoreId)
+func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID string, sDriver drivers.Driver) error {
+	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
 	err := utils.LoadConfig(configFile, b)
 	if err != nil {
 		return err
 	}
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreId)
+	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
 	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
 	if err != nil {
 		return err
 	}
 
-	if _, err := loadVolumeConfig(srcVolumeId, bsDriver); err != nil {
-		return fmt.Errorf("volume %v doesn't exist in blockstore %v", srcVolumeId, blockstoreId, err)
+	if _, err := loadVolumeConfig(srcVolumeID, bsDriver); err != nil {
+		return fmt.Errorf("volume %v doesn't exist in blockstore %v", srcVolumeID, blockstoreID, err)
 	}
 
-	volDevName, err := sDriver.GetVolumeDevice(dstVolumeId)
+	volDevName, err := sDriver.GetVolumeDevice(dstVolumeID)
 	if err != nil {
 		return err
 	}
@@ -548,14 +548,14 @@ func RestoreSnapshot(root, srcSnapshotId, srcVolumeId, dstVolumeId, blockstoreId
 	}
 	defer volDev.Close()
 
-	snapshotMap, err := loadSnapshotMap(srcSnapshotId, srcVolumeId, bsDriver)
+	snapshotMap, err := loadSnapshotMap(srcSnapshotID, srcVolumeID, bsDriver)
 	if err != nil {
 		return err
 	}
 
 	for _, block := range snapshotMap.Blocks {
 		data := make([]byte, b.BlockSize)
-		path, file := getBlockPathAndFileName(srcVolumeId, block.BlockChecksum)
+		path, file := getBlockPathAndFileName(srcVolumeID, block.BlockChecksum)
 		err := bsDriver.Read(path, file, data)
 		if err != nil {
 			return err
@@ -568,25 +568,25 @@ func RestoreSnapshot(root, srcSnapshotId, srcVolumeId, dstVolumeId, blockstoreId
 	return nil
 }
 
-func RemoveSnapshot(root, snapshotId, volumeId, blockstoreId string) error {
-	configFile := getConfigFilename(root, blockstoreId)
+func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
+	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
 	err := utils.LoadConfig(configFile, b)
 	if err != nil {
 		return err
 	}
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreId)
+	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
 	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
 	if err != nil {
 		return err
 	}
 
-	v, err := loadVolumeConfig(volumeId, bsDriver)
+	v, err := loadVolumeConfig(volumeID, bsDriver)
 	if err != nil {
-		return fmt.Errorf("cannot find volume %v in blockstore %v", volumeId, blockstoreId, err)
+		return fmt.Errorf("cannot find volume %v in blockstore %v", volumeID, blockstoreID, err)
 	}
 
-	snapshotMap, err := loadSnapshotMap(snapshotId, volumeId, bsDriver)
+	snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
 	if err != nil {
 		return err
 	}
@@ -596,28 +596,28 @@ func RemoveSnapshot(root, snapshotId, volumeId, blockstoreId string) error {
 	}
 	discardBlockCounts := len(discardBlockSet)
 
-	snapshotPath := getSnapshotsPath(volumeId)
-	snapshotFile := getSnapshotConfigName(snapshotId)
+	snapshotPath := getSnapshotsPath(volumeID)
+	snapshotFile := getSnapshotConfigName(snapshotID)
 	discardFile := filepath.Join(snapshotPath, snapshotFile)
 	if err := bsDriver.RemoveAll(discardFile); err != nil {
 		return err
 	}
 	log.Debugf("Removed snapshot config file %v on blockstore", discardFile)
 
-	if snapshotId == v.LastSnapshotId {
-		v.LastSnapshotId = ""
-		if err := saveVolumeConfig(volumeId, bsDriver, v); err != nil {
+	if snapshotID == v.LastSnapshotID {
+		v.LastSnapshotID = ""
+		if err := saveVolumeConfig(volumeID, bsDriver, v); err != nil {
 			return err
 		}
 	}
 
 	log.Debug("GC started")
-	snapshotsList, err := getSnapshotsList(volumeId, bsDriver)
+	snapshotsList, err := getSnapshotsList(volumeID, bsDriver)
 	if err != nil {
 		return err
 	}
-	for _, snapshotId := range snapshotsList {
-		snapshotMap, err := loadSnapshotMap(snapshotId, volumeId, bsDriver)
+	for _, snapshotID := range snapshotsList {
+		snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
 		if err != nil {
 			return err
 		}
@@ -636,11 +636,11 @@ func RemoveSnapshot(root, snapshotId, volumeId, blockstoreId string) error {
 	}
 
 	for blk, _ := range discardBlockSet {
-		path, file := getBlockPathAndFileName(volumeId, blk)
+		path, file := getBlockPathAndFileName(volumeID, blk)
 		if err := bsDriver.RemoveAll(filepath.Join(path, file)); err != nil {
 			return err
 		}
-		log.Debugf("Removed unused block %v for volume %v", blk, volumeId)
+		log.Debugf("Removed unused block %v for volume %v", blk, volumeID)
 	}
 
 	log.Debug("GC completed")
@@ -648,8 +648,8 @@ func RemoveSnapshot(root, snapshotId, volumeId, blockstoreId string) error {
 	return nil
 }
 
-func getSnapshotsList(volumeId string, driver BlockStoreDriver) ([]string, error) {
-	fileList, err := driver.List(getSnapshotsPath(volumeId))
+func getSnapshotsList(volumeID string, driver BlockStoreDriver) ([]string, error) {
+	fileList, err := driver.List(getSnapshotsPath(volumeID))
 	if err != nil {
 		return nil, err
 	}
