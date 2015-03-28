@@ -278,32 +278,33 @@ func (d *Driver) DeleteVolume(id string) error {
 
 func getVolumeInfo(uuid string, volume Volume) *api.DeviceMapperVolume {
 	result := api.DeviceMapperVolume{
-		UUID:  uuid,
-		DevID: volume.DevID,
-		Size:  volume.Size,
+		DevID:     volume.DevID,
+		Size:      volume.Size,
+		Snapshots: make(map[string]api.DeviceMapperSnapshot),
 	}
 	for uuid, snapshot := range volume.Snapshots {
 		s := api.DeviceMapperSnapshot{
-			UUID:  uuid,
 			DevID: snapshot.DevID,
 		}
-		result.Snapshots = append(result.Snapshots, s)
+		result.Snapshots[uuid] = s
 	}
 	return &result
 }
 
 func (d *Driver) ListVolume(id string) error {
-	volumes := api.DeviceMapperVolumes{}
+	volumes := api.DeviceMapperVolumes{
+		Volumes: make(map[string]api.DeviceMapperVolume),
+	}
 	if id != "" {
 		volume, exists := d.Volumes[id]
 		if !exists {
 			return fmt.Errorf("volume %v doesn't exists", id)
 		}
-		volumes.Volumes = append(volumes.Volumes, *getVolumeInfo(id, volume))
+		volumes.Volumes[id] = *getVolumeInfo(id, volume)
 
 	} else {
 		for uuid, volume := range d.Volumes {
-			volumes.Volumes = append(volumes.Volumes, *getVolumeInfo(uuid, volume))
+			volumes.Volumes[uuid] = *getVolumeInfo(uuid, volume)
 		}
 	}
 	api.ResponseOutput(volumes)

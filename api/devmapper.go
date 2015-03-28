@@ -11,17 +11,15 @@ type DeviceMapperInfo struct {
 }
 
 type DeviceMapperVolumes struct {
-	Volumes []DeviceMapperVolume
+	Volumes map[string]DeviceMapperVolume
 }
 
 type DeviceMapperVolume struct {
-	UUID      string
 	DevID     int
 	Size      int64
-	Snapshots []DeviceMapperSnapshot
+	Snapshots map[string]DeviceMapperSnapshot
 }
 
 type DeviceMapperSnapshot struct {
-	UUID  string
 	DevID int
 }

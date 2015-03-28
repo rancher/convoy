@@ -36,10 +36,10 @@ var (
 	flagVolumeMountFS      = flagVolumeMount.Flag("fs", "filesystem of volume(supports ext4)").Default("ext4").String()
 	flagVolumeMountFormat  = flagVolumeMount.Flag("format", "format or not").Bool()
 	flagVolumeMountOptions = flagVolumeMount.Flag("option", "mount options").String()
-	flagVolumeUnmount      = flagVolume.Command("unmount", "umount a volume")
+	flagVolumeUnmount      = flagVolume.Command("umount", "umount a volume")
 	flagVolumeUnmountUUID  = flagVolumeUnmount.Flag("uuid", "uuid of volume").Required().String()
 	flagVolumeList         = flagVolume.Command("list", "list all managed volumes")
-	flagVolumeListUUID     = flagVolumeUnmount.Flag("uuid", "uuid of volume").String()
+	flagVolumeListUUID     = flagVolumeList.Flag("uuid", "uuid of volume").String()
 
 	flagSnapshot                 = flagApp.Command("snapshot", "snapshot related operations")
 	flagSnapshotCreate           = flagSnapshot.Command("create", "create a snapshot")
