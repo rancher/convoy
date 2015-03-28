@@ -11,10 +11,10 @@ TEST_ROOT = "/tmp/volmgr_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "volmgr")
 
 BLOCKSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-blockstore")
-BLOCKSTORE_CFG = "blockstore.cfg"
-VOLUME_DIR = os.path.join(BLOCKSTORE_ROOT, "volumes")
-VOLUME_CFG = "volume.cfg"
-SNAPSHOTS_DIR = "snapshots"
+BLOCKSTORE_CFG = os.path.join(BLOCKSTORE_ROOT, "blockstore.cfg")
+BLOCKSTORE_VOLUME_DIR = os.path.join(BLOCKSTORE_ROOT, "volumes")
+BLOCKSTORE_PER_VOLUME_CFG = "volume.cfg"
+BLOCKSTORE_SNAPSHOTS_DIR = "snapshots"
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "volmgr_test_pool"
@@ -211,5 +211,13 @@ def test_snapshot_list():
 
 def test_blockstore():
     uuid = v.register_vfs_blockstore(TEST_ROOT)
+
+    os.path.exists(BLOCKSTORE_ROOT)
+    os.path.exists(BLOCKSTORE_CFG)
+    os.path.exists(BLOCKSTORE_VOLUME_DIR)
+
+    bs = json.loads(open(BLOCKSTORE_CFG).read())
+    assert bs["UUID"] == uuid
+    assert bs["Kind"] == "vfs"
 
     v.deregister_blockstore(uuid)
