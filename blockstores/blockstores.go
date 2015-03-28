@@ -17,7 +17,7 @@ import (
 const (
 	BLOCKSTORE_BASE        = "rancher-blockstore"
 	BLOCKSTORE_CONFIG_FILE = "blockstore.cfg"
-	VOLUME_DIRECTORY       = "volume"
+	VOLUME_DIRECTORY       = "volumes"
 	VOLUME_CONFIG_FILE     = "volume.cfg"
 	VOLUME_SEPARATE_LAYER1 = 2
 	VOLUME_SEPARATE_LAYER2 = 4
