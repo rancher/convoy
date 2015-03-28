@@ -67,3 +67,16 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
 	        "--uuid", snapshot_uuid,
 	        "--volume-uuid", volume_uuid])
+
+    def register_vfs_blockstore(self, path):
+	data = subprocess.check_output(self.base_cmdline + ["blockstore",
+		"register", "--kind", "vfs",
+		"--opts", "vfs.path="+path])
+	bs = json.loads(data)
+	assert bs["Kind"] == "vfs"
+	return bs["UUID"]
+
+    def deregister_blockstore(self, uuid):
+	subprocess.check_call(self.base_cmdline + ["blockstore", "deregister",
+		"--uuid", uuid])
+
