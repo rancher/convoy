@@ -82,47 +82,55 @@ def test_info():
     assert info["ThinpoolSize"] == DATA_DEVICE_SIZE
     assert info["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
-def test_volume_cru():
+def create_volume(size):
     data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "create",
-	    "--size", str(VOLUME_SIZE_500M)])
+	    "--size", str(size)])
     volume = json.loads(data)
-    uuid1 = volume["UUID"]
-    dm_cleanup_list.append(uuid1)
-    assert volume["Size"] == VOLUME_SIZE_500M
+    uuid = volume["UUID"]
+    assert volume["Size"] == size
     assert volume["Base"] == ""
+    return uuid
 
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "create",
-	    "--size", str(VOLUME_SIZE_500M)])
-    volume = json.loads(data)
-    uuid2 = volume["UUID"]
-    dm_cleanup_list.append(uuid2)
-    assert volume["Size"] == VOLUME_SIZE_500M
-    assert volume["Base"] == ""
-
+def delete_volume(uuid):
     subprocess.check_call(VOLMGR_CMDLINE + ["volume", "delete",
-	    "--uuid", uuid2])
+	    "--uuid", uuid])
+
+def mount_volume(uuid, need_format):
+    volume_mount_dir = os.path.join(TEST_ROOT, uuid)
+    if not os.path.exists(volume_mount_dir):
+	    os.makedirs(volume_mount_dir)
+    assert os.path.exists(volume_mount_dir)
+    cmdline = VOLMGR_CMDLINE + ["volume", "mount",
+		"--uuid", uuid,
+		"--mountpoint", volume_mount_dir,
+		"--fs", EXT4_FS]
+    if need_format:
+	cmdline = cmdline + ["--format"]
+    subprocess.check_call(cmdline)
+    return volume_mount_dir
+
+def umount_volume(uuid):
+    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "umount",
+	    "--uuid", uuid])
+
+def test_volume_cru():
+    uuid1 = create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(uuid1)
+    uuid2 = create_volume(VOLUME_SIZE_100M)
+    dm_cleanup_list.append(uuid2)
+
+    delete_volume(uuid2)
     dm_cleanup_list.pop()
 
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "delete",
-	    "--uuid", uuid1])
+    delete_volume(uuid1)
     dm_cleanup_list.pop()
 
 def test_volume_mount():
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "create",
-	    "--size", str(VOLUME_SIZE_500M)])
-    volume = json.loads(data)
-    volume_uuid = volume["UUID"]
-    dm_cleanup_list.append(volume_uuid)
+    uuid = create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(uuid)
 
     # with format
-    volume_mount_dir = os.path.join(TEST_ROOT, volume_uuid) 
-    os.makedirs(volume_mount_dir)
-    assert os.path.exists(volume_mount_dir)
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "mount",
-	    "--uuid", volume_uuid,
-	    "--mountpoint", volume_mount_dir,
-	    "--fs", EXT4_FS,
-	    "--format"])
+    volume_mount_dir = mount_volume(uuid, True)
     mount_cleanup_list.append(volume_mount_dir)
 
     test_file = os.path.join(volume_mount_dir, "test")
@@ -131,52 +139,31 @@ def test_volume_mount():
     f.close()
     assert os.path.exists(test_file)
 
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "umount",
-	    "--uuid", volume_uuid])
+    umount_volume(uuid)
     mount_cleanup_list.pop()
     assert not os.path.exists(test_file)
 
     # without format
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "mount",
-	    "--uuid", volume_uuid,
-	    "--mountpoint", volume_mount_dir,
-	    "--fs", EXT4_FS])
+    volume_mount_dir = mount_volume(uuid, False)
     mount_cleanup_list.append(volume_mount_dir)
     assert os.path.exists(test_file)
 
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "umount",
-	    "--uuid", volume_uuid])
+    umount_volume(uuid)
     mount_cleanup_list.pop()
     assert not os.path.exists(test_file)
 
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "delete",
-	    "--uuid", volume_uuid])
+    delete_volume(uuid)
     dm_cleanup_list.pop()
 
 def test_volume_list():
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "create",
-	    "--size", str(VOLUME_SIZE_500M)])
-    volume = json.loads(data)
-    uuid1 = volume["UUID"]
+    uuid1 = create_volume(VOLUME_SIZE_500M)
     dm_cleanup_list.append(uuid1)
-    assert volume["Size"] == VOLUME_SIZE_500M
-    assert volume["Base"] == ""
 
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "create",
-	    "--size", str(VOLUME_SIZE_100M)])
-    volume = json.loads(data)
-    uuid2 = volume["UUID"]
+    uuid2 = create_volume(VOLUME_SIZE_100M)
     dm_cleanup_list.append(uuid2)
-    assert volume["Size"] == VOLUME_SIZE_100M
-    assert volume["Base"] == ""
 
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "create",
-	    "--size", str(VOLUME_SIZE_100M)])
-    volume = json.loads(data)
-    uuid3 = volume["UUID"]
+    uuid3 = create_volume(VOLUME_SIZE_100M)
     dm_cleanup_list.append(uuid3)
-    assert volume["Size"] == VOLUME_SIZE_100M
-    assert volume["Base"] == ""
 
     data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "list",
 	    "--uuid", uuid3])
@@ -189,15 +176,12 @@ def test_volume_list():
     assert volumes["Volumes"][uuid2]["Size"] == VOLUME_SIZE_100M
     assert volumes["Volumes"][uuid3]["Size"] == VOLUME_SIZE_100M
 
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "delete",
-	    "--uuid", uuid3])
+    delete_volume(uuid3)
     dm_cleanup_list.pop()
 
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "delete",
-	    "--uuid", uuid2])
+    delete_volume(uuid2)
     dm_cleanup_list.pop()
 
-    subprocess.check_call(VOLMGR_CMDLINE + ["volume", "delete",
-	    "--uuid", uuid1])
+    delete_volume(uuid1)
     dm_cleanup_list.pop()
 
