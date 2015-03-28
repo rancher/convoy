@@ -9,7 +9,7 @@ CFG_ROOT = "/tmp/volmgr_test/volmgr"
 TEST_ROOT = "/tmp/volmgr_test/"
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
-DATA_DEVICE_SIZE = 1073618944 
+DATA_DEVICE_SIZE = 1073618944
 METADATA_DEVICE_SIZE = 40960000
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "volmgr_test_pool"
@@ -44,7 +44,7 @@ def setup_module():
             "bs=" + str(DD_BLOCK_SIZE), "count=" + str(METADATA_DEVICE_SIZE /
             DD_BLOCK_SIZE)])
     assert os.path.exists(os.path.join(TEST_ROOT, METADATA_FILE))
-    
+
     global data_dev
     data_dev = subprocess.check_output(["losetup", "-v", "-f",
             data_file]).strip().split(" ")[3]
@@ -113,6 +113,29 @@ def umount_volume(uuid):
     subprocess.check_call(VOLMGR_CMDLINE + ["volume", "umount",
 	    "--uuid", uuid])
 
+def list_volumes(uuid = None):
+    if uuid is None:
+	data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "list"])
+	volumes = json.loads(data)
+	return volumes
+
+    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "list",
+	    "--uuid", uuid])
+    volumes = json.loads(data)
+    return volumes
+
+def create_snapshot(volume_uuid):
+    data = subprocess.check_output(VOLMGR_CMDLINE + ["snapshot", "create",
+	    "--volume-uuid", volume_uuid])
+    snapshot = json.loads(data)
+    assert snapshot["VolumeUUID"] == volume_uuid
+    return snapshot["UUID"]
+
+def delete_snapshot(snapshot_uuid, volume_uuid):
+    subprocess.check_call(VOLMGR_CMDLINE + ["snapshot", "delete",
+	    "--uuid", snapshot_uuid,
+	    "--volume-uuid", volume_uuid])
+
 def test_volume_cru():
     uuid1 = create_volume(VOLUME_SIZE_500M)
     dm_cleanup_list.append(uuid1)
@@ -165,13 +188,10 @@ def test_volume_list():
     uuid3 = create_volume(VOLUME_SIZE_100M)
     dm_cleanup_list.append(uuid3)
 
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "list",
-	    "--uuid", uuid3])
-    volumes = json.loads(data) 
+    volumes = list_volumes(uuid3)
     assert volumes["Volumes"][uuid3]["Size"] == VOLUME_SIZE_100M
 
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["volume", "list"])
-    volumes = json.loads(data) 
+    volumes = list_volumes()
     assert volumes["Volumes"][uuid1]["Size"] == VOLUME_SIZE_500M
     assert volumes["Volumes"][uuid2]["Size"] == VOLUME_SIZE_100M
     assert volumes["Volumes"][uuid3]["Size"] == VOLUME_SIZE_100M
@@ -185,3 +205,49 @@ def test_volume_list():
     delete_volume(uuid1)
     dm_cleanup_list.pop()
 
+def test_snapshot_cru():
+    volume_uuid = create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(volume_uuid)
+
+    snapshot_uuid = create_snapshot(volume_uuid)
+    delete_snapshot(snapshot_uuid, volume_uuid)
+
+    delete_volume(volume_uuid)
+    dm_cleanup_list.pop()
+
+def test_snapshot_list():
+    volume_uuid1 = create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(volume_uuid1)
+
+    volume_uuid2 = create_volume(VOLUME_SIZE_100M)
+    dm_cleanup_list.append(volume_uuid2)
+
+    snap_vol1_uuid1 = create_snapshot(volume_uuid1)
+    snap_vol1_uuid2 = create_snapshot(volume_uuid1)
+    snap_vol2_uuid1 = create_snapshot(volume_uuid2)
+    snap_vol2_uuid2 = create_snapshot(volume_uuid2)
+    snap_vol2_uuid3 = create_snapshot(volume_uuid2)
+
+    volumes = list_volumes(volume_uuid2)
+    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid1]
+    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid2]
+    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid3]
+
+    volumes = list_volumes()
+    assert volumes["Volumes"][volume_uuid1]["Snapshots"][snap_vol1_uuid1]
+    assert volumes["Volumes"][volume_uuid1]["Snapshots"][snap_vol1_uuid2]
+    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid1]
+    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid2]
+    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid3]
+
+    delete_snapshot(snap_vol1_uuid1, volume_uuid1)
+    delete_snapshot(snap_vol1_uuid2, volume_uuid1)
+    delete_snapshot(snap_vol2_uuid1, volume_uuid2)
+    delete_snapshot(snap_vol2_uuid2, volume_uuid2)
+    delete_snapshot(snap_vol2_uuid3, volume_uuid2)
+
+    delete_volume(volume_uuid2)
+    dm_cleanup_list.pop()
+
+    delete_volume(volume_uuid1)
+    dm_cleanup_list.pop()
