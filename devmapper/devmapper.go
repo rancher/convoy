@@ -367,26 +367,31 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	return nil
 }
 
-func (d *Driver) CompareSnapshot(id, compareID, volumeID string, mapping *metadata.Mappings) error {
-	if compareID == "" {
+func (d *Driver) CompareSnapshot(id, compareID, volumeID string) (*metadata.Mappings, error) {
+	includeSame := false
+	if compareID == "" || compareID == id {
 		compareID = id
+		includeSame = true
 	}
 	snap1, _, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	snap2, _, err := d.getSnapshotAndVolume(compareID, volumeID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	dev := d.MetadataDevice
-	out, err := exec.Command("thin_delta", "--verbose", "--snap1", strconv.Itoa(snap1.DevID), "--snap2", strconv.Itoa(snap2.DevID), dev).Output()
+	out, err := exec.Command("thin_delta", "--snap1", strconv.Itoa(snap1.DevID), "--snap2", strconv.Itoa(snap2.DevID), dev).Output()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	err = metadata.DeviceMapperThinDeltaParser(out, d.ThinpoolBlockSize*SECTOR_SIZE, mapping)
-	return err
+	mapping, err := metadata.DeviceMapperThinDeltaParser(out, d.ThinpoolBlockSize*SECTOR_SIZE, includeSame)
+	if err != nil {
+		return nil, err
+	}
+	return mapping, err
 }
 
 func (d *Driver) Info() error {

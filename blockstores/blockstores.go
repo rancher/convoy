@@ -6,7 +6,6 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/yasker/volmgr/drivers"
-	"github.com/yasker/volmgr/metadata"
 	"github.com/yasker/volmgr/utils"
 	"os"
 	"os/exec"
@@ -390,8 +389,8 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 	}
 
 	log.Debug("Generating snapshot metadata of ", snapshotID)
-	delta := metadata.Mappings{}
-	if err = sDriver.CompareSnapshot(snapshotID, lastSnapshotID, volumeID, &delta); err != nil {
+	delta, err := sDriver.CompareSnapshot(snapshotID, lastSnapshotID, volumeID)
+	if err != nil {
 		return err
 	}
 	if delta.BlockSize != b.BlockSize {

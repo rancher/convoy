@@ -5,49 +5,36 @@ import (
 	"encoding/xml"
 )
 
-func DeviceMapperThinDeltaParser(data []byte, blockSize int64, mapping *Mappings) error {
-	type DeltaRange struct {
-		Begin          int64 `xml:"begin,attr"`
-		DataBegin      int64 `xml:"data_begin,attr"`
-		LeftDataBegin  int64 `xml:"left_data_begin,attr"`
-		RightDataBegin int64 `xml:"right_data_begin,attr"`
-		Length         int64 `xml:"length,attr"`
+func DeviceMapperThinDeltaParser(data []byte, blockSize int64, includeSame bool) (*Mappings, error) {
+	type Entry struct {
+		XMLName xml.Name
+		Begin   int64 `xml:"begin,attr"`
+		Length  int64 `xml:"length,attr"`
 	}
 
-	type ItemXml struct {
-		DeltaRange []DeltaRange `xml:"range"`
-	}
-
-	type ThinDelta struct {
-		Sames ItemXml `xml:"same"`
-		Diffs ItemXml `xml:"different"`
+	type Delta struct {
+		Entries []Entry `xml:",any"`
 	}
 
 	wrapStart := []byte("<wrap>")
 	wrapEnd := []byte("</wrap>")
 	wrapData := bytes.Join([][]byte{wrapStart, data, wrapEnd}, []byte(" "))
-	delta := &ThinDelta{}
+	delta := &Delta{}
 	if err := xml.Unmarshal(wrapData, delta); err != nil {
-		return err
+		return nil, err
 	}
 
-	var needProcess ItemXml
-	//processDiff := true
-	if len(delta.Diffs.DeltaRange) != 0 {
-		needProcess = delta.Diffs
-	} else {
-		needProcess = delta.Sames
-		//processDiff = false
-	}
-
-	mapping.Mappings = make([]Mapping, len(needProcess.DeltaRange))
-	for i, d := range needProcess.DeltaRange {
+	mapping := &Mappings{}
+	for _, d := range delta.Entries {
+		if !includeSame && d.XMLName.Local == "same" {
+			continue
+		}
 		var m Mapping
 		m.Offset = d.Begin * blockSize
 		m.Size = d.Length * blockSize
-		mapping.Mappings[i] = m
+		mapping.Mappings = append(mapping.Mappings, m)
 	}
 	mapping.BlockSize = blockSize
 
-	return nil
+	return mapping, nil
 }

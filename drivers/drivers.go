@@ -18,7 +18,7 @@ type Driver interface {
 	CreateSnapshot(id, volumeID string) error
 	DeleteSnapshot(id, volumeID string) error
 	HasSnapshot(id, volumeID string) bool
-	CompareSnapshot(id, compareID, volumeID string, mapping *metadata.Mappings) error
+	CompareSnapshot(id, compareID, volumeID string) (*metadata.Mappings, error)
 	OpenSnapshot(id, volumeID string) error
 	ReadSnapshot(id, volumeID string, start int64, data []byte) error
 	CloseSnapshot(id, volumeID string) error
