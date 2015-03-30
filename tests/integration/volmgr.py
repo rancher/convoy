@@ -80,3 +80,14 @@ class VolumeManager:
 	subprocess.check_call(self.base_cmdline + ["blockstore", "deregister",
 		"--uuid", uuid])
 
+    def add_volume_to_blockstore(self, volume_uuid, bs_uuid):
+	subprocess.check_call(self.base_cmdline + ["blockstore", "add",
+		"--volume-uuid", volume_uuid,
+		"--uuid", bs_uuid])
+
+    def backup_snapshot_to_blockstore(self, snapshot_uuid, volume_uuid,
+		    bs_uuid):
+	subprocess.check_call(self.base_cmdline + ["snapshot", "backup",
+		"--uuid", snapshot_uuid,
+		"--volume-uuid", volume_uuid,
+		"--blockstore-uuid", bs_uuid])

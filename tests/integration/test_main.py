@@ -38,9 +38,11 @@ mount_cleanup_list = []
 dm_cleanup_list = []
 
 def setup_module():
-    if not os.path.exists(TEST_ROOT):
-        os.makedirs(TEST_ROOT)
-        assert os.path.exists(TEST_ROOT)
+    if os.path.exists(TEST_ROOT):
+	subprocess.check_call(["rm", "-rf", TEST_ROOT])
+
+    os.makedirs(TEST_ROOT)
+    assert os.path.exists(TEST_ROOT)
 
     data_file = os.path.join(TEST_ROOT, DATA_FILE)
     metadata_file = os.path.join(TEST_ROOT, METADATA_FILE)
@@ -66,14 +68,19 @@ def setup_module():
     v = VolumeManager(VOLMGR_CMDLINE, TEST_ROOT)
 
 def teardown_module():
-    subprocess.check_call(["rm", "-rf", CFG_ROOT])
     while mount_cleanup_list:
-	subprocess.check_call(["umount", mount_cleanup_list.pop()])
+	code = subprocess.call(["umount", mount_cleanup_list.pop()])
+        if code != 0:
+            print "Something wrong when tearing down, error {}, continuing", code
 
     while dm_cleanup_list:
-	subprocess.check_call(["dmsetup", "remove", dm_cleanup_list.pop()])
-    subprocess.check_call(["losetup", "-d", data_dev, metadata_dev])
-    subprocess.check_call(["rm", "-rf", TEST_ROOT])
+	code = subprocess.call(["dmsetup", "remove", dm_cleanup_list.pop()])
+        if code != 0:
+            print "Something wrong when tearing down, error {}, continuing", code
+
+    code = subprocess.call(["losetup", "-d", data_dev, metadata_dev])
+    if code != 0:
+        print "Something wrong when tearing down, error {}, continuing", code
 
 def test_init():
     subprocess.check_call(VOLMGR_CMDLINE + ["init", "--driver=devicemapper",
@@ -100,40 +107,46 @@ def test_volume_cru():
     dm_cleanup_list.append(uuid2)
 
     v.delete_volume(uuid2)
-    dm_cleanup_list.pop()
+    dm_cleanup_list.remove(uuid1)
 
     v.delete_volume(uuid1)
-    dm_cleanup_list.pop()
+    dm_cleanup_list.remove(uuid2)
 
-def test_volume_mount():
-    uuid = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(uuid)
-
+def format_volume_and_create_file(uuid, filename):
     # with format
     volume_mount_dir = v.mount_volume(uuid, True)
     mount_cleanup_list.append(volume_mount_dir)
 
-    test_file = os.path.join(volume_mount_dir, "test")
+    test_file = os.path.join(volume_mount_dir,filename)
     f = open(test_file, "w")
     subprocess.check_call(["echo", "This is volume test file"], stdout=f)
     f.close()
     assert os.path.exists(test_file)
 
     v.umount_volume(uuid)
-    mount_cleanup_list.pop()
+    mount_cleanup_list.remove(volume_mount_dir)
     assert not os.path.exists(test_file)
+
+def test_volume_mount():
+    uuid = v.create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(uuid)
+
+    # with format
+    filename = "test"
+    format_volume_and_create_file(uuid, filename)
 
     # without format
     volume_mount_dir = v.mount_volume(uuid, False)
     mount_cleanup_list.append(volume_mount_dir)
+    test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 
     v.umount_volume(uuid)
-    mount_cleanup_list.pop()
+    mount_cleanup_list.remove(volume_mount_dir)
     assert not os.path.exists(test_file)
 
     v.delete_volume(uuid)
-    dm_cleanup_list.pop()
+    dm_cleanup_list.remove(uuid)
 
 def test_volume_list():
     uuid1 = v.create_volume(VOLUME_SIZE_500M)
@@ -154,13 +167,13 @@ def test_volume_list():
     assert volumes["Volumes"][uuid3]["Size"] == VOLUME_SIZE_100M
 
     v.delete_volume(uuid3)
-    dm_cleanup_list.pop()
+    dm_cleanup_list.remove(uuid3)
 
     v.delete_volume(uuid2)
-    dm_cleanup_list.pop()
+    dm_cleanup_list.remove(uuid2)
 
     v.delete_volume(uuid1)
-    dm_cleanup_list.pop()
+    dm_cleanup_list.remove(uuid1)
 
 def test_snapshot_cru():
     volume_uuid = v.create_volume(VOLUME_SIZE_500M)
@@ -170,54 +183,96 @@ def test_snapshot_cru():
     v.delete_snapshot(snapshot_uuid, volume_uuid)
 
     v.delete_volume(volume_uuid)
-    dm_cleanup_list.pop()
+    dm_cleanup_list.remove(volume_uuid)
 
 def test_snapshot_list():
-    volume_uuid1 = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(volume_uuid1)
+    volume1_uuid = v.create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(volume1_uuid)
 
-    volume_uuid2 = v.create_volume(VOLUME_SIZE_100M)
-    dm_cleanup_list.append(volume_uuid2)
+    volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
+    dm_cleanup_list.append(volume2_uuid)
 
-    snap_vol1_uuid1 = v.create_snapshot(volume_uuid1)
-    snap_vol1_uuid2 = v.create_snapshot(volume_uuid1)
-    snap_vol2_uuid1 = v.create_snapshot(volume_uuid2)
-    snap_vol2_uuid2 = v.create_snapshot(volume_uuid2)
-    snap_vol2_uuid3 = v.create_snapshot(volume_uuid2)
+    snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
+    snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
+    snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
+    snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
+    snap3_vol2_uuid = v.create_snapshot(volume2_uuid)
 
-    volumes = v.list_volumes(volume_uuid2)
-    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid1]
-    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid2]
-    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid3]
+    volumes = v.list_volumes(volume2_uuid)
+    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap1_vol2_uuid]
+    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap2_vol2_uuid]
+    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap3_vol2_uuid]
 
     volumes = v.list_volumes()
-    assert volumes["Volumes"][volume_uuid1]["Snapshots"][snap_vol1_uuid1]
-    assert volumes["Volumes"][volume_uuid1]["Snapshots"][snap_vol1_uuid2]
-    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid1]
-    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid2]
-    assert volumes["Volumes"][volume_uuid2]["Snapshots"][snap_vol2_uuid3]
+    assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap1_vol1_uuid]
+    assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap2_vol1_uuid]
+    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap1_vol2_uuid]
+    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap2_vol2_uuid]
+    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap3_vol2_uuid]
 
-    v.delete_snapshot(snap_vol1_uuid1, volume_uuid1)
-    v.delete_snapshot(snap_vol1_uuid2, volume_uuid1)
-    v.delete_snapshot(snap_vol2_uuid1, volume_uuid2)
-    v.delete_snapshot(snap_vol2_uuid2, volume_uuid2)
-    v.delete_snapshot(snap_vol2_uuid3, volume_uuid2)
+    v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
+    v.delete_snapshot(snap2_vol1_uuid, volume1_uuid)
+    v.delete_snapshot(snap1_vol2_uuid, volume2_uuid)
+    v.delete_snapshot(snap2_vol2_uuid, volume2_uuid)
+    v.delete_snapshot(snap3_vol2_uuid, volume2_uuid)
 
-    v.delete_volume(volume_uuid2)
-    dm_cleanup_list.pop()
+    v.delete_volume(volume2_uuid)
+    dm_cleanup_list.remove(volume2_uuid)
 
-    v.delete_volume(volume_uuid1)
-    dm_cleanup_list.pop()
+    v.delete_volume(volume1_uuid)
+    dm_cleanup_list.remove(volume1_uuid)
 
 def test_blockstore():
+    #create blockstore
     uuid = v.register_vfs_blockstore(TEST_ROOT)
 
-    os.path.exists(BLOCKSTORE_ROOT)
-    os.path.exists(BLOCKSTORE_CFG)
-    os.path.exists(BLOCKSTORE_VOLUME_DIR)
+    assert os.path.exists(BLOCKSTORE_ROOT)
+    assert os.path.exists(BLOCKSTORE_CFG)
+    assert os.path.exists(BLOCKSTORE_VOLUME_DIR)
 
     bs = json.loads(open(BLOCKSTORE_CFG).read())
     assert bs["UUID"] == uuid
     assert bs["Kind"] == "vfs"
 
     v.deregister_blockstore(uuid)
+
+    #load blockstore from created one
+    blockstore_uuid = v.register_vfs_blockstore(TEST_ROOT)
+    assert uuid == blockstore_uuid
+
+    #add volume to blockstore
+    volume1_uuid = v.create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(volume1_uuid)
+
+    volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
+    dm_cleanup_list.append(volume2_uuid)
+
+    v.add_volume_to_blockstore(volume1_uuid, blockstore_uuid)
+    volume1_cfg_path = os.path.join(BLOCKSTORE_VOLUME_DIR,
+            volume1_uuid[:2], volume1_uuid[2:4], volume1_uuid,
+	    BLOCKSTORE_PER_VOLUME_CFG)
+    assert os.path.exists(volume1_cfg_path)
+
+    snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
+    v.backup_snapshot_to_blockstore(snap1_vol1_uuid, volume1_uuid,
+		    blockstore_uuid)
+
+    v.add_volume_to_blockstore(volume2_uuid, uuid)
+    volume2_cfg_path = os.path.join(BLOCKSTORE_VOLUME_DIR,
+            volume2_uuid[:2], volume2_uuid[2:4], volume2_uuid,
+	    BLOCKSTORE_PER_VOLUME_CFG)
+    assert os.path.exists(volume2_cfg_path)
+
+    snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
+    v.backup_snapshot_to_blockstore(snap1_vol2_uuid, volume2_uuid,
+		    blockstore_uuid)
+
+    format_volume_and_create_file(volume1_uuid, "test-vol1-v1")
+    snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
+    v.backup_snapshot_to_blockstore(snap2_vol1_uuid, volume1_uuid,
+		    blockstore_uuid)
+
+    format_volume_and_create_file(volume2_uuid, "test-vol2-v2")
+    snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
+    v.backup_snapshot_to_blockstore(snap2_vol2_uuid, volume2_uuid,
+		    blockstore_uuid)
