@@ -3,5 +3,5 @@
 package main
 
 import (
-	_ "github.com/yasker/volmgr/devmapper"
+	_ "github.com/rancherio/volmgr/devmapper"
 )

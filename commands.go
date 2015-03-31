@@ -4,10 +4,10 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/yasker/volmgr/api"
-	"github.com/yasker/volmgr/blockstores"
-	"github.com/yasker/volmgr/drivers"
-	"github.com/yasker/volmgr/utils"
+	"github.com/rancherio/volmgr/api"
+	"github.com/rancherio/volmgr/blockstores"
+	"github.com/rancherio/volmgr/drivers"
+	"github.com/rancherio/volmgr/utils"
 	"path/filepath"
 )
 

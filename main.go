@@ -4,9 +4,9 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/alecthomas/kingpin"
-	"github.com/yasker/volmgr/api"
-	"github.com/yasker/volmgr/drivers"
-	"github.com/yasker/volmgr/utils"
+	"github.com/rancherio/volmgr/api"
+	"github.com/rancherio/volmgr/drivers"
+	"github.com/rancherio/volmgr/utils"
 	"os"
 	"path/filepath"
 )

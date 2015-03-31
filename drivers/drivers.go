@@ -2,7 +2,7 @@ package drivers
 
 import (
 	"fmt"
-	"github.com/yasker/volmgr/metadata"
+	"github.com/rancherio/volmgr/metadata"
 	"golang.org/x/sys/unix"
 	"os/exec"
 )

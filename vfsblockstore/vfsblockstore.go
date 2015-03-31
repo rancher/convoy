@@ -2,8 +2,8 @@ package vfsblockstore
 
 import (
 	"fmt"
-	"github.com/yasker/volmgr/blockstores"
-	"github.com/yasker/volmgr/utils"
+	"github.com/rancherio/volmgr/blockstores"
+	"github.com/rancherio/volmgr/utils"
 	"os"
 	"os/exec"
 	"path/filepath"

@@ -1,5 +1,5 @@
 package main
 
 import (
-	_ "github.com/yasker/volmgr/vfsblockstore"
+	_ "github.com/rancherio/volmgr/vfsblockstore"
 )
