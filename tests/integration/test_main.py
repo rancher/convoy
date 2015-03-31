@@ -118,9 +118,8 @@ def format_volume_and_create_file(uuid, filename):
     mount_cleanup_list.append(volume_mount_dir)
 
     test_file = os.path.join(volume_mount_dir,filename)
-    f = open(test_file, "w")
-    subprocess.check_call(["echo", "This is volume test file"], stdout=f)
-    f.close()
+    with open(test_file, "w") as f:
+	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
     assert os.path.exists(test_file)
 
     v.umount_volume(uuid)
@@ -222,6 +221,16 @@ def test_snapshot_list():
     v.delete_volume(volume1_uuid)
     dm_cleanup_list.remove(volume1_uuid)
 
+def get_volume_dir(uuid):
+    return os.path.join(BLOCKSTORE_VOLUME_DIR, uuid[:2], uuid[2:4], uuid)
+
+def get_snapshot_dir(snapshot_uuid, volume_uuid):
+    return os.path.join(get_volume_dir(volume_uuid), BLOCKSTORE_SNAPSHOTS_DIR)
+
+def get_snapshot_cfg(snapshot_uuid, volume_uuid):
+    return  os.path.join(get_snapshot_dir(snapshot_uuid, volume_uuid),
+            "snapshot_" + snapshot_uuid +".cfg")
+
 def test_blockstore():
     #create blockstore
     uuid = v.register_vfs_blockstore(TEST_ROOT)
@@ -230,7 +239,8 @@ def test_blockstore():
     assert os.path.exists(BLOCKSTORE_CFG)
     assert os.path.exists(BLOCKSTORE_VOLUME_DIR)
 
-    bs = json.loads(open(BLOCKSTORE_CFG).read())
+    with open(BLOCKSTORE_CFG) as f:
+	bs = json.loads(f.read())
     assert bs["UUID"] == uuid
     assert bs["Kind"] == "vfs"
 
@@ -248,31 +258,45 @@ def test_blockstore():
     dm_cleanup_list.append(volume2_uuid)
 
     v.add_volume_to_blockstore(volume1_uuid, blockstore_uuid)
-    volume1_cfg_path = os.path.join(BLOCKSTORE_VOLUME_DIR,
-            volume1_uuid[:2], volume1_uuid[2:4], volume1_uuid,
-	    BLOCKSTORE_PER_VOLUME_CFG)
+    volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)
     assert os.path.exists(volume1_cfg_path)
 
+    v.add_volume_to_blockstore(volume2_uuid, uuid)
+    volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), BLOCKSTORE_PER_VOLUME_CFG)
+    assert os.path.exists(volume2_cfg_path)
+
+    #first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     v.backup_snapshot_to_blockstore(snap1_vol1_uuid, volume1_uuid,
 		    blockstore_uuid)
-
-    v.add_volume_to_blockstore(volume2_uuid, uuid)
-    volume2_cfg_path = os.path.join(BLOCKSTORE_VOLUME_DIR,
-            volume2_uuid[:2], volume2_uuid[2:4], volume2_uuid,
-	    BLOCKSTORE_PER_VOLUME_CFG)
-    assert os.path.exists(volume2_cfg_path)
+    with open(get_snapshot_cfg(snap1_vol1_uuid, volume1_uuid)) as f:
+	snap1_vol1 = json.loads(f.read())
+    assert snap1_vol1["ID"] == snap1_vol1_uuid
+    assert len(snap1_vol1["Blocks"]) == 0
 
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
     v.backup_snapshot_to_blockstore(snap1_vol2_uuid, volume2_uuid,
 		    blockstore_uuid)
+    with open(get_snapshot_cfg(snap1_vol2_uuid, volume2_uuid)) as f:
+	snap1_vol2 = json.loads(f.read())
+    assert snap1_vol2["ID"] == snap1_vol2_uuid
+    assert len(snap1_vol2["Blocks"]) == 0
 
+    #second snapshots
     format_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
     v.backup_snapshot_to_blockstore(snap2_vol1_uuid, volume1_uuid,
 		    blockstore_uuid)
+    with open(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid)) as f:
+	snap2_vol1 = json.loads(f.read())
+    assert snap2_vol1["ID"] == snap2_vol1_uuid
+    assert len(snap2_vol1["Blocks"]) != 0
 
     format_volume_and_create_file(volume2_uuid, "test-vol2-v2")
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     v.backup_snapshot_to_blockstore(snap2_vol2_uuid, volume2_uuid,
 		    blockstore_uuid)
+    with open(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid)) as f:
+	snap2_vol2 = json.loads(f.read())
+    assert snap2_vol2["ID"] == snap2_vol2_uuid
+    assert len(snap2_vol2["Blocks"]) != 0
