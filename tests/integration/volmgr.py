@@ -85,9 +85,29 @@ class VolumeManager:
 		"--volume-uuid", volume_uuid,
 		"--uuid", bs_uuid])
 
+    def remove_volume_from_blockstore(self, volume_uuid, bs_uuid):
+	subprocess.check_call(self.base_cmdline + ["blockstore", "remove",
+		"--volume-uuid", volume_uuid,
+		"--uuid", bs_uuid])
+
     def backup_snapshot_to_blockstore(self, snapshot_uuid, volume_uuid,
 		    bs_uuid):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "backup",
+		"--uuid", snapshot_uuid,
+		"--volume-uuid", volume_uuid,
+		"--blockstore-uuid", bs_uuid])
+
+    def restore_snapshot_from_blockstore(self, snapshot_uuid,
+		    origin_volume_uuid, target_volume_uuid, bs_uuid):
+	subprocess.check_call(self.base_cmdline + ["snapshot", "restore",
+		"--uuid", snapshot_uuid,
+		"--origin-volume-uuid", origin_volume_uuid,
+		"--target-volume-uuid", target_volume_uuid,
+		"--blockstore-uuid", bs_uuid])
+
+    def remove_snapshot_from_blockstore(self,
+		    snapshot_uuid, volume_uuid, bs_uuid):
+	subprocess.check_call(self.base_cmdline + ["snapshot", "remove",
 		"--uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
 		"--blockstore-uuid", bs_uuid])

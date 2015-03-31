@@ -224,12 +224,19 @@ def test_snapshot_list():
 def get_volume_dir(uuid):
     return os.path.join(BLOCKSTORE_VOLUME_DIR, uuid[:2], uuid[2:4], uuid)
 
+def get_volume_cfg(uuid):
+    return os.path.join(get_volume_dir(uuid), BLOCKSTORE_PER_VOLUME_CFG)
+
 def get_snapshot_dir(snapshot_uuid, volume_uuid):
     return os.path.join(get_volume_dir(volume_uuid), BLOCKSTORE_SNAPSHOTS_DIR)
 
 def get_snapshot_cfg(snapshot_uuid, volume_uuid):
     return  os.path.join(get_snapshot_dir(snapshot_uuid, volume_uuid),
             "snapshot_" + snapshot_uuid +".cfg")
+
+def get_checksum(filename):
+    output = subprocess.check_output(["sha512sum", filename]).decode()
+    return output.split(" ")[0]
 
 def test_blockstore():
     #create blockstore
@@ -300,3 +307,34 @@ def test_blockstore():
 	snap2_vol2 = json.loads(f.read())
     assert snap2_vol2["ID"] == snap2_vol2_uuid
     assert len(snap2_vol2["Blocks"]) != 0
+
+    #restore snapshot
+    res_volume1_uuid = v.create_volume(VOLUME_SIZE_500M)
+    dm_cleanup_list.append(res_volume1_uuid)
+    v.restore_snapshot_from_blockstore(snap2_vol1_uuid, volume1_uuid,
+		    res_volume1_uuid, blockstore_uuid)
+    res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
+    volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
+    assert res_volume1_checksum == volume1_checksum
+
+    res_volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
+    dm_cleanup_list.append(res_volume2_uuid)
+    v.restore_snapshot_from_blockstore(snap2_vol2_uuid, volume2_uuid,
+		    res_volume2_uuid, blockstore_uuid)
+    res_volume2_checksum = get_checksum(os.path.join(DM_DIR, res_volume2_uuid))
+    volume2_checksum = get_checksum(os.path.join(DM_DIR, volume2_uuid))
+    assert res_volume2_checksum == volume2_checksum
+
+    #remove snapshots from blockstore
+    v.remove_snapshot_from_blockstore(snap2_vol1_uuid, volume1_uuid, blockstore_uuid)
+    assert not os.path.exists(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid))
+
+    v.remove_snapshot_from_blockstore(snap2_vol2_uuid, volume2_uuid, blockstore_uuid)
+    assert not os.path.exists(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid))
+
+    #remove volume from blockstore
+    v.remove_volume_from_blockstore(volume1_uuid, blockstore_uuid)
+    assert not os.path.exists(get_volume_cfg(volume1_uuid))
+
+    v.remove_volume_from_blockstore(volume2_uuid, blockstore_uuid)
+    assert not os.path.exists(get_volume_cfg(volume2_uuid))
