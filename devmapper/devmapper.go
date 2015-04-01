@@ -383,7 +383,8 @@ func (d *Driver) CompareSnapshot(id, compareID, volumeID string) (*metadata.Mapp
 	}
 
 	dev := d.MetadataDevice
-	out, err := exec.Command("thin_delta", "--snap1", strconv.Itoa(snap1.DevID), "--snap2", strconv.Itoa(snap2.DevID), dev).Output()
+	out, err := exec.Command("pdata_tools", "thin_delta",
+		"--snap1", strconv.Itoa(snap1.DevID), "--snap2", strconv.Itoa(snap2.DevID), dev).Output()
 	if err != nil {
 		return nil, err
 	}

@@ -57,7 +57,7 @@ func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFor
 		return fmt.Errorf("unsupported filesystem ", fstype)
 	}
 	if needFormat {
-		if err := exec.Command("mkfs", "-t", fstype, dev).Run(); err != nil {
+		if err := exec.Command("mkfs."+fstype, dev).Run(); err != nil {
 			return err
 		}
 	}
