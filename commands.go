@@ -89,12 +89,12 @@ func doVolumeList(config *Config, driver drivers.Driver, id string) error {
 	return err
 }
 
-func doVolumeMount(config *Config, driver drivers.Driver, volumeUUID, mountPoint, fs, option string, needFormat bool) error {
+func doVolumeMount(config *Config, driver drivers.Driver, volumeUUID, mountPoint, fs, option string, needFormat bool, newNS string) error {
 	volume, exists := config.Volumes[volumeUUID]
 	if !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
-	if err := drivers.Mount(driver, volumeUUID, mountPoint, fs, option, needFormat); err != nil {
+	if err := drivers.Mount(driver, volumeUUID, mountPoint, fs, option, needFormat, newNS); err != nil {
 		return err
 	}
 	log.Debugf("Mount %v to %v", volumeUUID, mountPoint)
@@ -104,12 +104,12 @@ func doVolumeMount(config *Config, driver drivers.Driver, volumeUUID, mountPoint
 	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
-func doVolumeUnmount(config *Config, driver drivers.Driver, volumeUUID string) error {
+func doVolumeUnmount(config *Config, driver drivers.Driver, volumeUUID string, newNS string) error {
 	volume, exists := config.Volumes[volumeUUID]
 	if !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
-	if err := drivers.Unmount(driver, volume.MountPoint); err != nil {
+	if err := drivers.Unmount(driver, volume.MountPoint, newNS); err != nil {
 		return err
 	}
 	log.Debugf("Unmount %v from %v", volumeUUID, volume.MountPoint)

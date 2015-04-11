@@ -2,8 +2,8 @@ package drivers
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/metadata"
-	"golang.org/x/sys/unix"
 	"os/exec"
 )
 
@@ -48,7 +48,7 @@ func GetDriver(name, root string, config map[string]string) (Driver, error) {
 	return initializers[name](root, config)
 }
 
-func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFormat bool) error {
+func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFormat bool, newNS string) error {
 	dev, err := driver.GetVolumeDevice(volumeUUID)
 	if err != nil {
 		return err
@@ -61,13 +61,30 @@ func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFor
 			return err
 		}
 	}
-	var flags uintptr = unix.MS_MGC_VAL
-	if err := unix.Mount(dev, mountPoint, fstype, flags, option); err != nil {
+	if newNS == "" {
+		newNS = "/proc/1/ns/mnt"
+	}
+	cmdline := []string{newNS, "-m", "-t", fstype}
+	if option != "" {
+		cmdline = append(cmdline, option)
+	}
+	cmdline = append(cmdline, dev, mountPoint)
+	output, err := exec.Command("volmgr_mount", cmdline...).CombinedOutput()
+	if err != nil {
+		log.Error("Failed mount, ", string(output))
 		return err
 	}
 	return nil
 }
 
-func Unmount(driver Driver, mountPoint string) error {
-	return unix.Unmount(mountPoint, unix.MNT_DETACH)
+func Unmount(driver Driver, mountPoint, newNS string) error {
+	if newNS == "" {
+		newNS = "/proc/1/ns/mnt"
+	}
+	output, err := exec.Command("volmgr_mount", newNS, "-u", mountPoint).CombinedOutput()
+	if err != nil {
+		log.Error("Failed umount, ", string(output))
+		return err
+	}
+	return nil
 }
