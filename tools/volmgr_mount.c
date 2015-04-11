@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 	int fd;
 
 	if (argc < 3) {
-		fprintf(stderr, "%s <mount_namespace_fd> <-m|-u> <mount_args>", argv[0]);
+		fprintf(stderr, "%s <mount_namespace_fd> <-m|-u> <mount_args>\n", argv[0]);
 		exit(-1);
 	}
 
