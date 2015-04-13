@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+cd $(dirname $0)/..
+
+./scripts/bootstrap
+./scripts/build
+./scripts/test
+./scripts/package

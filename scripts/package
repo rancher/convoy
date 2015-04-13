@@ -1,0 +1,23 @@
+#!/bin/bash
+
+cd $(dirname $0)/..
+
+CONTENT=$(uuidgen)
+
+cp scripts/lib/volmgr_mount bin
+cp scripts/lib/pdata_tools bin
+
+rm -rf dist/artifacts
+
+mkdir -p build/${CONTENT}
+mkdir -p dist/artifacts
+
+cp -rf apply.sh bin build/${CONTENT}
+
+cd build
+
+sha1sum -b $(find ${CONTENT} -type f) > ${CONTENT}/SHA1SUMS
+sha1sum ${CONTENT}/SHA1SUMS > ${CONTENT}/SHA1SUMSSUM
+
+tar czf ../dist/artifacts/volmgr.tar.gz ${CONTENT}
+echo Created dist/artifacts/volmgr.tar.gz

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -e
+
+install_go()
+{
+    # Taken from Google/golang Dockerfile...
+    apt-get update -y && apt-get install --no-install-recommends -y -q curl build-essential \
+        ca-certificates git mercurial bzr
+    mkdir /goroot && curl https://storage.googleapis.com/golang/go1.3.1.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
+    echo $PWD
+    echo "export GOROOT=\"/goroot\"" > ./build/bootstrap.envs
+    echo "export PATH=\"$PATH:/goroot/bin\"" >> ./build/bootstrap.envs
+}
+
+
+mkdir -p ./build
+
+if [ ! $(command -v go) ]; then
+    echo "Going to try installing Go..."
+    install_go
+fi
+
+apt-get update
+apt-get install -y uuid-runtime
