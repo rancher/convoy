@@ -20,7 +20,7 @@ fi
 
 set_project_vars
 
-sudo go test ./...
+sudo env GOPATH="$GOPATH" PATH="$PATH" go test ./...
 
 result=$(find . -name "*.go" | grep -v ./Godeps | xargs gofmt -s -l)
 for i in $result; do
