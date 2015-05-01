@@ -22,4 +22,4 @@ if [ ! $(command -v go) ]; then
 fi
 
 apt-get update
-apt-get install -y uuid-runtime
+apt-get install -y uuid-runtime libdevmapper-dev
