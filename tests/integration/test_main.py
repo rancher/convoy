@@ -18,7 +18,7 @@ BLOCKSTORE_SNAPSHOTS_DIR = "snapshots"
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "volmgr_test_pool"
-VOLMGR_CMDLINE = ["../../volmgr", "--debug", "--log=/tmp/volmgr.log",
+VOLMGR_CMDLINE = ["../../bin/volmgr", "--debug", "--log=/tmp/volmgr.log",
     "--root=" + CFG_ROOT]
 
 DATA_FILE = "data.vol"
