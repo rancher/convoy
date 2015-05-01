@@ -634,7 +634,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 		}
 	}
 
-	for blk, _ := range discardBlockSet {
+	for blk := range discardBlockSet {
 		path, file := getBlockPathAndFileName(volumeID, blk)
 		if err := bsDriver.RemoveAll(filepath.Join(path, file)); err != nil {
 			return err

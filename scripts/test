@@ -9,18 +9,11 @@ if [ -x "$(which wrapdocker)" ]; then
     docker ps -q
 fi
 
-if [ ! -x "$(which net-util.sh)" ]; then
-    cp scripts/lib/volmgr_mount /usr/local/bin/volmgr_mount
-    chmod +x /usr/local/bin/volmgr_mount
-    cp scripts/lib/pdata_tools /usr/local/bin/pdata_tools
-    chmod +x /usr/local/bin/pdata_tools
-fi
-
 . ./scripts/common_functions
 
 set_project_vars
 
-sudo env GOPATH="$GOPATH" PATH="$PATH" go test ./...
+go test ./...
 
 result=$(find . -name "*.go" | grep -v ./Godeps | xargs gofmt -s -l)
 for i in $result; do

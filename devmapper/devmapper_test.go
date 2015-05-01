@@ -1,4 +1,5 @@
-// +build linux
+// +build linux,devmapper
+
 package devmapper
 
 import (

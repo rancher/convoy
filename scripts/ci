@@ -5,6 +5,7 @@ set -e
 cd $(dirname $0)/..
 
 ./scripts/bootstrap
+./scripts/clean
 ./scripts/build
 ./scripts/test
 ./scripts/package

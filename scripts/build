@@ -21,4 +21,4 @@ fi
 
 echo export GOPATH=$GOPATH
 
-go build -o bin/${PROJECT}
+make

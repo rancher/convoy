@@ -4,7 +4,6 @@ cd $(dirname $0)/..
 
 CONTENT=$(uuidgen)
 
-cp scripts/lib/volmgr_mount bin
 cp scripts/lib/pdata_tools bin
 
 rm -rf dist/artifacts
