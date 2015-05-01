@@ -4,8 +4,6 @@ cd $(dirname $0)/..
 
 CONTENT=$(uuidgen)
 
-cp scripts/lib/pdata_tools bin
-
 rm -rf dist/artifacts
 
 mkdir -p build/${CONTENT}
