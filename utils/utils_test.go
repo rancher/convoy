@@ -83,3 +83,23 @@ func TestLockFile(t *testing.T) {
 		t.Fatal("Failed to unlock the file!", err)
 	}
 }
+
+func TestSliceToMap(t *testing.T) {
+	legalMap := []string{
+		"a=1",
+		"b=2",
+	}
+	m := SliceToMap(legalMap)
+	if m["a"] != "1" || m["b"] != "2" {
+		t.Fatal("Failed test, result is not expected!")
+	}
+	illegalMap := []string{
+		"a=1",
+		"bcd",
+	}
+	m = SliceToMap(illegalMap)
+	if m != nil {
+		t.Fatal("Failed illegal test!")
+	}
+
+}

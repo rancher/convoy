@@ -16,13 +16,9 @@
 			"Rev": "539d4dc034c079a7188b5d4ca9650632d73c66e8"
 		},
 		{
-			"ImportPath": "github.com/alecthomas/kingpin",
-			"Comment": "v1.3.6-1-g6092fa4",
-			"Rev": "6092fa49a551e2911adbd5ed47b0f411887aa07f"
-		},
-		{
-			"ImportPath": "github.com/alecthomas/units",
-			"Rev": "6b4e7dc5e3143b85ea77909c72caf89416fc2915"
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-98-g30b361b",
+			"Rev": "30b361bf66a60174a9589458afbf494478bafd00"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/devicemapper",

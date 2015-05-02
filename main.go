@@ -3,85 +3,15 @@ package main
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/alecthomas/kingpin"
+	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
 	"os"
 	"path/filepath"
 )
 
-var (
-	flagApp   = kingpin.New("volmgr", "A volume manager capable of snapshot and delta backup")
-	flagDebug = flagApp.Flag("debug", "Enable debug mode.").Default("true").Bool()
-	flagLog   = flagApp.Flag("log", "specific output log file, otherwise output to stderr by default").String()
-	flagRoot  = flagApp.Flag("root", "specific root directory of volmgr").Default("/var/lib/volmgr").String()
-	flagInfo  = flagApp.Command("info", "information about volmgr")
-
-	flagInitialize           = flagApp.Command("init", "initialize volmgr")
-	flagInitializeDriver     = flagInitialize.Flag("driver", "Driver for volume manager, only support \"devicemapper\" currently").Default("devicemapper").String()
-	flagInitializeDriverOpts = flagInitialize.Flag("driver-opts", "options for driver").Required().StringMap()
-
-	flagVolume                = flagApp.Command("volume", "volume related operations")
-	flagVolumeCreate          = flagVolume.Command("create", "create a new volume")
-	flagVolumeCreateSize      = flagVolumeCreate.Flag("size", "size of volume").Required().Int64()
-	flagVolumeCreateUUID      = flagVolumeCreate.Flag("uuid", "specific uuid of volume, otherwise would generated automatically").String()
-	flagVolumeDelete          = flagVolume.Command("delete", "delete a volume with all of it's snapshots")
-	flagVolumeDeleteUUID      = flagVolumeDelete.Flag("uuid", "uuid of volume").Required().String()
-	flagVolumeUpdate          = flagVolume.Command("update", "update info about volume")
-	flagVolumeUpdateUUID      = flagVolumeUpdate.Flag("uuid", "uuid of volume").Required().String()
-	flagVolumeUpdateSize      = flagVolumeUpdate.Flag("size", "size of volume").Required().Int64()
-	flagVolumeMount           = flagVolume.Command("mount", "mount a volume to an specific path")
-	flagVolumeMountUUID       = flagVolumeMount.Flag("uuid", "uuid of volume").Required().String()
-	flagVolumeMountPoint      = flagVolumeMount.Flag("mountpoint", "mountpoint of volume").String()
-	flagVolumeMountFS         = flagVolumeMount.Flag("fs", "filesystem of volume(supports ext4)").Default("ext4").String()
-	flagVolumeMountFormat     = flagVolumeMount.Flag("format", "format or not").Bool()
-	flagVolumeMountOptions    = flagVolumeMount.Flag("option", "mount options").String()
-	flagVolumeMountSwitchNS   = flagVolumeMount.Flag("switch-ns", "switch to another mount namespace, need namespace file descriptor").String()
-	flagVolumeUnmount         = flagVolume.Command("umount", "umount a volume")
-	flagVolumeUnmountUUID     = flagVolumeUnmount.Flag("uuid", "uuid of volume").Required().String()
-	flagVolumeUnmountSwitchNS = flagVolumeUnmount.Flag("switch-ns", "switch to another mount namespace, need namespace file descriptor").String()
-	flagVolumeList            = flagVolume.Command("list", "list all managed volumes")
-	flagVolumeListUUID        = flagVolumeList.Flag("uuid", "uuid of volume").String()
-
-	flagSnapshot                   = flagApp.Command("snapshot", "snapshot related operations")
-	flagSnapshotCreate             = flagSnapshot.Command("create", "create a snapshot")
-	flagSnapshotCreateVolumeUUID   = flagSnapshotCreate.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-	flagSnapshotCreateSnapshotUUID = flagSnapshotCreate.Flag("uuid", "uuid of snapshot, otherwise would generated automatically").String()
-	flagSnapshotDelete             = flagSnapshot.Command("delete", "delete a snapshot")
-	flagSnapshotDeleteUUID         = flagSnapshotDelete.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotDeleteVolumeUUID   = flagSnapshotDelete.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-
-	flagBlockStore                 = flagApp.Command("blockstore", "blockstore related operations")
-	flagBlockStoreRegister         = flagBlockStore.Command("register", "register a blockstore, create it if it's not existed yet")
-	flagBlockStoreRegisterKind     = flagBlockStoreRegister.Flag("kind", "kind of blockstore").Required().String()
-	flagBlockStoreRegisterOpts     = flagBlockStoreRegister.Flag("opts", "options used to register blockstore").StringMap()
-	flagBlockStoreDeregister       = flagBlockStore.Command("deregister", "delete a blockstore")
-	flagBlockStoreDeregisterUUID   = flagBlockStoreDeregister.Flag("uuid", "uuid of blockstore").Required().String()
-	flagBlockStoreAdd              = flagBlockStore.Command("add", "add a volume to blockstore, one volume can only associate with one block store")
-	flagBlockStoreAddUUID          = flagBlockStoreAdd.Flag("uuid", "uuid of blockstore").Required().String()
-	flagBlockStoreAddVolumeUUID    = flagBlockStoreAdd.Flag("volume-uuid", "uuid of volume").Required().String()
-	flagBlockStoreRemove           = flagBlockStore.Command("remove", "remove a volume from blockstore, WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!")
-	flagBlockStoreRemoveUUID       = flagBlockStoreRemove.Flag("uuid", "uuid of blockstore").Required().String()
-	flagBlockStoreRemoveVolumeUUID = flagBlockStoreRemove.Flag("volume-uuid", "uuid of volume").Required().String()
-	flagBlockStoreInfo             = flagBlockStore.Command("info", "info of blockstores")
-
-	flagSnapshotBackup                  = flagSnapshot.Command("backup", "backup an snapshot to blockstore")
-	flagSnapshotBackupUUID              = flagSnapshotBackup.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotBackupVolumeUUID        = flagSnapshotBackup.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-	flagSnapshotBackupBlockStoreUUID    = flagSnapshotBackup.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
-	flagSnapshotRestore                 = flagSnapshot.Command("restore", "restore an snapshot from blockstore")
-	flagSnapshotRestoreUUID             = flagSnapshotRestore.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotRestoreOriginVolumeUUID = flagSnapshotRestore.Flag("origin-volume-uuid", "uuid of original volume of snapshot").Required().String()
-	flagSnapshotRestoreTargetVolumeUUID = flagSnapshotRestore.Flag("target-volume-uuid", "uuid of target volume for snapshot restore").Required().String()
-	flagSnapshotRestoreBlockStoreUUID   = flagSnapshotRestore.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
-	flagSnapshotRemove                  = flagSnapshot.Command("remove", "remove an snapshot in blockstore")
-	flagSnapshotRemoveUUID              = flagSnapshotRemove.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotRemoveVolumeUUID        = flagSnapshotRemove.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-	flagSnapshotRemoveBlockStoreUUID    = flagSnapshotRemove.Flag("blockstore-uuid", "uuid of blockstore").Required().String()
-)
-
 const (
+	VERSION    = "0.1.2"
 	LOCKFILE   = "lock"
 	CONFIGFILE = "volmgr.cfg"
 )
@@ -100,122 +30,403 @@ type Config struct {
 	Volumes map[string]Volume
 }
 
-func main() {
-	if len(os.Args) == 1 {
-		fmt.Println("Use --help to see command list")
-		os.Exit(-1)
-	}
+var (
+	lock    string
+	logFile *os.File
+)
 
-	command := kingpin.MustParse(flagApp.Parse(os.Args[1:]))
-
-	if *flagDebug {
+func preAppRun(c *cli.Context) error {
+	if c.Bool("debug") {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	root := *flagRoot
+	root := c.String("root")
 	if root == "" {
-		fmt.Println("Have to specific root directory")
-		os.Exit(-1)
+		return fmt.Errorf("Have to specific root directory")
 	}
 	if err := utils.MkdirIfNotExists(root); err != nil {
-		fmt.Println("Invalid root directory:", err)
-		os.Exit(-1)
+		return fmt.Errorf("Invalid root directory:", err)
 	}
 
-	lock := filepath.Join(root, LOCKFILE)
+	lock = filepath.Join(root, LOCKFILE)
 	if err := utils.LockFile(lock); err != nil {
-		api.ResponseError("Fail to lock the file", err)
-		os.Exit(-1)
+		return fmt.Errorf("Failed to lock the file", err.Error())
 	}
 
-	defer utils.UnlockFile(lock)
-
-	if *flagLog != "" {
-		f, err := os.OpenFile(*flagLog, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logName := c.String("log")
+	if logName != "" {
+		logFile, err := os.OpenFile(logName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			api.ResponseLogAndError(err.Error())
-			os.Exit(-1)
+			return err
 		}
-		defer f.Close()
 		log.SetFormatter(&log.JSONFormatter{})
-		log.SetOutput(f)
+		log.SetOutput(logFile)
 	} else {
 		log.SetOutput(os.Stderr)
 	}
 
-	configFile := filepath.Join(root, CONFIGFILE)
+	return nil
+}
 
-	if command == flagInitialize.FullCommand() {
-		if _, err := os.Stat(configFile); err == nil {
-			api.ResponseLogAndError("Configuration file %v existed. Don't need to initialize.", configFile)
-			os.Exit(-1)
-		}
+func cleanup() {
+	if lock != "" {
+		utils.UnlockFile(lock)
+	}
+	if logFile != nil {
+		logFile.Close()
+	}
+	if r := recover(); r != nil {
+		api.ResponseLogAndError(fmt.Sprint(r))
+		os.Exit(1)
+	}
+}
 
-		err := doInitialize(root, *flagInitializeDriver, *flagInitializeDriverOpts)
-		if err != nil {
-			api.ResponseLogAndError("Failed to initialize volmgr.", err)
-			os.Exit(-1)
-		}
-		os.Exit(0)
+func main() {
+	app := cli.NewApp()
+	app.Name = "volmgr"
+	app.Version = VERSION
+	app.Usage = "A volume manager capable of snapshot and delta backup"
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "Enable debug log.",
+		},
+		cli.StringFlag{
+			Name:  "log",
+			Usage: "specific output log file, otherwise output to stderr by default",
+		},
+		cli.StringFlag{
+			Name:  "root",
+			Value: "/var/lib/volmgr",
+			Usage: "specific root directory of volmgr",
+		},
+	}
+	app.Before = preAppRun
+	app.CommandNotFound = cmdNotFound
+
+	infoCmd := cli.Command{
+		Name:   "info",
+		Usage:  "information about volmgr",
+		Action: cmdInfo,
 	}
 
-	config := Config{}
-	err := utils.LoadConfig(configFile, &config)
+	initCmd := cli.Command{
+		Name:  "init",
+		Usage: "initialize volmgr",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "driver",
+				Value: "devicemapper",
+				Usage: "Driver for volume manager, only support \"devicemapper\" currently",
+			},
+			cli.StringSliceFlag{
+				Name:  "driver-opts",
+				Value: &cli.StringSlice{},
+				Usage: "options for driver",
+			},
+		},
+		Action: cmdInitialize,
+	}
+
+	volumeCreateCmd := cli.Command{
+		Name:  "create",
+		Usage: "create a new volume",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of volume",
+			},
+			cli.IntFlag{
+				Name:  "size",
+				Usage: "size of volume, in bytes",
+			},
+		},
+		Action: cmdVolumeCreate,
+	}
+
+	volumeDeleteCmd := cli.Command{
+		Name:  "delete",
+		Usage: "delete a volume with all of it's snapshots",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of volume",
+			},
+		},
+		Action: cmdVolumeDelete,
+	}
+
+	volumeMountCmd := cli.Command{
+		Name:  "mount",
+		Usage: "mount a volume to an specific path",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of volume",
+			},
+			cli.StringFlag{
+				Name:  "mountpoint",
+				Usage: "mountpoint of volume",
+			},
+			cli.StringFlag{
+				Name:  "fs",
+				Value: "ext4",
+				Usage: "filesystem of volume(supports ext4 only)",
+			},
+			cli.BoolFlag{
+				Name:  "format",
+				Usage: "format or not",
+			},
+			cli.StringFlag{
+				Name:  "option",
+				Usage: "mount options",
+			},
+			cli.StringFlag{
+				Name:  "switch-ns",
+				Usage: "switch to another mount namespace, need namespace file descriptor",
+			},
+		},
+		Action: cmdVolumeMount,
+	}
+
+	volumeUmountCmd := cli.Command{
+		Name:  "umount",
+		Usage: "umount a volume",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of volume",
+			},
+			cli.StringFlag{
+				Name:  "switch-ns",
+				Usage: "switch to another mount namespace, need namespace file descriptor",
+			},
+		},
+		Action: cmdVolumeUmount,
+	}
+
+	volumeListCmd := cli.Command{
+		Name:  "list",
+		Usage: "list all managed volumes",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of volume, if not supplied, would list all volumes",
+			},
+		},
+		Action: cmdVolumeList,
+	}
+
+	volumeCmd := cli.Command{
+		Name:  "volume",
+		Usage: "volume related operations",
+		Subcommands: []cli.Command{
+			volumeCreateCmd,
+			volumeDeleteCmd,
+			volumeMountCmd,
+			volumeUmountCmd,
+			volumeListCmd,
+		},
+	}
+
+	snapshotCreateCmd := cli.Command{
+		Name:  "create",
+		Usage: "create a snapshot for certain volume",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of snapshot",
+			},
+			cli.StringFlag{
+				Name:  "volume-uuid",
+				Usage: "uuid of volume for snapshot",
+			},
+		},
+		Action: cmdSnapshotCreate,
+	}
+
+	snapshotDeleteCmd := cli.Command{
+		Name:  "delete",
+		Usage: "delete a snapshot of certain volume",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of snapshot",
+			},
+			cli.StringFlag{
+				Name:  "volume-uuid",
+				Usage: "uuid of volume for snapshot",
+			},
+		},
+		Action: cmdSnapshotDelete,
+	}
+
+	snapshotBackupCmd := cli.Command{
+		Name:  "backup",
+		Usage: "backup an snapshot to blockstore",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of snapshot",
+			},
+			cli.StringFlag{
+				Name:  "volume-uuid",
+				Usage: "uuid of volume for snapshot",
+			},
+			cli.StringFlag{
+				Name:  "blockstore-uuid",
+				Usage: "uuid of blockstore",
+			},
+		},
+		Action: cmdSnapshotBackup,
+	}
+
+	snapshotRestoreCmd := cli.Command{
+		Name:  "restore",
+		Usage: "restore an snapshot from blockstore to volume",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of snapshot",
+			},
+			cli.StringFlag{
+				Name:  "origin-volume-uuid",
+				Usage: "uuid of origin volume for snapshot",
+			},
+			cli.StringFlag{
+				Name:  "target-volume-uuid",
+				Usage: "uuid of target volume",
+			},
+			cli.StringFlag{
+				Name:  "blockstore-uuid",
+				Usage: "uuid of blockstore",
+			},
+		},
+		Action: cmdSnapshotRestore,
+	}
+
+	snapshotRemoveCmd := cli.Command{
+		Name:  "remove",
+		Usage: "remove an snapshot in blockstore",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of snapshot",
+			},
+			cli.StringFlag{
+				Name:  "volume-uuid",
+				Usage: "uuid of volume for snapshot",
+			},
+			cli.StringFlag{
+				Name:  "blockstore-uuid",
+				Usage: "uuid of blockstore",
+			},
+		},
+		Action: cmdSnapshotRemove,
+	}
+
+	snapshotCmd := cli.Command{
+		Name:  "snapshot",
+		Usage: "snapshot related operations",
+		Subcommands: []cli.Command{
+			snapshotCreateCmd,
+			snapshotDeleteCmd,
+			snapshotBackupCmd,
+			snapshotRestoreCmd,
+			snapshotRemoveCmd,
+		},
+	}
+
+	blockstoreRegisterCmd := cli.Command{
+		Name:  "register",
+		Usage: "register a blockstore for current setup, create it if it's not existed yet",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "kind",
+				Value: "vfs",
+				Usage: "kind of blockstore, only support vfs now",
+			},
+			cli.StringSliceFlag{
+				Name:  "opts",
+				Value: &cli.StringSlice{},
+				Usage: "options used to register blockstore",
+			},
+		},
+		Action: cmdBlockStoreRegister,
+	}
+
+	blockstoreDeregisterCmd := cli.Command{
+		Name:  "deregister",
+		Usage: "deregister a blockstore from current setup(no data in it would be changed)",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of blockstore",
+			},
+		},
+		Action: cmdBlockStoreDeregister,
+	}
+
+	blockstoreAddVolumeCmd := cli.Command{
+		Name:  "add",
+		Usage: "add a volume to blockstore",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of blockstore",
+			},
+			cli.StringFlag{
+				Name:  "volume-uuid",
+				Usage: "uuid of volume",
+			},
+		},
+		Action: cmdBlockStoreAdd,
+	}
+
+	blockstoreRemoveVolumeCmd := cli.Command{
+		Name:  "remove",
+		Usage: "remove a volume from blockstore. WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of blockstore",
+			},
+			cli.StringFlag{
+				Name:  "volume-uuid",
+				Usage: "uuid of volume",
+			},
+		},
+		Action: cmdBlockStoreRemove,
+	}
+
+	blockstoreCmd := cli.Command{
+		Name:  "blockstore",
+		Usage: "blockstore related operations",
+		Subcommands: []cli.Command{
+			blockstoreRegisterCmd,
+			blockstoreDeregisterCmd,
+			blockstoreAddVolumeCmd,
+			blockstoreRemoveVolumeCmd,
+		},
+	}
+
+	app.Commands = []cli.Command{
+		initCmd,
+		infoCmd,
+		volumeCmd,
+		snapshotCmd,
+		blockstoreCmd,
+	}
+
+	defer cleanup()
+	err := app.Run(os.Args)
 	if err != nil {
-		api.ResponseLogAndError("Failed to load config.", err)
-		os.Exit(-1)
+		panic(fmt.Errorf("Error when executing command", err.Error()))
 	}
+}
 
-	driver, err := drivers.GetDriver(config.Driver, getDriverRoot(config.Root, config.Driver), nil)
-	if err != nil {
-		api.ResponseLogAndError("Failed to load driver.", err)
-		os.Exit(-1)
-	}
-
-	switch command {
-	case flagInfo.FullCommand():
-		err = doInfo(&config, driver)
-	case flagVolumeCreate.FullCommand():
-		err = doVolumeCreate(&config, driver, *flagVolumeCreateSize, *flagVolumeCreateUUID)
-	case flagVolumeDelete.FullCommand():
-		err = doVolumeDelete(&config, driver, *flagVolumeDeleteUUID)
-	case flagVolumeUpdate.FullCommand():
-		err = doVolumeUpdate(&config, driver, *flagVolumeUpdateUUID, *flagVolumeUpdateSize)
-	case flagVolumeList.FullCommand():
-		err = doVolumeList(&config, driver, *flagVolumeListUUID)
-	case flagVolumeMount.FullCommand():
-		err = doVolumeMount(&config, driver, *flagVolumeMountUUID, *flagVolumeMountPoint, *flagVolumeMountFS,
-			*flagVolumeMountOptions, *flagVolumeMountFormat, *flagVolumeMountSwitchNS)
-	case flagVolumeUnmount.FullCommand():
-		err = doVolumeUnmount(&config, driver, *flagVolumeUnmountUUID, *flagVolumeUnmountSwitchNS)
-	case flagSnapshotCreate.FullCommand():
-		err = doSnapshotCreate(&config, driver, *flagSnapshotCreateVolumeUUID, *flagSnapshotCreateSnapshotUUID)
-	case flagSnapshotDelete.FullCommand():
-		err = doSnapshotDelete(&config, driver, *flagSnapshotDeleteUUID, *flagSnapshotDeleteVolumeUUID)
-	case flagBlockStoreRegister.FullCommand():
-		err = doBlockStoreRegister(&config, *flagBlockStoreRegisterKind, *flagBlockStoreRegisterOpts)
-	case flagBlockStoreDeregister.FullCommand():
-		err = doBlockStoreDeregister(&config, *flagBlockStoreDeregisterUUID)
-	case flagBlockStoreAdd.FullCommand():
-		err = doBlockStoreAdd(&config, *flagBlockStoreAddUUID, *flagBlockStoreAddVolumeUUID)
-	case flagBlockStoreRemove.FullCommand():
-		err = doBlockStoreRemove(&config, *flagBlockStoreRemoveUUID, *flagBlockStoreRemoveVolumeUUID)
-	case flagSnapshotBackup.FullCommand():
-		err = doSnapshotBackup(&config, driver, *flagSnapshotBackupUUID, *flagSnapshotBackupVolumeUUID,
-			*flagSnapshotBackupBlockStoreUUID)
-	case flagSnapshotRestore.FullCommand():
-		err = doSnapshotRestore(&config, driver, *flagSnapshotRestoreUUID, *flagSnapshotRestoreOriginVolumeUUID,
-			*flagSnapshotRestoreTargetVolumeUUID, *flagSnapshotRestoreBlockStoreUUID)
-	case flagSnapshotRemove.FullCommand():
-		err = doSnapshotRemove(&config, *flagSnapshotRemoveUUID, *flagSnapshotRemoveVolumeUUID, *flagSnapshotRemoveBlockStoreUUID)
-	default:
-		api.ResponseLogAndError("Unrecognized command", command)
-		os.Exit(-1)
-	}
-	if err != nil {
-		api.ResponseLogAndError("Failed to complete", command, err)
-		os.Exit(-1)
-	}
+func cmdNotFound(c *cli.Context, command string) {
+	panic(fmt.Errorf("Unrecognized command", command))
 }

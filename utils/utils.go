@@ -7,6 +7,7 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 const (
@@ -99,4 +100,19 @@ func UnlockFile(fileName string) error {
 		return err
 	}
 	return nil
+}
+
+func SliceToMap(slices []string) map[string]string {
+	result := map[string]string{}
+	for _, v := range slices {
+		pair := strings.Split(v, "=")
+		if len(pair) != 2 {
+			return nil
+		}
+		result[pair[0]] = pair[1]
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }

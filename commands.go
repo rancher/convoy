@@ -4,10 +4,12 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/blockstores"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
+	"os"
 	"path/filepath"
 )
 
@@ -19,8 +21,26 @@ func getConfigFileName(root string) string {
 	return filepath.Join(root, CONFIGFILE)
 }
 
-func doInitialize(root, driverName string, driverOpts map[string]string) error {
+func cmdInitialize(c *cli.Context) {
+	if err := doInitialize(c); err != nil {
+		panic(err)
+	}
+}
+
+func doInitialize(c *cli.Context) error {
+	root := c.GlobalString("root")
+	driverName := c.String("driver")
+	driverOpts := utils.SliceToMap(c.StringSlice("driver-opts"))
+	if root == "" || driverName == "" || driverOpts == nil {
+		return fmt.Errorf("Missing or invalid parameters")
+	}
+
 	log.Debug("Config root is ", root)
+
+	configFileName := getConfigFileName(root)
+	if _, err := os.Stat(configFileName); err == nil {
+		return fmt.Errorf("Configuration file %v existed. Don't need to initialize.", configFileName)
+	}
 
 	driverRoot := getDriverRoot(root, driverName)
 	utils.MkdirIfNotExists(driverRoot)
@@ -31,7 +51,6 @@ func doInitialize(root, driverName string, driverOpts map[string]string) error {
 		return err
 	}
 
-	configFileName := getConfigFileName(root)
 	config := Config{
 		Root:    root,
 		Driver:  driverName,
@@ -41,9 +60,47 @@ func doInitialize(root, driverName string, driverOpts map[string]string) error {
 	return err
 }
 
-func doInfo(config *Config, driver drivers.Driver) error {
-	err := driver.Info()
-	return err
+func loadGlobalConfig(c *cli.Context) (*Config, drivers.Driver, error) {
+	config := Config{}
+	root := c.GlobalString("root")
+	if root == "" {
+		return nil, nil, genRequiredMissingError("root")
+	}
+	configFileName := getConfigFileName(root)
+	err := utils.LoadConfig(configFileName, &config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to load config:", err.Error())
+	}
+
+	driver, err := drivers.GetDriver(config.Driver, getDriverRoot(config.Root, config.Driver), nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to load driver:", err.Error())
+	}
+	return &config, driver, nil
+}
+
+func genRequiredMissingError(name string) error {
+	return fmt.Errorf("Cannot find valid required parameter:", name)
+}
+
+func cmdInfo(c *cli.Context) {
+	if err := doInfo(c); err != nil {
+		panic(err)
+	}
+}
+
+func doInfo(c *cli.Context) error {
+	_, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	return driver.Info()
+}
+
+func cmdVolumeCreate(c *cli.Context) {
+	if err := doVolumeCreate(c); err != nil {
+		panic(err)
+	}
 }
 
 func duplicateVolumeUUID(config *Config, uuid string) bool {
@@ -51,7 +108,18 @@ func duplicateVolumeUUID(config *Config, uuid string) bool {
 	return exists
 }
 
-func doVolumeCreate(config *Config, driver drivers.Driver, size int64, volumeUUID string) error {
+func doVolumeCreate(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+
+	size := int64(c.Int("size"))
+	if size == 0 {
+		return genRequiredMissingError("size")
+	}
+	volumeUUID := c.String("uuid")
+
 	uuid := uuid.New()
 	if volumeUUID != "" {
 		if duplicateVolumeUUID(config, uuid) {
@@ -82,7 +150,22 @@ func doVolumeCreate(config *Config, driver drivers.Driver, size int64, volumeUUI
 	return nil
 }
 
-func doVolumeDelete(config *Config, driver drivers.Driver, uuid string) error {
+func cmdVolumeDelete(c *cli.Context) {
+	if err := doVolumeDelete(c); err != nil {
+		panic(err)
+	}
+}
+
+func doVolumeDelete(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	uuid := c.String("uuid")
+	if uuid == "" {
+		return genRequiredMissingError("uuid")
+	}
+
 	if err := driver.DeleteVolume(uuid); err != nil {
 		return err
 	}
@@ -91,16 +174,49 @@ func doVolumeDelete(config *Config, driver drivers.Driver, uuid string) error {
 	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
-func doVolumeUpdate(config *Config, driver drivers.Driver, uuid string, size int64) error {
-	return fmt.Errorf("Doesn't support change size of volume yet")
+func cmdVolumeList(c *cli.Context) {
+	if err := doVolumeList(c); err != nil {
+		panic(err)
+	}
 }
 
-func doVolumeList(config *Config, driver drivers.Driver, id string) error {
-	err := driver.ListVolume(id)
-	return err
+func doVolumeList(c *cli.Context) error {
+	_, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	uuid := c.String("uuid")
+	return driver.ListVolume(uuid)
 }
 
-func doVolumeMount(config *Config, driver drivers.Driver, volumeUUID, mountPoint, fs, option string, needFormat bool, newNS string) error {
+func cmdVolumeMount(c *cli.Context) {
+	if err := doVolumeMount(c); err != nil {
+		panic(err)
+	}
+}
+
+func doVolumeMount(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	volumeUUID := c.String("uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	mountPoint := c.String("mountpoint")
+	if mountPoint == "" {
+		return genRequiredMissingError("mountpoint")
+	}
+	fs := c.String("fs")
+	if fs == "" {
+		return genRequiredMissingError("fs")
+	}
+
+	option := c.String("option")
+	needFormat := c.Bool("format")
+	newNS := c.String("switch-ns")
+
 	volume, exists := config.Volumes[volumeUUID]
 	if !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
@@ -115,7 +231,23 @@ func doVolumeMount(config *Config, driver drivers.Driver, volumeUUID, mountPoint
 	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
-func doVolumeUnmount(config *Config, driver drivers.Driver, volumeUUID string, newNS string) error {
+func cmdVolumeUmount(c *cli.Context) {
+	if err := doVolumeUmount(c); err != nil {
+		panic(err)
+	}
+}
+
+func doVolumeUmount(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	volumeUUID := c.String("uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	newNS := c.String("switch-ns")
+
 	volume, exists := config.Volumes[volumeUUID]
 	if !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
@@ -138,7 +270,23 @@ func duplicateSnapshotUUID(config *Config, volumeUUID, snapshotUUID string) bool
 	return exists
 }
 
-func doSnapshotCreate(config *Config, driver drivers.Driver, volumeUUID, snapshotUUID string) error {
+func cmdSnapshotCreate(c *cli.Context) {
+	if err := doSnapshotCreate(c); err != nil {
+		panic(err)
+	}
+}
+
+func doSnapshotCreate(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	volumeUUID := c.String("volume-uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("volume-uuid")
+	}
+	snapshotUUID := c.String("uuid")
+
 	if _, exists := config.Volumes[volumeUUID]; !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
@@ -165,7 +313,26 @@ func doSnapshotCreate(config *Config, driver drivers.Driver, volumeUUID, snapsho
 	return nil
 }
 
-func doSnapshotDelete(config *Config, driver drivers.Driver, uuid, volumeUUID string) error {
+func cmdSnapshotDelete(c *cli.Context) {
+	if err := doSnapshotDelete(c); err != nil {
+		panic(err)
+	}
+}
+
+func doSnapshotDelete(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	uuid := c.String("uuid")
+	if uuid == "" {
+		return genRequiredMissingError("uuid")
+	}
+	volumeUUID := c.String("volume-uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("volume-uuid")
+	}
+
 	if _, exists := config.Volumes[volumeUUID]; !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
@@ -189,9 +356,28 @@ func getBlockStoreRoot(root string) string {
 	return filepath.Join(root, BLOCKSTORE_PATH) + "/"
 }
 
-func doBlockStoreRegister(config *Config, kind string, opts map[string]string) error {
+func cmdBlockStoreRegister(c *cli.Context) {
+	if err := doBlockStoreRegister(c); err != nil {
+		panic(err)
+	}
+}
+
+func doBlockStoreRegister(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	if err != nil {
+		return nil
+	}
+	kind := c.String("kind")
+	if kind == "" {
+		return genRequiredMissingError("kind")
+	}
+	opts := utils.SliceToMap(c.StringSlice("opts"))
+	if opts == nil {
+		return genRequiredMissingError("opts")
+	}
+
 	path := getBlockStoreRoot(config.Root)
-	err := utils.MkdirIfNotExists(path)
+	err = utils.MkdirIfNotExists(path)
 	if err != nil {
 		return err
 	}
@@ -208,66 +394,191 @@ func doBlockStoreRegister(config *Config, kind string, opts map[string]string) e
 	return nil
 }
 
-func doBlockStoreDeregister(config *Config, id string) error {
-	return blockstores.Deregister(getBlockStoreRoot(config.Root), id)
+func cmdBlockStoreDeregister(c *cli.Context) {
+	if err := doBlockStoreDeregister(c); err != nil {
+		panic(err)
+	}
 }
 
-func doBlockStoreAdd(config *Config, blockstoreID, volumeID string) error {
-	volume, exists := config.Volumes[volumeID]
+func doBlockStoreDeregister(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	uuid := c.String("uuid")
+	if uuid == "" {
+		return genRequiredMissingError("uuid")
+	}
+	return blockstores.Deregister(getBlockStoreRoot(config.Root), uuid)
+}
+
+func cmdBlockStoreAdd(c *cli.Context) {
+	if err := doBlockStoreAdd(c); err != nil {
+		panic(err)
+	}
+}
+
+func doBlockStoreAdd(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	blockstoreUUID := c.String("uuid")
+	if blockstoreUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	volumeUUID := c.String("volume-uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("volume-uuid")
+	}
+
+	volume, exists := config.Volumes[volumeUUID]
 	if !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeID)
+		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
-	return blockstores.AddVolume(getBlockStoreRoot(config.Root), blockstoreID, volumeID, volume.Base, volume.Size)
+	return blockstores.AddVolume(getBlockStoreRoot(config.Root), blockstoreUUID, volumeUUID, volume.Base, volume.Size)
 }
 
-func doBlockStoreRemove(config *Config, blockstoreID, volumeID string) error {
-	if _, exists := config.Volumes[volumeID]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeID)
+func cmdBlockStoreRemove(c *cli.Context) {
+	if err := doBlockStoreRemove(c); err != nil {
+		panic(err)
 	}
-
-	return blockstores.RemoveVolume(getBlockStoreRoot(config.Root), blockstoreID, volumeID)
 }
 
-func doSnapshotBackup(config *Config, driver drivers.Driver, snapshotID, volumeID, blockstoreID string) error {
-	if _, exists := config.Volumes[volumeID]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeID)
+func doBlockStoreRemove(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
 	}
-	if _, exists := config.Volumes[volumeID].Snapshots[snapshotID]; !exists {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotID, volumeID)
+	blockstoreUUID := c.String("uuid")
+	if blockstoreUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	volumeUUID := c.String("volume-uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("volume-uuid")
 	}
 
-	return blockstores.BackupSnapshot(getBlockStoreRoot(config.Root), snapshotID, volumeID, blockstoreID, driver)
+	if _, exists := config.Volumes[volumeUUID]; !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+
+	return blockstores.RemoveVolume(getBlockStoreRoot(config.Root), blockstoreUUID, volumeUUID)
 }
 
-func doSnapshotRestore(config *Config, driver drivers.Driver, snapshotID, originVolumeID, targetVolumeID, blockstoreID string) error {
-	originVol, exists := config.Volumes[originVolumeID]
+func cmdSnapshotBackup(c *cli.Context) {
+	if err := doSnapshotBackup(c); err != nil {
+		panic(err)
+	}
+}
+
+func doSnapshotBackup(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	blockstoreUUID := c.String("blockstore-uuid")
+	if blockstoreUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	volumeUUID := c.String("volume-uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("volume-uuid")
+	}
+	snapshotUUID := c.String("uuid")
+	if snapshotUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+
+	if _, exists := config.Volumes[volumeUUID]; !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+	if _, exists := config.Volumes[volumeUUID].Snapshots[snapshotUUID]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
+	}
+
+	return blockstores.BackupSnapshot(getBlockStoreRoot(config.Root), snapshotUUID, volumeUUID, blockstoreUUID, driver)
+}
+
+func cmdSnapshotRestore(c *cli.Context) {
+	if err := doSnapshotRestore(c); err != nil {
+		panic(err)
+	}
+}
+
+func doSnapshotRestore(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	blockstoreUUID := c.String("blockstore-uuid")
+	if blockstoreUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	originVolumeUUID := c.String("origin-volume-uuid")
+	if originVolumeUUID == "" {
+		return genRequiredMissingError("origin-volume-uuid")
+	}
+	targetVolumeUUID := c.String("target-volume-uuid")
+	if targetVolumeUUID == "" {
+		return genRequiredMissingError("target-volume-uuid")
+	}
+	snapshotUUID := c.String("uuid")
+	if snapshotUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+
+	originVol, exists := config.Volumes[originVolumeUUID]
 	if !exists {
-		return fmt.Errorf("volume %v doesn't exist", originVolumeID)
+		return fmt.Errorf("volume %v doesn't exist", originVolumeUUID)
 	}
-	if _, exists := config.Volumes[originVolumeID].Snapshots[snapshotID]; !exists {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotID, originVolumeID)
+	if _, exists := config.Volumes[originVolumeUUID].Snapshots[snapshotUUID]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, originVolumeUUID)
 	}
-	targetVol, exists := config.Volumes[targetVolumeID]
+	targetVol, exists := config.Volumes[targetVolumeUUID]
 	if !exists {
-		return fmt.Errorf("volume %v doesn't exist", targetVolumeID)
+		return fmt.Errorf("volume %v doesn't exist", targetVolumeUUID)
 	}
 	if originVol.Size != targetVol.Size || originVol.Base != targetVol.Base {
 		return fmt.Errorf("target volume %v doesn't match original volume %v's size or base",
-			targetVolumeID, originVolumeID)
+			targetVolumeUUID, originVolumeUUID)
 	}
 
-	return blockstores.RestoreSnapshot(getBlockStoreRoot(config.Root), snapshotID, originVolumeID,
-		targetVolumeID, blockstoreID, driver)
+	return blockstores.RestoreSnapshot(getBlockStoreRoot(config.Root), snapshotUUID, originVolumeUUID,
+		targetVolumeUUID, blockstoreUUID, driver)
 }
 
-func doSnapshotRemove(config *Config, snapshotID, volumeID, blockstoreID string) error {
-	if _, exists := config.Volumes[volumeID]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeID)
+func cmdSnapshotRemove(c *cli.Context) {
+	if err := doSnapshotRemove(c); err != nil {
+		panic(err)
 	}
-	if _, exists := config.Volumes[volumeID].Snapshots[snapshotID]; !exists {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotID, volumeID)
+}
+
+func doSnapshotRemove(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	blockstoreUUID := c.String("blockstore-uuid")
+	if blockstoreUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	volumeUUID := c.String("volume-uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("volume-uuid")
+	}
+	snapshotUUID := c.String("uuid")
+	if snapshotUUID == "" {
+		return genRequiredMissingError("uuid")
 	}
 
-	return blockstores.RemoveSnapshot(getBlockStoreRoot(config.Root), snapshotID, volumeID, blockstoreID)
+	if _, exists := config.Volumes[volumeUUID]; !exists {
+		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+	if _, exists := config.Volumes[volumeUUID].Snapshots[snapshotUUID]; !exists {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
+	}
+
+	return blockstores.RemoveSnapshot(getBlockStoreRoot(config.Root), snapshotUUID, volumeUUID, blockstoreUUID)
 }
