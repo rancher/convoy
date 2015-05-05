@@ -365,6 +365,10 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 		return err
 	}
 
+	if snapshotExists(snapshotID, volumeID, bsDriver) {
+		return fmt.Errorf("snapshot already exists in blockstore!")
+	}
+
 	lastSnapshotID := volume.LastSnapshotID
 
 	var lastSnapshotMap *SnapshotMap
@@ -455,6 +459,12 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 	}
 
 	return nil
+}
+
+func snapshotExists(snapshotID, volumeID string, bsDriver BlockStoreDriver) bool {
+	path := getSnapshotsPath(volumeID)
+	fileName := getSnapshotConfigName(snapshotID)
+	return bsDriver.FileExists(path, fileName)
 }
 
 func loadSnapshotMap(snapshotID, volumeID string, bsDriver BlockStoreDriver) (*SnapshotMap, error) {

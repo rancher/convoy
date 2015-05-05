@@ -327,6 +327,11 @@ def test_blockstore():
     assert snap2_vol2["ID"] == snap2_vol2_uuid
     assert len(snap2_vol2["Blocks"]) != 0
 
+    #dupcliate snapshot backup should fail
+    with pytest.raises(subprocess.CalledProcessError):
+        v.backup_snapshot_to_blockstore(snap2_vol2_uuid, volume2_uuid,
+                blockstore_uuid)
+
     #restore snapshot
     res_volume1_uuid = v.create_volume(VOLUME_SIZE_500M)
     dm_cleanup_list.append(res_volume1_uuid)
