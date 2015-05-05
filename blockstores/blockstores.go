@@ -207,6 +207,7 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 		return "", 0, err
 	}
 	log.Debug("Created local copy of ", configFile)
+	log.Debug("Registered block store ", bs.UUID)
 	return bs.UUID, bs.BlockSize, nil
 }
 
@@ -244,6 +245,7 @@ func Deregister(root, id string) error {
 	if err != nil {
 		return err
 	}
+	log.Debug("Deregistered block store ", id)
 	return nil
 }
 
@@ -286,7 +288,8 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 	if err := saveConfigInBlockStore(volumePath, volumeCfg, driver, &volume); err != nil {
 		return err
 	}
-	log.Debug("Created volume configuration file in blockstore done: ", filepath.Join(volumePath, volumeCfg))
+	log.Debug("Created volume configuration file in blockstore: ", filepath.Join(volumePath, volumeCfg))
+	log.Debug("Added blockstore volume ", volumeID)
 
 	return nil
 }
@@ -317,6 +320,7 @@ func RemoveVolume(root, id, volumeID string) error {
 		return err
 	}
 	log.Debug("Removed volume directory in blockstore: ", volumeDir)
+	log.Debug("Removed blockstore volume ", volumeID)
 
 	return nil
 }
@@ -458,6 +462,7 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 	if err := saveVolumeConfig(volumeID, bsDriver, volume); err != nil {
 		return err
 	}
+	log.Debug("Backed up snapshot ", snapshotID)
 
 	return nil
 }
@@ -574,6 +579,7 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 			return err
 		}
 	}
+	log.Debugf("Restored snapshot %v of volume %v to volume %v", srcSnapshotID, srcVolumeID, dstVolumeID)
 
 	return nil
 }
@@ -654,6 +660,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 	}
 
 	log.Debug("GC completed")
+	log.Debug("Removed blockstore snapshot ", snapshotID)
 
 	return nil
 }

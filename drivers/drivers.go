@@ -74,6 +74,7 @@ func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFor
 		log.Error("Failed mount, ", string(output))
 		return err
 	}
+	log.Debugf("Mounted volume %v to %v, with namespace %v ", volumeUUID, mountPoint, newNS)
 	return nil
 }
 
@@ -86,5 +87,6 @@ func Unmount(driver Driver, mountPoint, newNS string) error {
 		log.Error("Failed umount, ", string(output))
 		return err
 	}
+	log.Debugf("Umounted mountpoint %v, with namespace %v", mountPoint, newNS)
 	return nil
 }

@@ -192,6 +192,7 @@ func Init(root string, config map[string]string) (drivers.Driver, error) {
 		configFile: driverConfig,
 		Device:     *dev,
 	}
+	log.Debug("Init done")
 	return d, nil
 }
 
@@ -244,6 +245,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	if err = d.updateConfig(); err != nil {
 		return err
 	}
+	log.Debug("Created volume ", id)
 
 	return nil
 }
@@ -274,6 +276,7 @@ func (d *Driver) DeleteVolume(id string) error {
 	if err = d.updateConfig(); err != nil {
 		return err
 	}
+	log.Debug("Deleted volume ", id)
 	return nil
 }
 
@@ -333,7 +336,7 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Created snapshot")
+	log.Debugf("Created snapshot device")
 
 	snapshot = Snapshot{
 		DevID:     devID,
@@ -345,6 +348,7 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	if err = d.updateConfig(); err != nil {
 		return err
 	}
+	log.Debug("Created snapshot", id)
 	return nil
 }
 
@@ -359,12 +363,13 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	if err != nil {
 		return err
 	}
-	log.Debug("Deleted snapshot")
+	log.Debug("Deleted snapshot device")
 	delete(volume.Snapshots, id)
 
 	if err = d.updateConfig(); err != nil {
 		return err
 	}
+	log.Debug("Deleted snapshot", id)
 	return nil
 }
 
