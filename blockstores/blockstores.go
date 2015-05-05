@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
 	"os"
@@ -676,4 +677,39 @@ func getSnapshotsList(volumeID string, driver BlockStoreDriver) ([]string, error
 		result = append(result, parts[0])
 	}
 	return result, nil
+}
+
+func listVolume(volumeID string, driver BlockStoreDriver) error {
+	snapshotList, err := getSnapshotsList(volumeID, driver)
+	if err != nil {
+		return err
+	}
+
+	resp := api.SnapshotsResponse{
+		Snapshots: make(map[string]api.SnapshotResponse),
+	}
+
+	for _, s := range snapshotList {
+		resp.Snapshots[s] = api.SnapshotResponse{
+			UUID:       s,
+			VolumeUUID: volumeID,
+		}
+	}
+	api.ResponseOutput(resp)
+	return nil
+}
+
+func List(root, blockstoreID, volumeID string) error {
+	configFile := getConfigFilename(root, blockstoreID)
+	b := &BlockStore{}
+	err := utils.LoadConfig(configFile, b)
+	if err != nil {
+		return err
+	}
+	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
+	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
+	if err != nil {
+		return err
+	}
+	return listVolume(volumeID, bsDriver)
 }

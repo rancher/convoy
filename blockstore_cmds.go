@@ -136,6 +136,26 @@ var (
 		Action: cmdBlockStoreRemove,
 	}
 
+	blockstoreListCmd = cli.Command{
+		Name:  "list",
+		Usage: "list volume and snapshots in blockstore",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "uuid",
+				Usage: "uuid of blockstore",
+			},
+			cli.StringFlag{
+				Name:  "volume-uuid",
+				Usage: "uuid of volume",
+			},
+			cli.StringFlag{
+				Name:  "snapshot-uuid",
+				Usage: "uuid of snapshot",
+			},
+		},
+		Action: cmdBlockStoreList,
+	}
+
 	blockstoreCmd = cli.Command{
 		Name:  "blockstore",
 		Usage: "blockstore related operations",
@@ -144,6 +164,7 @@ var (
 			blockstoreDeregisterCmd,
 			blockstoreAddVolumeCmd,
 			blockstoreRemoveVolumeCmd,
+			blockstoreListCmd,
 		},
 	}
 )
@@ -265,6 +286,29 @@ func doBlockStoreRemove(c *cli.Context) error {
 	}
 
 	return blockstores.RemoveVolume(getBlockStoreRoot(config.Root), blockstoreUUID, volumeUUID)
+}
+
+func cmdBlockStoreList(c *cli.Context) {
+	if err := doBlockStoreList(c); err != nil {
+		panic(err)
+	}
+}
+
+func doBlockStoreList(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	if err != nil {
+		return err
+	}
+	blockstoreUUID := c.String("uuid")
+	if blockstoreUUID == "" {
+		return genRequiredMissingError("uuid")
+	}
+	volumeUUID := c.String("volume-uuid")
+	if volumeUUID == "" {
+		return genRequiredMissingError("volume-uuid")
+	}
+
+	return blockstores.List(getBlockStoreRoot(config.Root), blockstoreUUID, volumeUUID)
 }
 
 func cmdSnapshotBackup(c *cli.Context) {

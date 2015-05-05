@@ -16,6 +16,10 @@ type VolumeResponse struct {
 	Size int64
 }
 
+type SnapshotsResponse struct {
+	Snapshots map[string]SnapshotResponse
+}
+
 type SnapshotResponse struct {
 	UUID       string
 	VolumeUUID string
