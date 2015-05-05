@@ -47,10 +47,8 @@ func doInfo(config *Config, driver drivers.Driver) error {
 }
 
 func duplicateVolumeUUID(config *Config, uuid string) bool {
-	if _, exists := config.Volumes[uuid]; exists {
-		return true
-	}
-	return false
+	_, exists := config.Volumes[uuid]
+	return exists
 }
 
 func doVolumeCreate(config *Config, driver drivers.Driver, size int64, volumeUUID string) error {
@@ -131,11 +129,26 @@ func doVolumeUnmount(config *Config, driver drivers.Driver, volumeUUID string, n
 	return utils.SaveConfig(getConfigFileName(config.Root), config)
 }
 
-func doSnapshotCreate(config *Config, driver drivers.Driver, volumeUUID string) error {
+func duplicateSnapshotUUID(config *Config, volumeUUID, snapshotUUID string) bool {
+	volume, exists := config.Volumes[volumeUUID]
+	if !exists {
+		return false
+	}
+	_, exists = volume.Snapshots[snapshotUUID]
+	return exists
+}
+
+func doSnapshotCreate(config *Config, driver drivers.Driver, volumeUUID, snapshotUUID string) error {
 	if _, exists := config.Volumes[volumeUUID]; !exists {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 	uuid := uuid.New()
+	if snapshotUUID != "" {
+		if duplicateSnapshotUUID(config, volumeUUID, snapshotUUID) {
+			return fmt.Errorf("Duplicate snapshot UUID for volume %v detected", volumeUUID)
+		}
+		uuid = snapshotUUID
+	}
 	if err := driver.CreateSnapshot(uuid, volumeUUID); err != nil {
 		return err
 	}

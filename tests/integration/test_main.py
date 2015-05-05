@@ -204,11 +204,15 @@ def test_snapshot_list():
     volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
     dm_cleanup_list.append(volume2_uuid)
 
+    snap0_vol1_uuid = str(uuid.uuid1())
+    v.create_snapshot_with_uuid(volume1_uuid, snap0_vol1_uuid)
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     snap3_vol2_uuid = v.create_snapshot(volume2_uuid)
+    with pytest.raises(subprocess.CalledProcessError):
+	v.create_snapshot_with_uuid(volume2_uuid, snap1_vol2_uuid)
 
     volumes = v.list_volumes(volume2_uuid)
     assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap1_vol2_uuid]
@@ -216,12 +220,14 @@ def test_snapshot_list():
     assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap3_vol2_uuid]
 
     volumes = v.list_volumes()
+    assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap0_vol1_uuid]
     assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap1_vol1_uuid]
     assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap2_vol1_uuid]
     assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap1_vol2_uuid]
     assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap2_vol2_uuid]
     assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap3_vol2_uuid]
 
+    v.delete_snapshot(snap0_vol1_uuid, volume1_uuid)
     v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
     v.delete_snapshot(snap2_vol1_uuid, volume1_uuid)
     v.delete_snapshot(snap1_vol2_uuid, volume2_uuid)

@@ -44,12 +44,13 @@ var (
 	flagVolumeList            = flagVolume.Command("list", "list all managed volumes")
 	flagVolumeListUUID        = flagVolumeList.Flag("uuid", "uuid of volume").String()
 
-	flagSnapshot                 = flagApp.Command("snapshot", "snapshot related operations")
-	flagSnapshotCreate           = flagSnapshot.Command("create", "create a snapshot")
-	flagSnapshotCreateVolumeUUID = flagSnapshotCreate.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
-	flagSnapshotDelete           = flagSnapshot.Command("delete", "delete a snapshot")
-	flagSnapshotDeleteUUID       = flagSnapshotDelete.Flag("uuid", "uuid of snapshot").Required().String()
-	flagSnapshotDeleteVolumeUUID = flagSnapshotDelete.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
+	flagSnapshot                   = flagApp.Command("snapshot", "snapshot related operations")
+	flagSnapshotCreate             = flagSnapshot.Command("create", "create a snapshot")
+	flagSnapshotCreateVolumeUUID   = flagSnapshotCreate.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
+	flagSnapshotCreateSnapshotUUID = flagSnapshotCreate.Flag("uuid", "uuid of snapshot, otherwise would generated automatically").String()
+	flagSnapshotDelete             = flagSnapshot.Command("delete", "delete a snapshot")
+	flagSnapshotDeleteUUID         = flagSnapshotDelete.Flag("uuid", "uuid of snapshot").Required().String()
+	flagSnapshotDeleteVolumeUUID   = flagSnapshotDelete.Flag("volume-uuid", "uuid of volume for snapshot").Required().String()
 
 	flagBlockStore                 = flagApp.Command("blockstore", "blockstore related operations")
 	flagBlockStoreRegister         = flagBlockStore.Command("register", "register a blockstore, create it if it's not existed yet")
@@ -190,7 +191,7 @@ func main() {
 	case flagVolumeUnmount.FullCommand():
 		err = doVolumeUnmount(&config, driver, *flagVolumeUnmountUUID, *flagVolumeUnmountSwitchNS)
 	case flagSnapshotCreate.FullCommand():
-		err = doSnapshotCreate(&config, driver, *flagSnapshotCreateVolumeUUID)
+		err = doSnapshotCreate(&config, driver, *flagSnapshotCreateVolumeUUID, *flagSnapshotCreateSnapshotUUID)
 	case flagSnapshotDelete.FullCommand():
 		err = doSnapshotDelete(&config, driver, *flagSnapshotDeleteUUID, *flagSnapshotDeleteVolumeUUID)
 	case flagBlockStoreRegister.FullCommand():

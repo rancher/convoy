@@ -73,6 +73,16 @@ class VolumeManager:
         assert snapshot["VolumeUUID"] == volume_uuid
         return snapshot["UUID"]
 
+    def create_snapshot_with_uuid(self, volume_uuid, uuid):
+        data = subprocess.check_output(self.base_cmdline + \
+		["snapshot", "create",
+                 "--volume-uuid", volume_uuid,
+                 "--uuid", uuid])
+        snapshot = json.loads(data)
+        assert snapshot["UUID"] == uuid
+        assert snapshot["VolumeUUID"] == volume_uuid
+        return snapshot["UUID"]
+
     def delete_snapshot(self, snapshot_uuid, volume_uuid):
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
 	        "--uuid", snapshot_uuid,
