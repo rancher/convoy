@@ -25,6 +25,7 @@ var (
 	flagVolume                = flagApp.Command("volume", "volume related operations")
 	flagVolumeCreate          = flagVolume.Command("create", "create a new volume")
 	flagVolumeCreateSize      = flagVolumeCreate.Flag("size", "size of volume").Required().Int64()
+	flagVolumeCreateUUID      = flagVolumeCreate.Flag("uuid", "specific uuid of volume, otherwise would generated automatically").String()
 	flagVolumeDelete          = flagVolume.Command("delete", "delete a volume with all of it's snapshots")
 	flagVolumeDeleteUUID      = flagVolumeDelete.Flag("uuid", "uuid of volume").Required().String()
 	flagVolumeUpdate          = flagVolume.Command("update", "update info about volume")
@@ -176,7 +177,7 @@ func main() {
 	case flagInfo.FullCommand():
 		err = doInfo(&config, driver)
 	case flagVolumeCreate.FullCommand():
-		err = doVolumeCreate(&config, driver, *flagVolumeCreateSize)
+		err = doVolumeCreate(&config, driver, *flagVolumeCreateSize, *flagVolumeCreateUUID)
 	case flagVolumeDelete.FullCommand():
 		err = doVolumeDelete(&config, driver, *flagVolumeDeleteUUID)
 	case flagVolumeUpdate.FullCommand():

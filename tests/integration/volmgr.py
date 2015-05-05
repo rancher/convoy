@@ -20,6 +20,16 @@ class VolumeManager:
         assert volume["Base"] == ""
         return uuid
 
+    def create_volume_with_uuid(self, size, uuid):
+        data = subprocess.check_output(self.base_cmdline + ["volume", "create",
+            "--size", str(size),
+            "--uuid", uuid])
+        volume = json.loads(data)
+        assert volume["UUID"] == uuid
+        assert volume["Size"] == size
+        assert volume["Base"] == ""
+        return uuid
+
     def delete_volume(self, uuid):
         subprocess.check_call(self.base_cmdline + ["volume", "delete",
     	    "--uuid", uuid])

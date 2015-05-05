@@ -46,8 +46,21 @@ func doInfo(config *Config, driver drivers.Driver) error {
 	return err
 }
 
-func doVolumeCreate(config *Config, driver drivers.Driver, size int64) error {
+func duplicateVolumeUUID(config *Config, uuid string) bool {
+	if _, exists := config.Volumes[uuid]; exists {
+		return true
+	}
+	return false
+}
+
+func doVolumeCreate(config *Config, driver drivers.Driver, size int64, volumeUUID string) error {
 	uuid := uuid.New()
+	if volumeUUID != "" {
+		if duplicateVolumeUUID(config, uuid) {
+			return fmt.Errorf("Duplicate volume UUID detected!")
+		}
+		uuid = volumeUUID
+	}
 	base := "" //Doesn't support base for now
 	if err := driver.CreateVolume(uuid, base, size); err != nil {
 		return err

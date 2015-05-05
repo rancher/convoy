@@ -4,6 +4,7 @@ import subprocess
 import os
 import json
 import pytest
+import uuid
 
 from volmgr import VolumeManager
 
@@ -106,11 +107,23 @@ def test_volume_cru():
     uuid2 = v.create_volume(VOLUME_SIZE_100M)
     dm_cleanup_list.append(uuid2)
 
+    with pytest.raises(subprocess.CalledProcessError):
+        uuid3 = v.create_volume_with_uuid(VOLUME_SIZE_100M, uuid1)
+
+    specific_uuid = str(uuid.uuid1())
+
+    uuid3 = v.create_volume_with_uuid(VOLUME_SIZE_100M, specific_uuid)
+    dm_cleanup_list.append(uuid3)
+    assert uuid3 == specific_uuid
+
+    v.delete_volume(uuid3)
+    dm_cleanup_list.remove(uuid3)
+
     v.delete_volume(uuid2)
-    dm_cleanup_list.remove(uuid1)
+    dm_cleanup_list.remove(uuid2)
 
     v.delete_volume(uuid1)
-    dm_cleanup_list.remove(uuid2)
+    dm_cleanup_list.remove(uuid1)
 
 def format_volume_and_create_file(uuid, filename):
     # with format
