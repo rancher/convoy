@@ -137,4 +137,4 @@ class VolumeManager:
 		"--volume-uuid", volume_uuid,
 		"--uuid", bs_uuid])
         volumes = json.loads(data)
-        return volumes
+        return volumes["Volumes"]

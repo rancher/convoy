@@ -692,16 +692,21 @@ func listVolume(volumeID string, driver BlockStoreDriver) error {
 		return err
 	}
 
-	resp := api.SnapshotsResponse{
+	volumeResp := api.VolumeResponse{
+		UUID:      volumeID,
 		Snapshots: make(map[string]api.SnapshotResponse),
 	}
 
 	for _, s := range snapshotList {
-		resp.Snapshots[s] = api.SnapshotResponse{
+		volumeResp.Snapshots[s] = api.SnapshotResponse{
 			UUID:       s,
 			VolumeUUID: volumeID,
 		}
 	}
+	resp := api.VolumesResponse{
+		Volumes: make(map[string]api.VolumeResponse),
+	}
+	resp.Volumes[volumeID] = volumeResp
 	api.ResponseOutput(resp)
 	return nil
 }

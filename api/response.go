@@ -10,13 +10,14 @@ type ErrorResponse struct {
 	Error string
 }
 
-type VolumeResponse struct {
-	UUID string
-	Base string
-	Size int64
+type VolumesResponse struct {
+	Volumes map[string]VolumeResponse
 }
 
-type SnapshotsResponse struct {
+type VolumeResponse struct {
+	UUID      string
+	Base      string
+	Size      int64
 	Snapshots map[string]SnapshotResponse
 }
 
