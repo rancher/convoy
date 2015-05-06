@@ -208,7 +208,15 @@ def test_snapshot_list():
     dm_cleanup_list.append(volume2_uuid)
 
     snap0_vol1_uuid = str(uuid.uuid1())
+
+    volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
+    assert snap0_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
+
     v.create_snapshot_with_uuid(volume1_uuid, snap0_vol1_uuid)
+
+    volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
+    assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
+
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
@@ -231,6 +239,10 @@ def test_snapshot_list():
     assert snap3_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
     v.delete_snapshot(snap0_vol1_uuid, volume1_uuid)
+
+    volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
+    assert snap0_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
+
     v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
     v.delete_snapshot(snap2_vol1_uuid, volume1_uuid)
     v.delete_snapshot(snap1_vol2_uuid, volume2_uuid)

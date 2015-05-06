@@ -96,6 +96,10 @@ var (
 				Name:  "uuid",
 				Usage: "uuid of volume, if not supplied, would list all volumes",
 			},
+			cli.StringFlag{
+				Name:  "snapshot-uuid",
+				Usage: "uuid of snapshot, must be used with volume uuid",
+			},
 		},
 		Action: cmdVolumeList,
 	}
@@ -202,7 +206,11 @@ func doVolumeList(c *cli.Context) error {
 		return err
 	}
 	uuid := c.String("uuid")
-	return driver.ListVolume(uuid)
+	snapshotUUID := c.String("snapshot-uuid")
+	if snapshotUUID != "" && uuid == "" {
+		return fmt.Errorf("--snapshot-uuid must be used with volume uuid")
+	}
+	return driver.ListVolume(uuid, snapshotUUID)
 }
 
 func cmdVolumeMount(c *cli.Context) {

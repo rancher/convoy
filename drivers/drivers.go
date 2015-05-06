@@ -14,7 +14,7 @@ type Driver interface {
 	CreateVolume(id, baseID string, size int64) error
 	DeleteVolume(id string) error
 	GetVolumeDevice(id string) (string, error)
-	ListVolume(id string) error
+	ListVolume(id, snapshotID string) error
 	CreateSnapshot(id, volumeID string) error
 	DeleteSnapshot(id, volumeID string) error
 	HasSnapshot(id, volumeID string) bool

@@ -280,6 +280,20 @@ func (d *Driver) DeleteVolume(id string) error {
 	return nil
 }
 
+func getVolumeSnapshotInfo(uuid string, volume Volume, snapshotID string) *api.DeviceMapperVolume {
+	result := api.DeviceMapperVolume{
+		DevID:     volume.DevID,
+		Size:      volume.Size,
+		Snapshots: make(map[string]api.DeviceMapperSnapshot),
+	}
+	if s, exists := volume.Snapshots[snapshotID]; exists {
+		result.Snapshots[snapshotID] = api.DeviceMapperSnapshot{
+			DevID: s.DevID,
+		}
+	}
+	return &result
+}
+
 func getVolumeInfo(uuid string, volume Volume) *api.DeviceMapperVolume {
 	result := api.DeviceMapperVolume{
 		DevID:     volume.DevID,
@@ -295,7 +309,7 @@ func getVolumeInfo(uuid string, volume Volume) *api.DeviceMapperVolume {
 	return &result
 }
 
-func (d *Driver) ListVolume(id string) error {
+func (d *Driver) ListVolume(id, snapshotID string) error {
 	volumes := api.DeviceMapperVolumes{
 		Volumes: make(map[string]api.DeviceMapperVolume),
 	}
@@ -304,7 +318,11 @@ func (d *Driver) ListVolume(id string) error {
 		if !exists {
 			return fmt.Errorf("volume %v doesn't exists", id)
 		}
-		volumes.Volumes[id] = *getVolumeInfo(id, volume)
+		if snapshotID != "" {
+			volumes.Volumes[id] = *getVolumeSnapshotInfo(id, volume, snapshotID)
+		} else {
+			volumes.Volumes[id] = *getVolumeInfo(id, volume)
+		}
 
 	} else {
 		for uuid, volume := range d.Volumes {
