@@ -307,8 +307,9 @@ func doBlockStoreList(c *cli.Context) error {
 	if volumeUUID == "" {
 		return genRequiredMissingError("volume-uuid")
 	}
+	snapshotUUID := c.String("snapshot-uuid")
 
-	return blockstores.List(getBlockStoreRoot(config.Root), blockstoreUUID, volumeUUID)
+	return blockstores.List(getBlockStoreRoot(config.Root), blockstoreUUID, volumeUUID, snapshotUUID)
 }
 
 func cmdSnapshotBackup(c *cli.Context) {

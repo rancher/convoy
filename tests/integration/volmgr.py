@@ -141,3 +141,11 @@ class VolumeManager:
 		"--uuid", bs_uuid])
         volumes = json.loads(data)
         return volumes["Volumes"]
+
+    def list_blockstore_with_snapshot(self, snapshot_uuid, volume_uuid, bs_uuid):
+	data = subprocess.check_output(self.base_cmdline + ["blockstore", "list",
+		"--snapshot-uuid", snapshot_uuid,
+		"--volume-uuid", volume_uuid,
+		"--uuid", bs_uuid])
+        volumes = json.loads(data)
+        return volumes["Volumes"]

@@ -628,11 +628,11 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 	}
 
 	log.Debug("GC started")
-	snapshotsList, err := getSnapshotsList(volumeID, bsDriver)
+	snapshots, err := getSnapshots(volumeID, bsDriver)
 	if err != nil {
 		return err
 	}
-	for _, snapshotID := range snapshotsList {
+	for snapshotID, _ := range snapshots {
 		snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
 		if err != nil {
 			return err
@@ -665,13 +665,13 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 	return nil
 }
 
-func getSnapshotsList(volumeID string, driver BlockStoreDriver) ([]string, error) {
+func getSnapshots(volumeID string, driver BlockStoreDriver) (map[string]bool, error) {
 	fileList, err := driver.List(getSnapshotsPath(volumeID))
 	if err != nil {
 		return nil, err
 	}
 
-	var result []string
+	result := make(map[string]bool)
 	for _, f := range fileList {
 		parts := strings.Split(f, "_")
 		if len(parts) != 2 {
@@ -681,17 +681,17 @@ func getSnapshotsList(volumeID string, driver BlockStoreDriver) ([]string, error
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("incorrect filename format:", f)
 		}
-		result = append(result, parts[0])
+		result[parts[0]] = true
 	}
 	return result, nil
 }
 
-func listVolume(volumeID string, driver BlockStoreDriver) error {
+func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 	resp := api.VolumesResponse{
 		Volumes: make(map[string]api.VolumeResponse),
 	}
 
-	snapshotList, err := getSnapshotsList(volumeID, driver)
+	snapshots, err := getSnapshots(volumeID, driver)
 	if err != nil {
 		// Volume doesn't exist
 		api.ResponseOutput(resp)
@@ -703,10 +703,19 @@ func listVolume(volumeID string, driver BlockStoreDriver) error {
 		Snapshots: make(map[string]api.SnapshotResponse),
 	}
 
-	for _, s := range snapshotList {
-		volumeResp.Snapshots[s] = api.SnapshotResponse{
-			UUID:       s,
-			VolumeUUID: volumeID,
+	if snapshotID != "" {
+		if _, exists := snapshots[snapshotID]; exists {
+			volumeResp.Snapshots[snapshotID] = api.SnapshotResponse{
+				UUID:       snapshotID,
+				VolumeUUID: volumeID,
+			}
+		}
+	} else {
+		for s, _ := range snapshots {
+			volumeResp.Snapshots[s] = api.SnapshotResponse{
+				UUID:       s,
+				VolumeUUID: volumeID,
+			}
 		}
 	}
 	resp.Volumes[volumeID] = volumeResp
@@ -714,7 +723,7 @@ func listVolume(volumeID string, driver BlockStoreDriver) error {
 	return nil
 }
 
-func List(root, blockstoreID, volumeID string) error {
+func List(root, blockstoreID, volumeID, snapshotID string) error {
 	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
 	err := utils.LoadConfig(configFile, b)
@@ -726,5 +735,5 @@ func List(root, blockstoreID, volumeID string) error {
 	if err != nil {
 		return err
 	}
-	return listVolume(volumeID, bsDriver)
+	return listVolume(volumeID, snapshotID, bsDriver)
 }
