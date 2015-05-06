@@ -632,7 +632,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 	if err != nil {
 		return err
 	}
-	for snapshotID, _ := range snapshots {
+	for snapshotID := range snapshots {
 		snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
 		if err != nil {
 			return err
@@ -711,7 +711,7 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 			}
 		}
 	} else {
-		for s, _ := range snapshots {
+		for s := range snapshots {
 			volumeResp.Snapshots[s] = api.SnapshotResponse{
 				UUID:       s,
 				VolumeUUID: volumeID,
