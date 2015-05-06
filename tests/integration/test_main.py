@@ -161,6 +161,9 @@ def test_volume_mount():
     dm_cleanup_list.remove(uuid)
 
 def test_volume_list():
+    volumes = v.list_volumes()
+    assert len(volumes) == 0
+
     uuid1 = v.create_volume(VOLUME_SIZE_500M)
     dm_cleanup_list.append(uuid1)
 
@@ -171,12 +174,12 @@ def test_volume_list():
     dm_cleanup_list.append(uuid3)
 
     volumes = v.list_volumes(uuid3)
-    assert volumes["Volumes"][uuid3]["Size"] == VOLUME_SIZE_100M
+    assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
 
     volumes = v.list_volumes()
-    assert volumes["Volumes"][uuid1]["Size"] == VOLUME_SIZE_500M
-    assert volumes["Volumes"][uuid2]["Size"] == VOLUME_SIZE_100M
-    assert volumes["Volumes"][uuid3]["Size"] == VOLUME_SIZE_100M
+    assert volumes[uuid1]["Size"] == VOLUME_SIZE_500M
+    assert volumes[uuid2]["Size"] == VOLUME_SIZE_100M
+    assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
 
     v.delete_volume(uuid3)
     dm_cleanup_list.remove(uuid3)
@@ -215,17 +218,17 @@ def test_snapshot_list():
 	v.create_snapshot_with_uuid(volume2_uuid, snap1_vol2_uuid)
 
     volumes = v.list_volumes(volume2_uuid)
-    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap1_vol2_uuid]
-    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap2_vol2_uuid]
-    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap3_vol2_uuid]
+    assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    assert snap3_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
     volumes = v.list_volumes()
-    assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap0_vol1_uuid]
-    assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap1_vol1_uuid]
-    assert volumes["Volumes"][volume1_uuid]["Snapshots"][snap2_vol1_uuid]
-    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap1_vol2_uuid]
-    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap2_vol2_uuid]
-    assert volumes["Volumes"][volume2_uuid]["Snapshots"][snap3_vol2_uuid]
+    assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
+    assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
+    assert snap2_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
+    assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    assert snap3_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
     v.delete_snapshot(snap0_vol1_uuid, volume1_uuid)
     v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
@@ -282,6 +285,9 @@ def test_blockstore():
 
     volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
     dm_cleanup_list.append(volume2_uuid)
+
+    volumes = v.list_blockstore(volume1_uuid, blockstore_uuid)
+    assert len(volumes) == 0
 
     v.add_volume_to_blockstore(volume1_uuid, blockstore_uuid)
     volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)

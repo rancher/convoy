@@ -58,12 +58,12 @@ class VolumeManager:
     	    data = subprocess.check_output(self.base_cmdline + \
 			    ["volume", "list"])
     	    volumes = json.loads(data)
-    	    return volumes
+            return volumes["Volumes"]
 
         data = subprocess.check_output(self.base_cmdline + ["volume", "list",
     	    "--uuid", uuid])
         volumes = json.loads(data)
-        return volumes
+        return volumes["Volumes"]
 
     def create_snapshot(self, volume_uuid):
         data = subprocess.check_output(self.base_cmdline + \
