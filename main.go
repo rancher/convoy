@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	VERSION    = "0.1.2"
+	VERSION    = "0.1.4"
 	LOCKFILE   = "lock"
 	CONFIGFILE = "volmgr.cfg"
 )
