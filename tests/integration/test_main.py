@@ -309,6 +309,8 @@ def test_blockstore():
 
     volumes = v.list_blockstore_with_snapshot("random_string", volume1_uuid, blockstore_uuid)
     assert len(volumes) == 1
+    assert volumes[volume1_uuid]["Size"] == VOLUME_SIZE_500M
+    assert volumes[volume1_uuid]["Base"] == ""
     assert len(volumes[volume1_uuid]["Snapshots"]) == 0
 
     v.add_volume_to_blockstore(volume2_uuid, uuid)

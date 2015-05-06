@@ -691,6 +691,13 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 		Volumes: make(map[string]api.VolumeResponse),
 	}
 
+	v, err := loadVolumeConfig(volumeID, driver)
+	if err != nil {
+		// Volume doesn't exist
+		api.ResponseOutput(resp)
+		return nil
+	}
+
 	snapshots, err := getSnapshots(volumeID, driver)
 	if err != nil {
 		// Volume doesn't exist
@@ -700,6 +707,8 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 
 	volumeResp := api.VolumeResponse{
 		UUID:      volumeID,
+		Base:      v.Base,
+		Size:      v.Size,
 		Snapshots: make(map[string]api.SnapshotResponse),
 	}
 
