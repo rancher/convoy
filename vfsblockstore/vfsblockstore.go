@@ -28,7 +28,7 @@ func init() {
 func initFunc(configFile string, config map[string]string) (blockstores.BlockStoreDriver, error) {
 	b := &VfsBlockStoreDriver{}
 	if configFile != "" {
-		if _, err := os.Stat(configFile); err == nil {
+		if utils.ConfigExists(configFile) {
 			err := utils.LoadConfig(configFile, b)
 			if err != nil {
 				return nil, err

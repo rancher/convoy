@@ -135,7 +135,7 @@ func (d *Driver) activatePool() error {
 
 func Init(root, cfgName string, config map[string]string) (drivers.Driver, error) {
 	driverConfig := filepath.Join(root, cfgName)
-	if _, err := os.Stat(driverConfig); err == nil {
+	if utils.ConfigExists(driverConfig) {
 		dev := Device{
 			Volumes: make(map[string]Volume),
 		}

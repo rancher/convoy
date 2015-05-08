@@ -6,7 +6,6 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
-	"os"
 	"path/filepath"
 )
 
@@ -31,7 +30,7 @@ func doInitialize(c *cli.Context) error {
 	log.Debug("Config root is ", root)
 
 	configFileName := getConfigFileName(root)
-	if _, err := os.Stat(configFileName); err == nil {
+	if utils.ConfigExists(configFileName) {
 		return fmt.Errorf("Configuration file %v existed. Don't need to initialize.", configFileName)
 	}
 

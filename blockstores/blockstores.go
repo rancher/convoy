@@ -9,7 +9,6 @@ import (
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -213,7 +212,7 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 
 func removeDriverConfigFile(root, kind, id string) error {
 	configFile := getDriverConfigFilename(root, kind, id)
-	if err := exec.Command("rm", "-f", configFile).Run(); err != nil {
+	if err := utils.RemoveConfig(configFile); err != nil {
 		return err
 	}
 	log.Debug("Removed ", configFile)
@@ -222,7 +221,7 @@ func removeDriverConfigFile(root, kind, id string) error {
 
 func removeConfigFile(root, id string) error {
 	configFile := getConfigFilename(root, id)
-	if err := exec.Command("rm", "-f", configFile).Run(); err != nil {
+	if err := utils.RemoveConfig(configFile); err != nil {
 		return err
 	}
 	log.Debug("Removed ", configFile)

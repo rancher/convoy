@@ -64,6 +64,18 @@ func SaveConfig(fileName string, v interface{}) error {
 	return nil
 }
 
+func ConfigExists(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
+}
+
+func RemoveConfig(fileName string) error {
+	if err := exec.Command("rm", "-f", fileName).Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func MkdirIfNotExists(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err := os.MkdirAll(path, os.ModeDir|0700); err != nil {
