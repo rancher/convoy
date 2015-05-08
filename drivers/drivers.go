@@ -7,7 +7,7 @@ import (
 	"os/exec"
 )
 
-type InitFunc func(root string, config map[string]string) (Driver, error)
+type InitFunc func(root, cfgName string, config map[string]string) (Driver, error)
 
 type Driver interface {
 	Name() string
@@ -41,11 +41,15 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
+func getCfgName(name string) string {
+	return "driver_" + name + ".cfg"
+}
+
 func GetDriver(name, root string, config map[string]string) (Driver, error) {
 	if _, exists := initializers[name]; !exists {
 		return nil, fmt.Errorf("Driver %v is not supported!", name)
 	}
-	return initializers[name](root, config)
+	return initializers[name](root, getCfgName(name), config)
 }
 
 func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFormat bool, newNS string) error {

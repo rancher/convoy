@@ -94,7 +94,7 @@ def test_info():
     data = subprocess.check_output(VOLMGR_CMDLINE + ["info"])
     info = json.loads(data)
     assert info["Driver"] == "devicemapper"
-    assert info["Root"] == os.path.join(CFG_ROOT, "devicemapper")
+    assert info["Root"] == CFG_ROOT
     assert info["DataDevice"] == data_dev
     assert info["MetadataDevice"] == metadata_dev
     assert info["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME)

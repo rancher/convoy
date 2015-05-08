@@ -20,6 +20,7 @@ const (
 	metadataFile = "metadata.vol"
 	poolName     = "test_pool"
 	devRoot      = "/tmp/devmapper"
+	devCfg       = "driver_devicemapper.cfg"
 	volumeSize   = 1 << 27
 	maxThin      = 10000
 )
@@ -94,24 +95,24 @@ func TestMain(m *testing.M) {
 func TestInit(t *testing.T) {
 	config := make(map[string]string)
 
-	_, err := Init(devRoot, config)
+	_, err := Init(devRoot, devCfg, config)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "data device or metadata device unspecified")
 
 	config[DM_DATA_DEV] = dataDev
 	config[DM_METADATA_DEV] = metadataDev
 	config[DM_THINPOOL_BLOCK_SIZE] = "100"
-	_, err = Init(devRoot, config)
+	_, err = Init(devRoot, devCfg, config)
 	require.NotNil(t, err)
 	require.True(t, strings.HasPrefix(err.Error(), "Block size must"))
 
 	config[DM_THINPOOL_NAME] = "test_pool"
 	delete(config, DM_THINPOOL_BLOCK_SIZE)
 
-	driver, err := Init(devRoot, config)
+	driver, err := Init(devRoot, devCfg, config)
 	require.Nil(t, err)
 
-	newDriver, err := Init(devRoot, config)
+	newDriver, err := Init(devRoot, devCfg, config)
 	require.Nil(t, err)
 
 	drv1, ok := driver.(*Driver)
@@ -123,14 +124,14 @@ func TestInit(t *testing.T) {
 		t.Fatal("Fail to verify the information from driver config")
 	}
 
-	require.Equal(t, drv1.configFile, devRoot+"/devicemapper.cfg")
+	require.Equal(t, drv1.configFile, filepath.Join(devRoot, devCfg))
 
 	require.Equal(t, drv1.DataDevice, dataDev)
 	require.Equal(t, drv1.MetadataDevice, metadataDev)
 }
 
 func TestVolume(t *testing.T) {
-	driver, err := Init(devRoot, nil)
+	driver, err := Init(devRoot, devCfg, nil)
 	require.Nil(t, err)
 
 	drv := driver.(*Driver)
@@ -156,10 +157,10 @@ func TestVolume(t *testing.T) {
 	err = driver.CreateVolume(volumeID2, "", volumeSize)
 	require.Nil(t, err)
 
-	err = driver.ListVolume("")
+	err = driver.ListVolume("", "")
 	require.Nil(t, err)
 
-	err = driver.ListVolume(volumeID)
+	err = driver.ListVolume(volumeID, "")
 	require.Nil(t, err)
 
 	err = driver.DeleteVolume("123")
@@ -174,7 +175,7 @@ func TestVolume(t *testing.T) {
 }
 
 func TestSnapshot(t *testing.T) {
-	driver, err := Init(devRoot, nil)
+	driver, err := Init(devRoot, devCfg, nil)
 	require.Nil(t, err)
 
 	volumeID := uuid.New()

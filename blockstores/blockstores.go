@@ -90,11 +90,11 @@ func GetBlockStoreDriver(kind, configFile string, config map[string]string) (Blo
 }
 
 func getDriverConfigFilename(root, kind, id string) string {
-	return filepath.Join(root, id+"-"+kind+".cfg")
+	return filepath.Join(root, "blockstore_"+id+"_"+kind+".cfg")
 }
 
 func getConfigFilename(root, id string) string {
-	return filepath.Join(root, id+".cfg")
+	return filepath.Join(root, "blockstore_"+id+".cfg")
 }
 
 func loadConfigInBlockStore(path, name string, driver BlockStoreDriver, v interface{}) error {

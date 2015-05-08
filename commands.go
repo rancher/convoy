@@ -10,10 +10,6 @@ import (
 	"path/filepath"
 )
 
-func getDriverRoot(root, driverName string) string {
-	return filepath.Join(root, driverName)
-}
-
 func getConfigFileName(root string) string {
 	return filepath.Join(root, CONFIGFILE)
 }
@@ -39,11 +35,7 @@ func doInitialize(c *cli.Context) error {
 		return fmt.Errorf("Configuration file %v existed. Don't need to initialize.", configFileName)
 	}
 
-	driverRoot := getDriverRoot(root, driverName)
-	utils.MkdirIfNotExists(driverRoot)
-	log.Debug("Driver root is ", driverRoot)
-
-	_, err := drivers.GetDriver(driverName, driverRoot, driverOpts)
+	_, err := drivers.GetDriver(driverName, root, driverOpts)
 	if err != nil {
 		return err
 	}
@@ -69,7 +61,7 @@ func loadGlobalConfig(c *cli.Context) (*Config, drivers.Driver, error) {
 		return nil, nil, fmt.Errorf("Failed to load config:", err.Error())
 	}
 
-	driver, err := drivers.GetDriver(config.Driver, getDriverRoot(config.Root, config.Driver), nil)
+	driver, err := drivers.GetDriver(config.Driver, config.Root, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to load driver:", err.Error())
 	}
