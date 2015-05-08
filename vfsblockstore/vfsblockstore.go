@@ -25,11 +25,11 @@ func init() {
 	blockstores.RegisterDriver(KIND, initFunc)
 }
 
-func initFunc(configFile string, config map[string]string) (blockstores.BlockStoreDriver, error) {
+func initFunc(root, cfgName string, config map[string]string) (blockstores.BlockStoreDriver, error) {
 	b := &VfsBlockStoreDriver{}
-	if configFile != "" {
-		if utils.ConfigExists(configFile) {
-			err := utils.LoadConfig(configFile, b)
+	if cfgName != "" {
+		if utils.ConfigExists(root, cfgName) {
+			err := utils.LoadConfig(root, cfgName, b)
 			if err != nil {
 				return nil, err
 			}
@@ -50,9 +50,9 @@ func initFunc(configFile string, config map[string]string) (blockstores.BlockSto
 	return b, nil
 }
 
-func (v *VfsBlockStoreDriver) FinalizeInit(configFile, id string) error {
+func (v *VfsBlockStoreDriver) FinalizeInit(root, cfgName, id string) error {
 	v.ID = id
-	if err := utils.SaveConfig(configFile, v); err != nil {
+	if err := utils.SaveConfig(root, cfgName, v); err != nil {
 		return err
 	}
 	return nil

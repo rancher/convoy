@@ -36,7 +36,8 @@ const (
 )
 
 type Driver struct {
-	configFile string
+	root       string
+	configName string
 	Device
 }
 
@@ -134,18 +135,18 @@ func (d *Driver) activatePool() error {
 }
 
 func Init(root, cfgName string, config map[string]string) (drivers.Driver, error) {
-	driverConfig := filepath.Join(root, cfgName)
-	if utils.ConfigExists(driverConfig) {
+	if utils.ConfigExists(root, cfgName) {
 		dev := Device{
 			Volumes: make(map[string]Volume),
 		}
-		err := utils.LoadConfig(driverConfig, &dev)
+		err := utils.LoadConfig(root, cfgName, &dev)
 		d := &Driver{}
 		if err != nil {
 			return d, err
 		}
 		d.Device = dev
-		d.configFile = driverConfig
+		d.configName = cfgName
+		d.root = root
 		if err := d.activatePool(); err != nil {
 			return d, err
 		}
@@ -184,12 +185,13 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 		return nil, err
 	}
 
-	err = utils.SaveConfig(driverConfig, &dev)
+	err = utils.SaveConfig(root, cfgName, &dev)
 	if err != nil {
 		return nil, err
 	}
 	d := &Driver{
-		configFile: driverConfig,
+		root:       root,
+		configName: cfgName,
 		Device:     *dev,
 	}
 	log.Debug("Init done")
@@ -334,7 +336,7 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 }
 
 func (d *Driver) updateConfig() error {
-	return utils.SaveConfig(d.configFile, d.Device)
+	return utils.SaveConfig(d.root, d.configName, d.Device)
 }
 
 func (d *Driver) CreateSnapshot(id, volumeID string) error {

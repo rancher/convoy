@@ -159,7 +159,7 @@ func doVolumeCreate(c *cli.Context) error {
 		FileSystem: "",
 		Snapshots:  make(map[string]bool),
 	}
-	if err := utils.SaveConfig(getConfigFileName(config.Root), config); err != nil {
+	if err := utils.SaveConfig(config.Root, getCfgName(), config); err != nil {
 		return err
 	}
 	api.ResponseOutput(api.VolumeResponse{
@@ -191,7 +191,7 @@ func doVolumeDelete(c *cli.Context) error {
 	}
 	log.Debug("Deleted volume using ", config.Driver)
 	delete(config.Volumes, uuid)
-	return utils.SaveConfig(getConfigFileName(config.Root), config)
+	return utils.SaveConfig(config.Root, getCfgName(), config)
 }
 
 func cmdVolumeList(c *cli.Context) {
@@ -252,7 +252,7 @@ func doVolumeMount(c *cli.Context) error {
 	volume.MountPoint = mountPoint
 	volume.FileSystem = fs
 	config.Volumes[volumeUUID] = volume
-	return utils.SaveConfig(getConfigFileName(config.Root), config)
+	return utils.SaveConfig(config.Root, getCfgName(), config)
 }
 
 func cmdVolumeUmount(c *cli.Context) {
@@ -282,5 +282,5 @@ func doVolumeUmount(c *cli.Context) error {
 	log.Debugf("Unmount %v from %v", volumeUUID, volume.MountPoint)
 	volume.MountPoint = ""
 	config.Volumes[volumeUUID] = volume
-	return utils.SaveConfig(getConfigFileName(config.Root), config)
+	return utils.SaveConfig(config.Root, getCfgName(), config)
 }

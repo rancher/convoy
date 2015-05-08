@@ -97,7 +97,7 @@ func doSnapshotCreate(c *cli.Context) error {
 	log.Debugf("Created snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
 
 	config.Volumes[volumeUUID].Snapshots[uuid] = true
-	if err := utils.SaveConfig(getConfigFileName(config.Root), config); err != nil {
+	if err := utils.SaveConfig(config.Root, getCfgName(), config); err != nil {
 		return err
 	}
 	api.ResponseOutput(api.SnapshotResponse{
@@ -139,5 +139,5 @@ func doSnapshotDelete(c *cli.Context) error {
 	log.Debugf("Deleted snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
 
 	delete(config.Volumes[volumeUUID].Snapshots, uuid)
-	return utils.SaveConfig(getConfigFileName(config.Root), config)
+	return utils.SaveConfig(config.Root, getCfgName(), config)
 }

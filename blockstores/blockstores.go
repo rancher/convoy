@@ -28,11 +28,11 @@ const (
 	DEFAULT_BLOCK_SIZE     = 2097152
 )
 
-type InitFunc func(configFile string, config map[string]string) (BlockStoreDriver, error)
+type InitFunc func(root, cfgName string, config map[string]string) (BlockStoreDriver, error)
 
 type BlockStoreDriver interface {
 	Kind() string
-	FinalizeInit(configFile, id string) error
+	FinalizeInit(root, cfgName, id string) error
 	FileExists(path, fileName string) bool
 	FileSize(path, fileName string) int64
 	MkDirAll(dirName string) error
@@ -81,19 +81,19 @@ func RegisterDriver(kind string, initFunc InitFunc) error {
 	return nil
 }
 
-func GetBlockStoreDriver(kind, configFile string, config map[string]string) (BlockStoreDriver, error) {
+func GetBlockStoreDriver(kind, root, cfgName string, config map[string]string) (BlockStoreDriver, error) {
 	if _, exists := initializers[kind]; !exists {
 		return nil, fmt.Errorf("Driver %v is not supported!", kind)
 	}
-	return initializers[kind](configFile, config)
+	return initializers[kind](root, cfgName, config)
 }
 
-func getDriverConfigFilename(root, kind, id string) string {
-	return filepath.Join(root, "blockstore_"+id+"_"+kind+".cfg")
+func getDriverCfgName(kind, id string) string {
+	return "blockstore_" + id + "_" + kind + ".cfg"
 }
 
-func getConfigFilename(root, id string) string {
-	return filepath.Join(root, "blockstore_"+id+".cfg")
+func getCfgName(id string) string {
+	return "blockstore_" + id + ".cfg"
 }
 
 func loadConfigInBlockStore(path, name string, driver BlockStoreDriver, v interface{}) error {
@@ -161,7 +161,7 @@ func saveBlockStoreConfig(driver BlockStoreDriver, b *BlockStore) error {
 }
 
 func Register(root, kind string, config map[string]string) (string, int64, error) {
-	driver, err := GetBlockStoreDriver(kind, "", config)
+	driver, err := GetBlockStoreDriver(kind, root, "", config)
 	if err != nil {
 		return "", 0, err
 	}
@@ -175,11 +175,11 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 		}
 		id = bs.UUID
 		log.Debug("Loaded blockstore cfg in blockstore: ", id)
-		driver.FinalizeInit(getDriverConfigFilename(root, kind, id), id)
+		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 	} else {
 		log.Debug("Failed to find existed blockstore cfg in blockstore")
 		id = uuid.New()
-		driver.FinalizeInit(getDriverConfigFilename(root, kind, id), id)
+		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 
 		basePath := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY)
 		err = driver.MkDirAll(basePath)
@@ -201,37 +201,35 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 		log.Debug("Created blockstore cfg in blockstore", bs.UUID)
 	}
 
-	configFile := getConfigFilename(root, id)
-	if err := utils.SaveConfig(configFile, bs); err != nil {
+	if err := utils.SaveConfig(root, getCfgName(id), bs); err != nil {
 		return "", 0, err
 	}
-	log.Debug("Created local copy of ", configFile)
+	log.Debug("Created local copy of ", getCfgName(id))
 	log.Debug("Registered block store ", bs.UUID)
 	return bs.UUID, bs.BlockSize, nil
 }
 
 func removeDriverConfigFile(root, kind, id string) error {
-	configFile := getDriverConfigFilename(root, kind, id)
-	if err := utils.RemoveConfig(configFile); err != nil {
+	cfgName := getDriverCfgName(kind, id)
+	if err := utils.RemoveConfig(root, cfgName); err != nil {
 		return err
 	}
-	log.Debug("Removed ", configFile)
+	log.Debug("Removed ", cfgName)
 	return nil
 }
 
 func removeConfigFile(root, id string) error {
-	configFile := getConfigFilename(root, id)
-	if err := utils.RemoveConfig(configFile); err != nil {
+	cfgName := getCfgName(id)
+	if err := utils.RemoveConfig(root, cfgName); err != nil {
 		return err
 	}
-	log.Debug("Removed ", configFile)
+	log.Debug("Removed ", cfgName)
 	return nil
 }
 
 func Deregister(root, id string) error {
-	configFile := getConfigFilename(root, id)
 	b := &BlockStore{}
-	err := utils.LoadConfig(configFile, b)
+	err := utils.LoadConfig(root, getCfgName(id), b)
 	if err != nil {
 		return err
 	}
@@ -249,15 +247,13 @@ func Deregister(root, id string) error {
 }
 
 func AddVolume(root, id, volumeID, base string, size int64) error {
-	configFile := getConfigFilename(root, id)
 	b := &BlockStore{}
-	err := utils.LoadConfig(configFile, b)
+	err := utils.LoadConfig(root, getCfgName(id), b)
 	if err != nil {
 		return err
 	}
 
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, id)
-	driver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
+	driver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, id), nil)
 	if err != nil {
 		return err
 	}
@@ -294,15 +290,13 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 }
 
 func RemoveVolume(root, id, volumeID string) error {
-	configFile := getConfigFilename(root, id)
 	b := &BlockStore{}
-	err := utils.LoadConfig(configFile, b)
+	err := utils.LoadConfig(root, getCfgName(id), b)
 	if err != nil {
 		return err
 	}
 
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, id)
-	driver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
+	driver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, id), nil)
 	if err != nil {
 		return err
 	}
@@ -352,14 +346,12 @@ func getSnapshotConfigName(id string) string {
 }
 
 func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver drivers.Driver) error {
-	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
-	err := utils.LoadConfig(configFile, b)
+	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
 	if err != nil {
 		return err
 	}
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
-	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
+	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
 	if err != nil {
 		return err
 	}
@@ -536,14 +528,12 @@ func mergeSnapshotMap(snapshotID string, deltaMap, lastMap *SnapshotMap) *Snapsh
 }
 
 func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID string, sDriver drivers.Driver) error {
-	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
-	err := utils.LoadConfig(configFile, b)
+	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
 	if err != nil {
 		return err
 	}
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
-	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
+	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
 	if err != nil {
 		return err
 	}
@@ -584,14 +574,12 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 }
 
 func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
-	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
-	err := utils.LoadConfig(configFile, b)
+	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
 	if err != nil {
 		return err
 	}
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
-	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
+	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
 	if err != nil {
 		return err
 	}
@@ -732,14 +720,12 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 }
 
 func List(root, blockstoreID, volumeID, snapshotID string) error {
-	configFile := getConfigFilename(root, blockstoreID)
 	b := &BlockStore{}
-	err := utils.LoadConfig(configFile, b)
+	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
 	if err != nil {
 		return err
 	}
-	driverConfigFile := getDriverConfigFilename(root, b.Kind, blockstoreID)
-	bsDriver, err := GetBlockStoreDriver(b.Kind, driverConfigFile, nil)
+	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
 	if err != nil {
 		return err
 	}

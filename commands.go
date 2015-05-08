@@ -13,6 +13,10 @@ func getConfigFileName(root string) string {
 	return filepath.Join(root, CONFIGFILE)
 }
 
+func getCfgName() string {
+	return CONFIGFILE
+}
+
 func cmdInitialize(c *cli.Context) {
 	if err := doInitialize(c); err != nil {
 		panic(err)
@@ -29,9 +33,8 @@ func doInitialize(c *cli.Context) error {
 
 	log.Debug("Config root is ", root)
 
-	configFileName := getConfigFileName(root)
-	if utils.ConfigExists(configFileName) {
-		return fmt.Errorf("Configuration file %v existed. Don't need to initialize.", configFileName)
+	if utils.ConfigExists(root, getCfgName()) {
+		return fmt.Errorf("Configuration file already existed. Don't need to initialize.")
 	}
 
 	_, err := drivers.GetDriver(driverName, root, driverOpts)
@@ -44,7 +47,7 @@ func doInitialize(c *cli.Context) error {
 		Driver:  driverName,
 		Volumes: make(map[string]Volume),
 	}
-	err = utils.SaveConfig(configFileName, &config)
+	err = utils.SaveConfig(root, getCfgName(), &config)
 	return err
 }
 
@@ -54,8 +57,7 @@ func loadGlobalConfig(c *cli.Context) (*Config, drivers.Driver, error) {
 	if root == "" {
 		return nil, nil, genRequiredMissingError("root")
 	}
-	configFileName := getConfigFileName(root)
-	err := utils.LoadConfig(configFileName, &config)
+	err := utils.LoadConfig(root, getCfgName(), &config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to load config:", err.Error())
 	}

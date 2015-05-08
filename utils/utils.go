@@ -7,6 +7,7 @@ import (
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,7 +15,8 @@ const (
 	PRESERVED_CHECKSUM_LENGTH = 64
 )
 
-func LoadConfig(fileName string, v interface{}) error {
+func LoadConfig(path, name string, v interface{}) error {
+	fileName := filepath.Join(path, name)
 	st, err := os.Stat(fileName)
 	if err != nil {
 		return err
@@ -38,7 +40,8 @@ func LoadConfig(fileName string, v interface{}) error {
 	return nil
 }
 
-func SaveConfig(fileName string, v interface{}) error {
+func SaveConfig(path, name string, v interface{}) error {
+	fileName := filepath.Join(path, name)
 	j, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -64,12 +67,14 @@ func SaveConfig(fileName string, v interface{}) error {
 	return nil
 }
 
-func ConfigExists(name string) bool {
-	_, err := os.Stat(name)
+func ConfigExists(path, name string) bool {
+	fileName := filepath.Join(path, name)
+	_, err := os.Stat(fileName)
 	return err == nil
 }
 
-func RemoveConfig(fileName string) error {
+func RemoveConfig(path, name string) error {
+	fileName := filepath.Join(path, name)
 	if err := exec.Command("rm", "-f", fileName).Run(); err != nil {
 		return err
 	}

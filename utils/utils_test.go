@@ -32,7 +32,7 @@ func TestSaveLoadConfig(t *testing.T) {
 	}
 
 	dev.Volumes = make(map[string]Volume)
-	err := SaveConfig("/tmp/cfg", &dev)
+	err := SaveConfig("/tmp", "cfg", &dev)
 	if err != nil {
 		t.Fatal("Fail to save config!", err)
 	}
@@ -45,13 +45,13 @@ func TestSaveLoadConfig(t *testing.T) {
 	}
 	dev.Volumes["123"] = volume
 
-	err = SaveConfig("/tmp/cfg", &dev)
+	err = SaveConfig("/tmp", "cfg", &dev)
 	if err != nil {
 		t.Fatal("Fail to update config!", err)
 	}
 
 	devNew := Device{}
-	err = LoadConfig("/tmp/cfg", &devNew)
+	err = LoadConfig("/tmp", "cfg", &devNew)
 	if err != nil {
 		t.Fatal("Fail to load config!", err)
 	}
