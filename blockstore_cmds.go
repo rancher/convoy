@@ -243,8 +243,8 @@ func doBlockStoreAdd(c *cli.Context) error {
 		return genRequiredMissingError("volume-uuid")
 	}
 
-	volume, exists := config.Volumes[volumeUUID]
-	if !exists {
+	volume := config.loadVolume(volumeUUID)
+	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
@@ -271,7 +271,7 @@ func doBlockStoreRemove(c *cli.Context) error {
 		return genRequiredMissingError("volume-uuid")
 	}
 
-	if _, exists := config.Volumes[volumeUUID]; !exists {
+	if config.loadVolume(volumeUUID) == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
@@ -326,10 +326,7 @@ func doSnapshotBackup(c *cli.Context) error {
 		return genRequiredMissingError("uuid")
 	}
 
-	if _, exists := config.Volumes[volumeUUID]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
-	}
-	if _, exists := config.Volumes[volumeUUID].Snapshots[snapshotUUID]; !exists {
+	if !config.snapshotExists(volumeUUID, snapshotUUID) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
@@ -364,15 +361,15 @@ func doSnapshotRestore(c *cli.Context) error {
 		return genRequiredMissingError("uuid")
 	}
 
-	originVol, exists := config.Volumes[originVolumeUUID]
-	if !exists {
+	originVol := config.loadVolume(originVolumeUUID)
+	if originVol == nil {
 		return fmt.Errorf("volume %v doesn't exist", originVolumeUUID)
 	}
-	if _, exists := config.Volumes[originVolumeUUID].Snapshots[snapshotUUID]; !exists {
+	if _, exists := originVol.Snapshots[snapshotUUID]; !exists {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, originVolumeUUID)
 	}
-	targetVol, exists := config.Volumes[targetVolumeUUID]
-	if !exists {
+	targetVol := config.loadVolume(targetVolumeUUID)
+	if targetVol == nil {
 		return fmt.Errorf("volume %v doesn't exist", targetVolumeUUID)
 	}
 	if originVol.Size != targetVol.Size || originVol.Base != targetVol.Base {
@@ -408,10 +405,7 @@ func doSnapshotRemove(c *cli.Context) error {
 		return genRequiredMissingError("uuid")
 	}
 
-	if _, exists := config.Volumes[volumeUUID]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
-	}
-	if _, exists := config.Volumes[volumeUUID].Snapshots[snapshotUUID]; !exists {
+	if !config.snapshotExists(volumeUUID, snapshotUUID) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 

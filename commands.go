@@ -43,9 +43,8 @@ func doInitialize(c *cli.Context) error {
 	}
 
 	config := Config{
-		Root:    root,
-		Driver:  driverName,
-		Volumes: make(map[string]Volume),
+		Root:   root,
+		Driver: driverName,
 	}
 	err = utils.SaveConfig(root, getCfgName(), &config)
 	return err

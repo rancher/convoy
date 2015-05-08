@@ -6,7 +6,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/utils"
 )
 
 var (
@@ -55,12 +54,12 @@ var (
 	}
 )
 
-func duplicateSnapshotUUID(config *Config, volumeUUID, snapshotUUID string) bool {
-	volume, exists := config.Volumes[volumeUUID]
-	if !exists {
+func (config *Config) snapshotExists(volumeUUID, snapshotUUID string) bool {
+	volume := config.loadVolume(volumeUUID)
+	if volume == nil {
 		return false
 	}
-	_, exists = volume.Snapshots[snapshotUUID]
+	_, exists := volume.Snapshots[snapshotUUID]
 	return exists
 }
 
@@ -81,12 +80,13 @@ func doSnapshotCreate(c *cli.Context) error {
 	}
 	snapshotUUID := c.String("uuid")
 
-	if _, exists := config.Volumes[volumeUUID]; !exists {
+	volume := config.loadVolume(volumeUUID)
+	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 	uuid := uuid.New()
 	if snapshotUUID != "" {
-		if duplicateSnapshotUUID(config, volumeUUID, snapshotUUID) {
+		if config.snapshotExists(volumeUUID, snapshotUUID) {
 			return fmt.Errorf("Duplicate snapshot UUID for volume %v detected", volumeUUID)
 		}
 		uuid = snapshotUUID
@@ -96,8 +96,8 @@ func doSnapshotCreate(c *cli.Context) error {
 	}
 	log.Debugf("Created snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
 
-	config.Volumes[volumeUUID].Snapshots[uuid] = true
-	if err := utils.SaveConfig(config.Root, getCfgName(), config); err != nil {
+	volume.Snapshots[uuid] = true
+	if err := config.saveVolume(volume); err != nil {
 		return err
 	}
 	api.ResponseOutput(api.SnapshotResponse{
@@ -127,10 +127,8 @@ func doSnapshotDelete(c *cli.Context) error {
 		return genRequiredMissingError("volume-uuid")
 	}
 
-	if _, exists := config.Volumes[volumeUUID]; !exists {
-		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
-	}
-	if _, exists := config.Volumes[volumeUUID].Snapshots[uuid]; !exists {
+	volume := config.loadVolume(volumeUUID)
+	if !config.snapshotExists(volumeUUID, uuid) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", uuid, volumeUUID)
 	}
 	if err := driver.DeleteSnapshot(uuid, volumeUUID); err != nil {
@@ -138,6 +136,6 @@ func doSnapshotDelete(c *cli.Context) error {
 	}
 	log.Debugf("Deleted snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
 
-	delete(config.Volumes[volumeUUID].Snapshots, uuid)
-	return utils.SaveConfig(config.Root, getCfgName(), config)
+	delete(volume.Snapshots, uuid)
+	return config.saveVolume(volume)
 }

@@ -117,15 +117,50 @@ var (
 	}
 )
 
+func getVolumeCfgName(uuid string) (string, error) {
+	if uuid == "" {
+		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
+	}
+	return "volume_" + uuid + ".json", nil
+}
+
+func (config *Config) loadVolume(uuid string) *Volume {
+	cfgName, err := getVolumeCfgName(uuid)
+	if err != nil {
+		return nil
+	}
+	if !utils.ConfigExists(config.Root, cfgName) {
+		return nil
+	}
+	volume := &Volume{}
+	if err := utils.LoadConfig(config.Root, cfgName, volume); err != nil {
+		log.Error("Failed to load volume json ", cfgName)
+		return nil
+	}
+	return volume
+}
+
+func (config *Config) saveVolume(volume *Volume) error {
+	uuid := volume.UUID
+	cfgName, err := getVolumeCfgName(uuid)
+	if err != nil {
+		return err
+	}
+	return utils.SaveConfig(config.Root, cfgName, volume)
+}
+
+func (config *Config) deleteVolume(uuid string) error {
+	cfgName, err := getVolumeCfgName(uuid)
+	if err != nil {
+		return err
+	}
+	return utils.RemoveConfig(config.Root, cfgName)
+}
+
 func cmdVolumeCreate(c *cli.Context) {
 	if err := doVolumeCreate(c); err != nil {
 		panic(err)
 	}
-}
-
-func duplicateVolumeUUID(config *Config, uuid string) bool {
-	_, exists := config.Volumes[uuid]
-	return exists
 }
 
 func doVolumeCreate(c *cli.Context) error {
@@ -142,7 +177,7 @@ func doVolumeCreate(c *cli.Context) error {
 
 	uuid := uuid.New()
 	if volumeUUID != "" {
-		if duplicateVolumeUUID(config, uuid) {
+		if config.loadVolume(volumeUUID) != nil {
 			return fmt.Errorf("Duplicate volume UUID detected!")
 		}
 		uuid = volumeUUID
@@ -152,14 +187,16 @@ func doVolumeCreate(c *cli.Context) error {
 		return err
 	}
 	log.Debug("Created volume using ", config.Driver)
-	config.Volumes[uuid] = Volume{
+
+	volume := &Volume{
+		UUID:       uuid,
 		Base:       base,
 		Size:       size,
 		MountPoint: "",
 		FileSystem: "",
 		Snapshots:  make(map[string]bool),
 	}
-	if err := utils.SaveConfig(config.Root, getCfgName(), config); err != nil {
+	if err := config.saveVolume(volume); err != nil {
 		return err
 	}
 	api.ResponseOutput(api.VolumeResponse{
@@ -190,8 +227,7 @@ func doVolumeDelete(c *cli.Context) error {
 		return err
 	}
 	log.Debug("Deleted volume using ", config.Driver)
-	delete(config.Volumes, uuid)
-	return utils.SaveConfig(config.Root, getCfgName(), config)
+	return config.deleteVolume(uuid)
 }
 
 func cmdVolumeList(c *cli.Context) {
@@ -241,8 +277,8 @@ func doVolumeMount(c *cli.Context) error {
 	needFormat := c.Bool("format")
 	newNS := c.String("switch-ns")
 
-	volume, exists := config.Volumes[volumeUUID]
-	if !exists {
+	volume := config.loadVolume(volumeUUID)
+	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 	if err := drivers.Mount(driver, volumeUUID, mountPoint, fs, option, needFormat, newNS); err != nil {
@@ -251,8 +287,7 @@ func doVolumeMount(c *cli.Context) error {
 	log.Debugf("Mount %v to %v", volumeUUID, mountPoint)
 	volume.MountPoint = mountPoint
 	volume.FileSystem = fs
-	config.Volumes[volumeUUID] = volume
-	return utils.SaveConfig(config.Root, getCfgName(), config)
+	return config.saveVolume(volume)
 }
 
 func cmdVolumeUmount(c *cli.Context) {
@@ -272,8 +307,8 @@ func doVolumeUmount(c *cli.Context) error {
 	}
 	newNS := c.String("switch-ns")
 
-	volume, exists := config.Volumes[volumeUUID]
-	if !exists {
+	volume := config.loadVolume(volumeUUID)
+	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 	if err := drivers.Unmount(driver, volume.MountPoint, newNS); err != nil {
@@ -281,6 +316,5 @@ func doVolumeUmount(c *cli.Context) error {
 	}
 	log.Debugf("Unmount %v from %v", volumeUUID, volume.MountPoint)
 	volume.MountPoint = ""
-	config.Volumes[volumeUUID] = volume
-	return utils.SaveConfig(config.Root, getCfgName(), config)
+	return config.saveVolume(volume)
 }

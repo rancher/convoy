@@ -17,6 +17,7 @@ const (
 )
 
 type Volume struct {
+	UUID       string
 	Base       string
 	Size       int64
 	MountPoint string
@@ -25,9 +26,8 @@ type Volume struct {
 }
 
 type Config struct {
-	Root    string
-	Driver  string
-	Volumes map[string]Volume
+	Root   string
+	Driver string
 }
 
 var (
