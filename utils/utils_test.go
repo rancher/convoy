@@ -1,6 +1,11 @@
 package utils
 
 import (
+	"code.google.com/p/go-uuid/uuid"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -58,6 +63,39 @@ func TestSaveLoadConfig(t *testing.T) {
 
 	if !reflect.DeepEqual(dev, devNew) {
 		t.Fatal("Fail to complete save/load config correctly!")
+	}
+}
+
+func TestListConfigIDs(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("/tmp", "volmgr")
+	if err != nil {
+		t.Fatal("Fail to get temp dir")
+	}
+	defer os.RemoveAll(tmpdir)
+
+	prefix := "prefix_"
+	suffix := "_suffix.cfg"
+	ids := ListConfigIDs(tmpdir, prefix, suffix)
+	if len(ids) != 0 {
+		t.Fatal("Files out of nowhere! IDs", ids)
+	}
+	counts := 10
+	uuids := make(map[string]bool)
+	for i := 0; i < counts; i++ {
+		id := uuid.New()
+		uuids[id] = true
+		if err := exec.Command("touch", filepath.Join(tmpdir, prefix+id+suffix)).Run(); err != nil {
+			t.Fatal("Fail to create test files")
+		}
+	}
+	uuidList := ListConfigIDs(tmpdir, prefix, suffix)
+	if len(uuidList) != counts {
+		t.Fatal("Wrong result for list")
+	}
+	for i := 0; i < counts; i++ {
+		if _, exists := uuids[uuidList[i]]; !exists {
+			t.Fatal("Wrong key for list")
+		}
 	}
 }
 

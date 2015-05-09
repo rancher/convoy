@@ -81,6 +81,27 @@ func RemoveConfig(path, name string) error {
 	return nil
 }
 
+func ListConfigIDs(path, prefix, suffix string) []string {
+	out, err := exec.Command("find", path,
+		"-maxdepth", "1",
+		"-name", prefix+"*"+suffix,
+		"-printf", "%f ").Output()
+	if err != nil {
+		return []string{}
+	}
+	if len(out) == 0 {
+		return []string{}
+	}
+	fileResult := strings.Split(strings.TrimSpace(string(out)), " ")
+	result := make([]string, len(fileResult))
+	for i := range fileResult {
+		f := fileResult[i]
+		f = strings.TrimPrefix(f, prefix)
+		result[i] = strings.TrimSuffix(f, suffix)
+	}
+	return result
+}
+
 func MkdirIfNotExists(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err := os.MkdirAll(path, os.ModeDir|0700); err != nil {
