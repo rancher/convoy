@@ -47,20 +47,26 @@ func SaveConfig(path, name string, v interface{}) error {
 		return err
 	}
 
-	var f *os.File
-	if _, err = os.Stat(fileName); err == nil {
-		err = os.Remove(fileName)
-		if err != nil {
-			return err
-		}
-	}
-	f, err = os.Create(fileName)
+	tmpFileName := filepath.Join(path, name+".tmp")
+
+	f, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
 	if _, err = f.Write(j); err != nil {
+		return err
+	}
+
+	if _, err = os.Stat(fileName); err == nil {
+		err = os.Remove(fileName)
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := os.Rename(tmpFileName, fileName); err != nil {
 		return err
 	}
 
