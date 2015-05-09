@@ -41,7 +41,6 @@ type BlockStoreDriver interface {
 	Write(data []byte, dstPath, dstFileName string) error
 	List(path string) ([]string, error)
 	CopyToPath(srcFileName string, path string) error
-	Rename(srcName, dstName string) error
 }
 
 type Volume struct {
@@ -427,17 +426,10 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 				continue
 			}
 			log.Debugf("Creating new block file at %v/%v", path, fileName)
-			tmpFileName := fileName + ".tmp"
-			if err := bsDriver.RemoveAll(filepath.Join(path, tmpFileName)); err != nil {
-				return err
-			}
 			if err := bsDriver.MkDirAll(path); err != nil {
 				return err
 			}
-			if err := bsDriver.Write(block, path, tmpFileName); err != nil {
-				return err
-			}
-			if err := bsDriver.Rename(filepath.Join(path, tmpFileName), filepath.Join(path, fileName)); err != nil {
+			if err := bsDriver.Write(block, path, fileName); err != nil {
 				return err
 			}
 			log.Debugf("Created new block file at %v/%v", path, fileName)

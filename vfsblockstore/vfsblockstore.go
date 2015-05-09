@@ -120,9 +120,3 @@ func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
 	result = strings.Split(strings.TrimSpace(string(out)), "\n")
 	return result, nil
 }
-
-func (v *VfsBlockStoreDriver) Rename(srcName, dstName string) error {
-	return exec.Command("mv", "-f",
-		filepath.Join(v.Path, srcName),
-		filepath.Join(v.Path, dstName)).Run()
-}
