@@ -124,7 +124,7 @@ func TestInit(t *testing.T) {
 		t.Fatal("Fail to verify the information from driver config")
 	}
 
-	require.Equal(t, drv1.configFile, filepath.Join(devRoot, devCfg))
+	require.Equal(t, drv1.configName, devCfg)
 
 	require.Equal(t, drv1.DataDevice, dataDev)
 	require.Equal(t, drv1.MetadataDevice, metadataDev)

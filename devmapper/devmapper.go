@@ -33,6 +33,9 @@ const (
 	BLOCK_SIZE_MULTIPLIER = 128
 
 	SECTOR_SIZE = 512
+
+	VOLUME_CFG_PREFIX  = "volume_"
+	VOLUME_CFG_POSTFIX = "_" + DRIVER_NAME + ".json"
 )
 
 type Driver struct {
@@ -42,6 +45,7 @@ type Driver struct {
 }
 
 type Volume struct {
+	UUID      string
 	DevID     int
 	Size      int64
 	Snapshots map[string]Snapshot
@@ -60,11 +64,54 @@ type Device struct {
 	ThinpoolSize      int64
 	ThinpoolBlockSize int64
 	LastDevID         int
-	Volumes           map[string]Volume
 }
 
 func init() {
 	drivers.Register(DRIVER_NAME, Init)
+}
+
+func getVolumeCfgName(uuid string) (string, error) {
+	if uuid == "" {
+		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
+	}
+	return VOLUME_CFG_PREFIX + uuid + VOLUME_CFG_POSTFIX, nil
+}
+
+func (device *Device) loadVolume(uuid string) *Volume {
+	cfgName, err := getVolumeCfgName(uuid)
+	if err != nil {
+		return nil
+	}
+	if !utils.ConfigExists(device.Root, cfgName) {
+		return nil
+	}
+	volume := &Volume{}
+	if err := utils.LoadConfig(device.Root, cfgName, volume); err != nil {
+		log.Error("Failed to load volume json ", cfgName)
+		return nil
+	}
+	return volume
+}
+
+func (device *Device) saveVolume(volume *Volume) error {
+	uuid := volume.UUID
+	cfgName, err := getVolumeCfgName(uuid)
+	if err != nil {
+		return err
+	}
+	return utils.SaveConfig(device.Root, cfgName, volume)
+}
+
+func (device *Device) deleteVolume(uuid string) error {
+	cfgName, err := getVolumeCfgName(uuid)
+	if err != nil {
+		return err
+	}
+	return utils.RemoveConfig(device.Root, cfgName)
+}
+
+func (device *Device) listVolumeIDs() []string {
+	return utils.ListConfigIDs(device.Root, VOLUME_CFG_PREFIX, VOLUME_CFG_POSTFIX)
 }
 
 func verifyConfig(config map[string]string) (*Device, error) {
@@ -125,7 +172,9 @@ func (d *Driver) activatePool() error {
 	}
 	log.Debug("Reinitialized the existing pool ", dev.ThinpoolDevice)
 
-	for id, volume := range dev.Volumes {
+	volumeIDs := dev.listVolumeIDs()
+	for _, id := range volumeIDs {
+		volume := dev.loadVolume(id)
 		if err := d.activateDevice(id, volume.DevID, uint64(volume.Size)); err != nil {
 			return err
 		}
@@ -136,9 +185,7 @@ func (d *Driver) activatePool() error {
 
 func Init(root, cfgName string, config map[string]string) (drivers.Driver, error) {
 	if utils.ConfigExists(root, cfgName) {
-		dev := Device{
-			Volumes: make(map[string]Volume),
-		}
+		dev := Device{}
 		err := utils.LoadConfig(root, cfgName, &dev)
 		d := &Driver{}
 		if err != nil {
@@ -159,7 +206,6 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 	}
 
 	dev.Root = root
-	dev.Volumes = make(map[string]Volume)
 
 	dataDev, err := os.Open(dev.DataDevice)
 	if err != nil {
@@ -217,8 +263,8 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		return fmt.Errorf("Size must be multiple of block size")
 
 	}
-	volume, exists := d.Volumes[id]
-	if exists {
+	volume := d.loadVolume(id)
+	if volume != nil {
 		return fmt.Errorf("Already has volume with uuid %v", id)
 	}
 
@@ -236,15 +282,18 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		return err
 	}
 
-	volume = Volume{
+	volume = &Volume{
+		UUID:      id,
 		DevID:     devID,
 		Size:      size,
 		Snapshots: make(map[string]Snapshot),
 	}
-	d.Volumes[id] = volume
+	if err := d.saveVolume(volume); err != nil {
+		return err
+	}
 	d.LastDevID++
 
-	if err = d.updateConfig(); err != nil {
+	if err := utils.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
 	log.Debug("Created volume ", id)
@@ -254,8 +303,8 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 
 func (d *Driver) DeleteVolume(id string) error {
 	var err error
-	volume, exists := d.Volumes[id]
-	if !exists {
+	volume := d.loadVolume(id)
+	if volume == nil {
 		return fmt.Errorf("cannot find volume %v", id)
 	}
 	if len(volume.Snapshots) != 0 {
@@ -273,16 +322,15 @@ func (d *Driver) DeleteVolume(id string) error {
 	}
 	log.Debug("Deleted device")
 
-	delete(d.Volumes, id)
-
-	if err = d.updateConfig(); err != nil {
+	if err := d.deleteVolume(id); err != nil {
 		return err
 	}
+
 	log.Debug("Deleted volume ", id)
 	return nil
 }
 
-func getVolumeSnapshotInfo(uuid string, volume Volume, snapshotID string) *api.DeviceMapperVolume {
+func getVolumeSnapshotInfo(uuid string, volume *Volume, snapshotID string) *api.DeviceMapperVolume {
 	result := api.DeviceMapperVolume{
 		DevID:     volume.DevID,
 		Size:      volume.Size,
@@ -296,7 +344,7 @@ func getVolumeSnapshotInfo(uuid string, volume Volume, snapshotID string) *api.D
 	return &result
 }
 
-func getVolumeInfo(uuid string, volume Volume) *api.DeviceMapperVolume {
+func getVolumeInfo(uuid string, volume *Volume) *api.DeviceMapperVolume {
 	result := api.DeviceMapperVolume{
 		DevID:     volume.DevID,
 		Size:      volume.Size,
@@ -316,8 +364,8 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 		Volumes: make(map[string]api.DeviceMapperVolume),
 	}
 	if id != "" {
-		volume, exists := d.Volumes[id]
-		if !exists {
+		volume := d.loadVolume(id)
+		if volume == nil {
 			return fmt.Errorf("volume %v doesn't exists", id)
 		}
 		if snapshotID != "" {
@@ -327,7 +375,12 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 		}
 
 	} else {
-		for uuid, volume := range d.Volumes {
+		volumeIDs := d.listVolumeIDs()
+		for _, uuid := range volumeIDs {
+			volume := d.loadVolume(uuid)
+			if volume == nil {
+				return fmt.Errorf("Volume list changed, for volume %v", uuid)
+			}
 			volumes.Volumes[uuid] = *getVolumeInfo(uuid, volume)
 		}
 	}
@@ -335,13 +388,9 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 	return nil
 }
 
-func (d *Driver) updateConfig() error {
-	return utils.SaveConfig(d.root, d.configName, d.Device)
-}
-
 func (d *Driver) CreateSnapshot(id, volumeID string) error {
-	volume, exists := d.Volumes[volumeID]
-	if !exists {
+	volume := d.loadVolume(volumeID)
+	if volume == nil {
 		return fmt.Errorf("Cannot find volume with uuid %v", volumeID)
 	}
 	devID := d.LastDevID
@@ -365,7 +414,10 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	volume.Snapshots[id] = snapshot
 	d.LastDevID++
 
-	if err = d.updateConfig(); err != nil {
+	if err := d.saveVolume(volume); err != nil {
+		return err
+	}
+	if err := utils.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
 	log.Debug("Created snapshot", id)
@@ -386,7 +438,7 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	log.Debug("Deleted snapshot device")
 	delete(volume.Snapshots, id)
 
-	if err = d.updateConfig(); err != nil {
+	if err = d.saveVolume(volume); err != nil {
 		return err
 	}
 	log.Debug("Deleted snapshot", id)
@@ -441,15 +493,15 @@ func (d *Driver) Info() error {
 }
 
 func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *Volume, error) {
-	volume, exists := d.Volumes[volumeID]
-	if !exists {
+	volume := d.loadVolume(volumeID)
+	if volume == nil {
 		return nil, nil, fmt.Errorf("cannot find volume %v", volumeID)
 	}
 	snap, exists := volume.Snapshots[snapshotID]
 	if !exists {
 		return nil, nil, fmt.Errorf("cannot find snapshot %v of volume %v", snapshotID, volumeID)
 	}
-	return &snap, &volume, nil
+	return &snap, volume, nil
 }
 
 func (d *Driver) activateDevice(id string, devID int, size uint64) error {
@@ -483,11 +535,11 @@ func (d *Driver) OpenSnapshot(id, volumeID string) error {
 	}
 	snapshot.Activated = true
 
-	return d.updateConfig()
+	return d.saveVolume(volume)
 }
 
 func (d *Driver) CloseSnapshot(id, volumeID string) error {
-	snapshot, _, err := d.getSnapshotAndVolume(id, volumeID)
+	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
 		return err
 	}
@@ -497,7 +549,7 @@ func (d *Driver) CloseSnapshot(id, volumeID string) error {
 	}
 	snapshot.Activated = false
 
-	return d.updateConfig()
+	return d.saveVolume(volume)
 }
 
 func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) error {
@@ -521,8 +573,8 @@ func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) er
 }
 
 func (d *Driver) GetVolumeDevice(id string) (string, error) {
-	_, exists := d.Volumes[id]
-	if !exists {
+	volume := d.loadVolume(id)
+	if volume == nil {
 		return "", fmt.Errorf("Volume with uuid %v doesn't exist", id)
 	}
 
