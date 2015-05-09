@@ -83,6 +83,10 @@ def teardown_module():
     if code != 0:
         print "Something wrong when tearing down, error {}, continuing", code
 
+    filenames = os.listdir(CFG_ROOT)
+    for filename in filenames:
+        assert not filename.startswith('volume')
+
 def test_init():
     subprocess.check_call(VOLMGR_CMDLINE + ["init", "--driver=devicemapper",
         "--driver-opts", "dm.datadev=" + data_dev,
@@ -426,3 +430,20 @@ def test_blockstore():
 
     v.remove_volume_from_blockstore(volume2_uuid, blockstore_uuid)
     assert not os.path.exists(get_volume_cfg(volume2_uuid))
+
+    v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
+    v.delete_snapshot(snap2_vol1_uuid, volume1_uuid)
+    v.delete_snapshot(snap1_vol2_uuid, volume2_uuid)
+    v.delete_snapshot(snap2_vol2_uuid, volume2_uuid)
+
+    v.delete_volume(volume1_uuid)
+    dm_cleanup_list.remove(volume1_uuid)
+
+    v.delete_volume(volume2_uuid)
+    dm_cleanup_list.remove(volume2_uuid)
+
+    v.delete_volume(res_volume1_uuid)
+    dm_cleanup_list.remove(res_volume1_uuid)
+
+    v.delete_volume(res_volume2_uuid)
+    dm_cleanup_list.remove(res_volume2_uuid)
