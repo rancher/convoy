@@ -441,7 +441,7 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	if err = d.saveVolume(volume); err != nil {
 		return err
 	}
-	log.Debug("Deleted snapshot", id)
+	log.Debug("Deleted snapshot ", id)
 	return nil
 }
 
