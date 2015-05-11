@@ -50,6 +50,14 @@ func initFunc(root, cfgName string, config map[string]string) (blockstores.Block
 	return b, nil
 }
 
+func (v *VfsBlockStoreDriver) getPathFile(path, name string) string {
+	return filepath.Join(v.Path, path, name)
+}
+
+func (v *VfsBlockStoreDriver) getPath(path string) string {
+	return filepath.Join(v.Path, path)
+}
+
 func (v *VfsBlockStoreDriver) FinalizeInit(root, cfgName, id string) error {
 	v.ID = id
 	if err := utils.SaveConfig(root, cfgName, v); err != nil {
@@ -63,7 +71,7 @@ func (v *VfsBlockStoreDriver) Kind() string {
 }
 
 func (v *VfsBlockStoreDriver) FileSize(path, fileName string) int64 {
-	file := filepath.Join(v.Path, path, fileName)
+	file := v.getPathFile(path, fileName)
 	st, err := os.Stat(file)
 	if err != nil || st.IsDir() {
 		return -1
@@ -76,15 +84,15 @@ func (v *VfsBlockStoreDriver) FileExists(path, fileName string) bool {
 }
 
 func (v *VfsBlockStoreDriver) MkDirAll(dirName string) error {
-	return os.MkdirAll(filepath.Join(v.Path, dirName), os.ModeDir|0700)
+	return os.MkdirAll(v.getPath(dirName), os.ModeDir|0700)
 }
 
 func (v *VfsBlockStoreDriver) RemoveAll(name string) error {
-	return os.RemoveAll(filepath.Join(v.Path, name))
+	return os.RemoveAll(v.getPath(name))
 }
 
 func (v *VfsBlockStoreDriver) Read(srcPath, srcFileName string, data []byte) error {
-	file, err := os.Open(filepath.Join(v.Path, srcPath, srcFileName))
+	file, err := os.Open(v.getPathFile(srcPath, srcFileName))
 	if err != nil {
 		return err
 	}
@@ -94,22 +102,30 @@ func (v *VfsBlockStoreDriver) Read(srcPath, srcFileName string, data []byte) err
 }
 
 func (v *VfsBlockStoreDriver) Write(data []byte, dstPath, dstFileName string) error {
-	file, err := os.Create(filepath.Join(v.Path, dstPath, dstFileName))
+	tmpFile := dstFileName + ".tmp"
+	if v.FileExists(dstPath, tmpFile) {
+		v.RemoveAll(filepath.Join(dstPath, tmpFile))
+	}
+	file, err := os.Create(v.getPathFile(dstPath, tmpFile))
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 	_, err = file.Write(data)
-	return err
+
+	if v.FileExists(dstPath, dstFileName) {
+		v.RemoveAll(filepath.Join(dstPath, dstFileName))
+	}
+	return os.Rename(v.getPathFile(dstPath, tmpFile), v.getPathFile(dstPath, dstFileName))
 }
 
 func (v *VfsBlockStoreDriver) CopyToPath(srcFileName string, path string) error {
-	err := exec.Command("cp", filepath.Join(v.Path, srcFileName), path).Run()
+	err := exec.Command("cp", v.getPath(srcFileName), path).Run()
 	return err
 }
 
 func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
-	out, err := exec.Command("ls", "-1", filepath.Join(v.Path, path)).Output()
+	out, err := exec.Command("ls", "-1", v.getPath(path)).Output()
 	if err != nil {
 		return nil, err
 	}
