@@ -87,6 +87,10 @@ func (v *VfsBlockStoreDriver) RemoveAll(name string) error {
 	return os.RemoveAll(v.updatePath(name))
 }
 
+func (v *VfsBlockStoreDriver) Remove(name string) error {
+	return os.Remove(v.updatePath(name))
+}
+
 func (v *VfsBlockStoreDriver) Read(src string, data []byte) error {
 	file, err := os.Open(v.updatePath(src))
 	if err != nil {

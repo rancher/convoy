@@ -26,6 +26,7 @@ const (
 	BLOCK_SEPARATE_LAYER1  = 2
 	BLOCK_SEPARATE_LAYER2  = 4
 	DEFAULT_BLOCK_SIZE     = 2097152
+	HASH_LEVEL             = 2
 )
 
 type InitFunc func(root, cfgName string, config map[string]string) (BlockStoreDriver, error)
@@ -36,6 +37,7 @@ type BlockStoreDriver interface {
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
 	MkDirAll(dirName string) error
+	Remove(name string) error //Would return error if it's not empty
 	RemoveAll(name string) error
 	Read(src string, data []byte) error
 	Write(data []byte, dst string) error
@@ -290,6 +292,22 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 	return nil
 }
 
+// Used for cleanup remaining hashed directories
+func removeAndCleanup(path string, driver BlockStoreDriver) error {
+	if err := driver.RemoveAll(path); err != nil {
+		return err
+	}
+	dir := path
+	for i := 0; i < HASH_LEVEL; i++ {
+		dir = filepath.Dir(dir)
+		// If directory is not empty, then we don't need to continue
+		if err := driver.Remove(dir); err != nil {
+			break
+		}
+	}
+	return nil
+}
+
 func RemoveVolume(root, id, volumeID string) error {
 	b := &BlockStore{}
 	err := utils.LoadConfig(root, getCfgName(id), b)
@@ -310,8 +328,7 @@ func RemoveVolume(root, id, volumeID string) error {
 	}
 
 	volumeDir := getVolumePath(volumeID)
-	err = driver.RemoveAll(volumeDir)
-	if err != nil {
+	if err := removeAndCleanup(volumeDir, driver); err != nil {
 		return err
 	}
 	log.Debug("Removed volume directory in blockstore: ", volumeDir)
@@ -642,7 +659,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 
 	for blk := range discardBlockSet {
 		blkFile := getBlockFilePath(volumeID, blk)
-		if err := bsDriver.RemoveAll(blkFile); err != nil {
+		if err := removeAndCleanup(blkFile, bsDriver); err != nil {
 			return err
 		}
 		log.Debugf("Removed unused block %v for volume %v", blk, volumeID)
