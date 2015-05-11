@@ -9,7 +9,7 @@ $(VOLMGR_MOUNT_EXEC_FILE): ./tools/volmgr_mount.c
 	gcc -o ./bin/volmgr_mount ./tools/volmgr_mount.c
 
 $(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
-	./blockstores/blockstores.go ./vfsblockstore/vfsblockstore.go \
+	./blockstore/blockstore.go ./vfsblockstore/vfsblockstore.go \
 	./devmapper/devmapper.go \
  	./drivers/drivers.go \
 	./metadata/devmapper.go ./metadata/metadata.go \

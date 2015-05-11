@@ -2,7 +2,7 @@ package vfsblockstore
 
 import (
 	"fmt"
-	"github.com/rancherio/volmgr/blockstores"
+	"github.com/rancherio/volmgr/blockstore"
 	"github.com/rancherio/volmgr/utils"
 	"os"
 	"os/exec"
@@ -22,10 +22,10 @@ const (
 )
 
 func init() {
-	blockstores.RegisterDriver(KIND, initFunc)
+	blockstore.RegisterDriver(KIND, initFunc)
 }
 
-func initFunc(root, cfgName string, config map[string]string) (blockstores.BlockStoreDriver, error) {
+func initFunc(root, cfgName string, config map[string]string) (blockstore.BlockStoreDriver, error) {
 	b := &VfsBlockStoreDriver{}
 	if cfgName != "" {
 		if utils.ConfigExists(root, cfgName) {
@@ -50,11 +50,7 @@ func initFunc(root, cfgName string, config map[string]string) (blockstores.Block
 	return b, nil
 }
 
-func (v *VfsBlockStoreDriver) getPathFile(path, name string) string {
-	return filepath.Join(v.Path, path, name)
-}
-
-func (v *VfsBlockStoreDriver) getPath(path string) string {
+func (v *VfsBlockStoreDriver) updatePath(path string) string {
 	return filepath.Join(v.Path, path)
 }
 
@@ -70,8 +66,8 @@ func (v *VfsBlockStoreDriver) Kind() string {
 	return KIND
 }
 
-func (v *VfsBlockStoreDriver) FileSize(path, fileName string) int64 {
-	file := v.getPathFile(path, fileName)
+func (v *VfsBlockStoreDriver) FileSize(filePath string) int64 {
+	file := v.updatePath(filePath)
 	st, err := os.Stat(file)
 	if err != nil || st.IsDir() {
 		return -1
@@ -79,20 +75,20 @@ func (v *VfsBlockStoreDriver) FileSize(path, fileName string) int64 {
 	return st.Size()
 }
 
-func (v *VfsBlockStoreDriver) FileExists(path, fileName string) bool {
-	return v.FileSize(path, fileName) >= 0
+func (v *VfsBlockStoreDriver) FileExists(filePath string) bool {
+	return v.FileSize(filePath) >= 0
 }
 
 func (v *VfsBlockStoreDriver) MkDirAll(dirName string) error {
-	return os.MkdirAll(v.getPath(dirName), os.ModeDir|0700)
+	return os.MkdirAll(v.updatePath(dirName), os.ModeDir|0700)
 }
 
 func (v *VfsBlockStoreDriver) RemoveAll(name string) error {
-	return os.RemoveAll(v.getPath(name))
+	return os.RemoveAll(v.updatePath(name))
 }
 
-func (v *VfsBlockStoreDriver) Read(srcPath, srcFileName string, data []byte) error {
-	file, err := os.Open(v.getPathFile(srcPath, srcFileName))
+func (v *VfsBlockStoreDriver) Read(src string, data []byte) error {
+	file, err := os.Open(v.updatePath(src))
 	if err != nil {
 		return err
 	}
@@ -101,31 +97,31 @@ func (v *VfsBlockStoreDriver) Read(srcPath, srcFileName string, data []byte) err
 	return err
 }
 
-func (v *VfsBlockStoreDriver) Write(data []byte, dstPath, dstFileName string) error {
-	tmpFile := dstFileName + ".tmp"
-	if v.FileExists(dstPath, tmpFile) {
-		v.RemoveAll(filepath.Join(dstPath, tmpFile))
+func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
+	tmpFile := dst + ".tmp"
+	if v.FileExists(tmpFile) {
+		v.RemoveAll(tmpFile)
 	}
-	file, err := os.Create(v.getPathFile(dstPath, tmpFile))
+	file, err := os.Create(v.updatePath(tmpFile))
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 	_, err = file.Write(data)
 
-	if v.FileExists(dstPath, dstFileName) {
-		v.RemoveAll(filepath.Join(dstPath, dstFileName))
+	if v.FileExists(dst) {
+		v.RemoveAll(dst)
 	}
-	return os.Rename(v.getPathFile(dstPath, tmpFile), v.getPathFile(dstPath, dstFileName))
+	return os.Rename(v.updatePath(tmpFile), v.updatePath(dst))
 }
 
-func (v *VfsBlockStoreDriver) CopyToPath(srcFileName string, path string) error {
-	err := exec.Command("cp", v.getPath(srcFileName), path).Run()
+func (v *VfsBlockStoreDriver) CopyToPath(src string, dst string) error {
+	err := exec.Command("cp", v.updatePath(src), dst).Run()
 	return err
 }
 
 func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
-	out, err := exec.Command("ls", "-1", v.getPath(path)).Output()
+	out, err := exec.Command("ls", "-1", v.updatePath(path)).Output()
 	if err != nil {
 		return nil, err
 	}

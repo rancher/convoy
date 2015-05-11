@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/blockstores"
+	"github.com/rancherio/volmgr/blockstore"
 	"github.com/rancherio/volmgr/utils"
 )
 
@@ -192,7 +192,7 @@ func doBlockStoreRegister(c *cli.Context) error {
 		return genRequiredMissingError("opts")
 	}
 
-	id, blockSize, err := blockstores.Register(config.Root, kind, opts)
+	id, blockSize, err := blockstore.Register(config.Root, kind, opts)
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func doBlockStoreDeregister(c *cli.Context) error {
 	if uuid == "" {
 		return genRequiredMissingError("uuid")
 	}
-	return blockstores.Deregister(config.Root, uuid)
+	return blockstore.Deregister(config.Root, uuid)
 }
 
 func cmdBlockStoreAdd(c *cli.Context) {
@@ -248,7 +248,7 @@ func doBlockStoreAdd(c *cli.Context) error {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
-	return blockstores.AddVolume(config.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size)
+	return blockstore.AddVolume(config.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size)
 }
 
 func cmdBlockStoreRemove(c *cli.Context) {
@@ -275,7 +275,7 @@ func doBlockStoreRemove(c *cli.Context) error {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
-	return blockstores.RemoveVolume(config.Root, blockstoreUUID, volumeUUID)
+	return blockstore.RemoveVolume(config.Root, blockstoreUUID, volumeUUID)
 }
 
 func cmdBlockStoreList(c *cli.Context) {
@@ -299,7 +299,7 @@ func doBlockStoreList(c *cli.Context) error {
 	}
 	snapshotUUID := c.String("snapshot-uuid")
 
-	return blockstores.List(config.Root, blockstoreUUID, volumeUUID, snapshotUUID)
+	return blockstore.List(config.Root, blockstoreUUID, volumeUUID, snapshotUUID)
 }
 
 func cmdSnapshotBackup(c *cli.Context) {
@@ -330,7 +330,7 @@ func doSnapshotBackup(c *cli.Context) error {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
-	return blockstores.BackupSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID, driver)
+	return blockstore.BackupSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID, driver)
 }
 
 func cmdSnapshotRestore(c *cli.Context) {
@@ -377,7 +377,7 @@ func doSnapshotRestore(c *cli.Context) error {
 			targetVolumeUUID, originVolumeUUID)
 	}
 
-	return blockstores.RestoreSnapshot(config.Root, snapshotUUID, originVolumeUUID,
+	return blockstore.RestoreSnapshot(config.Root, snapshotUUID, originVolumeUUID,
 		targetVolumeUUID, blockstoreUUID, driver)
 }
 
@@ -409,5 +409,5 @@ func doSnapshotRemove(c *cli.Context) error {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
-	return blockstores.RemoveSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID)
+	return blockstore.RemoveSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID)
 }
