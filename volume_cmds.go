@@ -8,7 +8,6 @@ import (
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
-	"strings"
 )
 
 var (
@@ -174,7 +173,10 @@ func doVolumeCreate(c *cli.Context) error {
 	if size == 0 {
 		return genRequiredMissingError("size")
 	}
-	volumeUUID := strings.ToLower(c.String("uuid"))
+	volumeUUID, err := getLowerCaseFlag(c, "uuid", false, nil)
+	if err != nil {
+		return err
+	}
 
 	uuid := uuid.New()
 	if volumeUUID != "" {
@@ -216,15 +218,12 @@ func cmdVolumeDelete(c *cli.Context) {
 
 func doVolumeDelete(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
+	uuid, err := getLowerCaseFlag(c, "uuid", true, err)
 	if err != nil {
 		return err
 	}
-	uuid := strings.ToLower(c.String("uuid"))
-	if uuid == "" {
-		return genRequiredMissingError("uuid")
-	}
 
-	if err := driver.DeleteVolume(uuid); err != nil {
+	if err = driver.DeleteVolume(uuid); err != nil {
 		return err
 	}
 	log.Debug("Deleted volume using ", config.Driver)
@@ -239,11 +238,12 @@ func cmdVolumeList(c *cli.Context) {
 
 func doVolumeList(c *cli.Context) error {
 	_, driver, err := loadGlobalConfig(c)
+	uuid, err := getLowerCaseFlag(c, "uuid", false, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
 	if err != nil {
 		return err
 	}
-	uuid := strings.ToLower(c.String("uuid"))
-	snapshotUUID := strings.ToLower(c.String("snapshot-uuid"))
+
 	if snapshotUUID != "" && uuid == "" {
 		return fmt.Errorf("--snapshot-uuid must be used with volume uuid")
 	}
@@ -258,20 +258,11 @@ func cmdVolumeMount(c *cli.Context) {
 
 func doVolumeMount(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
+	volumeUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	mountPoint, err := getLowerCaseFlag(c, "mountpoint", true, err)
+	fs, err := getLowerCaseFlag(c, "fs", true, err)
 	if err != nil {
 		return err
-	}
-	volumeUUID := strings.ToLower(c.String("uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
-	mountPoint := c.String("mountpoint")
-	if mountPoint == "" {
-		return genRequiredMissingError("mountpoint")
-	}
-	fs := c.String("fs")
-	if fs == "" {
-		return genRequiredMissingError("fs")
 	}
 
 	option := c.String("option")
@@ -299,13 +290,11 @@ func cmdVolumeUmount(c *cli.Context) {
 
 func doVolumeUmount(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
+	volumeUUID, err := getLowerCaseFlag(c, "uuid", true, err)
 	if err != nil {
 		return err
 	}
-	volumeUUID := strings.ToLower(c.String("uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
+
 	newNS := c.String("switch-ns")
 
 	volume := config.loadVolume(volumeUUID)

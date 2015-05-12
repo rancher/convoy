@@ -7,6 +7,7 @@ import (
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
 	"path/filepath"
+	"strings"
 )
 
 func getConfigFileName(root string) string {
@@ -70,6 +71,17 @@ func loadGlobalConfig(c *cli.Context) (*Config, drivers.Driver, error) {
 
 func genRequiredMissingError(name string) error {
 	return fmt.Errorf("Cannot find valid required parameter:", name)
+}
+
+func getLowerCaseFlag(c *cli.Context, name string, required bool, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	result := strings.ToLower(c.String(name))
+	if required && result == "" {
+		err = genRequiredMissingError(name)
+	}
+	return result, err
 }
 
 func cmdInfo(c *cli.Context) {

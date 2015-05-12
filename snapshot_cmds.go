@@ -6,7 +6,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
-	"strings"
 )
 
 var (
@@ -72,14 +71,11 @@ func cmdSnapshotCreate(c *cli.Context) {
 
 func doSnapshotCreate(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "uuid", false, err)
 	if err != nil {
 		return err
 	}
-	volumeUUID := strings.ToLower(c.String("volume-uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("volume-uuid")
-	}
-	snapshotUUID := strings.ToLower(c.String("uuid"))
 
 	volume := config.loadVolume(volumeUUID)
 	if volume == nil {
@@ -116,16 +112,10 @@ func cmdSnapshotDelete(c *cli.Context) {
 
 func doSnapshotDelete(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
+	uuid, err := getLowerCaseFlag(c, "uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
-	}
-	uuid := strings.ToLower(c.String("uuid"))
-	if uuid == "" {
-		return genRequiredMissingError("uuid")
-	}
-	volumeUUID := strings.ToLower(c.String("volume-uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("volume-uuid")
 	}
 
 	volume := config.loadVolume(volumeUUID)

@@ -6,7 +6,6 @@ import (
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/blockstore"
 	"github.com/rancherio/volmgr/utils"
-	"strings"
 )
 
 var (
@@ -214,12 +213,9 @@ func cmdBlockStoreDeregister(c *cli.Context) {
 
 func doBlockStoreDeregister(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
+	uuid, err := getLowerCaseFlag(c, "uuid", true, err)
 	if err != nil {
 		return err
-	}
-	uuid := strings.ToLower(c.String("uuid"))
-	if uuid == "" {
-		return genRequiredMissingError("uuid")
 	}
 	return blockstore.Deregister(config.Root, uuid)
 }
@@ -232,16 +228,10 @@ func cmdBlockStoreAdd(c *cli.Context) {
 
 func doBlockStoreAdd(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
-	}
-	blockstoreUUID := strings.ToLower(c.String("uuid"))
-	if blockstoreUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
-	volumeUUID := strings.ToLower(c.String("volume-uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("volume-uuid")
 	}
 
 	volume := config.loadVolume(volumeUUID)
@@ -260,16 +250,10 @@ func cmdBlockStoreRemove(c *cli.Context) {
 
 func doBlockStoreRemove(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
-	}
-	blockstoreUUID := strings.ToLower(c.String("uuid"))
-	if blockstoreUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
-	volumeUUID := strings.ToLower(c.String("volume-uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("volume-uuid")
 	}
 
 	if config.loadVolume(volumeUUID) == nil {
@@ -287,18 +271,12 @@ func cmdBlockStoreList(c *cli.Context) {
 
 func doBlockStoreList(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
 	if err != nil {
 		return err
 	}
-	blockstoreUUID := strings.ToLower(c.String("uuid"))
-	if blockstoreUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
-	volumeUUID := strings.ToLower(c.String("volume-uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("volume-uuid")
-	}
-	snapshotUUID := strings.ToLower(c.String("snapshot-uuid"))
 
 	return blockstore.List(config.Root, blockstoreUUID, volumeUUID, snapshotUUID)
 }
@@ -311,20 +289,11 @@ func cmdSnapshotBackup(c *cli.Context) {
 
 func doSnapshotBackup(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "uuid", true, err)
 	if err != nil {
 		return err
-	}
-	blockstoreUUID := strings.ToLower(c.String("blockstore-uuid"))
-	if blockstoreUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
-	volumeUUID := strings.ToLower(c.String("volume-uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("volume-uuid")
-	}
-	snapshotUUID := strings.ToLower(c.String("uuid"))
-	if snapshotUUID == "" {
-		return genRequiredMissingError("uuid")
 	}
 
 	if !config.snapshotExists(volumeUUID, snapshotUUID) {
@@ -342,24 +311,12 @@ func cmdSnapshotRestore(c *cli.Context) {
 
 func doSnapshotRestore(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	originVolumeUUID, err := getLowerCaseFlag(c, "origin-volume-uuid", true, err)
+	targetVolumeUUID, err := getLowerCaseFlag(c, "target-volume-uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "uuid", true, err)
 	if err != nil {
 		return err
-	}
-	blockstoreUUID := strings.ToLower(c.String("blockstore-uuid"))
-	if blockstoreUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
-	originVolumeUUID := strings.ToLower(c.String("origin-volume-uuid"))
-	if originVolumeUUID == "" {
-		return genRequiredMissingError("origin-volume-uuid")
-	}
-	targetVolumeUUID := strings.ToLower(c.String("target-volume-uuid"))
-	if targetVolumeUUID == "" {
-		return genRequiredMissingError("target-volume-uuid")
-	}
-	snapshotUUID := strings.ToLower(c.String("uuid"))
-	if snapshotUUID == "" {
-		return genRequiredMissingError("uuid")
 	}
 
 	originVol := config.loadVolume(originVolumeUUID)
@@ -390,20 +347,11 @@ func cmdSnapshotRemove(c *cli.Context) {
 
 func doSnapshotRemove(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "uuid", true, err)
 	if err != nil {
 		return err
-	}
-	blockstoreUUID := strings.ToLower(c.String("blockstore-uuid"))
-	if blockstoreUUID == "" {
-		return genRequiredMissingError("uuid")
-	}
-	volumeUUID := strings.ToLower(c.String("volume-uuid"))
-	if volumeUUID == "" {
-		return genRequiredMissingError("volume-uuid")
-	}
-	snapshotUUID := strings.ToLower(c.String("uuid"))
-	if snapshotUUID == "" {
-		return genRequiredMissingError("uuid")
 	}
 
 	if !config.snapshotExists(volumeUUID, snapshotUUID) {
