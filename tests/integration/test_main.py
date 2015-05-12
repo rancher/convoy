@@ -302,16 +302,16 @@ def test_blockstore():
     volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
     dm_cleanup_list.append(volume2_uuid)
 
-    volumes = v.list_blockstore(volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore(volume1_uuid, blockstore_uuid)
     assert len(volumes) == 0
-    volumes = v.list_blockstore_with_snapshot("random_string", volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot("random_string", volume1_uuid, blockstore_uuid)
     assert len(volumes) == 0
 
     v.add_volume_to_blockstore(volume1_uuid, blockstore_uuid)
     volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)
     assert os.path.exists(volume1_cfg_path)
 
-    volumes = v.list_blockstore_with_snapshot("random_string", volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot("random_string", volume1_uuid, blockstore_uuid)
     assert len(volumes) == 1
     assert volumes[volume1_uuid]["Size"] == VOLUME_SIZE_500M
     assert volumes[volume1_uuid]["Base"] == ""
@@ -330,7 +330,7 @@ def test_blockstore():
     assert snap1_vol1["ID"] == snap1_vol1_uuid
     assert len(snap1_vol1["Blocks"]) == 0
 
-    volumes = v.list_blockstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, blockstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
 
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
@@ -342,11 +342,11 @@ def test_blockstore():
     assert len(snap1_vol2["Blocks"]) == 0
 
     #list snapshots
-    volumes = v.list_blockstore(volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore(volume1_uuid, blockstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    volumes = v.list_blockstore(volume2_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore(volume2_uuid, blockstore_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    volumes = v.list_blockstore_with_snapshot(snap1_vol2_uuid, volume2_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot(snap1_vol2_uuid, volume2_uuid, blockstore_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
     #second snapshots
@@ -374,10 +374,10 @@ def test_blockstore():
                 blockstore_uuid)
 
     #list snapshots again
-    volumes = v.list_blockstore(volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore(volume1_uuid, blockstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
     assert snap2_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    volumes = v.list_blockstore(volume2_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore(volume2_uuid, blockstore_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
     assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
@@ -406,21 +406,21 @@ def test_blockstore():
     assert not os.path.exists(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid))
 
     #list snapshots again
-    volumes = v.list_blockstore(volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore(volume1_uuid, blockstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
     assert snap2_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
-    volumes = v.list_blockstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, blockstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    volumes = v.list_blockstore_with_snapshot(snap2_vol1_uuid, volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot(snap2_vol1_uuid, volume1_uuid, blockstore_uuid)
     assert snap1_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
     assert snap2_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
 
-    volumes = v.list_blockstore(volume2_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore(volume2_uuid, blockstore_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
     assert snap2_vol2_uuid not in volumes[volume2_uuid]["Snapshots"]
-    volumes = v.list_blockstore_with_snapshot(snap1_vol2_uuid, volume2_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot(snap1_vol2_uuid, volume2_uuid, blockstore_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    volumes = v.list_blockstore_with_snapshot(snap2_vol2_uuid, volume2_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot(snap2_vol2_uuid, volume2_uuid, blockstore_uuid)
     assert snap1_vol2_uuid not in volumes[volume2_uuid]["Snapshots"]
     assert snap2_vol2_uuid not in volumes[volume2_uuid]["Snapshots"]
 

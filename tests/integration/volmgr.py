@@ -104,12 +104,14 @@ class VolumeManager:
 		"--blockstore-uuid", uuid])
 
     def add_volume_to_blockstore(self, volume_uuid, bs_uuid):
-	subprocess.check_call(self.base_cmdline + ["blockstore", "add",
+	subprocess.check_call(self.base_cmdline + ["blockstore",
+                "add-volume",
 		"--volume-uuid", volume_uuid,
 		"--blockstore-uuid", bs_uuid])
 
     def remove_volume_from_blockstore(self, volume_uuid, bs_uuid):
-	subprocess.check_call(self.base_cmdline + ["blockstore", "remove",
+	subprocess.check_call(self.base_cmdline + ["blockstore",
+                "remove-volume",
 		"--volume-uuid", volume_uuid,
 		"--blockstore-uuid", bs_uuid])
 
@@ -135,15 +137,18 @@ class VolumeManager:
 		"--volume-uuid", volume_uuid,
 		"--blockstore-uuid", bs_uuid])
 
-    def list_blockstore(self, volume_uuid, bs_uuid):
-	data = subprocess.check_output(self.base_cmdline + ["blockstore", "list",
+    def list_volume_blockstore(self, volume_uuid, bs_uuid):
+	data = subprocess.check_output(self.base_cmdline + ["blockstore",
+                "list-volume",
 		"--volume-uuid", volume_uuid,
 		"--blockstore-uuid", bs_uuid])
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def list_blockstore_with_snapshot(self, snapshot_uuid, volume_uuid, bs_uuid):
-	data = subprocess.check_output(self.base_cmdline + ["blockstore", "list",
+    def list_volume_blockstore_with_snapshot(self,
+            snapshot_uuid, volume_uuid, bs_uuid):
+	data = subprocess.check_output(self.base_cmdline + ["blockstore",
+                "list-volume",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
 		"--blockstore-uuid", bs_uuid])

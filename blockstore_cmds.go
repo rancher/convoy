@@ -104,7 +104,7 @@ var (
 	}
 
 	blockstoreAddVolumeCmd = cli.Command{
-		Name:  "add",
+		Name:  "add-volume",
 		Usage: "add a volume to blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
@@ -116,11 +116,11 @@ var (
 				Usage: "uuid of volume",
 			},
 		},
-		Action: cmdBlockStoreAdd,
+		Action: cmdBlockStoreAddVolume,
 	}
 
 	blockstoreRemoveVolumeCmd = cli.Command{
-		Name:  "remove",
+		Name:  "remove-volume",
 		Usage: "remove a volume from blockstore. WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!",
 		Flags: []cli.Flag{
 			cli.StringFlag{
@@ -132,11 +132,11 @@ var (
 				Usage: "uuid of volume",
 			},
 		},
-		Action: cmdBlockStoreRemove,
+		Action: cmdBlockStoreRemoveVolume,
 	}
 
 	blockstoreListCmd = cli.Command{
-		Name:  "list",
+		Name:  "list-volume",
 		Usage: "list volume and snapshots in blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
@@ -152,7 +152,7 @@ var (
 				Usage: "uuid of snapshot",
 			},
 		},
-		Action: cmdBlockStoreList,
+		Action: cmdBlockStoreListVolume,
 	}
 
 	blockstoreCmd = cli.Command{
@@ -220,13 +220,13 @@ func doBlockStoreDeregister(c *cli.Context) error {
 	return blockstore.Deregister(config.Root, uuid)
 }
 
-func cmdBlockStoreAdd(c *cli.Context) {
-	if err := doBlockStoreAdd(c); err != nil {
+func cmdBlockStoreAddVolume(c *cli.Context) {
+	if err := doBlockStoreAddVolume(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreAdd(c *cli.Context) error {
+func doBlockStoreAddVolume(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
@@ -242,13 +242,13 @@ func doBlockStoreAdd(c *cli.Context) error {
 	return blockstore.AddVolume(config.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size)
 }
 
-func cmdBlockStoreRemove(c *cli.Context) {
-	if err := doBlockStoreRemove(c); err != nil {
+func cmdBlockStoreRemoveVolume(c *cli.Context) {
+	if err := doBlockStoreRemoveVolume(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreRemove(c *cli.Context) error {
+func doBlockStoreRemoveVolume(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
@@ -263,13 +263,13 @@ func doBlockStoreRemove(c *cli.Context) error {
 	return blockstore.RemoveVolume(config.Root, blockstoreUUID, volumeUUID)
 }
 
-func cmdBlockStoreList(c *cli.Context) {
-	if err := doBlockStoreList(c); err != nil {
+func cmdBlockStoreListVolume(c *cli.Context) {
+	if err := doBlockStoreListVolume(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreList(c *cli.Context) error {
+func doBlockStoreListVolume(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
@@ -278,7 +278,7 @@ func doBlockStoreList(c *cli.Context) error {
 		return err
 	}
 
-	return blockstore.List(config.Root, blockstoreUUID, volumeUUID, snapshotUUID)
+	return blockstore.ListVolume(config.Root, blockstoreUUID, volumeUUID, snapshotUUID)
 }
 
 func cmdSnapshotBackup(c *cli.Context) {

@@ -738,7 +738,7 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 	return nil
 }
 
-func List(root, blockstoreID, volumeID, snapshotID string) error {
+func ListVolume(root, blockstoreID, volumeID, snapshotID string) error {
 	b := &BlockStore{}
 	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
 	if err != nil {
