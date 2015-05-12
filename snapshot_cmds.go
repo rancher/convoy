@@ -6,6 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
+	"strings"
 )
 
 var (
@@ -74,11 +75,11 @@ func doSnapshotCreate(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	volumeUUID := c.String("volume-uuid")
+	volumeUUID := strings.ToLower(c.String("volume-uuid"))
 	if volumeUUID == "" {
 		return genRequiredMissingError("volume-uuid")
 	}
-	snapshotUUID := c.String("uuid")
+	snapshotUUID := strings.ToLower(c.String("uuid"))
 
 	volume := config.loadVolume(volumeUUID)
 	if volume == nil {
@@ -118,11 +119,11 @@ func doSnapshotDelete(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	uuid := c.String("uuid")
+	uuid := strings.ToLower(c.String("uuid"))
 	if uuid == "" {
 		return genRequiredMissingError("uuid")
 	}
-	volumeUUID := c.String("volume-uuid")
+	volumeUUID := strings.ToLower(c.String("volume-uuid"))
 	if volumeUUID == "" {
 		return genRequiredMissingError("volume-uuid")
 	}

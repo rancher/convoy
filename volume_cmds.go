@@ -8,6 +8,7 @@ import (
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/utils"
+	"strings"
 )
 
 var (
@@ -173,7 +174,7 @@ func doVolumeCreate(c *cli.Context) error {
 	if size == 0 {
 		return genRequiredMissingError("size")
 	}
-	volumeUUID := c.String("uuid")
+	volumeUUID := strings.ToLower(c.String("uuid"))
 
 	uuid := uuid.New()
 	if volumeUUID != "" {
@@ -218,7 +219,7 @@ func doVolumeDelete(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	uuid := c.String("uuid")
+	uuid := strings.ToLower(c.String("uuid"))
 	if uuid == "" {
 		return genRequiredMissingError("uuid")
 	}
@@ -241,8 +242,8 @@ func doVolumeList(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	uuid := c.String("uuid")
-	snapshotUUID := c.String("snapshot-uuid")
+	uuid := strings.ToLower(c.String("uuid"))
+	snapshotUUID := strings.ToLower(c.String("snapshot-uuid"))
 	if snapshotUUID != "" && uuid == "" {
 		return fmt.Errorf("--snapshot-uuid must be used with volume uuid")
 	}
@@ -260,7 +261,7 @@ func doVolumeMount(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	volumeUUID := c.String("uuid")
+	volumeUUID := strings.ToLower(c.String("uuid"))
 	if volumeUUID == "" {
 		return genRequiredMissingError("uuid")
 	}
@@ -301,7 +302,7 @@ func doVolumeUmount(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	volumeUUID := c.String("uuid")
+	volumeUUID := strings.ToLower(c.String("uuid"))
 	if volumeUUID == "" {
 		return genRequiredMissingError("uuid")
 	}
