@@ -14,7 +14,7 @@ var (
 		Usage: "backup an snapshot to blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "uuid",
+				Name:  "snapshot-uuid",
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
@@ -34,7 +34,7 @@ var (
 		Usage: "restore an snapshot from blockstore to volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "uuid",
+				Name:  "snapshot-uuid",
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
@@ -58,7 +58,7 @@ var (
 		Usage: "remove an snapshot in blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "uuid",
+				Name:  "snapshot-uuid",
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
@@ -96,7 +96,7 @@ var (
 		Usage: "deregister a blockstore from current setup(no data in it would be changed)",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "uuid",
+				Name:  "blockstore-uuid",
 				Usage: "uuid of blockstore",
 			},
 		},
@@ -108,7 +108,7 @@ var (
 		Usage: "add a volume to blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "uuid",
+				Name:  "blockstore-uuid",
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
@@ -124,7 +124,7 @@ var (
 		Usage: "remove a volume from blockstore. WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "uuid",
+				Name:  "blockstore-uuid",
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
@@ -140,7 +140,7 @@ var (
 		Usage: "list volume and snapshots in blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "uuid",
+				Name:  "blockstore-uuid",
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
@@ -213,7 +213,7 @@ func cmdBlockStoreDeregister(c *cli.Context) {
 
 func doBlockStoreDeregister(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
-	uuid, err := getLowerCaseFlag(c, "uuid", true, err)
+	uuid, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func cmdBlockStoreAdd(c *cli.Context) {
 
 func doBlockStoreAdd(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
-	blockstoreUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
@@ -250,7 +250,7 @@ func cmdBlockStoreRemove(c *cli.Context) {
 
 func doBlockStoreRemove(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
-	blockstoreUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
@@ -271,7 +271,7 @@ func cmdBlockStoreList(c *cli.Context) {
 
 func doBlockStoreList(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
-	blockstoreUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
 	if err != nil {
@@ -291,7 +291,7 @@ func doSnapshotBackup(c *cli.Context) error {
 	config, driver, err := loadGlobalConfig(c)
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func doSnapshotRestore(c *cli.Context) error {
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	originVolumeUUID, err := getLowerCaseFlag(c, "origin-volume-uuid", true, err)
 	targetVolumeUUID, err := getLowerCaseFlag(c, "target-volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
 	if err != nil {
 		return err
 	}
@@ -349,7 +349,7 @@ func doSnapshotRemove(c *cli.Context) error {
 	config, _, err := loadGlobalConfig(c)
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
 	if err != nil {
 		return err
 	}
