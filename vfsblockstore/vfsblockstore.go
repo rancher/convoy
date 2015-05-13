@@ -119,11 +119,6 @@ func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 	return os.Rename(v.updatePath(tmpFile), v.updatePath(dst))
 }
 
-func (v *VfsBlockStoreDriver) CopyToPath(src string, dst string) error {
-	err := exec.Command("cp", v.updatePath(src), dst).Run()
-	return err
-}
-
 func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
 	out, err := exec.Command("ls", "-1", v.updatePath(path)).Output()
 	if err != nil {

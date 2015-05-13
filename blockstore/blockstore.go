@@ -42,7 +42,6 @@ type BlockStoreDriver interface {
 	Read(src string, data []byte) error
 	Write(data []byte, dst string) error
 	List(path string) ([]string, error)
-	CopyToPath(src string, dst string) error
 }
 
 type Volume struct {
