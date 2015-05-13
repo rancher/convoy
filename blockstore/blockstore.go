@@ -143,7 +143,7 @@ func saveVolumeConfig(volumeID string, driver BlockStoreDriver, v *Volume) error
 	return nil
 }
 
-func loadBlockStoreConfig(driver BlockStoreDriver) (*BlockStore, error) {
+func loadRemoteBlockStoreConfig(driver BlockStoreDriver) (*BlockStore, error) {
 	b := &BlockStore{}
 	path := BLOCKSTORE_BASE
 	file := BLOCKSTORE_CONFIG_FILE
@@ -153,7 +153,7 @@ func loadBlockStoreConfig(driver BlockStoreDriver) (*BlockStore, error) {
 	return b, nil
 }
 
-func saveBlockStoreConfig(driver BlockStoreDriver, b *BlockStore) error {
+func saveRemoteBlockStoreConfig(driver BlockStoreDriver, b *BlockStore) error {
 	path := BLOCKSTORE_BASE
 	file := BLOCKSTORE_CONFIG_FILE
 	if err := saveConfigInBlockStore(filepath.Join(path, file), driver, b); err != nil {
@@ -169,7 +169,7 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 	}
 
 	var id string
-	bs, err := loadBlockStoreConfig(driver)
+	bs, err := loadRemoteBlockStoreConfig(driver)
 	if err == nil {
 		// BlockStore has already been created
 		if bs.Kind != kind {
@@ -197,7 +197,7 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 			BlockSize: DEFAULT_BLOCK_SIZE,
 		}
 
-		if err := saveBlockStoreConfig(driver, bs); err != nil {
+		if err := saveRemoteBlockStoreConfig(driver, bs); err != nil {
 			return "", 0, err
 		}
 		log.Debug("Created blockstore cfg in blockstore", bs.UUID)
