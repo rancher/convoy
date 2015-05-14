@@ -49,7 +49,7 @@ func ResponseLogAndError(format string, a ...interface{}) {
 func ResponseOutput(v interface{}) {
 	j, err := json.MarshalIndent(v, "", "\t")
 	if err != nil {
-		panic(fmt.Sprintf("Failed to generate response for error:", err))
+		panic(fmt.Sprintf("Failed to generate response due to error:", err))
 	}
 	fmt.Println(string(j[:]))
 }

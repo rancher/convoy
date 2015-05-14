@@ -26,8 +26,9 @@ type Volume struct {
 }
 
 type Config struct {
-	Root   string
-	Driver string
+	Root      string
+	Driver    string
+	ImagesDir string
 }
 
 var (
@@ -125,6 +126,11 @@ func main() {
 				Name:  "driver-opts",
 				Value: &cli.StringSlice{},
 				Usage: "options for driver",
+			},
+			cli.StringFlag{
+				Name:  "images-dir",
+				Value: "/opt/volmgr_images",
+				Usage: "specific local directory would contains base images",
 			},
 		},
 		Action: cmdInitialize,

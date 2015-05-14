@@ -28,7 +28,8 @@ func doInitialize(c *cli.Context) error {
 	root := c.GlobalString("root")
 	driverName := c.String("driver")
 	driverOpts := utils.SliceToMap(c.StringSlice("driver-opts"))
-	if root == "" || driverName == "" || driverOpts == nil {
+	imagesDir := c.String("images-dir")
+	if root == "" || driverName == "" || driverOpts == nil || imagesDir == "" {
 		return fmt.Errorf("Missing or invalid parameters")
 	}
 
@@ -38,14 +39,20 @@ func doInitialize(c *cli.Context) error {
 		return fmt.Errorf("Configuration file already existed. Don't need to initialize.")
 	}
 
+	if err := utils.MkdirIfNotExists(imagesDir); err != nil {
+		return err
+	}
+	log.Debug("Images would be stored at ", imagesDir)
+
 	_, err := drivers.GetDriver(driverName, root, driverOpts)
 	if err != nil {
 		return err
 	}
 
 	config := Config{
-		Root:   root,
-		Driver: driverName,
+		Root:      root,
+		Driver:    driverName,
+		ImagesDir: imagesDir,
 	}
 	err = utils.SaveConfig(root, getCfgName(), &config)
 	return err

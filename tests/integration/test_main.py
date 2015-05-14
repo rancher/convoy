@@ -88,7 +88,9 @@ def teardown_module():
         assert not filename.startswith('volume')
 
 def test_init():
-    subprocess.check_call(VOLMGR_CMDLINE + ["init", "--driver=devicemapper",
+    subprocess.check_call(VOLMGR_CMDLINE + ["init",
+        "--images-dir", "/tmp/volmgr_images",
+        "--driver=devicemapper",
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
 	"--driver-opts", "dm.thinpoolname=" + POOL_NAME])
