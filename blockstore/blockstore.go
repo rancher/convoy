@@ -143,14 +143,22 @@ func Deregister(root, id string) error {
 	return nil
 }
 
-func AddVolume(root, id, volumeID, base string, size int64) error {
+func getBlockstoreCfgAndDriver(root, blockstoreUUID string) (*BlockStore, BlockStoreDriver, error) {
 	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(id), b)
+	err := utils.LoadConfig(root, getCfgName(blockstoreUUID), b)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
-	driver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, id), nil)
+	driver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreUUID), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b, driver, nil
+}
+
+func AddVolume(root, id, volumeID, base string, size int64) error {
+	_, driver, err := getBlockstoreCfgAndDriver(root, id)
 	if err != nil {
 		return err
 	}
@@ -188,13 +196,7 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 }
 
 func RemoveVolume(root, id, volumeID string) error {
-	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(id), b)
-	if err != nil {
-		return err
-	}
-
-	driver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, id), nil)
+	_, driver, err := getBlockstoreCfgAndDriver(root, id)
 	if err != nil {
 		return err
 	}
@@ -217,12 +219,7 @@ func RemoveVolume(root, id, volumeID string) error {
 }
 
 func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver drivers.Driver) error {
-	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
-	if err != nil {
-		return err
-	}
-	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
+	b, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreID)
 	if err != nil {
 		return err
 	}
@@ -366,12 +363,7 @@ func mergeSnapshotMap(snapshotID string, deltaMap, lastMap *SnapshotMap) *Snapsh
 }
 
 func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID string, sDriver drivers.Driver) error {
-	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
-	if err != nil {
-		return err
-	}
-	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
+	b, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreID)
 	if err != nil {
 		return err
 	}
@@ -412,12 +404,7 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 }
 
 func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
-	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
-	if err != nil {
-		return err
-	}
-	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
+	_, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreID)
 	if err != nil {
 		return err
 	}
@@ -537,12 +524,7 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 }
 
 func ListVolume(root, blockstoreID, volumeID, snapshotID string) error {
-	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(blockstoreID), b)
-	if err != nil {
-		return err
-	}
-	bsDriver, err := GetBlockStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, blockstoreID), nil)
+	_, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreID)
 	if err != nil {
 		return err
 	}
