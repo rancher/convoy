@@ -196,6 +196,38 @@ var (
 		Action: cmdBlockStoreRemoveImage,
 	}
 
+	blockstoreActivateImageCmd = cli.Command{
+		Name:  "activate-image",
+		Usage: "download a image from blockstore, prepared it to be used as base image",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "blockstore-uuid",
+				Usage: "uuid of blockstore",
+			},
+			cli.StringFlag{
+				Name:  "image-uuid",
+				Usage: "uuid of image",
+			},
+		},
+		Action: cmdBlockStoreActivateImage,
+	}
+
+	blockstoreDeactivateImageCmd = cli.Command{
+		Name:  "deactivate-image",
+		Usage: "remove local image copy, must be done after all the volumes depends on it removed",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "blockstore-uuid",
+				Usage: "uuid of blockstore",
+			},
+			cli.StringFlag{
+				Name:  "image-uuid",
+				Usage: "uuid of image",
+			},
+		},
+		Action: cmdBlockStoreDeactivateImage,
+	}
+
 	blockstoreCmd = cli.Command{
 		Name:  "blockstore",
 		Usage: "blockstore related operations",
@@ -206,6 +238,8 @@ var (
 			blockstoreRemoveVolumeCmd,
 			blockstoreAddImageCmd,
 			blockstoreRemoveImageCmd,
+			blockstoreActivateImageCmd,
+			blockstoreDeactivateImageCmd,
 			blockstoreListCmd,
 		},
 	}
@@ -446,4 +480,51 @@ func doBlockStoreRemoveImage(c *cli.Context) error {
 	}
 
 	return blockstore.RemoveImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID)
+}
+
+func cmdBlockStoreActivateImage(c *cli.Context) {
+	if err := doBlockStoreActivateImage(c); err != nil {
+		panic(err)
+	}
+}
+
+func doBlockStoreActivateImage(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	if err != nil {
+		return err
+	}
+
+	if err := blockstore.ActivateImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+		return err
+	}
+	imagePath := blockstore.GetImageLocalStorePath(config.ImagesDir, imageUUID)
+	if err := driver.ActivateImage(imageUUID, imagePath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func cmdBlockStoreDeactivateImage(c *cli.Context) {
+	if err := doBlockStoreDeactivateImage(c); err != nil {
+		panic(err)
+	}
+}
+
+func doBlockStoreDeactivateImage(c *cli.Context) error {
+	config, driver, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	if err != nil {
+		return err
+	}
+
+	if err := driver.DeactivateImage(imageUUID); err != nil {
+		return err
+	}
+	if err := blockstore.DeactivateImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+		return err
+	}
+	return nil
 }

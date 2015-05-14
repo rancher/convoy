@@ -147,3 +147,11 @@ func (v *VfsBlockStoreDriver) Upload(src, dst string) error {
 	}
 	return nil
 }
+
+func (v *VfsBlockStoreDriver) Download(src, dst string) error {
+	output, err := exec.Command("cp", v.updatePath(src), dst).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf(string(output))
+	}
+	return nil
+}

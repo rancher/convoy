@@ -10,6 +10,7 @@ from volmgr import VolumeManager
 
 TEST_ROOT = "/tmp/volmgr_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "volmgr")
+IMAGES_DIR = "/tmp/volmgr_images"
 
 BLOCKSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-blockstore")
 BLOCKSTORE_CFG = os.path.join(BLOCKSTORE_ROOT, "blockstore.cfg")
@@ -98,7 +99,7 @@ def teardown_module():
 
 def test_init():
     subprocess.check_call(VOLMGR_CMDLINE + ["init",
-        "--images-dir", "/tmp/volmgr_images",
+        "--images-dir", IMAGES_DIR,
         "--driver=devicemapper",
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
@@ -465,10 +466,14 @@ def get_image_cfg(uuid):
 def get_image_gz(uuid):
     return os.path.join(BLOCKSTORE_IMAGES_DIR, uuid + ".img.gz")
 
+def get_local_image(uuid):
+    return os.path.join(IMAGES_DIR, uuid + ".img")
+
 def test_blockstore_image():
     #load blockstore from created one
     blockstore_uuid = v.register_vfs_blockstore(TEST_ROOT)
 
+    #add/remove image
     global image_file
     image_uuid = v.add_image_to_blockstore(image_file, blockstore_uuid)
 
@@ -482,3 +487,31 @@ def test_blockstore_image():
     assert not os.path.exists(get_image_cfg(image_uuid))
     assert not os.path.exists(get_image_gz(image_uuid))
 
+    #activate/deactivate image
+    image_uuid = v.add_image_to_blockstore(image_file, blockstore_uuid)
+
+    #compressed image cache
+    assert os.path.exists(get_local_image(image_uuid)+".gz")
+
+    v.activate_image(image_uuid, blockstore_uuid)
+    assert os.path.exists(get_local_image(image_uuid))
+    v.deactivate_image(image_uuid, blockstore_uuid)
+    assert not os.path.exists(get_local_image(image_uuid))
+
+    #raw image cache
+    subprocess.check_call(["cp", image_file, get_local_image(image_uuid)])
+    assert os.path.exists(get_local_image(image_uuid))
+
+    v.activate_image(image_uuid, blockstore_uuid)
+    assert os.path.exists(get_local_image(image_uuid))
+    v.deactivate_image(image_uuid, blockstore_uuid)
+    assert not os.path.exists(get_local_image(image_uuid))
+
+    #deactivate would remove the local copy, so this time it would trigger
+    # downloading from blockstore
+    v.activate_image(image_uuid, blockstore_uuid)
+    assert os.path.exists(get_local_image(image_uuid))
+    v.deactivate_image(image_uuid, blockstore_uuid)
+    assert not os.path.exists(get_local_image(image_uuid))
+
+    v.remove_image_from_blockstore(image_uuid, blockstore_uuid)

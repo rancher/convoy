@@ -29,6 +29,7 @@ type BlockStoreDriver interface {
 	Write(data []byte, dst string) error
 	List(path string) ([]string, error)
 	Upload(src, dst string) error
+	Download(src, dst string) error
 }
 
 type Volume struct {
@@ -171,7 +172,7 @@ func getBlockstoreCfgAndDriver(root, blockstoreUUID string) (*BlockStore, BlockS
 	if err != nil {
 		return nil, nil, err
 	}
-	log.Debug("blockstore: loaded configure for blockstore", blockstoreUUID)
+	log.Debug("blockstore: loaded configure for blockstore ", blockstoreUUID)
 	return b, driver, nil
 }
 
@@ -683,5 +684,108 @@ func RemoveImage(root, imageDir, imageUUID, blockstoreUUID string) error {
 	}
 	log.Debugf("blockstore: image %v removed", imageUUID)
 
+	return nil
+}
+
+func ActivateImage(root, imageDir, imageUUID, blockstoreUUID string) error {
+	_, driver, err := getBlockstoreCfgAndDriver(root, blockstoreUUID)
+	if err != nil {
+		return err
+	}
+
+	image, err := loadImageConfig(imageUUID, driver)
+	if err != nil {
+		return err
+	}
+
+	if err := downloadImage(imageDir, driver, image); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadImageCache(fileName string, compressed bool, image *Image) (bool, error) {
+	if st, err := os.Stat(fileName); err == nil && !st.IsDir() {
+		log.Debug("blockstore: found local image cache at ", fileName)
+		log.Debug("blockstore: calculating checksum for local image cache")
+		checksum, err := utils.GetFileChecksum(fileName)
+		if err != nil {
+			return false, err
+		}
+		log.Debug("blockstore: calculation done, checksum ", checksum)
+		if compressed && checksum == image.Checksum {
+			log.Debugf("Found image %v in local images directory, and checksum matched, no need to re-download\n", image.UUID)
+			return true, nil
+		} else if !compressed && checksum == image.RawChecksum {
+			log.Debugf("Found image %v in local images directory, and checksum matched, no need to re-download\n", image.UUID)
+			return true, nil
+		} else {
+			log.Debugf("Found image %v in local images directory, but checksum doesn't match record, would re-download\n", image.UUID)
+			if err := os.RemoveAll(fileName); err != nil {
+				return false, err
+			}
+			log.Debug("blockstore: removed local image cache at ", fileName)
+		}
+	}
+	return false, nil
+}
+
+func uncompressImage(fileName string) error {
+	log.Debugf("blockstore: uncompressing image %v ", fileName)
+	if err := utils.UncompressFile(fileName); err != nil {
+		return err
+	}
+	log.Debug("blockstore: image uncompressed")
+	return nil
+}
+
+func downloadImage(imagesDir string, driver BlockStoreDriver, image *Image) error {
+	imageLocalStorePath := GetImageLocalStorePath(imagesDir, image.UUID)
+	found, err := loadImageCache(imageLocalStorePath, false, image)
+	if found || err != nil {
+		return err
+	}
+
+	compressedLocalPath := imageLocalStorePath + ".gz"
+	found, err = loadImageCache(compressedLocalPath, true, image)
+	if err != nil {
+		return err
+	}
+	if found {
+		return uncompressImage(compressedLocalPath)
+	}
+
+	imageBlockStorePath := getImageBlockStorePath(image.UUID)
+	log.Debugf("blockstore: downloading image from blockstore %v to %v", imageBlockStorePath, compressedLocalPath)
+	if err := driver.Download(imageBlockStorePath, compressedLocalPath); err != nil {
+		return err
+	}
+	log.Debug("blockstore: download complete")
+
+	if err := uncompressImage(compressedLocalPath); err != nil {
+		return err
+	}
+
+	log.Debug("blockstore: calculating checksum for local image")
+	rawChecksum, err := utils.GetFileChecksum(imageLocalStorePath)
+	if err != nil {
+		return err
+	}
+	log.Debug("blockstore: calculation done, raw checksum ", rawChecksum)
+	if rawChecksum != image.RawChecksum {
+		return fmt.Errorf("Image %v checksum verification failed!", image.UUID)
+	}
+	return nil
+}
+
+func DeactivateImage(root, imageDir, imageUUID, blockstoreUUID string) error {
+	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
+	if st, err := os.Stat(imageLocalStorePath); err == nil && !st.IsDir() {
+		if err := os.RemoveAll(imageLocalStorePath); err != nil {
+			return err
+		}
+		log.Debug("blockstore: removed local image cache at ", imageLocalStorePath)
+	}
+	log.Debug("blockstore: deactivated image ", imageUUID)
 	return nil
 }

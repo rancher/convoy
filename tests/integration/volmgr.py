@@ -168,3 +168,16 @@ class VolumeManager:
                 "remove-image",
                 "--image-uuid", image_uuid,
                 "--blockstore-uuid", bs_uuid])
+
+    def activate_image(self, image_uuid, bs_uuid):
+        subprocess.check_call(self.base_cmdline + ["blockstore",
+                "activate-image",
+                "--image-uuid", image_uuid,
+                "--blockstore-uuid", bs_uuid])
+
+    def deactivate_image(self, image_uuid, bs_uuid):
+        subprocess.check_call(self.base_cmdline + ["blockstore",
+                "deactivate-image",
+                "--image-uuid", image_uuid,
+                "--blockstore-uuid", bs_uuid])
+
