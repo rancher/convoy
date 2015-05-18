@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -25,6 +26,12 @@ type Volume struct {
 	DevID int
 	Size  uint64
 }
+
+const (
+	testRoot  = "/tmp/utils"
+	testImage = "test.img"
+	imageSize = 1 << 27
+)
 
 func TestSaveLoadConfig(t *testing.T) {
 	dev := Device{
@@ -138,6 +145,43 @@ func TestSliceToMap(t *testing.T) {
 	m = SliceToMap(illegalMap)
 	if m != nil {
 		t.Fatal("Failed illegal test!")
+	}
+
+}
+
+func TestLoopDevice(t *testing.T) {
+	if err := exec.Command("mkdir", "-p", testRoot).Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	imageFile := filepath.Join(testRoot, testImage)
+	if err := exec.Command("dd", "if=/dev/zero", "of="+imageFile, "bs=4096", "count="+strconv.Itoa(imageSize/4096)).Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	dev, err := AttachLoopDevice(imageFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := DetachLoopDevice("/tmp", dev); err == nil {
+		t.Fatal("Expect failure")
+	}
+
+	if err := DetachLoopDevice(imageFile, dev); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := AttachLoopDevice("/tmp"); err == nil {
+		t.Fatal("Expect failure")
+	}
+
+	if err := DetachLoopDevice("/tmp", "/dev/loop0"); err == nil {
+		t.Fatal("Expect failure")
+	}
+
+	if err := exec.Command("rm", "-rf", testRoot).Run(); err != nil {
+		t.Fatal(err)
 	}
 
 }

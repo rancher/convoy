@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
@@ -159,4 +160,49 @@ func SliceToMap(slices []string) map[string]string {
 		return nil
 	}
 	return result
+}
+
+func GetFileChecksum(filePath string) (string, error) {
+	output, err := exec.Command("sha512sum", "-b", filePath).Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.Split(string(output), " ")[0], nil
+}
+
+func CompressFile(filePath string) error {
+	return exec.Command("gzip", filePath).Run()
+}
+
+func UncompressFile(filePath string) error {
+	return exec.Command("gunzip", filePath).Run()
+}
+
+func Copy(src, dst string) error {
+	return exec.Command("cp", src, dst).Run()
+}
+
+func AttachLoopDevice(file string) (string, error) {
+	out, err := exec.Command("losetup", "-v", "-f", file).Output()
+	if err != nil {
+		return "", err
+	}
+	dev := strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
+	return dev, nil
+}
+
+func DetachLoopDevice(file, dev string) error {
+	output, err := exec.Command("losetup", dev).Output()
+	if err != nil {
+		return err
+	}
+	out := strings.TrimSpace(string(output))
+	suffix := "(" + file + ")"
+	if !strings.HasSuffix(out, suffix) {
+		return fmt.Errorf("Unmatched source file, output %v, suffix %v", out, suffix)
+	}
+	if err := exec.Command("losetup", "-d", dev).Run(); err != nil {
+		return err
+	}
+	return nil
 }
