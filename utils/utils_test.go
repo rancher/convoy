@@ -153,6 +153,12 @@ func (s *TestSuite) TestSliceToMap(c *C) {
 	c.Assert(m, IsNil)
 }
 
+func (s *TestSuite) TestChecksum(c *C) {
+	checksum, err := GetFileChecksum(s.imageFile)
+	c.Assert(err, IsNil)
+	c.Assert(checksum, Equals, "0ff7859005e5debb631f55b7dcf4fb3a1293ff937b488d8bf5a8e173d758917ccf9e835403c16db1b33d406b9b40438f88d184d95c81baece136bc68fa0ae5d2")
+}
+
 func (s *TestSuite) TestLoopDevice(c *C) {
 	dev, err := AttachLoopDeviceRO(s.imageFile)
 	c.Assert(err, IsNil)
