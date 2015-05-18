@@ -4,15 +4,14 @@ package devmapper
 
 import (
 	"code.google.com/p/go-uuid/uuid"
-	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/stretchr/testify/require"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
 const (
@@ -25,189 +24,166 @@ const (
 	maxThin      = 10000
 )
 
-var (
+func Test(t *testing.T) { TestingT(t) }
+
+type TestSuite struct {
 	dataDev     string
 	metadataDev string
-)
+}
 
-func setUp() error {
+var _ = Suite(&TestSuite{})
+
+func (s *TestSuite) SetUpSuite(c *C) {
 	log.SetLevel(log.DebugLevel)
 	log.SetOutput(os.Stderr)
 
-	if err := exec.Command("mkdir", "-p", devRoot).Run(); err != nil {
-		return err
-	}
+	var err error
 
-	if err := exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, dataFile), "bs=4096", "count=262114").Run(); err != nil {
-		return err
-	}
+	err = exec.Command("mkdir", "-p", devRoot).Run()
+	c.Assert(err, IsNil)
 
-	if err := exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, metadataFile), "bs=4096", "count=10000").Run(); err != nil {
-		return err
-	}
+	err = exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, dataFile), "bs=4096", "count=262114").Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, metadataFile), "bs=4096", "count=10000").Run()
+	c.Assert(err, IsNil)
 
 	out, err := exec.Command("losetup", "-v", "-f", filepath.Join(devRoot, dataFile)).Output()
-	if err != nil {
-		return err
-	}
-	dataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
+	c.Assert(err, IsNil)
+
+	s.dataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
 
 	out, err = exec.Command("losetup", "-v", "-f", filepath.Join(devRoot, metadataFile)).Output()
-	if err != nil {
-		return err
-	}
-	metadataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
-
-	return nil
+	c.Assert(err, IsNil)
+	s.metadataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
 }
 
-func tearDown() error {
-	if err := exec.Command("dmsetup", "remove", poolName).Run(); err != nil {
-		return err
-	}
-	if err := exec.Command("losetup", "-d", dataDev, metadataDev).Run(); err != nil {
-		return err
-	}
-	if err := exec.Command("rm", "-rf", devRoot).Run(); err != nil {
-		return err
-	}
-	return nil
+func (s *TestSuite) TearDownSuite(c *C) {
+	var err error
+
+	err = exec.Command("dmsetup", "remove", poolName).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("losetup", "-d", s.dataDev, s.metadataDev).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("rm", "-rf", devRoot).Run()
+	c.Assert(err, IsNil)
 }
 
-func TestMain(m *testing.M) {
-	err := setUp()
-	if err != nil {
-		fmt.Println("Failed to setup due to ", err)
-		os.Exit(-1)
-	}
-
-	errCode := m.Run()
-
-	err = tearDown()
-	if err != nil {
-		fmt.Println("Failed to tear down due to ", err)
-		os.Exit(-1)
-	}
-
-	os.Exit(errCode)
-}
-
-func TestInit(t *testing.T) {
+func (s *TestSuite) TestInit(c *C) {
 	config := make(map[string]string)
 
 	_, err := Init(devRoot, devCfg, config)
-	require.NotNil(t, err)
-	require.Equal(t, err.Error(), "data device or metadata device unspecified")
+	c.Assert(err, ErrorMatches, "data device or metadata device unspecified")
 
-	config[DM_DATA_DEV] = dataDev
-	config[DM_METADATA_DEV] = metadataDev
+	config[DM_DATA_DEV] = s.dataDev
+	config[DM_METADATA_DEV] = s.metadataDev
 	config[DM_THINPOOL_BLOCK_SIZE] = "100"
 	_, err = Init(devRoot, devCfg, config)
-	require.NotNil(t, err)
-	require.True(t, strings.HasPrefix(err.Error(), "Block size must"))
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "Block size must.*")
 
 	config[DM_THINPOOL_NAME] = "test_pool"
 	delete(config, DM_THINPOOL_BLOCK_SIZE)
 
 	driver, err := Init(devRoot, devCfg, config)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	newDriver, err := Init(devRoot, devCfg, config)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	drv1, ok := driver.(*Driver)
-	require.True(t, ok)
+	c.Assert(ok, Equals, true)
 	drv2, ok := newDriver.(*Driver)
-	require.True(t, ok)
+	c.Assert(ok, Equals, true)
 
-	if !reflect.DeepEqual(*drv1, *drv2) {
-		t.Fatal("Fail to verify the information from driver config")
-	}
+	c.Assert(*drv1, DeepEquals, *drv2)
 
-	require.Equal(t, drv1.configName, devCfg)
+	c.Assert(drv1.configName, Equals, devCfg)
 
-	require.Equal(t, drv1.DataDevice, dataDev)
-	require.Equal(t, drv1.MetadataDevice, metadataDev)
+	c.Assert(drv1.DataDevice, Equals, s.dataDev)
+	c.Assert(drv1.MetadataDevice, Equals, s.metadataDev)
 }
 
-func TestVolume(t *testing.T) {
+func (s *TestSuite) TestVolume(c *C) {
 	driver, err := Init(devRoot, devCfg, nil)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	drv := driver.(*Driver)
 	lastDevID := drv.LastDevID
 	volumeID := uuid.New()
 
 	err = driver.CreateVolume(volumeID, "", volumeSize)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
-	require.Equal(t, drv.LastDevID, lastDevID+1)
+	c.Assert(drv.LastDevID, Equals, lastDevID+1)
 
 	err = driver.CreateVolume(volumeID, "", volumeSize)
-	require.NotNil(t, err)
-	require.True(t, strings.HasPrefix(err.Error(), "Already has volume with uuid"))
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "Already has volume with uuid.*")
 
 	volumeID2 := uuid.New()
 
 	wrongVolumeSize := int64(13333333)
 	err = driver.CreateVolume(volumeID2, "", wrongVolumeSize)
-	require.NotNil(t, err)
-	require.Equal(t, err.Error(), "Size must be multiple of block size")
+	c.Assert(err, Not(IsNil))
+	c.Assert(err.Error(), Equals, "Size must be multiple of block size")
 
 	err = driver.CreateVolume(volumeID2, "", volumeSize)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.ListVolume("", "")
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.ListVolume(volumeID, "")
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.DeleteVolume("123")
-	require.NotNil(t, err)
-	require.True(t, strings.HasPrefix(err.Error(), "cannot find volume"))
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "cannot find volume.*")
 
 	err = driver.DeleteVolume(volumeID2)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.DeleteVolume(volumeID)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 }
 
-func TestSnapshot(t *testing.T) {
+func (s *TestSuite) TestSnapshot(c *C) {
 	driver, err := Init(devRoot, devCfg, nil)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	volumeID := uuid.New()
 	err = driver.CreateVolume(volumeID, "", volumeSize)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	snapshotID := uuid.New()
 	err = driver.CreateSnapshot(snapshotID, volumeID)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.CreateSnapshot(snapshotID, volumeID)
-	require.NotNil(t, err)
-	require.True(t, strings.HasPrefix(err.Error(), "Already has snapshot with uuid"))
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "Already has snapshot with uuid.*")
 
 	snapshotID2 := uuid.New()
 	err = driver.CreateSnapshot(snapshotID2, volumeID)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.DeleteSnapshot(snapshotID, volumeID)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.DeleteSnapshot(snapshotID, volumeID)
-	require.NotNil(t, err)
-	require.True(t, strings.HasPrefix(err.Error(), "cannot find snapshot"))
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "cannot find snapshot.*")
 
 	err = driver.DeleteVolume(volumeID)
-	require.NotNil(t, err)
-	require.True(t, strings.HasSuffix(err.Error(), "delete snapshots first"))
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, ".*delete snapshots first")
 
 	err = driver.DeleteSnapshot(snapshotID2, volumeID)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 
 	err = driver.DeleteVolume(volumeID)
-	require.Nil(t, err)
+	c.Assert(err, IsNil)
 }
