@@ -182,8 +182,8 @@ func Copy(src, dst string) error {
 	return exec.Command("cp", src, dst).Run()
 }
 
-func AttachLoopDevice(file string) (string, error) {
-	out, err := exec.Command("losetup", "-v", "-f", file).Output()
+func AttachLoopDeviceRO(file string) (string, error) {
+	out, err := exec.Command("losetup", "-v", "-r", "-f", file).Output()
 	if err != nil {
 		return "", err
 	}

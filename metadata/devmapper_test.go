@@ -1,9 +1,9 @@
 package metadata
 
 import (
-	"github.com/stretchr/testify/require"
-	"reflect"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
 const (
@@ -22,7 +22,15 @@ const (
 	blockSize = 2097152
 )
 
-func TestThinDelta(t *testing.T) {
+func Test(t *testing.T) {
+	TestingT(t)
+}
+
+type TestSuite struct{}
+
+var _ = Suite(&TestSuite{})
+
+func (s *TestSuite) TestThinDelta(c *C) {
 	mSame := Mappings{
 		Mappings: []Mapping{
 			{Offset: 0, Size: 1 * blockSize},
@@ -56,20 +64,14 @@ func TestThinDelta(t *testing.T) {
 	)
 
 	m, err = DeviceMapperThinDeltaParser([]byte(thinDeltaOutputSame), blockSize, true)
-	require.Nil(t, err)
-	if !reflect.DeepEqual(*m, mSame) {
-		t.Fatal("Fail to get expect result from `same` check")
-	}
+	c.Assert(err, IsNil)
+	c.Assert(*m, DeepEquals, mSame)
 
 	m, err = DeviceMapperThinDeltaParser([]byte(thinDeltaOutputMix), blockSize, false)
-	require.Nil(t, err)
-	if !reflect.DeepEqual(*m, mMix) {
-		t.Fatal("Fail to get expect result from `mix` check")
-	}
+	c.Assert(err, IsNil)
+	c.Assert(*m, DeepEquals, mMix)
 
 	m, err = DeviceMapperThinDeltaParser([]byte(thinDeltaOutputDiff), blockSize, false)
-	require.Nil(t, err)
-	if !reflect.DeepEqual(*m, mDiff) {
-		t.Fatal("Fail to get expect result from `diff` check")
-	}
+	c.Assert(err, IsNil)
+	c.Assert(*m, DeepEquals, mDiff)
 }

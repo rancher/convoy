@@ -6,11 +6,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strconv"
-	"strings"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
+
+func Test(t *testing.T) { TestingT(t) }
+
+type TestSuite struct {
+	imageFile string
+}
+
+var _ = Suite(&TestSuite{})
 
 type Device struct {
 	Root              string
@@ -33,7 +41,21 @@ const (
 	imageSize = 1 << 27
 )
 
-func TestSaveLoadConfig(t *testing.T) {
+func (s *TestSuite) SetUpSuite(c *C) {
+	err := exec.Command("mkdir", "-p", testRoot).Run()
+	c.Assert(err, IsNil)
+
+	s.imageFile = filepath.Join(testRoot, testImage)
+	err = exec.Command("dd", "if=/dev/zero", "of="+s.imageFile, "bs=4096", "count="+strconv.Itoa(imageSize/4096)).Run()
+	c.Assert(err, IsNil)
+}
+
+func (s *TestSuite) TearDownSuite(c *C) {
+	err := exec.Command("rm", "-rf", testRoot).Run()
+	c.Assert(err, IsNil)
+}
+
+func (s *TestSuite) TestSaveLoadConfig(c *C) {
 	dev := Device{
 		Root:              "/tmp/volmgr/devmapper",
 		DataDevice:        "/dev/loop0",
@@ -45,9 +67,7 @@ func TestSaveLoadConfig(t *testing.T) {
 
 	dev.Volumes = make(map[string]Volume)
 	err := SaveConfig("/tmp", "cfg", &dev)
-	if err != nil {
-		t.Fatal("Fail to save config!", err)
-	}
+	c.Assert(err, IsNil)
 
 	dev.ThinpoolBlockSize = 2048
 
@@ -58,130 +78,94 @@ func TestSaveLoadConfig(t *testing.T) {
 	dev.Volumes["123"] = volume
 
 	err = SaveConfig("/tmp", "cfg", &dev)
-	if err != nil {
-		t.Fatal("Fail to update config!", err)
-	}
+	c.Assert(err, IsNil)
 
 	devNew := Device{}
 	err = LoadConfig("/tmp", "cfg", &devNew)
-	if err != nil {
-		t.Fatal("Fail to load config!", err)
-	}
+	c.Assert(err, IsNil)
 
-	if !reflect.DeepEqual(dev, devNew) {
-		t.Fatal("Fail to complete save/load config correctly!")
-	}
+	c.Assert(dev, DeepEquals, devNew)
 }
 
-func TestListConfigIDs(t *testing.T) {
+func (s *TestSuite) TestListConfigIDs(c *C) {
 	tmpdir, err := ioutil.TempDir("/tmp", "volmgr")
-	if err != nil {
-		t.Fatal("Fail to get temp dir")
-	}
+	c.Assert(err, IsNil)
 	defer os.RemoveAll(tmpdir)
 
 	prefix := "prefix_"
 	suffix := "_suffix.cfg"
 	ids := ListConfigIDs(tmpdir, prefix, suffix)
-	if len(ids) != 0 {
-		t.Fatal("Files out of nowhere! IDs", ids)
-	}
+	c.Assert(ids, HasLen, 0)
+
 	counts := 10
 	uuids := make(map[string]bool)
 	for i := 0; i < counts; i++ {
 		id := uuid.New()
 		uuids[id] = true
-		if err := exec.Command("touch", filepath.Join(tmpdir, prefix+id+suffix)).Run(); err != nil {
-			t.Fatal("Fail to create test files")
-		}
+		err := exec.Command("touch", filepath.Join(tmpdir, prefix+id+suffix)).Run()
+		c.Assert(err, IsNil)
 	}
 	uuidList := ListConfigIDs(tmpdir, prefix, suffix)
-	if len(uuidList) != counts {
-		t.Fatal("Wrong result for list")
-	}
+	c.Assert(uuidList, HasLen, counts)
 	for i := 0; i < counts; i++ {
-		if _, exists := uuids[uuidList[i]]; !exists {
-			t.Fatal("Wrong key for list")
-		}
+		_, exists := uuids[uuidList[i]]
+		c.Assert(exists, Equals, true)
 	}
 }
 
-func TestLockFile(t *testing.T) {
+func (s *TestSuite) TestLockFile(c *C) {
 	file := "/tmp/t.lock"
-	if err := LockFile(file); err != nil {
-		t.Fatal("Failed to unlock the file!", err)
-	}
-	if err := LockFile(file); err == nil || strings.HasPrefix(err.Error(), "resource tempoarily unavailable") {
-		t.Fatal("Shouldn't allow double lock file!", err)
-	}
-	if err := LockFile(file); err == nil || strings.HasPrefix(err.Error(), "resource tempoarily unavailable") {
-		t.Fatal("Shouldn't allow double lock file!", err)
-	}
-	if err := UnlockFile(file); err != nil {
-		t.Fatal("Failed to unlock the file!", err)
-	}
+	err := LockFile(file)
+	c.Assert(err, IsNil)
 
-	if err := LockFile(file); err != nil {
-		t.Fatal("Failed to unlock the file!", err)
-	}
-	if err := UnlockFile(file); err != nil {
-		t.Fatal("Failed to unlock the file!", err)
-	}
+	err = LockFile(file)
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "resource temporarily unavailable")
+
+	err = LockFile(file)
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "resource temporarily unavailable")
+
+	err = UnlockFile(file)
+	c.Assert(err, IsNil)
+
+	err = LockFile(file)
+	c.Assert(err, IsNil)
+
+	err = UnlockFile(file)
+	c.Assert(err, IsNil)
 }
 
-func TestSliceToMap(t *testing.T) {
+func (s *TestSuite) TestSliceToMap(c *C) {
 	legalMap := []string{
 		"a=1",
 		"b=2",
 	}
 	m := SliceToMap(legalMap)
-	if m["a"] != "1" || m["b"] != "2" {
-		t.Fatal("Failed test, result is not expected!")
-	}
+	c.Assert(m["a"], Equals, "1")
+	c.Assert(m["b"], Equals, "2")
+
 	illegalMap := []string{
 		"a=1",
 		"bcd",
 	}
 	m = SliceToMap(illegalMap)
-	if m != nil {
-		t.Fatal("Failed illegal test!")
-	}
-
+	c.Assert(m, IsNil)
 }
 
-func TestLoopDevice(t *testing.T) {
-	if err := exec.Command("mkdir", "-p", testRoot).Run(); err != nil {
-		t.Fatal(err)
-	}
+func (s *TestSuite) TestLoopDevice(c *C) {
+	dev, err := AttachLoopDeviceRO(s.imageFile)
+	c.Assert(err, IsNil)
 
-	imageFile := filepath.Join(testRoot, testImage)
-	if err := exec.Command("dd", "if=/dev/zero", "of="+imageFile, "bs=4096", "count="+strconv.Itoa(imageSize/4096)).Run(); err != nil {
-		t.Fatal(err)
-	}
+	err = DetachLoopDevice("/tmp", dev)
+	c.Assert(err, Not(IsNil))
 
-	dev, err := AttachLoopDevice(imageFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = DetachLoopDevice(s.imageFile, dev)
+	c.Assert(err, IsNil)
 
-	if err := DetachLoopDevice("/tmp", dev); err == nil {
-		t.Fatal("Expect failure")
-	}
+	_, err = AttachLoopDeviceRO("/tmp")
+	c.Assert(err, Not(IsNil))
 
-	if err := DetachLoopDevice(imageFile, dev); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := AttachLoopDevice("/tmp"); err == nil {
-		t.Fatal("Expect failure")
-	}
-
-	if err := DetachLoopDevice("/tmp", "/dev/loop0"); err == nil {
-		t.Fatal("Expect failure")
-	}
-
-	if err := exec.Command("rm", "-rf", testRoot).Run(); err != nil {
-		t.Fatal(err)
-	}
-
+	err = DetachLoopDevice("/tmp", "/dev/loop0")
+	c.Assert(err, Not(IsNil))
 }
