@@ -23,6 +23,8 @@ type Driver interface {
 	ReadSnapshot(id, volumeID string, start int64, data []byte) error
 	CloseSnapshot(id, volumeID string) error
 	Info() error
+	ActivateImage(imageUUID, imageFile string) error
+	DeactivateImage(imageUUID string) error
 }
 
 var (

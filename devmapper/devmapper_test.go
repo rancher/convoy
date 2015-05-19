@@ -5,9 +5,11 @@ package devmapper
 import (
 	"code.google.com/p/go-uuid/uuid"
 	log "github.com/Sirupsen/logrus"
+	"github.com/rancherio/volmgr/drivers"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -17,8 +19,10 @@ import (
 const (
 	dataFile     = "data.vol"
 	metadataFile = "metadata.vol"
+	imageFile    = "test.img"
 	poolName     = "test_pool"
 	devRoot      = "/tmp/devmapper"
+	devCfgRoot   = "/tmp/devmapper/cfg"
 	devCfg       = "driver_devicemapper.cfg"
 	volumeSize   = 1 << 27
 	maxThin      = 10000
@@ -29,6 +33,8 @@ func Test(t *testing.T) { TestingT(t) }
 type TestSuite struct {
 	dataDev     string
 	metadataDev string
+	imageFile   string
+	driver      drivers.Driver
 }
 
 var _ = Suite(&TestSuite{})
@@ -40,6 +46,9 @@ func (s *TestSuite) SetUpSuite(c *C) {
 	var err error
 
 	err = exec.Command("mkdir", "-p", devRoot).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("mkdir", "-p", devCfgRoot).Run()
 	c.Assert(err, IsNil)
 
 	err = exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, dataFile), "bs=4096", "count=262114").Run()
@@ -56,6 +65,11 @@ func (s *TestSuite) SetUpSuite(c *C) {
 	out, err = exec.Command("losetup", "-v", "-f", filepath.Join(devRoot, metadataFile)).Output()
 	c.Assert(err, IsNil)
 	s.metadataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
+
+	s.imageFile = filepath.Join(devRoot, imageFile)
+	err = exec.Command("dd", "if=/dev/zero", "of="+s.imageFile, "bs=4096",
+		"count="+strconv.Itoa(volumeSize/4096)).Run()
+	c.Assert(err, IsNil)
 }
 
 func (s *TestSuite) TearDownSuite(c *C) {
@@ -71,26 +85,26 @@ func (s *TestSuite) TearDownSuite(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (s *TestSuite) TestInit(c *C) {
+func (s *TestSuite) initDriver(c *C) {
 	config := make(map[string]string)
 
-	_, err := Init(devRoot, devCfg, config)
+	_, err := Init(devCfgRoot, devCfg, config)
 	c.Assert(err, ErrorMatches, "data device or metadata device unspecified")
 
 	config[DM_DATA_DEV] = s.dataDev
 	config[DM_METADATA_DEV] = s.metadataDev
 	config[DM_THINPOOL_BLOCK_SIZE] = "100"
-	_, err = Init(devRoot, devCfg, config)
+	_, err = Init(devCfgRoot, devCfg, config)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Block size must.*")
 
 	config[DM_THINPOOL_NAME] = "test_pool"
 	delete(config, DM_THINPOOL_BLOCK_SIZE)
 
-	driver, err := Init(devRoot, devCfg, config)
+	driver, err := Init(devCfgRoot, devCfg, config)
 	c.Assert(err, IsNil)
 
-	newDriver, err := Init(devRoot, devCfg, config)
+	newDriver, err := Init(devCfgRoot, devCfg, config)
 	c.Assert(err, IsNil)
 
 	drv1, ok := driver.(*Driver)
@@ -104,11 +118,20 @@ func (s *TestSuite) TestInit(c *C) {
 
 	c.Assert(drv1.DataDevice, Equals, s.dataDev)
 	c.Assert(drv1.MetadataDevice, Equals, s.metadataDev)
+
+	s.driver = driver
+}
+
+func (s *TestSuite) getDriver(c *C) drivers.Driver {
+	if s.driver == nil {
+		s.initDriver(c)
+	}
+	return s.driver
 }
 
 func (s *TestSuite) TestVolume(c *C) {
-	driver, err := Init(devRoot, devCfg, nil)
-	c.Assert(err, IsNil)
+	var err error
+	driver := s.getDriver(c)
 
 	drv := driver.(*Driver)
 	lastDevID := drv.LastDevID
@@ -151,8 +174,8 @@ func (s *TestSuite) TestVolume(c *C) {
 }
 
 func (s *TestSuite) TestSnapshot(c *C) {
-	driver, err := Init(devRoot, devCfg, nil)
-	c.Assert(err, IsNil)
+	var err error
+	driver := s.getDriver(c)
 
 	volumeID := uuid.New()
 	err = driver.CreateVolume(volumeID, "", volumeSize)
@@ -186,4 +209,28 @@ func (s *TestSuite) TestSnapshot(c *C) {
 
 	err = driver.DeleteVolume(volumeID)
 	c.Assert(err, IsNil)
+}
+
+func (s *TestSuite) TestImage(c *C) {
+	var err error
+	driver := s.getDriver(c)
+
+	imageID := uuid.New()
+	err = driver.ActivateImage(imageID, s.imageFile)
+	c.Assert(err, IsNil)
+
+	err = driver.DeactivateImage(imageID)
+	c.Assert(err, IsNil)
+
+	err = driver.ActivateImage(imageID, s.imageFile)
+	c.Assert(err, IsNil)
+
+	err = driver.ActivateImage(imageID, s.imageFile)
+	c.Assert(err, ErrorMatches, ".*already activated.*")
+
+	err = driver.DeactivateImage(imageID)
+	c.Assert(err, IsNil)
+
+	err = driver.DeactivateImage(imageID)
+	c.Assert(err, ErrorMatches, "Cannot find image.*")
 }

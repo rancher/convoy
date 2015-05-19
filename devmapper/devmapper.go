@@ -34,8 +34,9 @@ const (
 
 	SECTOR_SIZE = 512
 
-	VOLUME_CFG_PREFIX  = "volume_"
-	VOLUME_CFG_POSTFIX = "_" + DRIVER_NAME + ".json"
+	VOLUME_CFG_PREFIX     = "volume_"
+	IMAGE_CFG_PREFIX      = "image_"
+	DEVMAPPER_CFG_POSTFIX = "_" + DRIVER_NAME + ".json"
 )
 
 type Driver struct {
@@ -56,6 +57,14 @@ type Snapshot struct {
 	Activated bool
 }
 
+type Image struct {
+	UUID      string
+	FilePath  string
+	Size      int64
+	Device    string
+	VolumeRef map[string]bool
+}
+
 type Device struct {
 	Root              string
 	DataDevice        string
@@ -74,7 +83,7 @@ func getVolumeCfgName(uuid string) (string, error) {
 	if uuid == "" {
 		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
 	}
-	return VOLUME_CFG_PREFIX + uuid + VOLUME_CFG_POSTFIX, nil
+	return VOLUME_CFG_PREFIX + uuid + DEVMAPPER_CFG_POSTFIX, nil
 }
 
 func (device *Device) loadVolume(uuid string) *Volume {
@@ -111,7 +120,7 @@ func (device *Device) deleteVolume(uuid string) error {
 }
 
 func (device *Device) listVolumeIDs() []string {
-	return utils.ListConfigIDs(device.Root, VOLUME_CFG_PREFIX, VOLUME_CFG_POSTFIX)
+	return utils.ListConfigIDs(device.Root, VOLUME_CFG_PREFIX, DEVMAPPER_CFG_POSTFIX)
 }
 
 func verifyConfig(config map[string]string) (*Device, error) {
@@ -587,4 +596,94 @@ func (d *Driver) HasSnapshot(id, volumeID string) bool {
 		return false
 	}
 	return true
+}
+
+func getImageCfgName(uuid string) (string, error) {
+	if uuid == "" {
+		return "", fmt.Errorf("Invalid image UUID specified: %v", uuid)
+	}
+	return IMAGE_CFG_PREFIX + uuid + DEVMAPPER_CFG_POSTFIX, nil
+}
+
+func (device *Device) loadImage(uuid string) *Image {
+	cfgName, err := getImageCfgName(uuid)
+	if err != nil {
+		return nil
+	}
+	if !utils.ConfigExists(device.Root, cfgName) {
+		return nil
+	}
+	image := &Image{}
+	if err := utils.LoadConfig(device.Root, cfgName, image); err != nil {
+		log.Error("Failed to load volume json ", cfgName)
+		return nil
+	}
+	return image
+}
+
+func (device *Device) saveImage(image *Image) error {
+	uuid := image.UUID
+	cfgName, err := getImageCfgName(uuid)
+	if err != nil {
+		return err
+	}
+	return utils.SaveConfig(device.Root, cfgName, image)
+}
+
+func (device *Device) deleteImage(uuid string) error {
+	cfgName, err := getImageCfgName(uuid)
+	if err != nil {
+		return err
+	}
+	return utils.RemoveConfig(device.Root, cfgName)
+}
+
+func (d *Driver) ActivateImage(imageUUID, imageFile string) error {
+	image := d.loadImage(imageUUID)
+	if image != nil {
+		return fmt.Errorf("Image %v already activated by driver %v", imageUUID, DRIVER_NAME)
+	}
+	st, err := os.Stat(imageFile)
+	if err != nil || st.IsDir() {
+		return err
+	}
+	log.Debug("Found ", imageFile)
+	loopDev, err := utils.AttachLoopDeviceRO(imageFile)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Attached %v to %v", imageFile, loopDev)
+	image = &Image{
+		UUID:      imageUUID,
+		Size:      st.Size(),
+		FilePath:  imageFile,
+		Device:    loopDev,
+		VolumeRef: make(map[string]bool),
+	}
+	if err := d.saveImage(image); err != nil {
+		return err
+	}
+	log.Debug("Activated image ", imageUUID)
+	return nil
+}
+
+func (d *Driver) DeactivateImage(imageUUID string) error {
+	image := d.loadImage(imageUUID)
+	if image == nil {
+		return fmt.Errorf("Cannot find image %v by driver %v", imageUUID, DRIVER_NAME)
+	}
+	for volumeUUID := range image.VolumeRef {
+		if volume := d.loadVolume(volumeUUID); volume != nil {
+			return fmt.Errorf("Volume %v hasn't been removed yet", volume)
+		}
+	}
+	if err := utils.DetachLoopDevice(image.FilePath, image.Device); err != nil {
+		return err
+	}
+	log.Debugf("Detached %v from %v", image.FilePath, image.Device)
+	if err := d.deleteImage(imageUUID); err != nil {
+		return err
+	}
+	log.Debug("Deactivated image ", imageUUID)
+	return nil
 }
