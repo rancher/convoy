@@ -21,6 +21,7 @@ const (
 	BLOCKS_DIRECTORY       = "blocks"
 	BLOCK_SEPARATE_LAYER1  = 2
 	BLOCK_SEPARATE_LAYER2  = 4
+	IMAGES_DIRECTORY       = "images"
 	HASH_LEVEL             = 2
 )
 
@@ -209,4 +210,41 @@ func getSnapshots(volumeID string, driver BlockStoreDriver) (map[string]bool, er
 		result[parts[0]] = true
 	}
 	return result, nil
+}
+
+func GetImageLocalStorePath(imageDir, imageUUID string) string {
+	return filepath.Join(imageDir, imageUUID+".img")
+}
+
+func getImageBlockStorePath(imageUUID string) string {
+	return filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".img.gz")
+}
+
+func getImageCfgBlockStorePath(imageUUID string) string {
+	return filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".json")
+}
+
+func saveImageConfig(imageUUID string, driver BlockStoreDriver, img *Image) error {
+	file := getImageCfgBlockStorePath(imageUUID)
+	if err := saveConfigInBlockStore(file, driver, img); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadImageConfig(imageUUID string, driver BlockStoreDriver) (*Image, error) {
+	img := &Image{}
+	file := getImageCfgBlockStorePath(imageUUID)
+	if err := loadConfigInBlockStore(file, driver, img); err != nil {
+		return nil, err
+	}
+	return img, nil
+}
+
+func removeImageConfig(image *Image, driver BlockStoreDriver) error {
+	file := getImageCfgBlockStorePath(image.UUID)
+	if err := driver.RemoveAll(file); err != nil {
+		return err
+	}
+	return nil
 }

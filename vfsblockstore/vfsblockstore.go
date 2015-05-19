@@ -120,9 +120,9 @@ func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 }
 
 func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
-	out, err := exec.Command("ls", "-1", v.updatePath(path)).Output()
+	out, err := exec.Command("ls", "-1", v.updatePath(path)).CombinedOutput()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(string(out))
 	}
 	var result []string
 	if len(out) == 0 {
@@ -130,4 +130,20 @@ func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
 	}
 	result = strings.Split(strings.TrimSpace(string(out)), "\n")
 	return result, nil
+}
+
+func (v *VfsBlockStoreDriver) Upload(src, dst string) error {
+	tmpDst := dst + ".tmp"
+	if v.FileExists(tmpDst) {
+		v.RemoveAll(tmpDst)
+	}
+	output, err := exec.Command("cp", src, v.updatePath(tmpDst)).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf(string(output))
+	}
+	output, err = exec.Command("mv", v.updatePath(tmpDst), v.updatePath(dst)).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf(string(output))
+	}
+	return nil
 }

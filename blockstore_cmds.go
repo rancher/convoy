@@ -1,6 +1,7 @@
 package main
 
 import (
+	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
@@ -155,6 +156,46 @@ var (
 		Action: cmdBlockStoreListVolume,
 	}
 
+	blockstoreAddImageCmd = cli.Command{
+		Name:  "add-image",
+		Usage: "upload a raw image to blockstore, which can be used as base image later",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "blockstore-uuid",
+				Usage: "uuid of blockstore",
+			},
+			cli.StringFlag{
+				Name:  "image-uuid",
+				Usage: "uuid of image",
+			},
+			cli.StringFlag{
+				Name:  "image-name",
+				Usage: "user defined name of image",
+			},
+			cli.StringFlag{
+				Name:  "image-file",
+				Usage: "file name of image, image must already existed in <images-dir>",
+			},
+		},
+		Action: cmdBlockStoreAddImage,
+	}
+
+	blockstoreRemoveImageCmd = cli.Command{
+		Name:  "remove-image",
+		Usage: "remove an image from blockstore, WARNING: ALL THE VOLUMES/SNAPSHOTS BASED ON THAT IMAGE WON'T BE USABLE AFTER",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "blockstore-uuid",
+				Usage: "uuid of blockstore",
+			},
+			cli.StringFlag{
+				Name:  "image-uuid",
+				Usage: "uuid of image, if unspecified, a random one would be generated",
+			},
+		},
+		Action: cmdBlockStoreRemoveImage,
+	}
+
 	blockstoreCmd = cli.Command{
 		Name:  "blockstore",
 		Usage: "blockstore related operations",
@@ -163,6 +204,8 @@ var (
 			blockstoreDeregisterCmd,
 			blockstoreAddVolumeCmd,
 			blockstoreRemoveVolumeCmd,
+			blockstoreAddImageCmd,
+			blockstoreRemoveImageCmd,
 			blockstoreListCmd,
 		},
 	}
@@ -359,4 +402,48 @@ func doSnapshotRemove(c *cli.Context) error {
 	}
 
 	return blockstore.RemoveSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID)
+}
+
+func cmdBlockStoreAddImage(c *cli.Context) {
+	if err := doBlockStoreAddImage(c); err != nil {
+		panic(err)
+	}
+}
+
+func doBlockStoreAddImage(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, err)
+	imageName, err := getLowerCaseFlag(c, "image-name", false, err)
+	if err != nil {
+		return err
+	}
+
+	if imageUUID == "" {
+		imageUUID = uuid.New()
+	}
+
+	imageFile := c.String("image-file")
+	if imageFile == "" {
+		return genRequiredMissingError("image-file")
+	}
+
+	return blockstore.AddImage(config.Root, config.ImagesDir, imageUUID, imageName, imageFile, blockstoreUUID)
+}
+
+func cmdBlockStoreRemoveImage(c *cli.Context) {
+	if err := doBlockStoreRemoveImage(c); err != nil {
+		panic(err)
+	}
+}
+
+func doBlockStoreRemoveImage(c *cli.Context) error {
+	config, _, err := loadGlobalConfig(c)
+	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	if err != nil {
+		return err
+	}
+
+	return blockstore.RemoveImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID)
 }

@@ -154,3 +154,17 @@ class VolumeManager:
 		"--blockstore-uuid", bs_uuid])
         volumes = json.loads(data)
         return volumes["Volumes"]
+
+    def add_image_to_blockstore(self, image_file, bs_uuid):
+        data = subprocess.check_output(self.base_cmdline + ["blockstore",
+                "add-image",
+                "--image-file", image_file,
+                "--blockstore-uuid", bs_uuid])
+        image = json.loads(data)
+        return image["UUID"]
+
+    def remove_image_from_blockstore(self, image_uuid, bs_uuid):
+        subprocess.check_call(self.base_cmdline + ["blockstore",
+                "remove-image",
+                "--image-uuid", image_uuid,
+                "--blockstore-uuid", bs_uuid])

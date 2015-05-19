@@ -16,6 +16,7 @@ BLOCKSTORE_CFG = os.path.join(BLOCKSTORE_ROOT, "blockstore.cfg")
 BLOCKSTORE_VOLUME_DIR = os.path.join(BLOCKSTORE_ROOT, "volumes")
 BLOCKSTORE_PER_VOLUME_CFG = "volume.cfg"
 BLOCKSTORE_SNAPSHOTS_DIR = "snapshots"
+BLOCKSTORE_IMAGES_DIR = os.path.join(BLOCKSTORE_ROOT, "images")
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "volmgr_test_pool"
@@ -24,6 +25,7 @@ VOLMGR_CMDLINE = ["../../bin/volmgr", "--debug", "--log=/tmp/volmgr.log",
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
+IMAGE_FILE = "test.img"
 DATA_DEVICE_SIZE = 1073618944
 METADATA_DEVICE_SIZE = 40960000
 DM_DIR = "/dev/mapper"
@@ -34,6 +36,7 @@ VOLUME_SIZE_100M = 104857600
 
 data_dev = ""
 metadata_dev = ""
+image_file = ""
 
 mount_cleanup_list = []
 dm_cleanup_list = []
@@ -55,6 +58,12 @@ def setup_module():
             "bs=" + str(DD_BLOCK_SIZE), "count=" + str(METADATA_DEVICE_SIZE /
             DD_BLOCK_SIZE)])
     assert os.path.exists(os.path.join(TEST_ROOT, METADATA_FILE))
+
+    global image_file
+    image_file = os.path.join(TEST_ROOT, IMAGE_FILE)
+    subprocess.check_call(["dd", "if=/dev/zero", "of=" + image_file,
+            "bs=" + str(DD_BLOCK_SIZE), "count=" + str(VOLUME_SIZE_100M /
+            DD_BLOCK_SIZE)])
 
     global data_dev
     data_dev = subprocess.check_output(["losetup", "-v", "-f",
@@ -449,3 +458,27 @@ def test_blockstore():
 
     v.delete_volume(res_volume2_uuid)
     dm_cleanup_list.remove(res_volume2_uuid)
+
+def get_image_cfg(uuid):
+    return os.path.join(BLOCKSTORE_IMAGES_DIR, uuid + ".json")
+
+def get_image_gz(uuid):
+    return os.path.join(BLOCKSTORE_IMAGES_DIR, uuid + ".img.gz")
+
+def test_blockstore_image():
+    #load blockstore from created one
+    blockstore_uuid = v.register_vfs_blockstore(TEST_ROOT)
+
+    global image_file
+    image_uuid = v.add_image_to_blockstore(image_file, blockstore_uuid)
+
+    assert os.path.exists(BLOCKSTORE_IMAGES_DIR)
+    assert os.path.exists(get_image_cfg(image_uuid))
+    assert os.path.exists(get_image_gz(image_uuid))
+
+    v.remove_image_from_blockstore(image_uuid, blockstore_uuid)
+
+    assert os.path.exists(BLOCKSTORE_IMAGES_DIR)
+    assert not os.path.exists(get_image_cfg(image_uuid))
+    assert not os.path.exists(get_image_gz(image_uuid))
+

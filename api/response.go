@@ -32,6 +32,14 @@ type BlockStoreResponse struct {
 	BlockSize int64
 }
 
+type ImageResponse struct {
+	UUID        string
+	Name        string
+	Size        int64
+	Checksum    string
+	RawChecksum string
+}
+
 func ResponseError(format string, a ...interface{}) {
 	response := ErrorResponse{Error: fmt.Sprintf(format, a...)}
 	j, err := json.MarshalIndent(&response, "", "\t")

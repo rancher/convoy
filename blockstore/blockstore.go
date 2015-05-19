@@ -28,6 +28,7 @@ type BlockStoreDriver interface {
 	Read(src string, data []byte) error
 	Write(data []byte, dst string) error
 	List(path string) ([]string, error)
+	Upload(src, dst string) error
 }
 
 type Volume struct {
@@ -50,6 +51,14 @@ type BlockMapping struct {
 type SnapshotMap struct {
 	ID     string
 	Blocks []BlockMapping
+}
+
+type Image struct {
+	UUID        string
+	Name        string
+	Size        int64
+	Checksum    string
+	RawChecksum string
 }
 
 var (
@@ -104,6 +113,14 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 		}
 		log.Debug("Created base directory of blockstore at ", basePath)
 
+		imagesPath := filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY)
+		err = driver.MkDirAll(imagesPath)
+		if err != nil {
+			removeDriverConfigFile(root, kind, id)
+			return "", 0, err
+		}
+		log.Debug("Created base directory of images at ", imagesPath)
+
 		bs = &BlockStore{
 			UUID:      id,
 			Kind:      kind,
@@ -154,6 +171,7 @@ func getBlockstoreCfgAndDriver(root, blockstoreUUID string) (*BlockStore, BlockS
 	if err != nil {
 		return nil, nil, err
 	}
+	log.Debug("blockstore: loaded configure for blockstore", blockstoreUUID)
 	return b, driver, nil
 }
 
@@ -529,4 +547,141 @@ func ListVolume(root, blockstoreID, volumeID, snapshotID string) error {
 		return err
 	}
 	return listVolume(volumeID, snapshotID, bsDriver)
+}
+
+func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUID string) error {
+	imageStat, err := os.Stat(imageFilePath)
+	if os.IsNotExist(err) || imageStat.IsDir() {
+		return fmt.Errorf("Invalid image file")
+	}
+	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
+	if _, err := os.Stat(imageLocalStorePath); err == nil {
+		return fmt.Errorf("Image already stored with UUID %v", imageUUID)
+	}
+
+	_, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreUUID)
+	if err != nil {
+		return err
+	}
+
+	imageBlockStorePath := getImageBlockStorePath(imageUUID)
+	imageCfgBlockStorePath := getImageCfgBlockStorePath(imageUUID)
+
+	imageExists := bsDriver.FileExists(imageBlockStorePath)
+	imageCfgExists := bsDriver.FileExists(imageCfgBlockStorePath)
+	if imageExists && imageCfgExists {
+		return fmt.Errorf("The image with uuid %v already existed in blockstore", imageUUID)
+	} else if imageExists != imageCfgExists {
+		return fmt.Errorf("The image with uuid %v state is inconsistent in blockstore", imageUUID)
+	}
+
+	if imageStat.Size()%DEFAULT_BLOCK_SIZE != 0 {
+		return fmt.Errorf("The image size must be multiplier of %v", DEFAULT_BLOCK_SIZE)
+	}
+
+	image := &Image{}
+	image.UUID = imageUUID
+	image.Name = imageName
+	image.Size = imageStat.Size()
+
+	log.Debugf("blockstore: copying image %v to local store %v", imageFilePath, imageLocalStorePath)
+	if err := utils.Copy(imageFilePath, imageLocalStorePath); err != nil {
+		log.Debugf("blockstore: copying image failed")
+		return err
+	}
+	log.Debug("blockstore: copied image to local store")
+
+	log.Debugf("blockstore: prepare uploading image to blockstore ")
+	if err := uploadImage(imageLocalStorePath, bsDriver, image); err != nil {
+		log.Debugf("blockstore: uploading image failed")
+		return err
+	}
+	log.Debug("blockstore: uploaded image to blockstore")
+
+	if err := saveImageConfig(imageUUID, bsDriver, image); err != nil {
+		return err
+	}
+	log.Debug("blockstore: save image config to blockstore done")
+
+	imageResp := api.ImageResponse{
+		UUID:        image.UUID,
+		Name:        image.Name,
+		Size:        image.Size,
+		Checksum:    image.Checksum,
+		RawChecksum: image.RawChecksum,
+	}
+	api.ResponseOutput(imageResp)
+	return nil
+}
+
+func uploadImage(imageLocalStorePath string, bsDriver BlockStoreDriver, image *Image) error {
+	log.Debug("blockstore: calculating checksum for raw image")
+	rawChecksum, err := utils.GetFileChecksum(imageLocalStorePath)
+	if err != nil {
+		log.Debug("blockstore: calculation failed")
+		return err
+	}
+	log.Debug("blockstore: calculation done, raw checksum: ", rawChecksum)
+	image.RawChecksum = rawChecksum
+
+	log.Debug("blockstore: compressing raw image")
+	if err := utils.CompressFile(imageLocalStorePath); err != nil {
+		log.Debug("blockstore: compressing failed ")
+		return err
+	}
+	compressedLocalPath := imageLocalStorePath + ".gz"
+	log.Debug("blockstore: compressed raw image to ", compressedLocalPath)
+
+	log.Debug("blockstore: calculating checksum for compressed image")
+	if image.Checksum, err = utils.GetFileChecksum(compressedLocalPath); err != nil {
+		log.Debug("blockstore: calculation failed")
+		return err
+	}
+	log.Debug("blockstore: calculation done, checksum: ", image.Checksum)
+
+	imageBlockStorePath := getImageBlockStorePath(image.UUID)
+	log.Debug("blockstore: uploading image to blockstore path: ", imageBlockStorePath)
+	if err := bsDriver.Upload(compressedLocalPath, imageBlockStorePath); err != nil {
+		log.Debugf("blockstore: uploading failed")
+		return err
+	}
+	log.Debugf("blockstore: uploading done")
+	return nil
+}
+
+func removeImage(bsDriver BlockStoreDriver, image *Image) error {
+	if err := removeImageConfig(image, bsDriver); err != nil {
+		return err
+	}
+	log.Debugf("blockstore: removed image %v's config from blockstore", image.UUID)
+	imageBlockStorePath := getImageBlockStorePath(image.UUID)
+	if err := bsDriver.RemoveAll(imageBlockStorePath); err != nil {
+		return err
+	}
+	log.Debug("blockstore: removed image at ", imageBlockStorePath)
+	return nil
+}
+
+func RemoveImage(root, imageDir, imageUUID, blockstoreUUID string) error {
+	_, driver, err := getBlockstoreCfgAndDriver(root, blockstoreUUID)
+	if err != nil {
+		return err
+	}
+
+	image, err := loadImageConfig(imageUUID, driver)
+	if err != nil {
+		return err
+	}
+
+	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
+	if _, err := os.Stat(imageLocalStorePath); err == nil {
+		return fmt.Errorf("Image %v is still activated", imageUUID)
+	}
+
+	if err := removeImage(driver, image); err != nil {
+		return err
+	}
+	log.Debugf("blockstore: image %v removed", imageUUID)
+
+	return nil
 }
