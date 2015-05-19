@@ -160,18 +160,18 @@ func (s *TestSuite) TestChecksum(c *C) {
 }
 
 func (s *TestSuite) TestLoopDevice(c *C) {
-	dev, err := AttachLoopDeviceRO(s.imageFile)
+	dev, err := AttachLoopbackDevice(s.imageFile, true)
 	c.Assert(err, IsNil)
 
-	err = DetachLoopDevice("/tmp", dev)
+	err = DetachLoopbackDevice("/tmp", dev)
 	c.Assert(err, Not(IsNil))
 
-	err = DetachLoopDevice(s.imageFile, dev)
+	err = DetachLoopbackDevice(s.imageFile, dev)
 	c.Assert(err, IsNil)
 
-	_, err = AttachLoopDeviceRO("/tmp")
+	_, err = AttachLoopbackDevice("/tmp", true)
 	c.Assert(err, Not(IsNil))
 
-	err = DetachLoopDevice("/tmp", "/dev/loop0")
+	err = DetachLoopbackDevice("/tmp", "/dev/loop0")
 	c.Assert(err, Not(IsNil))
 }

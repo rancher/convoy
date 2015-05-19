@@ -648,7 +648,7 @@ func (d *Driver) ActivateImage(imageUUID, imageFile string) error {
 		return err
 	}
 	log.Debug("Found ", imageFile)
-	loopDev, err := utils.AttachLoopDeviceRO(imageFile)
+	loopDev, err := utils.AttachLoopbackDevice(imageFile, true)
 	if err != nil {
 		return err
 	}
@@ -677,7 +677,7 @@ func (d *Driver) DeactivateImage(imageUUID string) error {
 			return fmt.Errorf("Volume %v hasn't been removed yet", volume)
 		}
 	}
-	if err := utils.DetachLoopDevice(image.FilePath, image.Device); err != nil {
+	if err := utils.DetachLoopbackDevice(image.FilePath, image.Device); err != nil {
 		return err
 	}
 	log.Debugf("Detached %v from %v", image.FilePath, image.Device)

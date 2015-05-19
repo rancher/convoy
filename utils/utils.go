@@ -182,8 +182,13 @@ func Copy(src, dst string) error {
 	return exec.Command("cp", src, dst).Run()
 }
 
-func AttachLoopDeviceRO(file string) (string, error) {
-	out, err := exec.Command("losetup", "-v", "-r", "-f", file).Output()
+func AttachLoopbackDevice(file string, readonly bool) (string, error) {
+	params := []string{"-v", "-f"}
+	if readonly {
+		params = append(params, "-r")
+	}
+	params = append(params, file)
+	out, err := exec.Command("losetup", params...).Output()
 	if err != nil {
 		return "", err
 	}
@@ -191,7 +196,7 @@ func AttachLoopDeviceRO(file string) (string, error) {
 	return dev, nil
 }
 
-func DetachLoopDevice(file, dev string) error {
+func DetachLoopbackDevice(file, dev string) error {
 	output, err := exec.Command("losetup", dev).Output()
 	if err != nil {
 		return err
