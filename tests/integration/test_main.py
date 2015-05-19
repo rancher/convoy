@@ -124,11 +124,11 @@ def test_volume_cru():
     dm_cleanup_list.append(uuid2)
 
     with pytest.raises(subprocess.CalledProcessError):
-        uuid3 = v.create_volume_with_uuid(VOLUME_SIZE_100M, uuid1)
+        uuid3 = v.create_volume(VOLUME_SIZE_100M, uuid1)
 
     specific_uuid = str(uuid.uuid1())
 
-    uuid3 = v.create_volume_with_uuid(VOLUME_SIZE_100M, specific_uuid)
+    uuid3 = v.create_volume(VOLUME_SIZE_100M, specific_uuid)
     dm_cleanup_list.append(uuid3)
     assert uuid3 == specific_uuid
 

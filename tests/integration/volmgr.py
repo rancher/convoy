@@ -11,21 +11,15 @@ class VolumeManager:
         self.base_cmdline = cmdline
 	self.mount_root = mount_root
 
-    def create_volume(self, size):
-        data = subprocess.check_output(self.base_cmdline + ["volume", "create",
-    	    "--size", str(size)])
+    def create_volume(self, size, uuid = "", base = ""):
+        cmd = ["volume", "create", "--size", str(size)]
+        if uuid != "":
+            cmd = cmd + ["--volume-uuid", uuid]
+        if base != "":
+            cmd = cmd + ["--image-uuid", base]
+        data = subprocess.check_output(self.base_cmdline + cmd)
         volume = json.loads(data)
         uuid = volume["UUID"]
-        assert volume["Size"] == size
-        assert volume["Base"] == ""
-        return uuid
-
-    def create_volume_with_uuid(self, size, uuid):
-        data = subprocess.check_output(self.base_cmdline + ["volume", "create",
-            "--size", str(size),
-            "--volume-uuid", uuid])
-        volume = json.loads(data)
-        assert volume["UUID"] == uuid
         assert volume["Size"] == size
         assert volume["Base"] == ""
         return uuid
