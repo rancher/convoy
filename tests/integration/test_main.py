@@ -11,7 +11,7 @@ from volmgr import VolumeManager
 TEST_ROOT = "/tmp/volmgr_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "volmgr")
 MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
-IMAGES_DIR = "/tmp/volmgr_images"
+IMAGES_DIR = os.path.join(TEST_ROOT, "images")
 TEST_IMAGE_FILE = "image.test"
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
@@ -105,6 +105,13 @@ def setup_module():
     global v
     v = VolumeManager(VOLMGR_CMDLINE, TEST_ROOT)
 
+def detach_all_lodev(keyword):
+    output = subprocess.check_output(["losetup", "-a"])
+    lines = output.splitlines()
+    for line in lines:
+        if line.find(keyword) != -1:
+            detach_loopback_dev(line.split(":")[0].strip())
+
 def teardown_module():
     while mount_cleanup_list:
 	code = subprocess.call(["umount", mount_cleanup_list.pop()])
@@ -119,6 +126,8 @@ def teardown_module():
     code = subprocess.call(["losetup", "-d", data_dev, metadata_dev])
     if code != 0:
         print "Something wrong when tearing down, error {}, continuing", code
+
+    detach_all_lodev(TEST_ROOT)
 
     filenames = os.listdir(CFG_ROOT)
     for filename in filenames:
