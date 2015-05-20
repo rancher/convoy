@@ -182,6 +182,13 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 		return err
 	}
 
+	if base != "" {
+		_, err := loadImageConfig(base, driver)
+		if err != nil {
+			return err
+		}
+	}
+
 	volumePath := getVolumePath(volumeID)
 	volumeCfg := VOLUME_CONFIG_FILE
 	volumeFile := filepath.Join(volumePath, volumeCfg)

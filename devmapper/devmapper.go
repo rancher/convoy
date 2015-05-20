@@ -282,10 +282,14 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	if baseID != "" {
 		image = d.loadImage(baseID)
 		if image == nil {
-			return fmt.Errorf("Cannot find base image %v", baseID)
+			return fmt.Errorf("Cannot find activated base image %v", baseID)
 		}
 		if _, err := os.Stat(image.Device); err != nil {
 			return fmt.Errorf("Base image device %v doesn't exist", image.Device)
+		}
+		if size != image.Size {
+			return fmt.Errorf("Volume has different size(%v) than base image(%v)",
+				size, image.Size)
 		}
 	}
 
@@ -304,7 +308,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 			return err
 		}
 	} else {
-		if err = d.activateDeviceWithExternal(id, devID, uint64(image.Size), image.Device); err != nil {
+		if err = d.activateDeviceWithExternal(id, devID, uint64(size), image.Device); err != nil {
 			devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
 			log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
 			return err

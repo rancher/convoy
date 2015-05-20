@@ -10,7 +10,10 @@ from volmgr import VolumeManager
 
 TEST_ROOT = "/tmp/volmgr_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "volmgr")
+MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
 IMAGES_DIR = "/tmp/volmgr_images"
+TEST_IMAGE_FILE = "image.test"
+TEST_SNAPSHOT_FILE = "snapshot.test"
 
 BLOCKSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-blockstore")
 BLOCKSTORE_CFG = os.path.join(BLOCKSTORE_ROOT, "blockstore.cfg")
@@ -42,6 +45,32 @@ image_file = ""
 mount_cleanup_list = []
 dm_cleanup_list = []
 
+def create_empty_file(filepath, size):
+    subprocess.check_call(["dd", "if=/dev/zero", "of=" + filepath,
+            "bs=" + str(DD_BLOCK_SIZE), "count=" + str(size /
+            DD_BLOCK_SIZE)])
+    assert os.path.exists(filepath)
+
+def attach_loopback_dev(filepath):
+    dev = subprocess.check_output(["losetup", "-v", "-f",
+            filepath]).strip().split(" ")[3]
+    assert dev.startswith("/dev/loop")
+    return dev
+
+def detach_loopback_dev(dev):
+    subprocess.check_output(["losetup", "-d", dev])
+
+def format_dev(dev):
+    subprocess.check_call(["mkfs", "-t", "ext4", dev])
+
+def mount_dev(dev, mountpoint):
+    subprocess.check_call(["mount", dev, mountpoint])
+    mount_cleanup_list.append(mountpoint)
+
+def umount_dev(mountpoint):
+    subprocess.check_call(["umount", mountpoint])
+    mount_cleanup_list.remove(mountpoint)
+
 def setup_module():
     if os.path.exists(TEST_ROOT):
 	subprocess.check_call(["rm", "-rf", TEST_ROOT])
@@ -49,31 +78,29 @@ def setup_module():
     os.makedirs(TEST_ROOT)
     assert os.path.exists(TEST_ROOT)
 
+    os.makedirs(MOUNT_ROOT)
+    assert os.path.exists(MOUNT_ROOT)
+
     data_file = os.path.join(TEST_ROOT, DATA_FILE)
+    create_empty_file(data_file, DATA_DEVICE_SIZE)
+    global data_dev
+    data_dev = attach_loopback_dev(data_file)
+
     metadata_file = os.path.join(TEST_ROOT, METADATA_FILE)
-    subprocess.check_call(["dd", "if=/dev/zero", "of=" + data_file,
-            "bs=" + str(DD_BLOCK_SIZE), "count=" + str(DATA_DEVICE_SIZE /
-            DD_BLOCK_SIZE)])
-    assert os.path.exists(os.path.join(TEST_ROOT, DATA_FILE))
-    subprocess.check_call(["dd", "if=/dev/zero", "of=" + metadata_file,
-            "bs=" + str(DD_BLOCK_SIZE), "count=" + str(METADATA_DEVICE_SIZE /
-            DD_BLOCK_SIZE)])
-    assert os.path.exists(os.path.join(TEST_ROOT, METADATA_FILE))
+    create_empty_file(metadata_file, METADATA_DEVICE_SIZE)
+    global metadata_dev
+    metadata_dev = attach_loopback_dev(metadata_file)
 
     global image_file
     image_file = os.path.join(TEST_ROOT, IMAGE_FILE)
-    subprocess.check_call(["dd", "if=/dev/zero", "of=" + image_file,
-            "bs=" + str(DD_BLOCK_SIZE), "count=" + str(VOLUME_SIZE_100M /
-            DD_BLOCK_SIZE)])
+    create_empty_file(image_file, VOLUME_SIZE_100M)
 
-    global data_dev
-    data_dev = subprocess.check_output(["losetup", "-v", "-f",
-            data_file]).strip().split(" ")[3]
-    assert data_dev.startswith("/dev/loop")
-    global metadata_dev
-    metadata_dev = subprocess.check_output(["losetup", "-v", "-f",
-            metadata_file]).strip().split(" ")[3]
-    assert metadata_dev.startswith("/dev/loop")
+    image_dev = attach_loopback_dev(image_file)
+    format_dev(image_dev)
+    mount_dev(image_dev, MOUNT_ROOT)
+    subprocess.check_call(["touch", os.path.join(MOUNT_ROOT, TEST_IMAGE_FILE)])
+    umount_dev(MOUNT_ROOT)
+    detach_loopback_dev(image_dev)
 
     global v
     v = VolumeManager(VOLMGR_CMDLINE, TEST_ROOT)
@@ -515,3 +542,59 @@ def test_blockstore_image():
     assert not os.path.exists(get_local_image(image_uuid))
 
     v.remove_image_from_blockstore(image_uuid, blockstore_uuid)
+
+def test_image_based_volume():
+    #load blockstore from created one
+    blockstore_uuid = v.register_vfs_blockstore(TEST_ROOT)
+
+    #add/remove image
+    global image_file
+    image_uuid = v.add_image_to_blockstore(image_file, blockstore_uuid)
+
+    v.activate_image(image_uuid, blockstore_uuid)
+
+    volume_uuid = v.create_volume(VOLUME_SIZE_100M, base=image_uuid) 
+    dm_cleanup_list.append(volume_uuid)
+
+    volume_mount_dir = v.mount_volume(volume_uuid, False)
+    mount_cleanup_list.append(volume_mount_dir)
+
+    assert os.path.exists(os.path.join(volume_mount_dir, TEST_IMAGE_FILE))
+    subprocess.check_call(["touch", os.path.join(volume_mount_dir,
+	    TEST_SNAPSHOT_FILE)])
+    v.umount_volume(volume_uuid)
+    mount_cleanup_list.remove(volume_mount_dir)
+
+    snapshot_uuid = v.create_snapshot(volume_uuid)
+    v.add_volume_to_blockstore(volume_uuid, blockstore_uuid)
+    v.backup_snapshot_to_blockstore(snapshot_uuid, volume_uuid, blockstore_uuid)
+
+    new_volume_uuid = v.create_volume(VOLUME_SIZE_100M, base=image_uuid)
+    dm_cleanup_list.append(new_volume_uuid)
+
+    v.restore_snapshot_from_blockstore(snapshot_uuid, volume_uuid,
+            new_volume_uuid, blockstore_uuid)
+
+    new_volume_mount_dir = v.mount_volume(new_volume_uuid, False)
+    mount_cleanup_list.append(new_volume_mount_dir)
+
+    assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_IMAGE_FILE))
+    assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_SNAPSHOT_FILE))
+
+    v.umount_volume(new_volume_uuid)
+    mount_cleanup_list.remove(new_volume_mount_dir)
+
+    v.remove_snapshot_from_blockstore(snapshot_uuid, volume_uuid,
+            blockstore_uuid)
+    v.delete_snapshot(snapshot_uuid, volume_uuid)
+
+    v.remove_volume_from_blockstore(volume_uuid, blockstore_uuid)
+    v.delete_volume(volume_uuid)
+    dm_cleanup_list.remove(volume_uuid)
+
+    v.delete_volume(new_volume_uuid)
+    dm_cleanup_list.remove(new_volume_uuid)
+
+    v.deactivate_image(image_uuid, blockstore_uuid)
+    v.remove_image_from_blockstore(image_uuid, blockstore_uuid)
+
