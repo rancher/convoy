@@ -19,10 +19,11 @@ class VolumeManager:
             cmd = cmd + ["--image-uuid", base]
         data = subprocess.check_output(self.base_cmdline + cmd)
         volume = json.loads(data)
-        uuid = volume["UUID"]
+        if uuid != "":
+            assert volume["UUID"] == uuid
         assert volume["Size"] == size
         assert volume["Base"] == ""
-        return uuid
+        return volume["UUID"]
 
     def delete_volume(self, uuid):
         subprocess.check_call(self.base_cmdline + ["volume", "delete",
@@ -62,21 +63,14 @@ class VolumeManager:
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def create_snapshot(self, volume_uuid):
-        data = subprocess.check_output(self.base_cmdline + \
-		["snapshot", "create",
-    	    	"--volume-uuid", volume_uuid])
+    def create_snapshot(self, volume_uuid, uuid = ""):
+        cmd = ["snapshot", "create", "--volume-uuid", volume_uuid]
+        if uuid != "":
+            cmd = cmd + ["--snapshot-uuid", uuid]
+        data = subprocess.check_output(self.base_cmdline + cmd)
         snapshot = json.loads(data)
-        assert snapshot["VolumeUUID"] == volume_uuid
-        return snapshot["UUID"]
-
-    def create_snapshot_with_uuid(self, volume_uuid, uuid):
-        data = subprocess.check_output(self.base_cmdline + \
-		["snapshot", "create",
-                 "--volume-uuid", volume_uuid,
-                 "--snapshot-uuid", uuid])
-        snapshot = json.loads(data)
-        assert snapshot["UUID"] == uuid
+        if uuid != "":
+            assert snapshot["UUID"] == uuid
         assert snapshot["VolumeUUID"] == volume_uuid
         return snapshot["UUID"]
 

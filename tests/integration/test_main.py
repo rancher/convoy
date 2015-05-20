@@ -228,7 +228,7 @@ def test_snapshot_list():
     volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
     assert snap0_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
 
-    v.create_snapshot_with_uuid(volume1_uuid, snap0_vol1_uuid)
+    v.create_snapshot(volume1_uuid, snap0_vol1_uuid)
 
     volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
     assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
@@ -239,7 +239,7 @@ def test_snapshot_list():
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     snap3_vol2_uuid = v.create_snapshot(volume2_uuid)
     with pytest.raises(subprocess.CalledProcessError):
-	v.create_snapshot_with_uuid(volume2_uuid, snap1_vol2_uuid)
+	v.create_snapshot(volume2_uuid, snap1_vol2_uuid)
 
     volumes = v.list_volumes(volume2_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
