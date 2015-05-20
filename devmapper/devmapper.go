@@ -49,6 +49,7 @@ type Volume struct {
 	UUID      string
 	DevID     int
 	Size      int64
+	Base      string
 	Snapshots map[string]Snapshot
 }
 
@@ -277,6 +278,17 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		return fmt.Errorf("Already has volume with uuid %v", id)
 	}
 
+	var image *Image
+	if baseID != "" {
+		image = d.loadImage(baseID)
+		if image == nil {
+			return fmt.Errorf("Cannot find base image %v", baseID)
+		}
+		if _, err := os.Stat(image.Device); err != nil {
+			return fmt.Errorf("Base image device %v doesn't exist", image.Device)
+		}
+	}
+
 	devID := d.LastDevID
 	log.Debugf("Creating device, uuid %v(devid %v)", id, devID)
 	err := devicemapper.CreateDevice(d.ThinpoolDevice, devID)
@@ -285,10 +297,18 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	}
 	log.Debug("Created device")
 
-	if err = d.activateDevice(id, devID, uint64(size)); err != nil {
-		devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
-		log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
-		return err
+	if image == nil {
+		if err = d.activateDevice(id, devID, uint64(size)); err != nil {
+			devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
+			log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
+			return err
+		}
+	} else {
+		if err = d.activateDeviceWithExternal(id, devID, uint64(image.Size), image.Device); err != nil {
+			devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
+			log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
+			return err
+		}
 	}
 
 	volume = &Volume{
@@ -296,6 +316,13 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		DevID:     devID,
 		Size:      size,
 		Snapshots: make(map[string]Snapshot),
+	}
+	if image != nil {
+		volume.Base = image.UUID
+		image.VolumeRef[id] = true
+		if err := d.saveImage(image); err != nil {
+			return err
+		}
 	}
 	if err := d.saveVolume(volume); err != nil {
 		return err
@@ -330,6 +357,17 @@ func (d *Driver) DeleteVolume(id string) error {
 		return err
 	}
 	log.Debug("Deleted device")
+
+	if volume.Base != "" {
+		image := d.loadImage(volume.Base)
+		if image == nil {
+			return fmt.Errorf("Cannot find volume's base image %v", volume.Base)
+		}
+		if _, exists := image.VolumeRef[volume.UUID]; !exists {
+			return fmt.Errorf("Volume's base image %v doesn't refer volume %v", volume.Base, volume.UUID)
+		}
+		delete(image.VolumeRef, volume.UUID)
+	}
 
 	if err := d.deleteVolume(id); err != nil {
 		return err
@@ -523,6 +561,16 @@ func (d *Driver) activateDevice(id string, devID int, size uint64) error {
 	return nil
 }
 
+func (d *Driver) activateDeviceWithExternal(id string, devID int, size uint64, baseDev string) error {
+	log.Debugf("Activating device with external, uuid %v(devid %v), external device %v", id, devID, baseDev)
+	err := devicemapper.ActivateDeviceWithExternal(d.ThinpoolDevice, id, devID, size, baseDev)
+	if err != nil {
+		return err
+	}
+	log.Debug("Activated device")
+	return nil
+}
+
 func (d *Driver) deactivateDevice(id string, devID int) error {
 	log.Debugf("Deactivating device, uuid %v(devid %v)", id, devID)
 	err := devicemapper.RemoveDevice(id)
@@ -606,6 +654,9 @@ func getImageCfgName(uuid string) (string, error) {
 }
 
 func (device *Device) loadImage(uuid string) *Image {
+	if uuid == "" {
+		return nil
+	}
 	cfgName, err := getImageCfgName(uuid)
 	if err != nil {
 		return nil

@@ -22,8 +22,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
-			"Comment": "v1.4.1-1321-ga96662f",
-			"Rev": "a96662ff1669046ca48f1f5c3b98719fe89e4542"
+			"Comment": "v1.4.1-2111-ga11c685",
+			"Rev": "a11c6852dfde0b1081fb84d0d02bd200097b0e5a"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",

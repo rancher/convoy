@@ -6,35 +6,42 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	log "github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/drivers"
+	"github.com/rancherio/volmgr/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 
 	. "gopkg.in/check.v1"
 )
 
 const (
-	dataFile     = "data.vol"
-	metadataFile = "metadata.vol"
-	imageFile    = "test.img"
-	poolName     = "test_pool"
-	devRoot      = "/tmp/devmapper"
-	devCfgRoot   = "/tmp/devmapper/cfg"
-	devCfg       = "driver_devicemapper.cfg"
-	volumeSize   = 1 << 27
-	maxThin      = 10000
+	dataFile      = "data.vol"
+	metadataFile  = "metadata.vol"
+	imageFile     = "test.img"
+	imageTestFile = "image.exists"
+	poolName      = "test_pool"
+	devRoot       = "/tmp/devmapper"
+	devDataRoot   = "/tmp/devmapper/data"
+	devCfgRoot    = "/tmp/devmapper/cfg"
+	devMount      = "/tmp/devmapper/mount"
+	devCfg        = "driver_devicemapper.cfg"
+	volumeSize    = 1 << 26
+	dataSize      = 1 << 28
+	metadataSize  = 1 << 25
+	maxThin       = 10000
 )
 
 func Test(t *testing.T) { TestingT(t) }
 
 type TestSuite struct {
-	dataDev     string
-	metadataDev string
-	imageFile   string
-	driver      drivers.Driver
+	dataDev      string
+	dataFile     string
+	metadataDev  string
+	metadataFile string
+	imageFile    string
+	driver       drivers.Driver
 }
 
 var _ = Suite(&TestSuite{})
@@ -48,40 +55,81 @@ func (s *TestSuite) SetUpSuite(c *C) {
 	err = exec.Command("mkdir", "-p", devRoot).Run()
 	c.Assert(err, IsNil)
 
-	err = exec.Command("mkdir", "-p", devCfgRoot).Run()
+	err = exec.Command("mkdir", "-p", devMount).Run()
 	c.Assert(err, IsNil)
 
-	err = exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, dataFile), "bs=4096", "count=262114").Run()
-	c.Assert(err, IsNil)
-
-	err = exec.Command("dd", "if=/dev/zero", "of="+filepath.Join(devRoot, metadataFile), "bs=4096", "count=10000").Run()
-	c.Assert(err, IsNil)
-
-	out, err := exec.Command("losetup", "-v", "-f", filepath.Join(devRoot, dataFile)).Output()
-	c.Assert(err, IsNil)
-
-	s.dataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
-
-	out, err = exec.Command("losetup", "-v", "-f", filepath.Join(devRoot, metadataFile)).Output()
-	c.Assert(err, IsNil)
-	s.metadataDev = strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
-
+	// Prepare base image
 	s.imageFile = filepath.Join(devRoot, imageFile)
 	err = exec.Command("dd", "if=/dev/zero", "of="+s.imageFile, "bs=4096",
 		"count="+strconv.Itoa(volumeSize/4096)).Run()
 	c.Assert(err, IsNil)
+
+	tmpDev, err := utils.AttachLoopbackDevice(s.imageFile, false)
+	c.Assert(err, IsNil)
+
+	err = exec.Command("mkfs", "-t", "ext4", tmpDev).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("mount", tmpDev, devMount).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("touch", filepath.Join(devMount, imageTestFile)).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("umount", devMount).Run()
+	c.Assert(err, IsNil)
+
+	err = utils.DetachLoopbackDevice(s.imageFile, tmpDev)
+	c.Assert(err, IsNil)
 }
 
-func (s *TestSuite) TearDownSuite(c *C) {
+func (s *TestSuite) SetUpTest(c *C) {
+	s.driver = nil
+
+	err := exec.Command("mkdir", "-p", devCfgRoot).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("mkdir", "-p", devDataRoot).Run()
+	c.Assert(err, IsNil)
+
+	s.dataFile = filepath.Join(devDataRoot, dataFile)
+	s.metadataFile = filepath.Join(devDataRoot, metadataFile)
+
+	err = exec.Command("dd", "if=/dev/zero", "of="+s.dataFile, "bs=4096",
+		"count="+strconv.Itoa(dataSize/4096)).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("dd", "if=/dev/zero", "of="+s.metadataFile, "bs=4096",
+		"count="+strconv.Itoa(metadataSize/4096)).Run()
+	c.Assert(err, IsNil)
+
+	s.dataDev, err = utils.AttachLoopbackDevice(s.dataFile, false)
+	c.Assert(err, IsNil)
+
+	s.metadataDev, err = utils.AttachLoopbackDevice(s.metadataFile, false)
+	c.Assert(err, IsNil)
+
+	s.initDriver(c)
+}
+
+func (s *TestSuite) TearDownTest(c *C) {
 	var err error
 
 	err = exec.Command("dmsetup", "remove", poolName).Run()
-	c.Assert(err, IsNil)
+	c.Check(err, IsNil)
 
 	err = exec.Command("losetup", "-d", s.dataDev, s.metadataDev).Run()
-	c.Assert(err, IsNil)
+	c.Check(err, IsNil)
 
-	err = exec.Command("rm", "-rf", devRoot).Run()
+	err = exec.Command("rm", "-rf", devCfgRoot).Run()
+	c.Check(err, IsNil)
+
+	err = exec.Command("rm", "-rf", devDataRoot).Run()
+	c.Check(err, IsNil)
+}
+
+func (s *TestSuite) TearDownSuite(c *C) {
+	err := exec.Command("rm", "-rf", devRoot).Run()
 	c.Assert(err, IsNil)
 }
 
@@ -122,16 +170,9 @@ func (s *TestSuite) initDriver(c *C) {
 	s.driver = driver
 }
 
-func (s *TestSuite) getDriver(c *C) drivers.Driver {
-	if s.driver == nil {
-		s.initDriver(c)
-	}
-	return s.driver
-}
-
 func (s *TestSuite) TestVolume(c *C) {
 	var err error
-	driver := s.getDriver(c)
+	driver := s.driver
 
 	drv := driver.(*Driver)
 	lastDevID := drv.LastDevID
@@ -175,7 +216,7 @@ func (s *TestSuite) TestVolume(c *C) {
 
 func (s *TestSuite) TestSnapshot(c *C) {
 	var err error
-	driver := s.getDriver(c)
+	driver := s.driver
 
 	volumeID := uuid.New()
 	err = driver.CreateVolume(volumeID, "", volumeSize)
@@ -213,7 +254,7 @@ func (s *TestSuite) TestSnapshot(c *C) {
 
 func (s *TestSuite) TestImage(c *C) {
 	var err error
-	driver := s.getDriver(c)
+	driver := s.driver
 
 	imageID := uuid.New()
 	err = driver.ActivateImage(imageID, s.imageFile)
@@ -233,4 +274,32 @@ func (s *TestSuite) TestImage(c *C) {
 
 	err = driver.DeactivateImage(imageID)
 	c.Assert(err, ErrorMatches, "Cannot find image.*")
+}
+
+func (s *TestSuite) TestCreateVolumeWithBaseImage(c *C) {
+	var err error
+	driver := s.driver
+
+	imageID := uuid.New()
+	err = driver.ActivateImage(imageID, s.imageFile)
+	c.Assert(err, IsNil)
+
+	volumeID := uuid.New()
+	err = driver.CreateVolume(volumeID, imageID, volumeSize)
+	c.Assert(err, IsNil)
+
+	err = drivers.Mount(driver, volumeID, devMount, "ext4", "", false, "")
+	c.Assert(err, IsNil)
+
+	_, err = os.Stat(filepath.Join(devMount, imageTestFile))
+	c.Assert(err, IsNil)
+
+	err = drivers.Unmount(driver, devMount, "")
+	c.Assert(err, IsNil)
+
+	err = driver.DeleteVolume(volumeID)
+	c.Assert(err, IsNil)
+
+	err = driver.DeactivateImage(imageID)
+	c.Assert(err, IsNil)
 }

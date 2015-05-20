@@ -23,6 +23,10 @@ var (
 				Name:  "size",
 				Usage: "size of volume, in bytes",
 			},
+			cli.StringFlag{
+				Name:  "image-uuid",
+				Usage: "base image's uuid",
+			},
 		},
 		Action: cmdVolumeCreate,
 	}
@@ -174,6 +178,7 @@ func doVolumeCreate(c *cli.Context) error {
 		return genRequiredMissingError("size")
 	}
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", false, nil)
+	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, nil)
 	if err != nil {
 		return err
 	}
@@ -185,15 +190,14 @@ func doVolumeCreate(c *cli.Context) error {
 		}
 		uuid = volumeUUID
 	}
-	base := "" //Doesn't support base for now
-	if err := driver.CreateVolume(uuid, base, size); err != nil {
+	if err := driver.CreateVolume(uuid, imageUUID, size); err != nil {
 		return err
 	}
 	log.Debug("Created volume using ", config.Driver)
 
 	volume := &Volume{
 		UUID:       uuid,
-		Base:       base,
+		Base:       imageUUID,
 		Size:       size,
 		MountPoint: "",
 		FileSystem: "",
@@ -204,7 +208,7 @@ func doVolumeCreate(c *cli.Context) error {
 	}
 	api.ResponseOutput(api.VolumeResponse{
 		UUID: uuid,
-		Base: base,
+		Base: imageUUID,
 		Size: size,
 	})
 	return nil
