@@ -144,77 +144,76 @@ def test_info():
     assert info["ThinpoolSize"] == DATA_DEVICE_SIZE
     assert info["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
+def create_volume(size, uuid = "", base = ""):
+    uuid = v.create_volume(size, uuid, base)
+    dm_cleanup_list.append(uuid)
+    return uuid
+
+def delete_volume(uuid):
+    v.delete_volume(uuid)
+    dm_cleanup_list.remove(uuid)
+
+def mount_volume(uuid, need_format):
+    mount_dir = v.mount_volume(uuid, need_format)
+    mount_cleanup_list.append(mount_dir)
+    return mount_dir
+
+def umount_volume(uuid, mount_dir):
+    v.umount_volume(uuid)
+    mount_cleanup_list.remove(mount_dir)
+
 def test_volume_cru():
-    uuid1 = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(uuid1)
-    uuid2 = v.create_volume(VOLUME_SIZE_100M)
-    dm_cleanup_list.append(uuid2)
+    uuid1 = create_volume(VOLUME_SIZE_500M)
+    uuid2 = create_volume(VOLUME_SIZE_100M)
 
     with pytest.raises(subprocess.CalledProcessError):
-        uuid3 = v.create_volume(VOLUME_SIZE_100M, uuid1)
+        uuid3 = create_volume(VOLUME_SIZE_100M, uuid1)
 
     specific_uuid = str(uuid.uuid1())
 
-    uuid3 = v.create_volume(VOLUME_SIZE_100M, specific_uuid)
-    dm_cleanup_list.append(uuid3)
+    uuid3 = create_volume(VOLUME_SIZE_100M, specific_uuid)
     assert uuid3 == specific_uuid
 
-    v.delete_volume(uuid3)
-    dm_cleanup_list.remove(uuid3)
-
-    v.delete_volume(uuid2)
-    dm_cleanup_list.remove(uuid2)
-
-    v.delete_volume(uuid1)
-    dm_cleanup_list.remove(uuid1)
+    delete_volume(uuid3)
+    delete_volume(uuid2)
+    delete_volume(uuid1)
 
 def format_volume_and_create_file(uuid, filename):
     # with format
-    volume_mount_dir = v.mount_volume(uuid, True)
-    mount_cleanup_list.append(volume_mount_dir)
+    volume_mount_dir = mount_volume(uuid, True)
 
     test_file = os.path.join(volume_mount_dir,filename)
     with open(test_file, "w") as f:
 	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
     assert os.path.exists(test_file)
 
-    v.umount_volume(uuid)
-    mount_cleanup_list.remove(volume_mount_dir)
+    umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
 
 def test_volume_mount():
-    uuid = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(uuid)
+    uuid = create_volume(VOLUME_SIZE_500M)
 
     # with format
     filename = "test"
     format_volume_and_create_file(uuid, filename)
 
     # without format
-    volume_mount_dir = v.mount_volume(uuid, False)
-    mount_cleanup_list.append(volume_mount_dir)
+    volume_mount_dir = mount_volume(uuid, False)
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 
-    v.umount_volume(uuid)
-    mount_cleanup_list.remove(volume_mount_dir)
+    umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
 
-    v.delete_volume(uuid)
-    dm_cleanup_list.remove(uuid)
+    delete_volume(uuid)
 
 def test_volume_list():
     volumes = v.list_volumes()
     assert len(volumes) == 0
 
-    uuid1 = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(uuid1)
-
-    uuid2 = v.create_volume(VOLUME_SIZE_100M)
-    dm_cleanup_list.append(uuid2)
-
-    uuid3 = v.create_volume(VOLUME_SIZE_100M)
-    dm_cleanup_list.append(uuid3)
+    uuid1 = create_volume(VOLUME_SIZE_500M)
+    uuid2 = create_volume(VOLUME_SIZE_100M)
+    uuid3 = create_volume(VOLUME_SIZE_100M)
 
     volumes = v.list_volumes(uuid3)
     assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
@@ -224,31 +223,21 @@ def test_volume_list():
     assert volumes[uuid2]["Size"] == VOLUME_SIZE_100M
     assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
 
-    v.delete_volume(uuid3)
-    dm_cleanup_list.remove(uuid3)
-
-    v.delete_volume(uuid2)
-    dm_cleanup_list.remove(uuid2)
-
-    v.delete_volume(uuid1)
-    dm_cleanup_list.remove(uuid1)
+    delete_volume(uuid3)
+    delete_volume(uuid2)
+    delete_volume(uuid1)
 
 def test_snapshot_cru():
-    volume_uuid = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(volume_uuid)
+    volume_uuid = create_volume(VOLUME_SIZE_500M)
 
     snapshot_uuid = v.create_snapshot(volume_uuid)
     v.delete_snapshot(snapshot_uuid, volume_uuid)
 
-    v.delete_volume(volume_uuid)
-    dm_cleanup_list.remove(volume_uuid)
+    delete_volume(volume_uuid)
 
 def test_snapshot_list():
-    volume1_uuid = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(volume1_uuid)
-
-    volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
-    dm_cleanup_list.append(volume2_uuid)
+    volume1_uuid = create_volume(VOLUME_SIZE_500M)
+    volume2_uuid = create_volume(VOLUME_SIZE_100M)
 
     snap0_vol1_uuid = str(uuid.uuid1())
 
@@ -292,11 +281,8 @@ def test_snapshot_list():
     v.delete_snapshot(snap2_vol2_uuid, volume2_uuid)
     v.delete_snapshot(snap3_vol2_uuid, volume2_uuid)
 
-    v.delete_volume(volume2_uuid)
-    dm_cleanup_list.remove(volume2_uuid)
-
-    v.delete_volume(volume1_uuid)
-    dm_cleanup_list.remove(volume1_uuid)
+    delete_volume(volume2_uuid)
+    delete_volume(volume1_uuid)
 
 def get_volume_dir(uuid):
     return os.path.join(BLOCKSTORE_VOLUME_DIR, uuid[:2], uuid[2:4], uuid)
@@ -335,11 +321,9 @@ def test_blockstore():
     assert uuid == blockstore_uuid
 
     #add volume to blockstore
-    volume1_uuid = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(volume1_uuid)
+    volume1_uuid = create_volume(VOLUME_SIZE_500M)
 
-    volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
-    dm_cleanup_list.append(volume2_uuid)
+    volume2_uuid = create_volume(VOLUME_SIZE_100M)
 
     volumes = v.list_volume_blockstore(volume1_uuid, blockstore_uuid)
     assert len(volumes) == 0
@@ -421,16 +405,14 @@ def test_blockstore():
     assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
     #restore snapshot
-    res_volume1_uuid = v.create_volume(VOLUME_SIZE_500M)
-    dm_cleanup_list.append(res_volume1_uuid)
+    res_volume1_uuid = create_volume(VOLUME_SIZE_500M)
     v.restore_snapshot_from_blockstore(snap2_vol1_uuid, volume1_uuid,
 		    res_volume1_uuid, blockstore_uuid)
     res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     assert res_volume1_checksum == volume1_checksum
 
-    res_volume2_uuid = v.create_volume(VOLUME_SIZE_100M)
-    dm_cleanup_list.append(res_volume2_uuid)
+    res_volume2_uuid = create_volume(VOLUME_SIZE_100M)
     v.restore_snapshot_from_blockstore(snap2_vol2_uuid, volume2_uuid,
 		    res_volume2_uuid, blockstore_uuid)
     res_volume2_checksum = get_checksum(os.path.join(DM_DIR, res_volume2_uuid))
@@ -475,17 +457,10 @@ def test_blockstore():
     v.delete_snapshot(snap1_vol2_uuid, volume2_uuid)
     v.delete_snapshot(snap2_vol2_uuid, volume2_uuid)
 
-    v.delete_volume(volume1_uuid)
-    dm_cleanup_list.remove(volume1_uuid)
-
-    v.delete_volume(volume2_uuid)
-    dm_cleanup_list.remove(volume2_uuid)
-
-    v.delete_volume(res_volume1_uuid)
-    dm_cleanup_list.remove(res_volume1_uuid)
-
-    v.delete_volume(res_volume2_uuid)
-    dm_cleanup_list.remove(res_volume2_uuid)
+    delete_volume(volume1_uuid)
+    delete_volume(volume2_uuid)
+    delete_volume(res_volume1_uuid)
+    delete_volume(res_volume2_uuid)
 
 def get_image_cfg(uuid):
     return os.path.join(BLOCKSTORE_IMAGES_DIR, uuid + ".json")
@@ -553,47 +528,39 @@ def test_image_based_volume():
 
     v.activate_image(image_uuid, blockstore_uuid)
 
-    volume_uuid = v.create_volume(VOLUME_SIZE_100M, base=image_uuid) 
-    dm_cleanup_list.append(volume_uuid)
+    volume_uuid = create_volume(VOLUME_SIZE_100M, base=image_uuid)
 
-    volume_mount_dir = v.mount_volume(volume_uuid, False)
-    mount_cleanup_list.append(volume_mount_dir)
+    volume_mount_dir = mount_volume(volume_uuid, False)
 
     assert os.path.exists(os.path.join(volume_mount_dir, TEST_IMAGE_FILE))
     subprocess.check_call(["touch", os.path.join(volume_mount_dir,
 	    TEST_SNAPSHOT_FILE)])
-    v.umount_volume(volume_uuid)
-    mount_cleanup_list.remove(volume_mount_dir)
+    umount_volume(volume_uuid, volume_mount_dir)
 
     snapshot_uuid = v.create_snapshot(volume_uuid)
     v.add_volume_to_blockstore(volume_uuid, blockstore_uuid)
     v.backup_snapshot_to_blockstore(snapshot_uuid, volume_uuid, blockstore_uuid)
 
-    new_volume_uuid = v.create_volume(VOLUME_SIZE_100M, base=image_uuid)
-    dm_cleanup_list.append(new_volume_uuid)
+    new_volume_uuid = create_volume(VOLUME_SIZE_100M, base=image_uuid)
 
     v.restore_snapshot_from_blockstore(snapshot_uuid, volume_uuid,
             new_volume_uuid, blockstore_uuid)
 
-    new_volume_mount_dir = v.mount_volume(new_volume_uuid, False)
-    mount_cleanup_list.append(new_volume_mount_dir)
+    new_volume_mount_dir = mount_volume(new_volume_uuid, False)
 
     assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_IMAGE_FILE))
     assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_SNAPSHOT_FILE))
 
-    v.umount_volume(new_volume_uuid)
-    mount_cleanup_list.remove(new_volume_mount_dir)
+    umount_volume(new_volume_uuid, new_volume_mount_dir)
 
     v.remove_snapshot_from_blockstore(snapshot_uuid, volume_uuid,
             blockstore_uuid)
     v.delete_snapshot(snapshot_uuid, volume_uuid)
 
     v.remove_volume_from_blockstore(volume_uuid, blockstore_uuid)
-    v.delete_volume(volume_uuid)
-    dm_cleanup_list.remove(volume_uuid)
+    delete_volume(volume_uuid)
 
-    v.delete_volume(new_volume_uuid)
-    dm_cleanup_list.remove(new_volume_uuid)
+    delete_volume(new_volume_uuid)
 
     v.deactivate_image(image_uuid, blockstore_uuid)
     v.remove_image_from_blockstore(image_uuid, blockstore_uuid)
