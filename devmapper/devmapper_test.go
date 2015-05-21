@@ -6,7 +6,7 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	log "github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,7 +64,7 @@ func (s *TestSuite) SetUpSuite(c *C) {
 		"count="+strconv.Itoa(volumeSize/4096)).Run()
 	c.Assert(err, IsNil)
 
-	tmpDev, err := utils.AttachLoopbackDevice(s.imageFile, false)
+	tmpDev, err := util.AttachLoopbackDevice(s.imageFile, false)
 	c.Assert(err, IsNil)
 
 	err = exec.Command("mkfs", "-t", "ext4", tmpDev).Run()
@@ -79,7 +79,7 @@ func (s *TestSuite) SetUpSuite(c *C) {
 	err = exec.Command("umount", devMount).Run()
 	c.Assert(err, IsNil)
 
-	err = utils.DetachLoopbackDevice(s.imageFile, tmpDev)
+	err = util.DetachLoopbackDevice(s.imageFile, tmpDev)
 	c.Assert(err, IsNil)
 }
 
@@ -103,10 +103,10 @@ func (s *TestSuite) SetUpTest(c *C) {
 		"count="+strconv.Itoa(metadataSize/4096)).Run()
 	c.Assert(err, IsNil)
 
-	s.dataDev, err = utils.AttachLoopbackDevice(s.dataFile, false)
+	s.dataDev, err = util.AttachLoopbackDevice(s.dataFile, false)
 	c.Assert(err, IsNil)
 
-	s.metadataDev, err = utils.AttachLoopbackDevice(s.metadataFile, false)
+	s.metadataDev, err = util.AttachLoopbackDevice(s.metadataFile, false)
 	c.Assert(err, IsNil)
 
 	s.initDriver(c)

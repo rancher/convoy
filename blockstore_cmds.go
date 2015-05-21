@@ -6,7 +6,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/blockstore"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 )
 
 var (
@@ -264,7 +264,7 @@ func doBlockStoreRegister(c *cli.Context) error {
 	if kind == "" {
 		return genRequiredMissingError("kind")
 	}
-	opts := utils.SliceToMap(c.StringSlice("opts"))
+	opts := util.SliceToMap(c.StringSlice("opts"))
 	if opts == nil {
 		return genRequiredMissingError("opts")
 	}

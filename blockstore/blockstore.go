@@ -6,7 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 	"os"
 	"path/filepath"
 )
@@ -134,7 +134,7 @@ func Register(root, kind string, config map[string]string) (*BlockStore, error) 
 		log.Debug("Created blockstore cfg in blockstore", bs.UUID)
 	}
 
-	if err := utils.SaveConfig(root, getCfgName(id), bs); err != nil {
+	if err := util.SaveConfig(root, getCfgName(id), bs); err != nil {
 		return nil, err
 	}
 	log.Debug("Created local copy of ", getCfgName(id))
@@ -144,7 +144,7 @@ func Register(root, kind string, config map[string]string) (*BlockStore, error) 
 
 func Deregister(root, id string) error {
 	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(id), b)
+	err := util.LoadConfig(root, getCfgName(id), b)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func Deregister(root, id string) error {
 
 func getBlockstoreCfgAndDriver(root, blockstoreUUID string) (*BlockStore, BlockStoreDriver, error) {
 	b := &BlockStore{}
-	err := utils.LoadConfig(root, getCfgName(blockstoreUUID), b)
+	err := util.LoadConfig(root, getCfgName(blockstoreUUID), b)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -308,7 +308,7 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 			if err != nil {
 				return err
 			}
-			checksum := utils.GetChecksum(block)
+			checksum := util.GetChecksum(block)
 			blkFile := getBlockFilePath(volumeID, checksum)
 			if bsDriver.FileSize(blkFile) >= 0 {
 				blockMapping := BlockMapping{
@@ -593,7 +593,7 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	image.Size = imageStat.Size()
 
 	log.Debugf("blockstore: copying image %v to local store %v", imageFilePath, imageLocalStorePath)
-	if err := utils.Copy(imageFilePath, imageLocalStorePath); err != nil {
+	if err := util.Copy(imageFilePath, imageLocalStorePath); err != nil {
 		log.Debugf("blockstore: copying image failed")
 		return err
 	}
@@ -624,7 +624,7 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 
 func uploadImage(imageLocalStorePath string, bsDriver BlockStoreDriver, image *Image) error {
 	log.Debug("blockstore: calculating checksum for raw image")
-	rawChecksum, err := utils.GetFileChecksum(imageLocalStorePath)
+	rawChecksum, err := util.GetFileChecksum(imageLocalStorePath)
 	if err != nil {
 		log.Debug("blockstore: calculation failed")
 		return err
@@ -633,7 +633,7 @@ func uploadImage(imageLocalStorePath string, bsDriver BlockStoreDriver, image *I
 	image.RawChecksum = rawChecksum
 
 	log.Debug("blockstore: compressing raw image")
-	if err := utils.CompressFile(imageLocalStorePath); err != nil {
+	if err := util.CompressFile(imageLocalStorePath); err != nil {
 		log.Debug("blockstore: compressing failed ")
 		return err
 	}
@@ -641,7 +641,7 @@ func uploadImage(imageLocalStorePath string, bsDriver BlockStoreDriver, image *I
 	log.Debug("blockstore: compressed raw image to ", compressedLocalPath)
 
 	log.Debug("blockstore: calculating checksum for compressed image")
-	if image.Checksum, err = utils.GetFileChecksum(compressedLocalPath); err != nil {
+	if image.Checksum, err = util.GetFileChecksum(compressedLocalPath); err != nil {
 		log.Debug("blockstore: calculation failed")
 		return err
 	}
@@ -715,7 +715,7 @@ func loadImageCache(fileName string, compressed bool, image *Image) (bool, error
 	if st, err := os.Stat(fileName); err == nil && !st.IsDir() {
 		log.Debug("blockstore: found local image cache at ", fileName)
 		log.Debug("blockstore: calculating checksum for local image cache")
-		checksum, err := utils.GetFileChecksum(fileName)
+		checksum, err := util.GetFileChecksum(fileName)
 		if err != nil {
 			return false, err
 		}
@@ -739,7 +739,7 @@ func loadImageCache(fileName string, compressed bool, image *Image) (bool, error
 
 func uncompressImage(fileName string) error {
 	log.Debugf("blockstore: uncompressing image %v ", fileName)
-	if err := utils.UncompressFile(fileName); err != nil {
+	if err := util.UncompressFile(fileName); err != nil {
 		return err
 	}
 	log.Debug("blockstore: image uncompressed")
@@ -774,7 +774,7 @@ func downloadImage(imagesDir string, driver BlockStoreDriver, image *Image) erro
 	}
 
 	log.Debug("blockstore: calculating checksum for local image")
-	rawChecksum, err := utils.GetFileChecksum(imageLocalStorePath)
+	rawChecksum, err := util.GetFileChecksum(imageLocalStorePath)
 	if err != nil {
 		return err
 	}

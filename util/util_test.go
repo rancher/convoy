@@ -1,4 +1,4 @@
-package utils
+package util
 
 import (
 	"code.google.com/p/go-uuid/uuid"
@@ -36,7 +36,7 @@ type Volume struct {
 }
 
 const (
-	testRoot  = "/tmp/utils"
+	testRoot  = "/tmp/util"
 	testImage = "test.img"
 	imageSize = 1 << 27
 )

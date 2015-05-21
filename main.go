@@ -5,7 +5,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 	"os"
 	"path/filepath"
 )
@@ -47,12 +47,12 @@ func preAppRun(c *cli.Context) error {
 	if root == "" {
 		return fmt.Errorf("Have to specific root directory")
 	}
-	if err := utils.MkdirIfNotExists(root); err != nil {
+	if err := util.MkdirIfNotExists(root); err != nil {
 		return fmt.Errorf("Invalid root directory:", err)
 	}
 
 	lock = filepath.Join(root, LOCKFILE)
-	if err := utils.LockFile(lock); err != nil {
+	if err := util.LockFile(lock); err != nil {
 		return fmt.Errorf("Failed to lock the file", err.Error())
 	}
 
@@ -73,7 +73,7 @@ func preAppRun(c *cli.Context) error {
 
 func cleanup() {
 	if lock != "" {
-		utils.UnlockFile(lock)
+		util.UnlockFile(lock)
 	}
 	if logFile != nil {
 		logFile.Close()

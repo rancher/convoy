@@ -3,7 +3,7 @@ package vfsblockstore
 import (
 	"fmt"
 	"github.com/rancherio/volmgr/blockstore"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,8 +28,8 @@ func init() {
 func initFunc(root, cfgName string, config map[string]string) (blockstore.BlockStoreDriver, error) {
 	b := &VfsBlockStoreDriver{}
 	if cfgName != "" {
-		if utils.ConfigExists(root, cfgName) {
-			err := utils.LoadConfig(root, cfgName, b)
+		if util.ConfigExists(root, cfgName) {
+			err := util.LoadConfig(root, cfgName, b)
 			if err != nil {
 				return nil, err
 			}
@@ -56,7 +56,7 @@ func (v *VfsBlockStoreDriver) updatePath(path string) string {
 
 func (v *VfsBlockStoreDriver) FinalizeInit(root, cfgName, id string) error {
 	v.ID = id
-	if err := utils.SaveConfig(root, cfgName, v); err != nil {
+	if err := util.SaveConfig(root, cfgName, v); err != nil {
 		return err
 	}
 	return nil

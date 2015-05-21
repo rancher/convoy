@@ -5,7 +5,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 	"path/filepath"
 	"strings"
 )
@@ -27,7 +27,7 @@ func cmdInitialize(c *cli.Context) {
 func doInitialize(c *cli.Context) error {
 	root := c.GlobalString("root")
 	driverName := c.String("driver")
-	driverOpts := utils.SliceToMap(c.StringSlice("driver-opts"))
+	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	imagesDir := c.String("images-dir")
 	if root == "" || driverName == "" || driverOpts == nil || imagesDir == "" {
 		return fmt.Errorf("Missing or invalid parameters")
@@ -35,11 +35,11 @@ func doInitialize(c *cli.Context) error {
 
 	log.Debug("Config root is ", root)
 
-	if utils.ConfigExists(root, getCfgName()) {
+	if util.ConfigExists(root, getCfgName()) {
 		return fmt.Errorf("Configuration file already existed. Don't need to initialize.")
 	}
 
-	if err := utils.MkdirIfNotExists(imagesDir); err != nil {
+	if err := util.MkdirIfNotExists(imagesDir); err != nil {
 		return err
 	}
 	log.Debug("Images would be stored at ", imagesDir)
@@ -54,7 +54,7 @@ func doInitialize(c *cli.Context) error {
 		Driver:    driverName,
 		ImagesDir: imagesDir,
 	}
-	err = utils.SaveConfig(root, getCfgName(), &config)
+	err = util.SaveConfig(root, getCfgName(), &config)
 	return err
 }
 
@@ -64,7 +64,7 @@ func loadGlobalConfig(c *cli.Context) (*Config, drivers.Driver, error) {
 	if root == "" {
 		return nil, nil, genRequiredMissingError("root")
 	}
-	err := utils.LoadConfig(root, getCfgName(), &config)
+	err := util.LoadConfig(root, getCfgName(), &config)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to load config:", err.Error())
 	}

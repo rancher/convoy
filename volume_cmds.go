@@ -7,7 +7,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 )
 
 var (
@@ -133,11 +133,11 @@ func (config *Config) loadVolume(uuid string) *Volume {
 	if err != nil {
 		return nil
 	}
-	if !utils.ConfigExists(config.Root, cfgName) {
+	if !util.ConfigExists(config.Root, cfgName) {
 		return nil
 	}
 	volume := &Volume{}
-	if err := utils.LoadConfig(config.Root, cfgName, volume); err != nil {
+	if err := util.LoadConfig(config.Root, cfgName, volume); err != nil {
 		log.Error("Failed to load volume json ", cfgName)
 		return nil
 	}
@@ -150,7 +150,7 @@ func (config *Config) saveVolume(volume *Volume) error {
 	if err != nil {
 		return err
 	}
-	return utils.SaveConfig(config.Root, cfgName, volume)
+	return util.SaveConfig(config.Root, cfgName, volume)
 }
 
 func (config *Config) deleteVolume(uuid string) error {
@@ -158,7 +158,7 @@ func (config *Config) deleteVolume(uuid string) error {
 	if err != nil {
 		return err
 	}
-	return utils.RemoveConfig(config.Root, cfgName)
+	return util.RemoveConfig(config.Root, cfgName)
 }
 
 func cmdVolumeCreate(c *cli.Context) {

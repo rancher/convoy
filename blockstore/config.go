@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 	"path/filepath"
 	"strings"
 )
@@ -103,7 +103,7 @@ func saveRemoteBlockStoreConfig(driver BlockStoreDriver, b *BlockStore) error {
 
 func removeDriverConfigFile(root, kind, id string) error {
 	cfgName := getDriverCfgName(kind, id)
-	if err := utils.RemoveConfig(root, cfgName); err != nil {
+	if err := util.RemoveConfig(root, cfgName); err != nil {
 		return err
 	}
 	log.Debug("Removed ", cfgName)
@@ -112,7 +112,7 @@ func removeDriverConfigFile(root, kind, id string) error {
 
 func removeConfigFile(root, id string) error {
 	cfgName := getCfgName(id)
-	if err := utils.RemoveConfig(root, cfgName); err != nil {
+	if err := util.RemoveConfig(root, cfgName); err != nil {
 		return err
 	}
 	log.Debug("Removed ", cfgName)

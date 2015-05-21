@@ -9,7 +9,7 @@ import (
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/metadata"
-	"github.com/rancherio/volmgr/utils"
+	"github.com/rancherio/volmgr/util"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,11 +92,11 @@ func (device *Device) loadVolume(uuid string) *Volume {
 	if err != nil {
 		return nil
 	}
-	if !utils.ConfigExists(device.Root, cfgName) {
+	if !util.ConfigExists(device.Root, cfgName) {
 		return nil
 	}
 	volume := &Volume{}
-	if err := utils.LoadConfig(device.Root, cfgName, volume); err != nil {
+	if err := util.LoadConfig(device.Root, cfgName, volume); err != nil {
 		log.Error("Failed to load volume json ", cfgName)
 		return nil
 	}
@@ -109,7 +109,7 @@ func (device *Device) saveVolume(volume *Volume) error {
 	if err != nil {
 		return err
 	}
-	return utils.SaveConfig(device.Root, cfgName, volume)
+	return util.SaveConfig(device.Root, cfgName, volume)
 }
 
 func (device *Device) deleteVolume(uuid string) error {
@@ -117,11 +117,11 @@ func (device *Device) deleteVolume(uuid string) error {
 	if err != nil {
 		return err
 	}
-	return utils.RemoveConfig(device.Root, cfgName)
+	return util.RemoveConfig(device.Root, cfgName)
 }
 
 func (device *Device) listVolumeIDs() []string {
-	return utils.ListConfigIDs(device.Root, VOLUME_CFG_PREFIX, DEVMAPPER_CFG_POSTFIX)
+	return util.ListConfigIDs(device.Root, VOLUME_CFG_PREFIX, DEVMAPPER_CFG_POSTFIX)
 }
 
 func verifyConfig(config map[string]string) (*Device, error) {
@@ -194,9 +194,9 @@ func (d *Driver) activatePool() error {
 }
 
 func Init(root, cfgName string, config map[string]string) (drivers.Driver, error) {
-	if utils.ConfigExists(root, cfgName) {
+	if util.ConfigExists(root, cfgName) {
 		dev := Device{}
-		err := utils.LoadConfig(root, cfgName, &dev)
+		err := util.LoadConfig(root, cfgName, &dev)
 		d := &Driver{}
 		if err != nil {
 			return d, err
@@ -241,7 +241,7 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 		return nil, err
 	}
 
-	err = utils.SaveConfig(root, cfgName, &dev)
+	err = util.SaveConfig(root, cfgName, &dev)
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +333,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	}
 	d.LastDevID++
 
-	if err := utils.SaveConfig(d.root, d.configName, d.Device); err != nil {
+	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
 	log.Debug("Created volume ", id)
@@ -468,7 +468,7 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	if err := d.saveVolume(volume); err != nil {
 		return err
 	}
-	if err := utils.SaveConfig(d.root, d.configName, d.Device); err != nil {
+	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
 	log.Debug("Created snapshot", id)
@@ -665,11 +665,11 @@ func (device *Device) loadImage(uuid string) *Image {
 	if err != nil {
 		return nil
 	}
-	if !utils.ConfigExists(device.Root, cfgName) {
+	if !util.ConfigExists(device.Root, cfgName) {
 		return nil
 	}
 	image := &Image{}
-	if err := utils.LoadConfig(device.Root, cfgName, image); err != nil {
+	if err := util.LoadConfig(device.Root, cfgName, image); err != nil {
 		log.Error("Failed to load volume json ", cfgName)
 		return nil
 	}
@@ -682,7 +682,7 @@ func (device *Device) saveImage(image *Image) error {
 	if err != nil {
 		return err
 	}
-	return utils.SaveConfig(device.Root, cfgName, image)
+	return util.SaveConfig(device.Root, cfgName, image)
 }
 
 func (device *Device) deleteImage(uuid string) error {
@@ -690,7 +690,7 @@ func (device *Device) deleteImage(uuid string) error {
 	if err != nil {
 		return err
 	}
-	return utils.RemoveConfig(device.Root, cfgName)
+	return util.RemoveConfig(device.Root, cfgName)
 }
 
 func (d *Driver) ActivateImage(imageUUID, imageFile string) error {
@@ -703,7 +703,7 @@ func (d *Driver) ActivateImage(imageUUID, imageFile string) error {
 		return err
 	}
 	log.Debug("Found ", imageFile)
-	loopDev, err := utils.AttachLoopbackDevice(imageFile, true)
+	loopDev, err := util.AttachLoopbackDevice(imageFile, true)
 	if err != nil {
 		return err
 	}
@@ -732,7 +732,7 @@ func (d *Driver) DeactivateImage(imageUUID string) error {
 			return fmt.Errorf("Volume %v hasn't been removed yet", volume)
 		}
 	}
-	if err := utils.DetachLoopbackDevice(image.FilePath, image.Device); err != nil {
+	if err := util.DetachLoopbackDevice(image.FilePath, image.Device); err != nil {
 		return err
 	}
 	log.Debugf("Detached %v from %v", image.FilePath, image.Device)
