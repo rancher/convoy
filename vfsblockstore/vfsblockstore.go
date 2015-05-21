@@ -44,7 +44,7 @@ func initFunc(root, cfgName string, config map[string]string) (blockstore.BlockS
 	if b.Path == "" {
 		return nil, fmt.Errorf("Cannot find required field %v", VFS_PATH)
 	}
-	if st, err := os.Stat(b.Path); err != nil || !st.IsDir() {
+	if _, err := b.List(""); err != nil {
 		return nil, fmt.Errorf("VFS path %v doesn't exist or is not a directory", b.Path)
 	}
 	return b, nil
