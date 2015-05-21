@@ -85,10 +85,10 @@ func GetBlockStoreDriver(kind, root, cfgName string, config map[string]string) (
 	return initializers[kind](root, cfgName, config)
 }
 
-func Register(root, kind string, config map[string]string) (string, int64, error) {
+func Register(root, kind string, config map[string]string) (*BlockStore, error) {
 	driver, err := GetBlockStoreDriver(kind, root, "", config)
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
 
 	var id string
@@ -96,7 +96,7 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 	if err == nil {
 		// BlockStore has already been created
 		if bs.Kind != kind {
-			return "", 0, fmt.Errorf("specific kind is different from config stored in blockstore")
+			return nil, fmt.Errorf("specific kind is different from config stored in blockstore")
 		}
 		id = bs.UUID
 		log.Debug("Loaded blockstore cfg in blockstore: ", id)
@@ -110,7 +110,7 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 		err = driver.MkDirAll(basePath)
 		if err != nil {
 			removeDriverConfigFile(root, kind, id)
-			return "", 0, err
+			return nil, err
 		}
 		log.Debug("Created base directory of blockstore at ", basePath)
 
@@ -118,7 +118,7 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 		err = driver.MkDirAll(imagesPath)
 		if err != nil {
 			removeDriverConfigFile(root, kind, id)
-			return "", 0, err
+			return nil, err
 		}
 		log.Debug("Created base directory of images at ", imagesPath)
 
@@ -129,17 +129,17 @@ func Register(root, kind string, config map[string]string) (string, int64, error
 		}
 
 		if err := saveRemoteBlockStoreConfig(driver, bs); err != nil {
-			return "", 0, err
+			return nil, err
 		}
 		log.Debug("Created blockstore cfg in blockstore", bs.UUID)
 	}
 
 	if err := utils.SaveConfig(root, getCfgName(id), bs); err != nil {
-		return "", 0, err
+		return nil, err
 	}
 	log.Debug("Created local copy of ", getCfgName(id))
 	log.Debug("Registered block store ", bs.UUID)
-	return bs.UUID, bs.BlockSize, nil
+	return bs, nil
 }
 
 func Deregister(root, id string) error {

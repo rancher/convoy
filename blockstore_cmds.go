@@ -269,15 +269,15 @@ func doBlockStoreRegister(c *cli.Context) error {
 		return genRequiredMissingError("opts")
 	}
 
-	id, blockSize, err := blockstore.Register(config.Root, kind, opts)
+	b, err := blockstore.Register(config.Root, kind, opts)
 	if err != nil {
 		return err
 	}
 
 	api.ResponseOutput(api.BlockStoreResponse{
-		UUID:      id,
-		Kind:      kind,
-		BlockSize: blockSize,
+		UUID:      b.UUID,
+		Kind:      b.Kind,
+		BlockSize: b.BlockSize,
 	})
 	return nil
 }
