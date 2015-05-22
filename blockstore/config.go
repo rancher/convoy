@@ -22,7 +22,6 @@ const (
 	BLOCK_SEPARATE_LAYER1  = 2
 	BLOCK_SEPARATE_LAYER2  = 4
 	IMAGES_DIRECTORY       = "images"
-	HASH_LEVEL             = 2
 )
 
 func getSnapshotConfigName(id string) string {
@@ -173,22 +172,6 @@ func getBlockFilePath(volumeID, checksum string) string {
 	fileName := checksum + ".blk"
 
 	return filepath.Join(path, fileName)
-}
-
-// Used for cleanup remaining hashed directories
-func removeAndCleanup(path string, driver BlockStoreDriver) error {
-	if err := driver.RemoveAll(path); err != nil {
-		return err
-	}
-	dir := path
-	for i := 0; i < HASH_LEVEL; i++ {
-		dir = filepath.Dir(dir)
-		// If directory is not empty, then we don't need to continue
-		if err := driver.Remove(dir); err != nil {
-			break
-		}
-	}
-	return nil
 }
 
 func getSnapshots(volumeID string, driver BlockStoreDriver) (map[string]bool, error) {

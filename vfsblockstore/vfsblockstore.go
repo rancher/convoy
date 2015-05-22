@@ -19,6 +19,8 @@ const (
 	KIND = "vfs"
 
 	VFS_PATH = "vfs.path"
+
+	MAX_CLEANUP_LEVEL = 10
 )
 
 func init() {
@@ -87,11 +89,19 @@ func (v *VfsBlockStoreDriver) FileExists(filePath string) bool {
 }
 
 func (v *VfsBlockStoreDriver) RemoveAll(name string) error {
-	return os.RemoveAll(v.updatePath(name))
-}
-
-func (v *VfsBlockStoreDriver) Remove(name string) error {
-	return os.Remove(v.updatePath(name))
+	if err := os.RemoveAll(v.updatePath(name)); err != nil {
+		return err
+	}
+	//Also automatically cleanup upper level directories
+	dir := v.updatePath(name)
+	for i := 0; i < MAX_CLEANUP_LEVEL; i++ {
+		dir = filepath.Dir(dir)
+		// If directory is not empty, then we don't need to continue
+		if err := os.Remove(dir); err != nil {
+			break
+		}
+	}
+	return nil
 }
 
 func (v *VfsBlockStoreDriver) Read(src string, data []byte) error {
@@ -107,7 +117,7 @@ func (v *VfsBlockStoreDriver) Read(src string, data []byte) error {
 func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 	tmpFile := dst + ".tmp"
 	if v.FileExists(tmpFile) {
-		v.Remove(tmpFile)
+		v.RemoveAll(tmpFile)
 	}
 	if err := v.preparePath(dst); err != nil {
 		return err
@@ -120,7 +130,7 @@ func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 	_, err = file.Write(data)
 
 	if v.FileExists(dst) {
-		v.Remove(dst)
+		v.RemoveAll(dst)
 	}
 	return os.Rename(v.updatePath(tmpFile), v.updatePath(dst))
 }
@@ -141,7 +151,7 @@ func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
 func (v *VfsBlockStoreDriver) Upload(src, dst string) error {
 	tmpDst := dst + ".tmp"
 	if v.FileExists(tmpDst) {
-		v.Remove(tmpDst)
+		v.RemoveAll(tmpDst)
 	}
 	if err := v.preparePath(dst); err != nil {
 		return err

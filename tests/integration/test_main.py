@@ -493,7 +493,6 @@ def test_blockstore_image():
 
     v.remove_image_from_blockstore(image_uuid, blockstore_uuid)
 
-    assert os.path.exists(BLOCKSTORE_IMAGES_DIR)
     assert not os.path.exists(get_image_cfg(image_uuid))
     assert not os.path.exists(get_image_gz(image_uuid))
 

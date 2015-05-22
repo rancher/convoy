@@ -22,7 +22,6 @@ type BlockStoreDriver interface {
 	FinalizeInit(root, cfgName, id string) error
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
-	Remove(name string) error //Would return error if it's not empty
 	RemoveAll(name string) error
 	Read(src string, data []byte) error
 	Write(data []byte, dst string) error
@@ -209,7 +208,7 @@ func RemoveVolume(root, id, volumeID string) error {
 	}
 
 	volumeDir := getVolumePath(volumeID)
-	if err := removeAndCleanup(volumeDir, driver); err != nil {
+	if err := driver.RemoveAll(volumeDir); err != nil {
 		return err
 	}
 	log.Debug("Removed volume directory in blockstore: ", volumeDir)
@@ -462,7 +461,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 
 	for blk := range discardBlockSet {
 		blkFile := getBlockFilePath(volumeID, blk)
-		if err := removeAndCleanup(blkFile, bsDriver); err != nil {
+		if err := bsDriver.RemoveAll(blkFile); err != nil {
 			return err
 		}
 		log.Debugf("Removed unused block %v for volume %v", blk, volumeID)
