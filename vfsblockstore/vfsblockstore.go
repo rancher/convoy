@@ -88,7 +88,7 @@ func (v *VfsBlockStoreDriver) FileExists(filePath string) bool {
 	return v.FileSize(filePath) >= 0
 }
 
-func (v *VfsBlockStoreDriver) RemoveAll(name string) error {
+func (v *VfsBlockStoreDriver) Remove(name string) error {
 	if err := os.RemoveAll(v.updatePath(name)); err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (v *VfsBlockStoreDriver) Read(src string, data []byte) error {
 func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 	tmpFile := dst + ".tmp"
 	if v.FileExists(tmpFile) {
-		v.RemoveAll(tmpFile)
+		v.Remove(tmpFile)
 	}
 	if err := v.preparePath(dst); err != nil {
 		return err
@@ -130,7 +130,7 @@ func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 	_, err = file.Write(data)
 
 	if v.FileExists(dst) {
-		v.RemoveAll(dst)
+		v.Remove(dst)
 	}
 	return os.Rename(v.updatePath(tmpFile), v.updatePath(dst))
 }
@@ -151,7 +151,7 @@ func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
 func (v *VfsBlockStoreDriver) Upload(src, dst string) error {
 	tmpDst := dst + ".tmp"
 	if v.FileExists(tmpDst) {
-		v.RemoveAll(tmpDst)
+		v.Remove(tmpDst)
 	}
 	if err := v.preparePath(dst); err != nil {
 		return err

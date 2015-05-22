@@ -22,7 +22,7 @@ type BlockStoreDriver interface {
 	FinalizeInit(root, cfgName, id string) error
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
-	RemoveAll(name string) error
+	Remove(name string) error
 	Read(src string, data []byte) error
 	Write(data []byte, dst string) error
 	List(path string) ([]string, error)
@@ -208,7 +208,7 @@ func RemoveVolume(root, id, volumeID string) error {
 	}
 
 	volumeDir := getVolumePath(volumeID)
-	if err := driver.RemoveAll(volumeDir); err != nil {
+	if err := driver.Remove(volumeDir); err != nil {
 		return err
 	}
 	log.Debug("Removed volume directory in blockstore: ", volumeDir)
@@ -423,7 +423,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 	snapshotPath := getSnapshotsPath(volumeID)
 	snapshotFile := getSnapshotConfigName(snapshotID)
 	discardFile := filepath.Join(snapshotPath, snapshotFile)
-	if err := bsDriver.RemoveAll(discardFile); err != nil {
+	if err := bsDriver.Remove(discardFile); err != nil {
 		return err
 	}
 	log.Debugf("Removed snapshot config file %v on blockstore", discardFile)
@@ -461,7 +461,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 
 	for blk := range discardBlockSet {
 		blkFile := getBlockFilePath(volumeID, blk)
-		if err := bsDriver.RemoveAll(blkFile); err != nil {
+		if err := bsDriver.Remove(blkFile); err != nil {
 			return err
 		}
 		log.Debugf("Removed unused block %v for volume %v", blk, volumeID)
@@ -633,7 +633,7 @@ func removeImage(bsDriver BlockStoreDriver, image *Image) error {
 	}
 	log.Debugf("blockstore: removed image %v's config from blockstore", image.UUID)
 	imageBlockStorePath := getImageBlockStorePath(image.UUID)
-	if err := bsDriver.RemoveAll(imageBlockStorePath); err != nil {
+	if err := bsDriver.Remove(imageBlockStorePath); err != nil {
 		return err
 	}
 	log.Debug("blockstore: removed image at ", imageBlockStorePath)

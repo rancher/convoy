@@ -141,7 +141,7 @@ func saveSnapshotMap(snapshotID, volumeID string, bsDriver BlockStoreDriver, sna
 	filePath := filepath.Join(path, fileName)
 	if bsDriver.FileExists(filePath) {
 		log.Warnf("Snapshot configuration file %v already exists, would remove it\n", filePath)
-		if err := bsDriver.RemoveAll(filePath); err != nil {
+		if err := bsDriver.Remove(filePath); err != nil {
 			return err
 		}
 	}
@@ -227,7 +227,7 @@ func loadImageConfig(imageUUID string, driver BlockStoreDriver) (*Image, error) 
 
 func removeImageConfig(image *Image, driver BlockStoreDriver) error {
 	file := getImageCfgBlockStorePath(image.UUID)
-	if err := driver.RemoveAll(file); err != nil {
+	if err := driver.Remove(file); err != nil {
 		return err
 	}
 	return nil
