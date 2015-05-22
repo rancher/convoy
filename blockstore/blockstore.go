@@ -22,7 +22,6 @@ type BlockStoreDriver interface {
 	FinalizeInit(root, cfgName, id string) error
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
-	MkDirAll(dirName string) error
 	Remove(name string) error //Would return error if it's not empty
 	RemoveAll(name string) error
 	Read(src string, data []byte) error
@@ -106,22 +105,6 @@ func Register(root, kind string, config map[string]string) (*BlockStore, error) 
 		id = uuid.New()
 		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 
-		basePath := filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY)
-		err = driver.MkDirAll(basePath)
-		if err != nil {
-			removeDriverConfigFile(root, kind, id)
-			return nil, err
-		}
-		log.Debug("Created base directory of blockstore at ", basePath)
-
-		imagesPath := filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY)
-		err = driver.MkDirAll(imagesPath)
-		if err != nil {
-			removeDriverConfigFile(root, kind, id)
-			return nil, err
-		}
-		log.Debug("Created base directory of images at ", imagesPath)
-
 		bs = &BlockStore{
 			UUID:      id,
 			Kind:      kind,
@@ -196,16 +179,6 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 		return fmt.Errorf("volume %v already exists in blockstore %v", volumeID, id)
 	}
 
-	if err := driver.MkDirAll(volumePath); err != nil {
-		return err
-	}
-	if err := driver.MkDirAll(getSnapshotsPath(volumeID)); err != nil {
-		return err
-	}
-	if err := driver.MkDirAll(getBlocksPath(volumeID)); err != nil {
-		return err
-	}
-	log.Debug("Created volume directory")
 	volume := Volume{
 		Size:           size,
 		Base:           base,
@@ -213,6 +186,7 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 	}
 
 	if err := saveConfigInBlockStore(volumeFile, driver, &volume); err != nil {
+		log.Error("fail add volume ", volumeID)
 		return err
 	}
 	log.Debug("Created volume configuration file in blockstore: ", volumeFile)
@@ -320,9 +294,6 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 				continue
 			}
 			log.Debugf("Creating new block file at %v", blkFile)
-			if err := bsDriver.MkDirAll(filepath.Dir(blkFile)); err != nil {
-				return err
-			}
 			if err := bsDriver.Write(block, blkFile); err != nil {
 				return err
 			}
@@ -504,6 +475,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 }
 
 func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
+	log.Debugf("blockstore: listing blockstore for volume %v snapshot %v", volumeID, snapshotID)
 	resp := api.VolumesResponse{
 		Volumes: make(map[string]api.VolumeResponse),
 	}
@@ -517,9 +489,7 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 
 	snapshots, err := getSnapshots(volumeID, driver)
 	if err != nil {
-		// Volume doesn't exist
-		api.ResponseOutput(resp)
-		return nil
+		return err
 	}
 
 	volumeResp := api.VolumeResponse{
@@ -546,6 +516,7 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 	}
 	resp.Volumes[volumeID] = volumeResp
 	api.ResponseOutput(resp)
+	log.Error("5")
 	return nil
 }
 

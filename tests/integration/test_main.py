@@ -316,7 +316,6 @@ def test_blockstore():
 
     assert os.path.exists(BLOCKSTORE_ROOT)
     assert os.path.exists(BLOCKSTORE_CFG)
-    assert os.path.exists(BLOCKSTORE_VOLUME_DIR)
 
     with open(BLOCKSTORE_CFG) as f:
 	bs = json.loads(f.read())

@@ -54,6 +54,13 @@ func (v *VfsBlockStoreDriver) updatePath(path string) string {
 	return filepath.Join(v.Path, path)
 }
 
+func (v *VfsBlockStoreDriver) preparePath(file string) error {
+	if err := os.MkdirAll(filepath.Dir(v.updatePath(file)), os.ModeDir|0700); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (v *VfsBlockStoreDriver) FinalizeInit(root, cfgName, id string) error {
 	v.ID = id
 	if err := util.SaveConfig(root, cfgName, v); err != nil {
@@ -79,10 +86,6 @@ func (v *VfsBlockStoreDriver) FileExists(filePath string) bool {
 	return v.FileSize(filePath) >= 0
 }
 
-func (v *VfsBlockStoreDriver) MkDirAll(dirName string) error {
-	return os.MkdirAll(v.updatePath(dirName), os.ModeDir|0700)
-}
-
 func (v *VfsBlockStoreDriver) RemoveAll(name string) error {
 	return os.RemoveAll(v.updatePath(name))
 }
@@ -104,7 +107,10 @@ func (v *VfsBlockStoreDriver) Read(src string, data []byte) error {
 func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 	tmpFile := dst + ".tmp"
 	if v.FileExists(tmpFile) {
-		v.RemoveAll(tmpFile)
+		v.Remove(tmpFile)
+	}
+	if err := v.preparePath(dst); err != nil {
+		return err
 	}
 	file, err := os.Create(v.updatePath(tmpFile))
 	if err != nil {
@@ -114,7 +120,7 @@ func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 	_, err = file.Write(data)
 
 	if v.FileExists(dst) {
-		v.RemoveAll(dst)
+		v.Remove(dst)
 	}
 	return os.Rename(v.updatePath(tmpFile), v.updatePath(dst))
 }
@@ -135,7 +141,10 @@ func (v *VfsBlockStoreDriver) List(path string) ([]string, error) {
 func (v *VfsBlockStoreDriver) Upload(src, dst string) error {
 	tmpDst := dst + ".tmp"
 	if v.FileExists(tmpDst) {
-		v.RemoveAll(tmpDst)
+		v.Remove(tmpDst)
+	}
+	if err := v.preparePath(dst); err != nil {
+		return err
 	}
 	output, err := exec.Command("cp", src, v.updatePath(tmpDst)).CombinedOutput()
 	if err != nil {

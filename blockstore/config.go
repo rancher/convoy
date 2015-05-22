@@ -192,12 +192,13 @@ func removeAndCleanup(path string, driver BlockStoreDriver) error {
 }
 
 func getSnapshots(volumeID string, driver BlockStoreDriver) (map[string]bool, error) {
+	result := make(map[string]bool)
 	fileList, err := driver.List(getSnapshotsPath(volumeID))
 	if err != nil {
-		return nil, err
+		// path doesn't exist
+		return result, nil
 	}
 
-	result := make(map[string]bool)
 	for _, f := range fileList {
 		parts := strings.Split(f, "_")
 		if len(parts) != 2 {
