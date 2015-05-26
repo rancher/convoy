@@ -522,7 +522,6 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 	}
 	resp.Volumes[volumeID] = volumeResp
 	api.ResponseOutput(resp)
-	log.Error("5")
 	return nil
 }
 
