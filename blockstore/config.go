@@ -160,11 +160,11 @@ func getVolumePath(volumeID string) string {
 }
 
 func getSnapshotsPath(volumeID string) string {
-	return filepath.Join(getVolumePath(volumeID), SNAPSHOTS_DIRECTORY)
+	return filepath.Join(getVolumePath(volumeID), SNAPSHOTS_DIRECTORY) + "/"
 }
 
 func getBlocksPath(volumeID string) string {
-	return filepath.Join(getVolumePath(volumeID), BLOCKS_DIRECTORY)
+	return filepath.Join(getVolumePath(volumeID), BLOCKS_DIRECTORY) + "/"
 }
 
 func getBlockFilePath(volumeID, checksum string) string {

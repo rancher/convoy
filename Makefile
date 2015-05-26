@@ -10,6 +10,7 @@ $(VOLMGR_MOUNT_EXEC_FILE): ./tools/volmgr_mount.c
 
 $(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./blockstore/blockstore.go ./blockstore/config.go \
+	./s3blockstore/s3blockstore.go ./s3blockstore/s3_service.go \
 	./vfsblockstore/vfsblockstore.go \
 	./devmapper/devmapper.go \
  	./drivers/drivers.go \
