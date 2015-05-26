@@ -1,6 +1,7 @@
 package blockstore
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -41,11 +42,12 @@ func loadConfigInBlockStore(filePath string, driver BlockStoreDriver, v interfac
 	if size < 0 {
 		return fmt.Errorf("cannot find %v in blockstore", filePath)
 	}
-	data := make([]byte, size)
-	if err := driver.Read(filePath, data); err != nil {
+	rc, err := driver.Read(filePath)
+	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(data, v); err != nil {
+	defer rc.Close()
+	if err := json.NewDecoder(rc).Decode(v); err != nil {
 		return err
 	}
 	return nil
@@ -56,7 +58,7 @@ func saveConfigInBlockStore(filePath string, driver BlockStoreDriver, v interfac
 	if err != nil {
 		return err
 	}
-	if err := driver.Write(j, filePath); err != nil {
+	if err := driver.Write(filePath, bytes.NewReader(j)); err != nil {
 		return err
 	}
 	return nil

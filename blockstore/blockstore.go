@@ -1,12 +1,14 @@
 package blockstore
 
 import (
+	"bytes"
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -23,8 +25,8 @@ type BlockStoreDriver interface {
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
 	Remove(name string) error
-	Read(src string, data []byte) error
-	Write(data []byte, dst string) error
+	Read(src string) (io.ReadCloser, error) // Caller needs to close
+	Write(dst string, rc io.Reader) error
 	List(path string) ([]string, error)
 	Upload(src, dst string) error
 	Download(src, dst string) error
@@ -293,7 +295,7 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 				continue
 			}
 			log.Debugf("Creating new block file at %v", blkFile)
-			if err := bsDriver.Write(block, blkFile); err != nil {
+			if err := bsDriver.Write(blkFile, bytes.NewReader(block)); err != nil {
 				return err
 			}
 			log.Debugf("Created new block file at %v", blkFile)
@@ -384,15 +386,20 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 	}
 
 	for _, block := range snapshotMap.Blocks {
-		data := make([]byte, b.BlockSize)
 		blkFile := getBlockFilePath(srcVolumeID, block.BlockChecksum)
-		err := bsDriver.Read(blkFile, data)
+		rc, err := bsDriver.Read(blkFile)
 		if err != nil {
 			return err
 		}
-		if _, err := volDev.WriteAt(data, block.Offset); err != nil {
+		if _, err := volDev.Seek(block.Offset, 0); err != nil {
+			rc.Close()
 			return err
 		}
+		if _, err := io.CopyN(volDev, rc, b.BlockSize); err != nil {
+			rc.Close()
+			return err
+		}
+		rc.Close()
 	}
 	log.Debugf("Restored snapshot %v of volume %v to volume %v", srcSnapshotID, srcVolumeID, dstVolumeID)
 

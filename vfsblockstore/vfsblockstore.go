@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/rancherio/volmgr/blockstore"
 	"github.com/rancherio/volmgr/util"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,17 +105,15 @@ func (v *VfsBlockStoreDriver) Remove(name string) error {
 	return nil
 }
 
-func (v *VfsBlockStoreDriver) Read(src string, data []byte) error {
+func (v *VfsBlockStoreDriver) Read(src string) (io.ReadCloser, error) {
 	file, err := os.Open(v.updatePath(src))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer file.Close()
-	_, err = file.Read(data)
-	return err
+	return file, nil
 }
 
-func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
+func (v *VfsBlockStoreDriver) Write(dst string, r io.Reader) error {
 	tmpFile := dst + ".tmp"
 	if v.FileExists(tmpFile) {
 		v.Remove(tmpFile)
@@ -127,7 +126,10 @@ func (v *VfsBlockStoreDriver) Write(data []byte, dst string) error {
 		return err
 	}
 	defer file.Close()
-	_, err = file.Write(data)
+	_, err = io.Copy(file, r)
+	if err != nil {
+		return err
+	}
 
 	if v.FileExists(dst) {
 		v.Remove(dst)
