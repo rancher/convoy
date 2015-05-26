@@ -16,6 +16,42 @@
 			"Rev": "539d4dc034c079a7188b5d4ca9650632d73c66e8"
 		},
 		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/aws",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/apierr",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/endpoints",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/query",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/rest",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/restxml",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/xml/xmlutil",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/signer/v4",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
+			"ImportPath": "github.com/awslabs/aws-sdk-go/service/s3",
+			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+		},
+		{
 			"ImportPath": "github.com/codegangsta/cli",
 			"Comment": "1.2.0-98-g30b361b",
 			"Rev": "30b361bf66a60174a9589458afbf494478bafd00"
@@ -24,6 +60,10 @@
 			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
 			"Comment": "v1.4.1-2111-ga11c685",
 			"Rev": "a11c6852dfde0b1081fb84d0d02bd200097b0e5a"
+		},
+		{
+			"ImportPath": "github.com/vaughan0/go-ini",
+			"Rev": "a98ad7ee00ec53921f08832bc06ecf7fd600e6a1"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
