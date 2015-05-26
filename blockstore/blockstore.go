@@ -26,7 +26,7 @@ type BlockStoreDriver interface {
 	FileSize(filePath string) int64
 	Remove(name string) error
 	Read(src string) (io.ReadCloser, error) // Caller needs to close
-	Write(dst string, rc io.Reader) error
+	Write(dst string, rs io.ReadSeeker) error
 	List(path string) ([]string, error)
 	Upload(src, dst string) error
 	Download(src, dst string) error

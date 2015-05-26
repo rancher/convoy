@@ -113,7 +113,7 @@ func (v *VfsBlockStoreDriver) Read(src string) (io.ReadCloser, error) {
 	return file, nil
 }
 
-func (v *VfsBlockStoreDriver) Write(dst string, r io.Reader) error {
+func (v *VfsBlockStoreDriver) Write(dst string, rs io.ReadSeeker) error {
 	tmpFile := dst + ".tmp"
 	if v.FileExists(tmpFile) {
 		v.Remove(tmpFile)
@@ -126,7 +126,7 @@ func (v *VfsBlockStoreDriver) Write(dst string, r io.Reader) error {
 		return err
 	}
 	defer file.Close()
-	_, err = io.Copy(file, r)
+	_, err = io.Copy(file, rs)
 	if err != nil {
 		return err
 	}
