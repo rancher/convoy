@@ -112,18 +112,22 @@ func (s *S3Service) GetObject(key string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (s *S3Service) DeleteObjects(key string) error {
-	contents, err := s.ListObjects(key)
-	if err != nil {
-		return err
-	}
-	size := len(contents)
-	if size == 0 {
-		return nil
-	}
-	keyList := make([]string, size)
-	for i, obj := range contents {
-		keyList[i] = *obj.Key
+func (s *S3Service) DeleteObjects(keys []string) error {
+	var keyList []string
+	totalSize := 0
+	for _, key := range keys {
+		contents, err := s.ListObjects(key)
+		if err != nil {
+			return err
+		}
+		size := len(contents)
+		if size == 0 {
+			continue
+		}
+		totalSize += size
+		for _, obj := range contents {
+			keyList = append(keyList, *obj.Key)
+		}
 	}
 
 	svc, err := s.New()
@@ -132,7 +136,7 @@ func (s *S3Service) DeleteObjects(key string) error {
 	}
 	defer s.Close()
 
-	identifiers := make([]*s3.ObjectIdentifier, size)
+	identifiers := make([]*s3.ObjectIdentifier, totalSize)
 	for i, k := range keyList {
 		identifiers[i] = &s3.ObjectIdentifier{
 			Key: aws.String(k),

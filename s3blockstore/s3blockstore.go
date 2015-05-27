@@ -123,9 +123,15 @@ func (s *S3BlockStoreDriver) FileSize(filePath string) int64 {
 	return *contents[0].Size
 }
 
-func (s *S3BlockStoreDriver) Remove(name string) error {
-	path := s.updatePath(name)
-	return s.Service.DeleteObjects(path)
+func (s *S3BlockStoreDriver) Remove(names ...string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	paths := make([]string, len(names))
+	for i, name := range names {
+		paths[i] = s.updatePath(name)
+	}
+	return s.Service.DeleteObjects(paths)
 }
 
 func (s *S3BlockStoreDriver) Read(src string) (io.ReadCloser, error) {

@@ -89,17 +89,19 @@ func (v *VfsBlockStoreDriver) FileExists(filePath string) bool {
 	return v.FileSize(filePath) >= 0
 }
 
-func (v *VfsBlockStoreDriver) Remove(name string) error {
-	if err := os.RemoveAll(v.updatePath(name)); err != nil {
-		return err
-	}
-	//Also automatically cleanup upper level directories
-	dir := v.updatePath(name)
-	for i := 0; i < MAX_CLEANUP_LEVEL; i++ {
-		dir = filepath.Dir(dir)
-		// If directory is not empty, then we don't need to continue
-		if err := os.Remove(dir); err != nil {
-			break
+func (v *VfsBlockStoreDriver) Remove(names ...string) error {
+	for _, name := range names {
+		if err := os.RemoveAll(v.updatePath(name)); err != nil {
+			return err
+		}
+		//Also automatically cleanup upper level directories
+		dir := v.updatePath(name)
+		for i := 0; i < MAX_CLEANUP_LEVEL; i++ {
+			dir = filepath.Dir(dir)
+			// If directory is not empty, then we don't need to continue
+			if err := os.Remove(dir); err != nil {
+				break
+			}
 		}
 	}
 	return nil

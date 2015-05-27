@@ -24,7 +24,7 @@ type BlockStoreDriver interface {
 	FinalizeInit(root, cfgName, id string) error
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
-	Remove(name string) error
+	Remove(names ...string) error
 	Read(src string) (io.ReadCloser, error) // Caller needs to close
 	Write(dst string, rs io.ReadSeeker) error
 	List(path string) ([]string, error)
