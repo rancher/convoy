@@ -3,7 +3,6 @@ package main
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"

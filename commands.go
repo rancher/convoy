@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"

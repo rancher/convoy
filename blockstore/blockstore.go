@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"
@@ -15,6 +15,10 @@ import (
 
 const (
 	DEFAULT_BLOCK_SIZE = 2097152
+)
+
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "blockstore"})
 )
 
 type InitFunc func(root, cfgName string, config map[string]string) (BlockStoreDriver, error)
@@ -96,7 +100,7 @@ func Register(root, kind string, config map[string]string) (*BlockStore, error) 
 	if err == nil {
 		// BlockStore has already been created
 		if bs.Kind != kind {
-			return nil, fmt.Errorf("specific kind is different from config stored in blockstore")
+			return nil, fmt.Errorf("Specific kind is different from config stored in blockstore")
 		}
 		id = bs.UUID
 		log.Debug("Loaded blockstore cfg in blockstore: ", id)
@@ -156,7 +160,7 @@ func getBlockstoreCfgAndDriver(root, blockstoreUUID string) (*BlockStore, BlockS
 	if err != nil {
 		return nil, nil, err
 	}
-	log.Debug("blockstore: loaded configure for blockstore ", blockstoreUUID)
+	log.Debug("Loaded configure for blockstore ", blockstoreUUID)
 	return b, driver, nil
 }
 
@@ -177,7 +181,7 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 	volumeCfg := VOLUME_CONFIG_FILE
 	volumeFile := filepath.Join(volumePath, volumeCfg)
 	if driver.FileExists(volumeFile) {
-		return fmt.Errorf("volume %v already exists in blockstore %v", volumeID, id)
+		return fmt.Errorf("Volume %v already exists in blockstore %v", volumeID, id)
 	}
 
 	volume := Volume{
@@ -187,7 +191,7 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 	}
 
 	if err := saveConfigInBlockStore(volumeFile, driver, &volume); err != nil {
-		log.Error("fail add volume ", volumeID)
+		log.Error("Fail add volume ", volumeID)
 		return err
 	}
 	log.Debug("Created volume configuration file in blockstore: ", volumeFile)
@@ -206,7 +210,7 @@ func RemoveVolume(root, id, volumeID string) error {
 	volumeCfg := VOLUME_CONFIG_FILE
 	volumeFile := filepath.Join(volumePath, volumeCfg)
 	if !driver.FileExists(volumeFile) {
-		return fmt.Errorf("volume %v doesn't exist in blockstore %v", volumeID, id)
+		return fmt.Errorf("Volume %v doesn't exist in blockstore %v", volumeID, id)
 	}
 
 	volumeDir := getVolumePath(volumeID)
@@ -231,7 +235,7 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 	}
 
 	if snapshotExists(snapshotID, volumeID, bsDriver) {
-		return fmt.Errorf("snapshot already exists in blockstore!")
+		return fmt.Errorf("Snapshot already exists in blockstore!")
 	}
 
 	lastSnapshotID := volume.LastSnapshotID
@@ -367,7 +371,7 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 	}
 
 	if _, err := loadVolumeConfig(srcVolumeID, bsDriver); err != nil {
-		return fmt.Errorf("volume %v doesn't exist in blockstore %v", srcVolumeID, blockstoreID, err)
+		return fmt.Errorf("Volume %v doesn't exist in blockstore %v", srcVolumeID, blockstoreID, err)
 	}
 
 	volDevName, err := sDriver.GetVolumeDevice(dstVolumeID)
@@ -414,7 +418,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 
 	v, err := loadVolumeConfig(volumeID, bsDriver)
 	if err != nil {
-		return fmt.Errorf("cannot find volume %v in blockstore %v", volumeID, blockstoreID, err)
+		return fmt.Errorf("Cannot find volume %v in blockstore %v", volumeID, blockstoreID, err)
 	}
 
 	snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
@@ -469,21 +473,21 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 	var blkFileList []string
 	for blk := range discardBlockSet {
 		blkFileList = append(blkFileList, getBlockFilePath(volumeID, blk))
-		log.Debugf("blockstore: found unused blocks %v for volume %v", blk, volumeID)
+		log.Debugf("Found unused blocks %v for volume %v", blk, volumeID)
 	}
 	if err := bsDriver.Remove(blkFileList...); err != nil {
 		return err
 	}
-	log.Debug("blockstore: removed unused blocks for volume ", volumeID)
+	log.Debug("Removed unused blocks for volume ", volumeID)
 
-	log.Debug("blockstore: GC completed")
-	log.Debug("blockstore: Removed blockstore snapshot ", snapshotID)
+	log.Debug("GC completed")
+	log.Debug("Removed blockstore snapshot ", snapshotID)
 
 	return nil
 }
 
 func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
-	log.Debugf("blockstore: listing blockstore for volume %v snapshot %v", volumeID, snapshotID)
+	log.Debugf("Listing blockstore for volume %v snapshot %v", volumeID, snapshotID)
 	resp := api.VolumesResponse{
 		Volumes: make(map[string]api.VolumeResponse),
 	}
@@ -570,24 +574,24 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	image.Name = imageName
 	image.Size = imageStat.Size()
 
-	log.Debugf("blockstore: copying image %v to local store %v", imageFilePath, imageLocalStorePath)
+	log.Debugf("Copying image %v to local store %v", imageFilePath, imageLocalStorePath)
 	if err := util.Copy(imageFilePath, imageLocalStorePath); err != nil {
-		log.Debugf("blockstore: copying image failed")
+		log.Debugf("Copying image failed")
 		return err
 	}
-	log.Debug("blockstore: copied image to local store")
+	log.Debug("Copied image to local store")
 
-	log.Debugf("blockstore: prepare uploading image to blockstore ")
+	log.Debugf("Prepare uploading image to blockstore ")
 	if err := uploadImage(imageLocalStorePath, bsDriver, image); err != nil {
-		log.Debugf("blockstore: uploading image failed")
+		log.Debugf("Uploading image failed")
 		return err
 	}
-	log.Debug("blockstore: uploaded image to blockstore")
+	log.Debug("Uploaded image to blockstore")
 
 	if err := saveImageConfig(imageUUID, bsDriver, image); err != nil {
 		return err
 	}
-	log.Debug("blockstore: save image config to blockstore done")
+	log.Debug("Save image config to blockstore done")
 
 	imageResp := api.ImageResponse{
 		UUID:        image.UUID,
@@ -601,37 +605,37 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 }
 
 func uploadImage(imageLocalStorePath string, bsDriver BlockStoreDriver, image *Image) error {
-	log.Debug("blockstore: calculating checksum for raw image")
+	log.Debug("Calculating checksum for raw image")
 	rawChecksum, err := util.GetFileChecksum(imageLocalStorePath)
 	if err != nil {
-		log.Debug("blockstore: calculation failed")
+		log.Debug("Calculation failed")
 		return err
 	}
-	log.Debug("blockstore: calculation done, raw checksum: ", rawChecksum)
+	log.Debug("Calculation done, raw checksum: ", rawChecksum)
 	image.RawChecksum = rawChecksum
 
-	log.Debug("blockstore: compressing raw image")
+	log.Debug("Compressing raw image")
 	if err := util.CompressFile(imageLocalStorePath); err != nil {
-		log.Debug("blockstore: compressing failed ")
+		log.Debug("Compressing failed ")
 		return err
 	}
 	compressedLocalPath := imageLocalStorePath + ".gz"
-	log.Debug("blockstore: compressed raw image to ", compressedLocalPath)
+	log.Debug("Compressed raw image to ", compressedLocalPath)
 
-	log.Debug("blockstore: calculating checksum for compressed image")
+	log.Debug("Calculating checksum for compressed image")
 	if image.Checksum, err = util.GetFileChecksum(compressedLocalPath); err != nil {
-		log.Debug("blockstore: calculation failed")
+		log.Debug("Calculation failed")
 		return err
 	}
-	log.Debug("blockstore: calculation done, checksum: ", image.Checksum)
+	log.Debug("Calculation done, checksum: ", image.Checksum)
 
 	imageBlockStorePath := getImageBlockStorePath(image.UUID)
-	log.Debug("blockstore: uploading image to blockstore path: ", imageBlockStorePath)
+	log.Debug("Uploading image to blockstore path: ", imageBlockStorePath)
 	if err := bsDriver.Upload(compressedLocalPath, imageBlockStorePath); err != nil {
-		log.Debugf("blockstore: uploading failed")
+		log.Debugf("Uploading failed")
 		return err
 	}
-	log.Debugf("blockstore: uploading done")
+	log.Debugf("Uploading done")
 	return nil
 }
 
@@ -639,12 +643,12 @@ func removeImage(bsDriver BlockStoreDriver, image *Image) error {
 	if err := removeImageConfig(image, bsDriver); err != nil {
 		return err
 	}
-	log.Debugf("blockstore: removed image %v's config from blockstore", image.UUID)
+	log.Debugf("Removed image %v's config from blockstore", image.UUID)
 	imageBlockStorePath := getImageBlockStorePath(image.UUID)
 	if err := bsDriver.Remove(imageBlockStorePath); err != nil {
 		return err
 	}
-	log.Debug("blockstore: removed image at ", imageBlockStorePath)
+	log.Debug("Removed image at ", imageBlockStorePath)
 	return nil
 }
 
@@ -667,7 +671,7 @@ func RemoveImage(root, imageDir, imageUUID, blockstoreUUID string) error {
 	if err := removeImage(driver, image); err != nil {
 		return err
 	}
-	log.Debugf("blockstore: image %v removed", imageUUID)
+	log.Debugf("Image %v removed", imageUUID)
 
 	return nil
 }
@@ -691,13 +695,13 @@ func ActivateImage(root, imageDir, imageUUID, blockstoreUUID string) error {
 
 func loadImageCache(fileName string, compressed bool, image *Image) (bool, error) {
 	if st, err := os.Stat(fileName); err == nil && !st.IsDir() {
-		log.Debug("blockstore: found local image cache at ", fileName)
-		log.Debug("blockstore: calculating checksum for local image cache")
+		log.Debug("Found local image cache at ", fileName)
+		log.Debug("Calculating checksum for local image cache")
 		checksum, err := util.GetFileChecksum(fileName)
 		if err != nil {
 			return false, err
 		}
-		log.Debug("blockstore: calculation done, checksum ", checksum)
+		log.Debug("Calculation done, checksum ", checksum)
 		if compressed && checksum == image.Checksum {
 			log.Debugf("Found image %v in local images directory, and checksum matched, no need to re-download\n", image.UUID)
 			return true, nil
@@ -709,18 +713,18 @@ func loadImageCache(fileName string, compressed bool, image *Image) (bool, error
 			if err := os.RemoveAll(fileName); err != nil {
 				return false, err
 			}
-			log.Debug("blockstore: removed local image cache at ", fileName)
+			log.Debug("Removed local image cache at ", fileName)
 		}
 	}
 	return false, nil
 }
 
 func uncompressImage(fileName string) error {
-	log.Debugf("blockstore: uncompressing image %v ", fileName)
+	log.Debugf("Uncompressing image %v ", fileName)
 	if err := util.UncompressFile(fileName); err != nil {
 		return err
 	}
-	log.Debug("blockstore: image uncompressed")
+	log.Debug("Image uncompressed")
 	return nil
 }
 
@@ -741,22 +745,22 @@ func downloadImage(imagesDir string, driver BlockStoreDriver, image *Image) erro
 	}
 
 	imageBlockStorePath := getImageBlockStorePath(image.UUID)
-	log.Debugf("blockstore: downloading image from blockstore %v to %v", imageBlockStorePath, compressedLocalPath)
+	log.Debugf("Downloading image from blockstore %v to %v", imageBlockStorePath, compressedLocalPath)
 	if err := driver.Download(imageBlockStorePath, compressedLocalPath); err != nil {
 		return err
 	}
-	log.Debug("blockstore: download complete")
+	log.Debug("Download complete")
 
 	if err := uncompressImage(compressedLocalPath); err != nil {
 		return err
 	}
 
-	log.Debug("blockstore: calculating checksum for local image")
+	log.Debug("Calculating checksum for local image")
 	rawChecksum, err := util.GetFileChecksum(imageLocalStorePath)
 	if err != nil {
 		return err
 	}
-	log.Debug("blockstore: calculation done, raw checksum ", rawChecksum)
+	log.Debug("Calculation done, raw checksum ", rawChecksum)
 	if rawChecksum != image.RawChecksum {
 		return fmt.Errorf("Image %v checksum verification failed!", image.UUID)
 	}
@@ -769,8 +773,8 @@ func DeactivateImage(root, imageDir, imageUUID, blockstoreUUID string) error {
 		if err := os.RemoveAll(imageLocalStorePath); err != nil {
 			return err
 		}
-		log.Debug("blockstore: removed local image cache at ", imageLocalStorePath)
+		log.Debug("Removed local image cache at ", imageLocalStorePath)
 	}
-	log.Debug("blockstore: deactivated image ", imageUUID)
+	log.Debug("Deactivated image ", imageUUID)
 	return nil
 }

@@ -2,13 +2,17 @@ package s3blockstore
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/blockstore"
 	"github.com/rancherio/volmgr/util"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "s3blockstore"})
 )
 
 type S3BlockStoreDriver struct {

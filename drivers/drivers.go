@@ -2,7 +2,7 @@ package drivers
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/metadata"
 	"os/exec"
 )
@@ -29,6 +29,7 @@ type Driver interface {
 
 var (
 	initializers map[string]InitFunc
+	log          = logrus.WithFields(logrus.Fields{"pkg": "drivers"})
 )
 
 func init() {

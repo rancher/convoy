@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/util"
@@ -34,13 +34,14 @@ type Config struct {
 var (
 	lock    string
 	logFile *os.File
+	log     = logrus.WithFields(logrus.Fields{"pkg": "main"})
 )
 
 func preAppRun(c *cli.Context) error {
 	if c.Bool("debug") {
-		log.SetLevel(log.DebugLevel)
+		logrus.SetLevel(logrus.DebugLevel)
 	} else {
-		log.SetLevel(log.InfoLevel)
+		logrus.SetLevel(logrus.InfoLevel)
 	}
 
 	root := c.String("root")
@@ -62,10 +63,10 @@ func preAppRun(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		log.SetFormatter(&log.JSONFormatter{})
-		log.SetOutput(logFile)
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+		logrus.SetOutput(logFile)
 	} else {
-		log.SetOutput(os.Stderr)
+		logrus.SetOutput(os.Stderr)
 	}
 
 	return nil

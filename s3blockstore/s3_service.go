@@ -2,7 +2,6 @@ package s3blockstore
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"github.com/awslabs/aws-sdk-go/aws"
 	"github.com/awslabs/aws-sdk-go/aws/awserr"
 	"github.com/awslabs/aws-sdk-go/aws/awsutil"

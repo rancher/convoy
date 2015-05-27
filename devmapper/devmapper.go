@@ -4,7 +4,7 @@ package devmapper
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
@@ -14,6 +14,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+)
+
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "devmapper"})
 )
 
 const (
