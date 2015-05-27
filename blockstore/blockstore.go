@@ -466,16 +466,18 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 		}
 	}
 
+	var blkFileList []string
 	for blk := range discardBlockSet {
-		blkFile := getBlockFilePath(volumeID, blk)
-		if err := bsDriver.Remove(blkFile); err != nil {
-			return err
-		}
-		log.Debugf("Removed unused block %v for volume %v", blk, volumeID)
+		blkFileList = append(blkFileList, getBlockFilePath(volumeID, blk))
+		log.Debugf("blockstore: found unused blocks %v for volume %v", blk, volumeID)
 	}
+	if err := bsDriver.Remove(blkFileList...); err != nil {
+		return err
+	}
+	log.Debug("blockstore: removed unused blocks for volume ", volumeID)
 
-	log.Debug("GC completed")
-	log.Debug("Removed blockstore snapshot ", snapshotID)
+	log.Debug("blockstore: GC completed")
+	log.Debug("blockstore: Removed blockstore snapshot ", snapshotID)
 
 	return nil
 }
