@@ -189,7 +189,7 @@ func (d *Driver) activatePool() error {
 	volumeIDs := dev.listVolumeIDs()
 	for _, id := range volumeIDs {
 		volume := dev.loadVolume(id)
-		if err := d.activateDevice(id, volume.DevID, uint64(volume.Size)); err != nil {
+		if err := devicemapper.ActivateDevice(dev.ThinpoolDevice, id, volume.DevID, uint64(volume.Size)); err != nil {
 			return err
 		}
 		log.Debug("Reactivated volume device", id)
@@ -306,13 +306,13 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	log.Debug("Created device")
 
 	if image == nil {
-		if err = d.activateDevice(id, devID, uint64(size)); err != nil {
+		if err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, devID, uint64(size)); err != nil {
 			devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
 			log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
 			return err
 		}
 	} else {
-		if err = d.activateDeviceWithExternal(id, devID, uint64(size), image.Device); err != nil {
+		if err = devicemapper.ActivateDeviceWithExternal(d.ThinpoolDevice, id, devID, uint64(size), image.Device); err != nil {
 			devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
 			log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
 			return err
@@ -355,7 +355,7 @@ func (d *Driver) DeleteVolume(id string) error {
 		return fmt.Errorf("Volume %v still contains snapshots, delete snapshots first", id)
 	}
 
-	if err = d.deactivateDevice(id, volume.DevID); err != nil {
+	if err = devicemapper.RemoveDevice(id); err != nil {
 		return err
 	}
 
@@ -559,43 +559,13 @@ func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *
 	return &snap, volume, nil
 }
 
-func (d *Driver) activateDevice(id string, devID int, size uint64) error {
-	log.Debugf("Activating device, uuid %v(devid %v)", id, devID)
-	err := devicemapper.ActivateDevice(d.ThinpoolDevice, id, devID, size)
-	if err != nil {
-		return err
-	}
-	log.Debug("Activated device")
-	return nil
-}
-
-func (d *Driver) activateDeviceWithExternal(id string, devID int, size uint64, baseDev string) error {
-	log.Debugf("Activating device with external, uuid %v(devid %v), external device %v", id, devID, baseDev)
-	err := devicemapper.ActivateDeviceWithExternal(d.ThinpoolDevice, id, devID, size, baseDev)
-	if err != nil {
-		return err
-	}
-	log.Debug("Activated device")
-	return nil
-}
-
-func (d *Driver) deactivateDevice(id string, devID int) error {
-	log.Debugf("Deactivating device, uuid %v(devid %v)", id, devID)
-	err := devicemapper.RemoveDevice(id)
-	if err != nil {
-		return err
-	}
-	log.Debug("Deactivated device")
-	return nil
-}
-
 func (d *Driver) OpenSnapshot(id, volumeID string) error {
 	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
 		return err
 	}
 
-	if err = d.activateDevice(id, snapshot.DevID, uint64(volume.Size)); err != nil {
+	if err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, snapshot.DevID, uint64(volume.Size)); err != nil {
 		return err
 	}
 	snapshot.Activated = true
@@ -609,7 +579,7 @@ func (d *Driver) CloseSnapshot(id, volumeID string) error {
 		return err
 	}
 
-	if err := d.deactivateDevice(id, snapshot.DevID); err != nil {
+	if err := devicemapper.RemoveDevice(id); err != nil {
 		return err
 	}
 	snapshot.Activated = false
