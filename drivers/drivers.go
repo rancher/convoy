@@ -5,6 +5,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/metadata"
 	"os/exec"
+
+	. "github.com/rancherio/volmgr/logging"
 )
 
 type InitFunc func(root, cfgName string, config map[string]string) (Driver, error)
@@ -81,7 +83,12 @@ func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFor
 		log.Error("Failed mount, ", string(output))
 		return err
 	}
-	log.Debugf("Mounted volume %v to %v, with namespace %v ", volumeUUID, mountPoint, newNS)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_MOUNTPOINT: mountPoint,
+		LOG_FIELD_NAMESPACE:  newNS,
+	}).Debugf("Mounted volume, with namespace")
 	return nil
 }
 
@@ -94,6 +101,10 @@ func Unmount(driver Driver, mountPoint, newNS string) error {
 		log.Error("Failed umount, ", string(output))
 		return err
 	}
-	log.Debugf("Umounted mountpoint %v, with namespace %v", mountPoint, newNS)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
+		LOG_FIELD_MOUNTPOINT: mountPoint,
+		LOG_FIELD_NAMESPACE:  newNS,
+	}).Debugf("Umounted mountpoint with namespace")
 	return nil
 }

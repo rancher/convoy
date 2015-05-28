@@ -14,6 +14,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+
+	. "github.com/rancherio/volmgr/logging"
 )
 
 var (
@@ -41,6 +43,9 @@ const (
 	VOLUME_CFG_PREFIX     = "volume_"
 	IMAGE_CFG_PREFIX      = "image_"
 	DEVMAPPER_CFG_POSTFIX = "_" + DRIVER_NAME + ".json"
+
+	DM_LOG_FIELD_VOLUME_DEVID   = "dm_volume_devid"
+	DM_LOG_FIELD_SNAPSHOT_DEVID = "dm_snapshot_devid"
 )
 
 type Driver struct {
@@ -189,10 +194,16 @@ func (d *Driver) activatePool() error {
 	volumeIDs := dev.listVolumeIDs()
 	for _, id := range volumeIDs {
 		volume := dev.loadVolume(id)
+		if volume == nil {
+			return fmt.Errorf("Cannot find volume %v", id)
+		}
 		if err := devicemapper.ActivateDevice(dev.ThinpoolDevice, id, volume.DevID, uint64(volume.Size)); err != nil {
 			return err
 		}
-		log.Debug("Reactivated volume device", id)
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_EVENT:  LOG_EVENT_ACTIVATE,
+			LOG_FIELD_VOLUME: id,
+		}).Debug("Reactivated volume device")
 	}
 	return nil
 }
@@ -298,25 +309,48 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	}
 
 	devID := d.LastDevID
-	log.Debugf("Creating device, uuid %v(devid %v)", id, devID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:          LOG_REASON_START,
+		LOG_FIELD_EVENT:           LOG_EVENT_CREATE,
+		LOG_FIELD_VOLUME:          id,
+		LOG_FIELD_IMAGE:           baseID,
+		DM_LOG_FIELD_VOLUME_DEVID: devID,
+	}).Debugf("Creating volume")
 	err := devicemapper.CreateDevice(d.ThinpoolDevice, devID)
 	if err != nil {
 		return err
 	}
-	log.Debug("Created device")
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:          LOG_REASON_START,
+		LOG_FIELD_EVENT:           LOG_EVENT_ACTIVATE,
+		LOG_FIELD_VOLUME:          id,
+		LOG_FIELD_IMAGE:           baseID,
+		DM_LOG_FIELD_VOLUME_DEVID: devID,
+	}).Debugf("Activating device for volume")
 	if image == nil {
-		if err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, devID, uint64(size)); err != nil {
-			devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
-			log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
-			return err
-		}
+		err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, devID, uint64(size))
 	} else {
-		if err = devicemapper.ActivateDeviceWithExternal(d.ThinpoolDevice, id, devID, uint64(size), image.Device); err != nil {
-			devicemapper.DeleteDevice(d.ThinpoolDevice, devID)
-			log.Debugf("Removed device due to fail to activate, uuid %v devid %v", id, devID)
-			return err
+		err = devicemapper.ActivateDeviceWithExternal(d.ThinpoolDevice, id, devID, uint64(size), image.Device)
+	}
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_REASON:          LOG_REASON_ROLLBACK,
+			LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
+			LOG_FIELD_VOLUME:          id,
+			LOG_FIELD_IMAGE:           baseID,
+			DM_LOG_FIELD_VOLUME_DEVID: devID,
+		}).Debugf("Removing device for volume due to fail to activate")
+		if err := devicemapper.DeleteDevice(d.ThinpoolDevice, devID); err != nil {
+			log.WithFields(logrus.Fields{
+				LOG_FIELD_REASON:          LOG_REASON_FAILURE,
+				LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
+				LOG_FIELD_VOLUME:          id,
+				LOG_FIELD_IMAGE:           baseID,
+				DM_LOG_FIELD_VOLUME_DEVID: devID,
+			}).Debugf("Failed to remove device")
 		}
+		return err
 	}
 
 	volume = &Volume{
@@ -340,7 +374,11 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
-	log.Debug("Created volume ", id)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
+		LOG_FIELD_VOLUME: id,
+	}).Debug("Created volume")
 
 	return nil
 }
@@ -359,12 +397,16 @@ func (d *Driver) DeleteVolume(id string) error {
 		return err
 	}
 
-	log.Debugf("Deleting device, uuid %v(devid %v)", id, volume.DevID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:          LOG_REASON_START,
+		LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
+		LOG_FIELD_VOLUME:          id,
+		DM_LOG_FIELD_VOLUME_DEVID: volume.DevID,
+	}).Debugf("Deleting device")
 	err = devicemapper.DeleteDevice(d.ThinpoolDevice, volume.DevID)
 	if err != nil {
 		return err
 	}
-	log.Debug("Deleted device")
 
 	if volume.Base != "" {
 		image := d.loadImage(volume.Base)
@@ -381,7 +423,11 @@ func (d *Driver) DeleteVolume(id string) error {
 		return err
 	}
 
-	log.Debug("Deleted volume ", id)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_REMOVE,
+		LOG_FIELD_VOLUME: id,
+	}).Debugf("Deleted device")
 	return nil
 }
 
@@ -455,7 +501,14 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 		return fmt.Errorf("Already has snapshot with uuid %v", id)
 	}
 
-	log.Debugf("Creating snapshot %v for volume %v", id, volumeID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:            LOG_REASON_START,
+		LOG_FIELD_EVENT:             LOG_EVENT_CREATE,
+		LOG_FIELD_VOLUME:            volumeID,
+		LOG_FIELD_SNAPSHOT:          id,
+		DM_LOG_FIELD_VOLUME_DEVID:   volume.DevID,
+		DM_LOG_FIELD_SNAPSHOT_DEVID: devID,
+	}).Debugf("Creating snapshot")
 	err := devicemapper.CreateSnapDevice(d.ThinpoolDevice, devID, volumeID, volume.DevID)
 	if err != nil {
 		return err
@@ -475,7 +528,12 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
-	log.Debug("Created snapshot", id)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
+		LOG_FIELD_VOLUME:   volumeID,
+		LOG_FIELD_SNAPSHOT: id,
+	}).Debugf("Created snapshot")
 	return nil
 }
 
@@ -485,7 +543,12 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 		return err
 	}
 
-	log.Debugf("Deleting snapshot %v for volume %v", id, volumeID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_START,
+		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
+		LOG_FIELD_SNAPSHOT: id,
+		LOG_FIELD_VOLUME:   volumeID,
+	}).Debugf("Deleting snapshot for volume")
 	err = devicemapper.DeleteDevice(d.ThinpoolDevice, snapshot.DevID)
 	if err != nil {
 		return err
@@ -496,7 +559,12 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	if err = d.saveVolume(volume); err != nil {
 		return err
 	}
-	log.Debug("Deleted snapshot ", id)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
+		LOG_FIELD_SNAPSHOT: id,
+		LOG_FIELD_VOLUME:   volumeID,
+	}).Debugf("Deleted snapshot for volume")
 	return nil
 }
 
