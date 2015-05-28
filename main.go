@@ -80,7 +80,7 @@ func cleanup() {
 		logFile.Close()
 	}
 	if r := recover(); r != nil {
-		api.ResponseLogAndError(fmt.Sprint(r))
+		api.ResponseLogAndError(r)
 		os.Exit(1)
 	}
 }

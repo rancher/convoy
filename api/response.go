@@ -3,7 +3,8 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
+	"strings"
 )
 
 type ErrorResponse struct {
@@ -49,9 +50,23 @@ func ResponseError(format string, a ...interface{}) {
 	fmt.Println(string(j[:]))
 }
 
-func ResponseLogAndError(format string, a ...interface{}) {
-	log.Errorf(format, a...)
-	ResponseError(format, a...)
+func ResponseLogAndError(v interface{}) {
+	if e, ok := v.(*logrus.Entry); ok {
+		e.Error(e.Message)
+		oldFormatter := e.Logger.Formatter
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+		s, err := e.String()
+		logrus.SetFormatter(oldFormatter)
+		if err != nil {
+			ResponseError(err.Error())
+			return
+		}
+		// Cosmetic since " would be escaped
+		ResponseError(strings.Replace(s, "\"", "'", -1))
+	} else if e, ok := v.(error); ok {
+		logrus.Errorf(fmt.Sprint(e))
+		ResponseError(fmt.Sprint(e))
+	}
 }
 
 func ResponseOutput(v interface{}) {

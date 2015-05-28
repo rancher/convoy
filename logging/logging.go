@@ -1,5 +1,10 @@
 package logging
 
+import (
+	"fmt"
+	"github.com/Sirupsen/logrus"
+)
+
 const (
 	LOG_FIELD_VOLUME     = "volume"
 	LOG_FIELD_SNAPSHOT   = "snapshot"
@@ -24,3 +29,10 @@ const (
 	LOG_REASON_FAILURE  = "failure"
 	LOG_REASON_ROLLBACK = "rollback"
 )
+
+func ErrorWithFields(fields logrus.Fields, format string, v ...interface{}) *logrus.Entry {
+	entry := logrus.WithFields(fields)
+	entry.Message = fmt.Sprintf(format, v...)
+
+	return entry
+}
