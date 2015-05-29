@@ -3,10 +3,13 @@ package main
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/blockstore"
 	"github.com/rancherio/volmgr/util"
+
+	. "github.com/rancherio/volmgr/logging"
 )
 
 var (
@@ -269,10 +272,25 @@ func doBlockStoreRegister(c *cli.Context) error {
 		return genRequiredMissingError("opts")
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REGISTER,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
+		LOG_FIELD_BLOCKSTORE: "uuid-unknown",
+		LOG_FIELD_KIND:       kind,
+		LOG_FIELD_OPTION:     opts,
+	}).Debug()
 	b, err := blockstore.Register(config.Root, kind, opts)
 	if err != nil {
 		return err
 	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REGISTER,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
+		LOG_FIELD_BLOCKSTORE: b.UUID,
+		LOG_FIELD_BLOCKSIZE:  b.BlockSize,
+	}).Debug()
 
 	api.ResponseOutput(api.BlockStoreResponse{
 		UUID:      b.UUID,
@@ -294,7 +312,22 @@ func doBlockStoreDeregister(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	return blockstore.Deregister(config.Root, uuid)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_DEREGISTER,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
+		LOG_FIELD_BLOCKSTORE: uuid,
+	}).Debug()
+	if err := blockstore.Deregister(config.Root, uuid); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_DEREGISTER,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
+		LOG_FIELD_BLOCKSTORE: uuid,
+	}).Debug()
+	return nil
 }
 
 func cmdBlockStoreAddVolume(c *cli.Context) {
@@ -316,7 +349,26 @@ func doBlockStoreAddVolume(c *cli.Context) error {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
-	return blockstore.AddVolume(config.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_ADD,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_IMAGE:      volume.Base,
+		LOG_FIELD_SIZE:       volume.Size,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	if err := blockstore.AddVolume(config.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_ADD,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	return nil
 }
 
 func cmdBlockStoreRemoveVolume(c *cli.Context) {
@@ -337,7 +389,24 @@ func doBlockStoreRemoveVolume(c *cli.Context) error {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
-	return blockstore.RemoveVolume(config.Root, blockstoreUUID, volumeUUID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	if err := blockstore.RemoveVolume(config.Root, blockstoreUUID, volumeUUID); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	return nil
 }
 
 func cmdBlockStoreListVolume(c *cli.Context) {
@@ -377,7 +446,26 @@ func doSnapshotBackup(c *cli.Context) error {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
-	return blockstore.BackupSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID, driver)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:   snapshotUUID,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	if err := blockstore.BackupSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID, driver); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:   snapshotUUID,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	return nil
 }
 
 func cmdSnapshotRestore(c *cli.Context) {
@@ -412,8 +500,29 @@ func doSnapshotRestore(c *cli.Context) error {
 			targetVolumeUUID, originVolumeUUID)
 	}
 
-	return blockstore.RestoreSnapshot(config.Root, snapshotUUID, originVolumeUUID,
-		targetVolumeUUID, blockstoreUUID, driver)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:    snapshotUUID,
+		LOG_FIELD_ORIN_VOLUME: originVolumeUUID,
+		LOG_FIELD_VOLUME:      targetVolumeUUID,
+		LOG_FIELD_BLOCKSTORE:  blockstoreUUID,
+	}).Debug()
+	if err := blockstore.RestoreSnapshot(config.Root, snapshotUUID, originVolumeUUID,
+		targetVolumeUUID, blockstoreUUID, driver); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:    snapshotUUID,
+		LOG_FIELD_ORIN_VOLUME: originVolumeUUID,
+		LOG_FIELD_VOLUME:      targetVolumeUUID,
+		LOG_FIELD_BLOCKSTORE:  blockstoreUUID,
+	}).Debug()
+	return nil
 }
 
 func cmdSnapshotRemove(c *cli.Context) {
@@ -435,7 +544,26 @@ func doSnapshotRemove(c *cli.Context) error {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
-	return blockstore.RemoveSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:   snapshotUUID,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	if err := blockstore.RemoveSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:   snapshotUUID,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	return nil
 }
 
 func cmdBlockStoreAddImage(c *cli.Context) {
@@ -462,7 +590,27 @@ func doBlockStoreAddImage(c *cli.Context) error {
 		return genRequiredMissingError("image-file")
 	}
 
-	return blockstore.AddImage(config.Root, config.ImagesDir, imageUUID, imageName, imageFile, blockstoreUUID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_ADD,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_IMAGE_NAME: imageName,
+		LOG_FIELD_IMAGE_FILE: imageFile,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	if err := blockstore.AddImage(config.Root, config.ImagesDir, imageUUID, imageName, imageFile, blockstoreUUID); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_ADD,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	return nil
 }
 
 func cmdBlockStoreRemoveImage(c *cli.Context) {
@@ -479,7 +627,25 @@ func doBlockStoreRemoveImage(c *cli.Context) error {
 		return err
 	}
 
-	return blockstore.RemoveImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	if err := blockstore.RemoveImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+	return nil
 }
 
 func cmdBlockStoreActivateImage(c *cli.Context) {
@@ -496,13 +662,44 @@ func doBlockStoreActivateImage(c *cli.Context) error {
 		return err
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
 	if err := blockstore.ActivateImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
 		return err
 	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
+
 	imagePath := blockstore.GetImageLocalStorePath(config.ImagesDir, imageUUID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_DRIVER:     config.Driver,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_FILE: imagePath,
+	}).Debug()
 	if err := driver.ActivateImage(imageUUID, imagePath); err != nil {
 		return err
 	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
+		LOG_FIELD_DRIVER: config.Driver,
+		LOG_FIELD_IMAGE:  imageUUID,
+	}).Debug()
 	return nil
 }
 
@@ -520,11 +717,41 @@ func doBlockStoreDeactivateImage(c *cli.Context) error {
 		return err
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
+		LOG_FIELD_DRIVER: config.Driver,
+		LOG_FIELD_IMAGE:  imageUUID,
+	}).Debug()
 	if err := driver.DeactivateImage(imageUUID); err != nil {
 		return err
 	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
+		LOG_FIELD_DRIVER: config.Driver,
+		LOG_FIELD_IMAGE:  imageUUID,
+	}).Debug()
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
 	if err := blockstore.DeactivateImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
 		return err
 	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
 	return nil
 }

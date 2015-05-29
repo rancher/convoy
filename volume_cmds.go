@@ -3,10 +3,13 @@ package main
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"
+
+	. "github.com/rancherio/volmgr/logging"
 )
 
 var (
@@ -189,10 +192,24 @@ func doVolumeCreate(c *cli.Context) error {
 		}
 		uuid = volumeUUID
 	}
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: uuid,
+		LOG_FIELD_IMAGE:  imageUUID,
+		LOG_FIELD_SIZE:   size,
+	}).Debug()
 	if err := driver.CreateVolume(uuid, imageUUID, size); err != nil {
 		return err
 	}
-	log.Debug("Created volume using ", config.Driver)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: uuid,
+	}).Debug("Created volume")
 
 	volume := &Volume{
 		UUID:       uuid,
@@ -226,10 +243,21 @@ func doVolumeDelete(c *cli.Context) error {
 		return err
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_DELETE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: uuid,
+	}).Debug()
 	if err = driver.DeleteVolume(uuid); err != nil {
 		return err
 	}
-	log.Debug("Deleted volume using ", config.Driver)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_DELETE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: uuid,
+	}).Debug()
 	return config.deleteVolume(uuid)
 }
 
@@ -250,7 +278,11 @@ func doVolumeList(c *cli.Context) error {
 	if snapshotUUID != "" && uuid == "" {
 		return fmt.Errorf("--snapshot-uuid must be used with volume uuid")
 	}
-	return driver.ListVolume(uuid, snapshotUUID)
+	err = driver.ListVolume(uuid, snapshotUUID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func cmdVolumeMount(c *cli.Context) {
@@ -276,10 +308,28 @@ func doVolumeMount(c *cli.Context) error {
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:       LOG_EVENT_MOUNT,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:      volumeUUID,
+		LOG_FIELD_MOUNTPOINT:  mountPoint,
+		LOG_FIELD_FILESYSTEM:  fs,
+		LOG_FIELD_OPTION:      option,
+		LOG_FIELD_NEED_FORMAT: needFormat,
+		LOG_FIELD_NAMESPACE:   newNS,
+	}).Debug()
 	if err := drivers.Mount(driver, volumeUUID, mountPoint, fs, option, needFormat, newNS); err != nil {
 		return err
 	}
-	log.Debugf("Mount %v to %v", volumeUUID, mountPoint)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_LIST,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_MOUNTPOINT: mountPoint,
+	}).Debug()
 	volume.MountPoint = mountPoint
 	volume.FileSystem = fs
 	return config.saveVolume(volume)
@@ -304,10 +354,25 @@ func doVolumeUmount(c *cli.Context) error {
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
+		LOG_FIELD_NAMESPACE:  newNS,
+	}).Debug()
 	if err := drivers.Unmount(driver, volume.MountPoint, newNS); err != nil {
 		return err
 	}
-	log.Debugf("Unmount %v from %v", volumeUUID, volume.MountPoint)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
+	}).Debug()
 	volume.MountPoint = ""
 	return config.saveVolume(volume)
 }

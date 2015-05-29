@@ -18,10 +18,6 @@ import (
 	. "github.com/rancherio/volmgr/logging"
 )
 
-var (
-	log = logrus.WithFields(logrus.Fields{"pkg": "devmapper"})
-)
-
 const (
 	DRIVER_NAME           = "devicemapper"
 	DEFAULT_THINPOOL_NAME = "rancher-volume-pool"
@@ -83,6 +79,14 @@ type Device struct {
 	ThinpoolSize      int64
 	ThinpoolBlockSize int64
 	LastDevID         int
+}
+
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "devmapper"})
+)
+
+func generateError(fields logrus.Fields, format string, v ...interface{}) error {
+	return ErrorWithFields("devmapper", fields, format, v)
 }
 
 func init() {
@@ -312,6 +316,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:          LOG_REASON_START,
 		LOG_FIELD_EVENT:           LOG_EVENT_CREATE,
+		LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:          id,
 		LOG_FIELD_IMAGE:           baseID,
 		DM_LOG_FIELD_VOLUME_DEVID: devID,
@@ -324,6 +329,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:          LOG_REASON_START,
 		LOG_FIELD_EVENT:           LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:          id,
 		LOG_FIELD_IMAGE:           baseID,
 		DM_LOG_FIELD_VOLUME_DEVID: devID,
@@ -374,12 +380,6 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
-		LOG_FIELD_VOLUME: id,
-	}).Debug("Created volume")
-
 	return nil
 }
 
@@ -387,10 +387,14 @@ func (d *Driver) DeleteVolume(id string) error {
 	var err error
 	volume := d.loadVolume(id)
 	if volume == nil {
-		return fmt.Errorf("cannot find volume %v", id)
+		return generateError(logrus.Fields{
+			LOG_FIELD_VOLUME: id,
+		}, "cannot find volume")
 	}
 	if len(volume.Snapshots) != 0 {
-		return fmt.Errorf("Volume %v still contains snapshots, delete snapshots first", id)
+		return generateError(logrus.Fields{
+			LOG_FIELD_VOLUME: id,
+		}, "Volume still contains snapshots, delete snapshots first")
 	}
 
 	if err = devicemapper.RemoveDevice(id); err != nil {
@@ -411,10 +415,15 @@ func (d *Driver) DeleteVolume(id string) error {
 	if volume.Base != "" {
 		image := d.loadImage(volume.Base)
 		if image == nil {
-			return fmt.Errorf("Cannot find volume's base image %v", volume.Base)
+			return generateError(logrus.Fields{
+				LOG_FIELD_IMAGE: volume.Base,
+			}, "Cannot find volume's base image")
 		}
 		if _, exists := image.VolumeRef[volume.UUID]; !exists {
-			return fmt.Errorf("Volume's base image %v doesn't refer volume %v", volume.Base, volume.UUID)
+			return generateError(logrus.Fields{
+				LOG_FIELD_IMAGE:  volume.Base,
+				LOG_FIELD_VOLUME: volume.UUID,
+			}, "Volume's base image doesn't refer volumev")
 		}
 		delete(image.VolumeRef, volume.UUID)
 	}
@@ -422,12 +431,6 @@ func (d *Driver) DeleteVolume(id string) error {
 	if err := d.deleteVolume(id); err != nil {
 		return err
 	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:  LOG_EVENT_REMOVE,
-		LOG_FIELD_VOLUME: id,
-	}).Debugf("Deleted device")
 	return nil
 }
 
@@ -528,12 +531,6 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
-		LOG_FIELD_VOLUME:   volumeID,
-		LOG_FIELD_SNAPSHOT: id,
-	}).Debugf("Created snapshot")
 	return nil
 }
 
@@ -559,12 +556,6 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	if err = d.saveVolume(volume); err != nil {
 		return err
 	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
-		LOG_FIELD_SNAPSHOT: id,
-		LOG_FIELD_VOLUME:   volumeID,
-	}).Debugf("Deleted snapshot for volume")
 	return nil
 }
 

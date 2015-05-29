@@ -3,8 +3,11 @@ package main
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
+
+	. "github.com/rancherio/volmgr/logging"
 )
 
 var (
@@ -87,10 +90,24 @@ func doSnapshotCreate(c *cli.Context) error {
 		}
 		uuid = snapshotUUID
 	}
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_VOLUME:   volumeUUID,
+	}).Debug()
 	if err := driver.CreateSnapshot(uuid, volumeUUID); err != nil {
 		return err
 	}
-	log.Debugf("Created snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_VOLUME:   volumeUUID,
+	}).Debug()
 
 	volume.Snapshots[uuid] = true
 	if err := config.saveVolume(volume); err != nil {
@@ -121,10 +138,24 @@ func doSnapshotDelete(c *cli.Context) error {
 	if !config.snapshotExists(volumeUUID, uuid) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", uuid, volumeUUID)
 	}
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:    LOG_EVENT_DELETE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_VOLUME:   volumeUUID,
+	}).Debug()
 	if err := driver.DeleteSnapshot(uuid, volumeUUID); err != nil {
 		return err
 	}
-	log.Debugf("Deleted snapshot %v of volume %v using %v\n", uuid, volumeUUID, config.Driver)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:    LOG_EVENT_DELETE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_VOLUME:   volumeUUID,
+	}).Debug()
 
 	delete(volume.Snapshots, uuid)
 	return config.saveVolume(volume)

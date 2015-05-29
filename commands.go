@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"
 	"path/filepath"
 	"strings"
+
+	. "github.com/rancherio/volmgr/logging"
 )
 
 func getConfigFileName(root string) string {
@@ -43,10 +46,23 @@ func doInitialize(c *cli.Context) error {
 	}
 	log.Debug("Images would be stored at ", imagesDir)
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_INIT,
+		LOG_FIELD_DRIVER: driverName,
+		"root":           root,
+		"driverOpts":     driverOpts,
+	}).Debug()
 	_, err := drivers.GetDriver(driverName, root, driverOpts)
 	if err != nil {
 		return err
 	}
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_INIT,
+		LOG_FIELD_DRIVER: driverName,
+	}).Debug()
 
 	config := Config{
 		Root:      root,
