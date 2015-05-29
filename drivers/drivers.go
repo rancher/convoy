@@ -78,17 +78,18 @@ func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFor
 		cmdline = append(cmdline, option)
 	}
 	cmdline = append(cmdline, dev, mountPoint)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
+		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_MOUNTPOINT: mountPoint,
+		LOG_FIELD_OPTION:     cmdline,
+	}).Debug()
 	output, err := exec.Command("volmgr_mount", cmdline...).CombinedOutput()
 	if err != nil {
 		log.Error("Failed mount, ", string(output))
 		return err
 	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
-		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_MOUNTPOINT: mountPoint,
-		LOG_FIELD_NAMESPACE:  newNS,
-	}).Debugf("Mounted volume, with namespace")
 	return nil
 }
 
@@ -96,15 +97,17 @@ func Unmount(driver Driver, mountPoint, newNS string) error {
 	if newNS == "" {
 		newNS = "/proc/1/ns/mnt"
 	}
-	output, err := exec.Command("volmgr_mount", newNS, "-u", mountPoint).CombinedOutput()
+	cmdline := []string{newNS, "-u", mountPoint}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
+		LOG_FIELD_MOUNTPOINT: mountPoint,
+		LOG_FIELD_OPTION:     cmdline,
+	}).Debug()
+	output, err := exec.Command("volmgr_mount", cmdline...).CombinedOutput()
 	if err != nil {
 		log.Error("Failed umount, ", string(output))
 		return err
 	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
-		LOG_FIELD_MOUNTPOINT: mountPoint,
-		LOG_FIELD_NAMESPACE:  newNS,
-	}).Debugf("Umounted mountpoint with namespace")
 	return nil
 }
