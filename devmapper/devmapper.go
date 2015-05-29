@@ -199,7 +199,9 @@ func (d *Driver) activatePool() error {
 	for _, id := range volumeIDs {
 		volume := dev.loadVolume(id)
 		if volume == nil {
-			return fmt.Errorf("Cannot find volume %v", id)
+			return generateError(logrus.Fields{
+				LOG_FIELD_VOLUME: id,
+			}, "Cannot find volume")
 		}
 		if err := devicemapper.ActivateDevice(dev.ThinpoolDevice, id, volume.DevID, uint64(volume.Size)); err != nil {
 			return err
@@ -294,21 +296,29 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 	}
 	volume := d.loadVolume(id)
 	if volume != nil {
-		return fmt.Errorf("Already has volume with uuid %v", id)
+		return generateError(logrus.Fields{
+			LOG_FIELD_VOLUME: id,
+		}, "Already has volume with specific uuid")
 	}
 
 	var image *Image
 	if baseID != "" {
 		image = d.loadImage(baseID)
 		if image == nil {
-			return fmt.Errorf("Cannot find activated base image %v", baseID)
+			return generateError(logrus.Fields{
+				LOG_FIELD_IMAGE: baseID,
+			}, "Cannot find activated base image")
 		}
 		if _, err := os.Stat(image.Device); err != nil {
-			return fmt.Errorf("Base image device %v doesn't exist", image.Device)
+			return generateError(logrus.Fields{
+				LOG_FIELD_IMAGE_DEV: image.Device,
+			}, "Base image device doesn't exist")
 		}
 		if size != image.Size {
-			return fmt.Errorf("Volume has different size(%v) than base image(%v)",
-				size, image.Size)
+			return generateError(logrus.Fields{
+				LOG_FIELD_IMAGE:  baseID,
+				LOG_FIELD_VOLUME: id,
+			}, "Volume has different size(%v) than base image(%v)", size, image.Size)
 		}
 	}
 
@@ -343,6 +353,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		log.WithFields(logrus.Fields{
 			LOG_FIELD_REASON:          LOG_REASON_ROLLBACK,
 			LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
+			LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 			LOG_FIELD_VOLUME:          id,
 			LOG_FIELD_IMAGE:           baseID,
 			DM_LOG_FIELD_VOLUME_DEVID: devID,
@@ -351,6 +362,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 			log.WithFields(logrus.Fields{
 				LOG_FIELD_REASON:          LOG_REASON_FAILURE,
 				LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
+				LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 				LOG_FIELD_VOLUME:          id,
 				LOG_FIELD_IMAGE:           baseID,
 				DM_LOG_FIELD_VOLUME_DEVID: devID,
@@ -404,6 +416,7 @@ func (d *Driver) DeleteVolume(id string) error {
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:          LOG_REASON_START,
 		LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:          id,
 		DM_LOG_FIELD_VOLUME_DEVID: volume.DevID,
 	}).Debugf("Deleting device")
@@ -470,7 +483,9 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 	if id != "" {
 		volume := d.loadVolume(id)
 		if volume == nil {
-			return fmt.Errorf("volume %v doesn't exists", id)
+			return generateError(logrus.Fields{
+				LOG_FIELD_VOLUME: id,
+			}, "volume doesn't exists")
 		}
 		if snapshotID != "" {
 			volumes.Volumes[id] = *getVolumeSnapshotInfo(id, volume, snapshotID)
@@ -483,7 +498,9 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 		for _, uuid := range volumeIDs {
 			volume := d.loadVolume(uuid)
 			if volume == nil {
-				return fmt.Errorf("Volume list changed, for volume %v", uuid)
+				return generateError(logrus.Fields{
+					LOG_FIELD_VOLUME: uuid,
+				}, "Volume list changed for volume")
 			}
 			volumes.Volumes[uuid] = *getVolumeInfo(uuid, volume)
 		}
@@ -495,20 +512,26 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	volume := d.loadVolume(volumeID)
 	if volume == nil {
-		return fmt.Errorf("Cannot find volume with uuid %v", volumeID)
+		return generateError(logrus.Fields{
+			LOG_FIELD_VOLUME: volumeID,
+		}, "Cannot find volume")
 	}
 	devID := d.LastDevID
 
 	snapshot, exists := volume.Snapshots[id]
 	if exists {
-		return fmt.Errorf("Already has snapshot with uuid %v", id)
+		return generateError(logrus.Fields{
+			LOG_FIELD_VOLUME:   volumeID,
+			LOG_FIELD_SNAPSHOT: id,
+		}, "Already has snapshot with uuid")
 	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:            LOG_REASON_START,
 		LOG_FIELD_EVENT:             LOG_EVENT_CREATE,
-		LOG_FIELD_VOLUME:            volumeID,
+		LOG_FIELD_OBJECT:            LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT:          id,
+		LOG_FIELD_VOLUME:            volumeID,
 		DM_LOG_FIELD_VOLUME_DEVID:   volume.DevID,
 		DM_LOG_FIELD_SNAPSHOT_DEVID: devID,
 	}).Debugf("Creating snapshot")
@@ -543,6 +566,7 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_START,
 		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: id,
 		LOG_FIELD_VOLUME:   volumeID,
 	}).Debugf("Deleting snapshot for volume")
@@ -609,11 +633,16 @@ func (d *Driver) Info() error {
 func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *Volume, error) {
 	volume := d.loadVolume(volumeID)
 	if volume == nil {
-		return nil, nil, fmt.Errorf("cannot find volume %v", volumeID)
+		return nil, nil, generateError(logrus.Fields{
+			LOG_FIELD_VOLUME: volumeID,
+		}, "cannot find volume")
 	}
 	snap, exists := volume.Snapshots[snapshotID]
 	if !exists {
-		return nil, nil, fmt.Errorf("cannot find snapshot %v of volume %v", snapshotID, volumeID)
+		return nil, nil, generateError(logrus.Fields{
+			LOG_FIELD_VOLUME:   volumeID,
+			LOG_FIELD_SNAPSHOT: snapshotID,
+		}, "cannot find snapshot of volume")
 	}
 	return &snap, volume, nil
 }
@@ -624,6 +653,15 @@ func (d *Driver) OpenSnapshot(id, volumeID string) error {
 		return err
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:            LOG_REASON_START,
+		LOG_FIELD_EVENT:             LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:            LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_VOLUME:            volumeID,
+		LOG_FIELD_SNAPSHOT:          id,
+		LOG_FIELD_SIZE:              volume.Size,
+		DM_LOG_FIELD_SNAPSHOT_DEVID: snapshot.DevID,
+	}).Debug()
 	if err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, snapshot.DevID, uint64(volume.Size)); err != nil {
 		return err
 	}
@@ -638,6 +676,12 @@ func (d *Driver) CloseSnapshot(id, volumeID string) error {
 		return err
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_START,
+		LOG_FIELD_EVENT:    LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: id,
+	}).Debug()
 	if err := devicemapper.RemoveDevice(id); err != nil {
 		return err
 	}
@@ -669,7 +713,9 @@ func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) er
 func (d *Driver) GetVolumeDevice(id string) (string, error) {
 	volume := d.loadVolume(id)
 	if volume == nil {
-		return "", fmt.Errorf("Volume with uuid %v doesn't exist", id)
+		return "", generateError(logrus.Fields{
+			LOG_FIELD_VOLUME: id,
+		}, "Volume doesn't exist")
 	}
 
 	return filepath.Join(DM_DIR, id), nil
@@ -729,18 +775,25 @@ func (device *Device) deleteImage(uuid string) error {
 func (d *Driver) ActivateImage(imageUUID, imageFile string) error {
 	image := d.loadImage(imageUUID)
 	if image != nil {
-		return fmt.Errorf("Image %v already activated by driver %v", imageUUID, DRIVER_NAME)
+		return generateError(logrus.Fields{
+			LOG_FIELD_IMAGE: imageUUID,
+		}, "Image already activated")
 	}
 	st, err := os.Stat(imageFile)
 	if err != nil || st.IsDir() {
 		return err
 	}
-	log.Debug("Found ", imageFile)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_FILE: imageFile,
+	}).Debug()
 	loopDev, err := util.AttachLoopbackDevice(imageFile, true)
 	if err != nil {
 		return err
 	}
-	log.Debugf("Attached %v to %v", imageFile, loopDev)
 	image = &Image{
 		UUID:      imageUUID,
 		Size:      st.Size(),
@@ -751,27 +804,37 @@ func (d *Driver) ActivateImage(imageUUID, imageFile string) error {
 	if err := d.saveImage(image); err != nil {
 		return err
 	}
-	log.Debug("Activated image ", imageUUID)
 	return nil
 }
 
 func (d *Driver) DeactivateImage(imageUUID string) error {
 	image := d.loadImage(imageUUID)
 	if image == nil {
-		return fmt.Errorf("Cannot find image %v by driver %v", imageUUID, DRIVER_NAME)
+		return generateError(logrus.Fields{
+			LOG_FIELD_IMAGE: imageUUID,
+		}, "Cannot find image")
 	}
 	for volumeUUID := range image.VolumeRef {
 		if volume := d.loadVolume(volumeUUID); volume != nil {
-			return fmt.Errorf("Volume %v hasn't been removed yet", volume)
+			return generateError(logrus.Fields{
+				LOG_FIELD_VOLUME: volumeUUID,
+				LOG_FIELD_IMAGE:  imageUUID,
+			}, "Volume based on the image hasn't been removed yet")
 		}
 	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_FILE: image.FilePath,
+		LOG_FIELD_IMAGE_DEV:  image.Device,
+	}).Debug()
 	if err := util.DetachLoopbackDevice(image.FilePath, image.Device); err != nil {
 		return err
 	}
-	log.Debugf("Detached %v from %v", image.FilePath, image.Device)
 	if err := d.deleteImage(imageUUID); err != nil {
 		return err
 	}
-	log.Debug("Deactivated image ", imageUUID)
 	return nil
 }
