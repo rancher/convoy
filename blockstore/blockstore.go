@@ -11,14 +11,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	. "github.com/rancherio/volmgr/logging"
 )
 
 const (
 	DEFAULT_BLOCK_SIZE = 2097152
-)
-
-var (
-	log = logrus.WithFields(logrus.Fields{"pkg": "blockstore"})
 )
 
 type InitFunc func(root, cfgName string, config map[string]string) (BlockStoreDriver, error)
@@ -70,6 +68,14 @@ var (
 	initializers map[string]InitFunc
 )
 
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "blockstore"})
+)
+
+func generateError(fields logrus.Fields, format string, v ...interface{}) error {
+	return ErrorWithFields("blockstore", fields, format, v)
+}
+
 func init() {
 	initializers = make(map[string]InitFunc)
 }
@@ -100,13 +106,16 @@ func Register(root, kind string, config map[string]string) (*BlockStore, error) 
 	if err == nil {
 		// BlockStore has already been created
 		if bs.Kind != kind {
-			return nil, fmt.Errorf("Specific kind is different from config stored in blockstore")
+			return nil, generateError(logrus.Fields{
+				LOG_FIELD_BLOCKSTORE: bs.UUID,
+				LOG_FIELD_KIND:       bs.Kind,
+			}, "Specific kind is different from config stored in blockstore")
 		}
 		id = bs.UUID
 		log.Debug("Loaded blockstore cfg in blockstore: ", id)
 		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 	} else {
-		log.Debug("Failed to find existed blockstore cfg in blockstore")
+		log.Debug("Cannot find existed blockstore cfg in blockstore, create a new one")
 		id = uuid.New()
 		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 
@@ -235,7 +244,11 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 	}
 
 	if snapshotExists(snapshotID, volumeID, bsDriver) {
-		return fmt.Errorf("Snapshot already exists in blockstore!")
+		return generateError(logrus.Fields{
+			LOG_FIELD_SNAPSHOT:   snapshotID,
+			LOG_FIELD_VOLUME:     volumeID,
+			LOG_FIELD_BLOCKSTORE: blockstoreID,
+		}, "Snapshot already exists in blockstore!")
 	}
 
 	lastSnapshotID := volume.LastSnapshotID
@@ -250,18 +263,39 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 			// It's possible that the snapshot in blockstore doesn't exist
 			// in local storage
 			lastSnapshotID = ""
-			log.Debug("Cannot find last snapshot %v in local storage, would process with full backup", lastSnapshotID)
+			log.WithFields(logrus.Fields{
+				LOG_FIELD_REASON:   LOG_REASON_FALLBACK,
+				LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+				LOG_FIELD_SNAPSHOT: lastSnapshotID,
+				LOG_FIELD_VOLUME:   volumeID,
+			}).Debug("Cannot find last snapshot in local storage, would process with full backup")
 		} else {
-			log.Debug("Loading last snapshot: ", lastSnapshotID)
+			log.WithFields(logrus.Fields{
+				LOG_FIELD_REASON:   LOG_REASON_START,
+				LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+				LOG_FIELD_EVENT:    LOG_EVENT_LOAD,
+				LOG_FIELD_SNAPSHOT: lastSnapshotID,
+			}).Debug("Loading last snapshot")
 			lastSnapshotMap, err = loadSnapshotMap(lastSnapshotID, volumeID, bsDriver)
 			if err != nil {
 				return err
 			}
-			log.Debug("Loaded last snapshot: ", lastSnapshotID)
+			log.WithFields(logrus.Fields{
+				LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+				LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+				LOG_FIELD_EVENT:    LOG_EVENT_LOAD,
+				LOG_FIELD_SNAPSHOT: lastSnapshotID,
+			}).Debug("Loaded last snapshot")
 		}
 	}
 
-	log.Debug("Generating snapshot metadata of ", snapshotID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:        LOG_REASON_START,
+		LOG_FIELD_OBJECT:        LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_EVENT:         LOG_EVENT_COMPARE,
+		LOG_FIELD_SNAPSHOT:      snapshotID,
+		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotID,
+	}).Debug("Generating snapshot changed blocks metadata")
 	delta, err := sDriver.CompareSnapshot(snapshotID, lastSnapshotID, volumeID)
 	if err != nil {
 		return err
@@ -269,9 +303,20 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 	if delta.BlockSize != b.BlockSize {
 		return fmt.Errorf("Currently doesn't support different block sizes between blockstore and driver")
 	}
-	log.Debug("Generated snapshot metadata of ", snapshotID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:        LOG_REASON_COMPLETE,
+		LOG_FIELD_OBJECT:        LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_EVENT:         LOG_EVENT_COMPARE,
+		LOG_FIELD_SNAPSHOT:      snapshotID,
+		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotID,
+	}).Debug("Generated snapshot changed blocks metadata")
 
-	log.Debug("Creating snapshot changed blocks of ", snapshotID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_START,
+		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: snapshotID,
+	}).Debug("Creating snapshot changed blocks")
 	snapshotDeltaMap := &SnapshotMap{
 		Blocks: []BlockMapping{},
 	}
@@ -311,19 +356,23 @@ func BackupSnapshot(root, snapshotID, volumeID, blockstoreID string, sDriver dri
 			snapshotDeltaMap.Blocks = append(snapshotDeltaMap.Blocks, blockMapping)
 		}
 	}
-	log.Debug("Created snapshot changed blocks of", snapshotID)
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: snapshotID,
+	}).Debug("Created snapshot changed blocks")
 	snapshotMap := mergeSnapshotMap(snapshotID, snapshotDeltaMap, lastSnapshotMap)
 
 	if err := saveSnapshotMap(snapshotID, volumeID, bsDriver, snapshotMap); err != nil {
 		return err
 	}
-	log.Debug("Created snapshot config of", snapshotID)
+
 	volume.LastSnapshotID = snapshotID
 	if err := saveVolumeConfig(volumeID, bsDriver, volume); err != nil {
 		return err
 	}
-	log.Debug("Backed up snapshot ", snapshotID)
 
 	return nil
 }
@@ -371,7 +420,10 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 	}
 
 	if _, err := loadVolumeConfig(srcVolumeID, bsDriver); err != nil {
-		return fmt.Errorf("Volume %v doesn't exist in blockstore %v", srcVolumeID, blockstoreID, err)
+		return generateError(logrus.Fields{
+			LOG_FIELD_VOLUME:     srcVolumeID,
+			LOG_FIELD_BLOCKSTORE: blockstoreID,
+		}, "Volume doesn't exist in blockstore: %v", err)
 	}
 
 	volDevName, err := sDriver.GetVolumeDevice(dstVolumeID)
@@ -389,6 +441,15 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 		return err
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:      LOG_REASON_START,
+		LOG_FIELD_EVENT:       LOG_EVENT_RESTORE,
+		LOG_FIELD_OBJECT:      LOG_FIELD_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:    srcSnapshotID,
+		LOG_FIELD_ORIN_VOLUME: srcVolumeID,
+		LOG_FIELD_VOLUME:      dstVolumeID,
+		LOG_FIELD_BLOCKSTORE:  blockstoreID,
+	}).Debug()
 	for _, block := range snapshotMap.Blocks {
 		blkFile := getBlockFilePath(srcVolumeID, block.BlockChecksum)
 		rc, err := bsDriver.Read(blkFile)
@@ -405,7 +466,6 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, blockstoreID
 		}
 		rc.Close()
 	}
-	log.Debugf("Restored snapshot %v of volume %v to volume %v", srcSnapshotID, srcVolumeID, dstVolumeID)
 
 	return nil
 }
@@ -487,7 +547,10 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 }
 
 func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
-	log.Debugf("Listing blockstore for volume %v snapshot %v", volumeID, snapshotID)
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_VOLUME:   volumeID,
+		LOG_FIELD_SNAPSHOT: snapshotID,
+	}).Debug("Listing blockstore for volume and snapshot")
 	resp := api.VolumesResponse{
 		Volumes: make(map[string]api.VolumeResponse),
 	}
@@ -546,7 +609,9 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	}
 	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
 	if _, err := os.Stat(imageLocalStorePath); err == nil {
-		return fmt.Errorf("Image already stored with UUID %v", imageUUID)
+		return generateError(logrus.Fields{
+			LOG_FIELD_IMAGE: imageUUID,
+		}, "UUID is already used by another image")
 	}
 
 	_, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreUUID)
@@ -560,9 +625,13 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	imageExists := bsDriver.FileExists(imageBlockStorePath)
 	imageCfgExists := bsDriver.FileExists(imageCfgBlockStorePath)
 	if imageExists && imageCfgExists {
-		return fmt.Errorf("The image with uuid %v already existed in blockstore", imageUUID)
+		return generateError(logrus.Fields{
+			LOG_FIELD_IMAGE: imageUUID,
+		}, "The image already existed in blockstore")
 	} else if imageExists != imageCfgExists {
-		return fmt.Errorf("The image with uuid %v state is inconsistent in blockstore", imageUUID)
+		return generateError(logrus.Fields{
+			LOG_FIELD_IMAGE: imageUUID,
+		}, "The image state is inconsistent in blockstore")
 	}
 
 	if imageStat.Size()%DEFAULT_BLOCK_SIZE != 0 {
@@ -581,17 +650,22 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	}
 	log.Debug("Copied image to local store")
 
-	log.Debugf("Prepare uploading image to blockstore ")
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_UPLOAD,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_IMAGE_FILE: imageLocalStorePath,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug("Uploading image to blockstore")
 	if err := uploadImage(imageLocalStorePath, bsDriver, image); err != nil {
 		log.Debugf("Uploading image failed")
 		return err
 	}
-	log.Debug("Uploaded image to blockstore")
 
 	if err := saveImageConfig(imageUUID, bsDriver, image); err != nil {
 		return err
 	}
-	log.Debug("Save image config to blockstore done")
 
 	imageResp := api.ImageResponse{
 		UUID:        image.UUID,
@@ -668,10 +742,16 @@ func RemoveImage(root, imageDir, imageUUID, blockstoreUUID string) error {
 		return fmt.Errorf("Image %v is still activated", imageUUID)
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
 	if err := removeImage(driver, image); err != nil {
 		return err
 	}
-	log.Debugf("Image %v removed", imageUUID)
 
 	return nil
 }
@@ -687,6 +767,13 @@ func ActivateImage(root, imageDir, imageUUID, blockstoreUUID string) error {
 		return err
 	}
 
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
 	if err := downloadImage(imageDir, driver, image); err != nil {
 		return err
 	}
@@ -768,6 +855,13 @@ func downloadImage(imagesDir string, driver BlockStoreDriver, image *Image) erro
 }
 
 func DeactivateImage(root, imageDir, imageUUID, blockstoreUUID string) error {
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_START,
+		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:      imageUUID,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+	}).Debug()
 	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
 	if st, err := os.Stat(imageLocalStorePath); err == nil && !st.IsDir() {
 		if err := os.RemoveAll(imageLocalStorePath); err != nil {
@@ -775,6 +869,5 @@ func DeactivateImage(root, imageDir, imageUUID, blockstoreUUID string) error {
 		}
 		log.Debug("Removed local image cache at ", imageLocalStorePath)
 	}
-	log.Debug("Deactivated image ", imageUUID)
 	return nil
 }
