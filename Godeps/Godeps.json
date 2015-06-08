@@ -58,8 +58,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
-			"Comment": "v1.4.1-2111-ga11c685",
-			"Rev": "a11c6852dfde0b1081fb84d0d02bd200097b0e5a"
+			"Comment": "v1.4.1-3990-g260205c",
+			"Rev": "260205cd79ea96fe738519bb83869b25a32528e9"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",

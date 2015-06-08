@@ -8,7 +8,7 @@ cd $(dirname $0)/..
 
 set_project_vars
 
-go test ./...
+go test -tags libdm_no_deferred_remove ./...
 
 result=$(find . -name "*.go" | grep -v ./Godeps | xargs gofmt -s -l)
 for i in $result; do
