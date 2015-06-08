@@ -21,24 +21,24 @@ func genRequiredMissingError(name string) error {
 	return fmt.Errorf("Cannot find valid required parameter:", name)
 }
 
-func getLowerCaseFlag(c *cli.Context, name string, required bool, err error) (string, error) {
-	if err != nil {
-		return "", err
-	}
-	result := strings.ToLower(c.String(name))
-	if required && result == "" {
-		err = genRequiredMissingError(name)
-	}
-	return result, err
-}
-
-func getLowerCaseHTTPFlag(value, name string, required bool, err error) (string, error) {
-	if err != nil {
-		return "", err
+func getLowerCaseFlag(v interface{}, key string, required bool, err error) (string, error) {
+	value := ""
+	switch v := v.(type) {
+	default:
+		return "", fmt.Errorf("Unexpected type for getLowerCaseFlag")
+	case *cli.Context:
+		value = v.String(key)
+	case map[string]string:
+		value = v[key]
+	case *http.Request:
+		if err := v.ParseForm(); err != nil {
+			return "", err
+		}
+		value = v.FormValue(key)
 	}
 	result := strings.ToLower(value)
 	if required && result == "" {
-		err = genRequiredMissingError(name)
+		err = genRequiredMissingError(key)
 	}
 	return result, err
 }

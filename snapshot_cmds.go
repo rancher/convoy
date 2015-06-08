@@ -93,9 +93,9 @@ func doSnapshotCreate(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	err := r.ParseForm()
-	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseHTTPFlag(r.FormValue(KEY_SNAPSHOT), KEY_SNAPSHOT, false, err)
+	var err error
+	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseFlag(r, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -161,8 +161,8 @@ func doSnapshotDelete(c *cli.Context) error {
 func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, true, err)
+	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseFlag(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}

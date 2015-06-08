@@ -200,15 +200,12 @@ func doVolumeCreate(c *cli.Context) error {
 }
 
 func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	if err := r.ParseForm(); err != nil {
-		return err
-	}
 	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
 	if size == 0 {
 		return genRequiredMissingError("size")
 	}
-	volumeUUID, err := getLowerCaseHTTPFlag(r.FormValue(KEY_VOLUME), KEY_VOLUME, false, err)
-	imageUUID, err := getLowerCaseHTTPFlag(r.FormValue(KEY_IMAGE), KEY_IMAGE, false, err)
+	volumeUUID, err := getLowerCaseFlag(r, KEY_VOLUME, false, err)
+	imageUUID, err := getLowerCaseFlag(r, KEY_IMAGE, false, err)
 	if err != nil {
 		return err
 	}
@@ -279,7 +276,7 @@ func doVolumeDelete(c *cli.Context) error {
 func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	uuid, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	uuid, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -340,8 +337,8 @@ func doVolumeList(c *cli.Context) error {
 func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, false, err)
-	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, false, err)
+	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, false, err)
+	snapshotUUID, err := getLowerCaseFlag(objs, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -392,7 +389,7 @@ func doVolumeMount(c *cli.Context) error {
 func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -461,7 +458,7 @@ func doVolumeUmount(c *cli.Context) error {
 func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
