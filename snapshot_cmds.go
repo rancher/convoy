@@ -18,11 +18,11 @@ var (
 		Usage: "create a snapshot for certain volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "snapshot-uuid",
+				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume for snapshot",
 			},
 		},
@@ -34,11 +34,11 @@ var (
 		Usage: "delete a snapshot of certain volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "snapshot-uuid",
+				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume for snapshot",
 			},
 		},
@@ -77,8 +77,8 @@ func doSnapshotCreate(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -148,8 +148,8 @@ func cmdSnapshotDelete(c *cli.Context) {
 
 func doSnapshotDelete(c *cli.Context) error {
 	var err error
-	uuid, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	uuid, err := getLowerCaseFlag(c, KEY_SNAPSHOT, true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}

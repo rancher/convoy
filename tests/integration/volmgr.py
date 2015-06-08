@@ -125,7 +125,7 @@ class VolumeManager:
 		    origin_volume_uuid, target_volume_uuid, bs_uuid):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "restore",
 		"--snapshot-uuid", snapshot_uuid,
-		"--origin-volume-uuid", origin_volume_uuid,
+		"--volume-uuid", origin_volume_uuid,
 		"--target-volume-uuid", target_volume_uuid,
 		"--blockstore-uuid", bs_uuid])
 

@@ -22,7 +22,7 @@ var (
 		Usage: "create a new volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 			cli.IntFlag{
@@ -42,7 +42,7 @@ var (
 		Usage: "delete a volume with all of it's snapshots",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 		},
@@ -54,7 +54,7 @@ var (
 		Usage: "mount a volume to an specific path",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 			cli.StringFlag{
@@ -87,7 +87,7 @@ var (
 		Usage: "umount a volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 			cli.StringFlag{
@@ -103,11 +103,11 @@ var (
 		Usage: "list all managed volumes",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume, if not supplied, would list all volumes",
 			},
 			cli.StringFlag{
-				Name:  "snapshot-uuid",
+				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot, must be used with volume uuid",
 			},
 		},
@@ -181,7 +181,7 @@ func doVolumeCreate(c *cli.Context) error {
 	if size == 0 {
 		return genRequiredMissingError("size")
 	}
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", false, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, false, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, err)
 	if err != nil {
 		return err
@@ -263,7 +263,7 @@ func cmdVolumeDelete(c *cli.Context) {
 func doVolumeDelete(c *cli.Context) error {
 	var err error
 
-	uuid, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	uuid, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -311,8 +311,8 @@ func cmdVolumeList(c *cli.Context) {
 func doVolumeList(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", false, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, false, err)
+	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -363,7 +363,7 @@ func cmdVolumeMount(c *cli.Context) {
 func doVolumeMount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
 	mountPoint, err := getLowerCaseFlag(c, "mountpoint", true, err)
 	fs, err := getLowerCaseFlag(c, "fs", true, err)
 	if err != nil {
@@ -440,7 +440,7 @@ func cmdVolumeUmount(c *cli.Context) {
 func doVolumeUmount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}

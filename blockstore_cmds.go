@@ -21,15 +21,15 @@ var (
 		Usage: "backup an snapshot to blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "snapshot-uuid",
+				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume for snapshot",
 			},
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 		},
@@ -41,11 +41,11 @@ var (
 		Usage: "restore an snapshot from blockstore to volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "snapshot-uuid",
+				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  "origin-volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of origin volume for snapshot",
 			},
 			cli.StringFlag{
@@ -53,7 +53,7 @@ var (
 				Usage: "uuid of target volume",
 			},
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 		},
@@ -65,15 +65,15 @@ var (
 		Usage: "remove an snapshot in blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "snapshot-uuid",
+				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume for snapshot",
 			},
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 		},
@@ -103,7 +103,7 @@ var (
 		Usage: "deregister a blockstore from current setup(no data in it would be changed)",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 		},
@@ -115,11 +115,11 @@ var (
 		Usage: "add a volume to blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 		},
@@ -131,11 +131,11 @@ var (
 		Usage: "remove a volume from blockstore. WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 		},
@@ -147,15 +147,15 @@ var (
 		Usage: "list volume and snapshots in blockstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
-				Name:  "volume-uuid",
+				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 			cli.StringFlag{
-				Name:  "snapshot-uuid",
+				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot",
 			},
 		},
@@ -167,7 +167,7 @@ var (
 		Usage: "upload a raw image to blockstore, which can be used as base image later",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
@@ -191,7 +191,7 @@ var (
 		Usage: "remove an image from blockstore, WARNING: ALL THE VOLUMES/SNAPSHOTS BASED ON THAT IMAGE WON'T BE USABLE AFTER",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
@@ -207,7 +207,7 @@ var (
 		Usage: "download a image from blockstore, prepared it to be used as base image",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
@@ -223,7 +223,7 @@ var (
 		Usage: "remove local image copy, must be done after all the volumes depends on it removed",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "blockstore-uuid",
+				Name:  KEY_BLOCKSTORE,
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
@@ -325,7 +325,7 @@ func cmdBlockStoreDeregister(c *cli.Context) {
 func doBlockStoreDeregister(c *cli.Context) error {
 	var err error
 
-	uuid, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	uuid, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
 	if err != nil {
 		return err
 	}
@@ -368,8 +368,8 @@ func cmdBlockStoreAddVolume(c *cli.Context) {
 func doBlockStoreAddVolume(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -422,8 +422,8 @@ func cmdBlockStoreRemoveVolume(c *cli.Context) {
 
 func doBlockStoreRemoveVolume(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -473,9 +473,9 @@ func cmdBlockStoreListVolume(c *cli.Context) {
 func doBlockStoreListVolume(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -515,9 +515,9 @@ func cmdSnapshotBackup(c *cli.Context) {
 func doSnapshotBackup(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -572,10 +572,10 @@ func doSnapshotRestore(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
-	originVolumeUUID, err := getLowerCaseFlag(c, "origin-volume-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
+	originVolumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
 	targetVolumeUUID, err := getLowerCaseFlag(c, "target-volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -645,9 +645,9 @@ func cmdSnapshotRemove(c *cli.Context) {
 
 func doSnapshotRemove(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -701,7 +701,7 @@ func doBlockStoreAddImage(c *cli.Context) error {
 	var err error
 	v := url.Values{}
 
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, err)
 	imageName, err := getLowerCaseFlag(c, "image-name", false, err)
 	if err != nil {
@@ -783,7 +783,7 @@ func cmdBlockStoreRemoveImage(c *cli.Context) {
 
 func doBlockStoreRemoveImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
 	if err != nil {
 		return err
@@ -830,7 +830,7 @@ func cmdBlockStoreActivateImage(c *cli.Context) {
 
 func doBlockStoreActivateImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
 	if err != nil {
 		return err
@@ -897,7 +897,7 @@ func cmdBlockStoreDeactivateImage(c *cli.Context) {
 
 func doBlockStoreDeactivateImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
+	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
 	if err != nil {
 		return err
