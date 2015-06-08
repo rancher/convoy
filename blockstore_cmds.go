@@ -2,12 +2,15 @@ package main
 
 import (
 	"code.google.com/p/go-uuid/uuid"
+	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/blockstore"
 	"github.com/rancherio/volmgr/util"
+	"net/http"
+	"net/url"
 
 	. "github.com/rancherio/volmgr/logging"
 )
@@ -259,10 +262,6 @@ func cmdBlockStoreRegister(c *cli.Context) {
 }
 
 func doBlockStoreRegister(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
-	if err != nil {
-		return nil
-	}
 	kind := c.String("kind")
 	if kind == "" {
 		return genRequiredMissingError("kind")
@@ -272,6 +271,24 @@ func doBlockStoreRegister(c *cli.Context) error {
 		return genRequiredMissingError("opts")
 	}
 
+	registerConfig := api.BlockStoreRegisterConfig{
+		Kind: kind,
+		Opts: opts,
+	}
+
+	request := "/blockstores/register"
+	return sendRequest("POST", request, registerConfig)
+}
+
+func (s *Server) doBlockStoreRegister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	registerConfig := &api.BlockStoreRegisterConfig{}
+	err := json.NewDecoder(r.Body).Decode(registerConfig)
+	if err != nil {
+		return err
+	}
+
+	kind := registerConfig.Kind
+	opts := registerConfig.Opts
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_REGISTER,
@@ -280,7 +297,7 @@ func doBlockStoreRegister(c *cli.Context) error {
 		LOG_FIELD_KIND:       kind,
 		LOG_FIELD_OPTION:     opts,
 	}).Debug()
-	b, err := blockstore.Register(config.Root, kind, opts)
+	b, err := blockstore.Register(s.Root, kind, opts)
 	if err != nil {
 		return err
 	}
@@ -292,12 +309,11 @@ func doBlockStoreRegister(c *cli.Context) error {
 		LOG_FIELD_BLOCKSIZE:  b.BlockSize,
 	}).Debug()
 
-	api.ResponseOutput(api.BlockStoreResponse{
+	return writeResponseOutput(w, api.BlockStoreResponse{
 		UUID:      b.UUID,
 		Kind:      b.Kind,
 		BlockSize: b.BlockSize,
 	})
-	return nil
 }
 
 func cmdBlockStoreDeregister(c *cli.Context) {
@@ -307,25 +323,38 @@ func cmdBlockStoreDeregister(c *cli.Context) {
 }
 
 func doBlockStoreDeregister(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
+	var err error
+
 	uuid, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	if err != nil {
 		return err
 	}
+
+	request := "/blockstores/" + uuid + "/"
+	return sendRequest("DELETE", request, nil)
+}
+
+func (s *Server) doBlockStoreDeregister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	if err != nil {
+		return err
+	}
+
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_DEREGISTER,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
-		LOG_FIELD_BLOCKSTORE: uuid,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.Deregister(config.Root, uuid); err != nil {
+	if err := blockstore.Deregister(s.Root, blockstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:      LOG_EVENT_DEREGISTER,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
-		LOG_FIELD_BLOCKSTORE: uuid,
+		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
 	return nil
 }
@@ -337,14 +366,28 @@ func cmdBlockStoreAddVolume(c *cli.Context) {
 }
 
 func doBlockStoreAddVolume(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
+	var err error
+
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
 	}
 
-	volume := config.loadVolume(volumeUUID)
+	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/add"
+	return sendRequest("POST", request, nil)
+}
+
+func (s *Server) doBlockStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	if err != nil {
+		return err
+	}
+
+	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
@@ -358,7 +401,7 @@ func doBlockStoreAddVolume(c *cli.Context) error {
 		LOG_FIELD_SIZE:       volume.Size,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.AddVolume(config.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size); err != nil {
+	if err := blockstore.AddVolume(s.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -378,14 +421,26 @@ func cmdBlockStoreRemoveVolume(c *cli.Context) {
 }
 
 func doBlockStoreRemoveVolume(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
+	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
 	}
 
-	if config.loadVolume(volumeUUID) == nil {
+	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/"
+	return sendRequest("DELETE", request, nil)
+}
+
+func (s *Server) doBlockStoreRemoveVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	if err != nil {
+		return err
+	}
+	if s.loadVolume(volumeUUID) == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
@@ -396,7 +451,7 @@ func doBlockStoreRemoveVolume(c *cli.Context) error {
 		LOG_FIELD_VOLUME:     volumeUUID,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.RemoveVolume(config.Root, blockstoreUUID, volumeUUID); err != nil {
+	if err := blockstore.RemoveVolume(s.Root, blockstoreUUID, volumeUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -416,7 +471,8 @@ func cmdBlockStoreListVolume(c *cli.Context) {
 }
 
 func doBlockStoreListVolume(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
+	var err error
+
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
@@ -424,7 +480,30 @@ func doBlockStoreListVolume(c *cli.Context) error {
 		return err
 	}
 
-	return blockstore.ListVolume(config.Root, blockstoreUUID, volumeUUID, snapshotUUID)
+	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID
+	if snapshotUUID != "" {
+		request += "/snapshots/" + snapshotUUID
+	}
+	request += "/"
+	return sendRequest("GET", request, nil)
+}
+
+func (s *Server) doBlockStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, false, err)
+	if err != nil {
+		return err
+	}
+	data, err := blockstore.ListVolume(s.Root, blockstoreUUID, volumeUUID, snapshotUUID)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(data)
+	return err
 }
 
 func cmdSnapshotBackup(c *cli.Context) {
@@ -434,7 +513,8 @@ func cmdSnapshotBackup(c *cli.Context) {
 }
 
 func doSnapshotBackup(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
+
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
@@ -442,7 +522,21 @@ func doSnapshotBackup(c *cli.Context) error {
 		return err
 	}
 
-	if !config.snapshotExists(volumeUUID, snapshotUUID) {
+	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/backup"
+	return sendRequest("POST", request, nil)
+}
+
+func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, true, err)
+	if err != nil {
+		return err
+	}
+
+	if !s.snapshotExists(volumeUUID, snapshotUUID) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
@@ -454,7 +548,7 @@ func doSnapshotBackup(c *cli.Context) error {
 		LOG_FIELD_VOLUME:     volumeUUID,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.BackupSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID, driver); err != nil {
+	if err := blockstore.BackupSnapshot(s.Root, snapshotUUID, volumeUUID, blockstoreUUID, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -475,7 +569,9 @@ func cmdSnapshotRestore(c *cli.Context) {
 }
 
 func doSnapshotRestore(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
+
+	v := url.Values{}
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	originVolumeUUID, err := getLowerCaseFlag(c, "origin-volume-uuid", true, err)
 	targetVolumeUUID, err := getLowerCaseFlag(c, "target-volume-uuid", true, err)
@@ -484,14 +580,31 @@ func doSnapshotRestore(c *cli.Context) error {
 		return err
 	}
 
-	originVol := config.loadVolume(originVolumeUUID)
+	v.Set("target-volume", targetVolumeUUID)
+	request := "/blockstores/" + blockstoreUUID + "/volumes/" + originVolumeUUID +
+		"/snapshots/" + snapshotUUID + "/restore?" + v.Encode()
+	return sendRequest("POST", request, nil)
+}
+
+func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+	err = r.ParseForm()
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	originVolumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, true, err)
+	targetVolumeUUID, err := getLowerCaseHTTPFlag(r.FormValue("target-volume"), "target-volume", true, err)
+	if err != nil {
+		return err
+	}
+
+	originVol := s.loadVolume(originVolumeUUID)
 	if originVol == nil {
 		return fmt.Errorf("volume %v doesn't exist", originVolumeUUID)
 	}
 	if _, exists := originVol.Snapshots[snapshotUUID]; !exists {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, originVolumeUUID)
 	}
-	targetVol := config.loadVolume(targetVolumeUUID)
+	targetVol := s.loadVolume(targetVolumeUUID)
 	if targetVol == nil {
 		return fmt.Errorf("volume %v doesn't exist", targetVolumeUUID)
 	}
@@ -509,8 +622,8 @@ func doSnapshotRestore(c *cli.Context) error {
 		LOG_FIELD_VOLUME:      targetVolumeUUID,
 		LOG_FIELD_BLOCKSTORE:  blockstoreUUID,
 	}).Debug()
-	if err := blockstore.RestoreSnapshot(config.Root, snapshotUUID, originVolumeUUID,
-		targetVolumeUUID, blockstoreUUID, driver); err != nil {
+	if err := blockstore.RestoreSnapshot(s.Root, snapshotUUID, originVolumeUUID,
+		targetVolumeUUID, blockstoreUUID, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -532,7 +645,7 @@ func cmdSnapshotRemove(c *cli.Context) {
 }
 
 func doSnapshotRemove(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
+	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
@@ -540,7 +653,20 @@ func doSnapshotRemove(c *cli.Context) error {
 		return err
 	}
 
-	if !config.snapshotExists(volumeUUID, snapshotUUID) {
+	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/"
+	return sendRequest("DELETE", request, nil)
+}
+
+func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, true, err)
+	if err != nil {
+		return err
+	}
+
+	if !s.snapshotExists(volumeUUID, snapshotUUID) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
@@ -552,7 +678,7 @@ func doSnapshotRemove(c *cli.Context) error {
 		LOG_FIELD_VOLUME:     volumeUUID,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.RemoveSnapshot(config.Root, snapshotUUID, volumeUUID, blockstoreUUID); err != nil {
+	if err := blockstore.RemoveSnapshot(s.Root, snapshotUUID, volumeUUID, blockstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -573,21 +699,57 @@ func cmdBlockStoreAddImage(c *cli.Context) {
 }
 
 func doBlockStoreAddImage(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
+	var err error
+	v := url.Values{}
+
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, err)
 	imageName, err := getLowerCaseFlag(c, "image-name", false, err)
 	if err != nil {
 		return err
 	}
-
-	if imageUUID == "" {
-		imageUUID = uuid.New()
-	}
-
 	imageFile := c.String("image-file")
 	if imageFile == "" {
 		return genRequiredMissingError("image-file")
+	}
+
+	imageConfig := api.BlockStoreImageConfig{
+		ImageFile: imageFile,
+	}
+	if imageUUID != "" {
+		v.Set("image-uuid", imageUUID)
+	}
+	if imageName != "" {
+		v.Set("image-name", imageName)
+	}
+
+	request := "/blockstores/" + blockstoreUUID + "/images/add?" + v.Encode()
+	return sendRequest("POST", request, imageConfig)
+}
+
+func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	err = r.ParseForm()
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseHTTPFlag(r.FormValue("image-uuid"), "image-uuid", false, err)
+	imageName, err := getLowerCaseHTTPFlag(r.FormValue("image-name"), "image-name", false, err)
+	if err != nil {
+		return err
+	}
+	imageConfig := &api.BlockStoreImageConfig{}
+	err = json.NewDecoder(r.Body).Decode(imageConfig)
+	if err != nil {
+		return err
+	}
+
+	imageFile := imageConfig.ImageFile
+	if imageFile == "" {
+		return genRequiredMissingError("image-file")
+	}
+
+	if imageUUID == "" {
+		imageUUID = uuid.New()
 	}
 
 	log.WithFields(logrus.Fields{
@@ -595,12 +757,13 @@ func doBlockStoreAddImage(c *cli.Context) error {
 		LOG_FIELD_EVENT:      LOG_EVENT_ADD,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
 		LOG_FIELD_IMAGE_NAME: imageName,
 		LOG_FIELD_IMAGE_FILE: imageFile,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.AddImage(config.Root, config.ImagesDir, imageUUID, imageName, imageFile, blockstoreUUID); err != nil {
+	data, err := blockstore.AddImage(s.Root, s.ImagesDir, imageUUID, imageName, imageFile, blockstoreUUID)
+	if err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -610,7 +773,8 @@ func doBlockStoreAddImage(c *cli.Context) error {
 		LOG_FIELD_IMAGE:      imageUUID,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	return nil
+	_, err = w.Write(data)
+	return err
 }
 
 func cmdBlockStoreRemoveImage(c *cli.Context) {
@@ -620,9 +784,21 @@ func cmdBlockStoreRemoveImage(c *cli.Context) {
 }
 
 func doBlockStoreRemoveImage(c *cli.Context) error {
-	config, _, err := loadGlobalConfig(c)
+	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	if err != nil {
+		return err
+	}
+
+	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/"
+	return sendRequest("DELETE", request, nil)
+}
+
+func (s *Server) doBlockStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseHTTPFlag(objs[KEY_IMAGE], KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -632,10 +808,10 @@ func doBlockStoreRemoveImage(c *cli.Context) error {
 		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.RemoveImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+	if err := blockstore.RemoveImage(s.Root, s.ImagesDir, imageUUID, blockstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -655,9 +831,21 @@ func cmdBlockStoreActivateImage(c *cli.Context) {
 }
 
 func doBlockStoreActivateImage(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	if err != nil {
+		return err
+	}
+
+	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/activate"
+	return sendRequest("POST", request, nil)
+}
+
+func (s *Server) doBlockStoreActivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseHTTPFlag(objs[KEY_IMAGE], KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -667,10 +855,10 @@ func doBlockStoreActivateImage(c *cli.Context) error {
 		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.ActivateImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+	if err := blockstore.ActivateImage(s.Root, s.ImagesDir, imageUUID, blockstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -681,23 +869,23 @@ func doBlockStoreActivateImage(c *cli.Context) error {
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
 
-	imagePath := blockstore.GetImageLocalStorePath(config.ImagesDir, imageUUID)
+	imagePath := blockstore.GetImageLocalStorePath(s.ImagesDir, imageUUID)
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER:     config.Driver,
+		LOG_FIELD_DRIVER:     s.Driver,
 		LOG_FIELD_IMAGE:      imageUUID,
 		LOG_FIELD_IMAGE_FILE: imagePath,
 	}).Debug()
-	if err := driver.ActivateImage(imageUUID, imagePath); err != nil {
+	if err := s.StorageDriver.ActivateImage(imageUUID, imagePath); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:  LOG_EVENT_ACTIVATE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER: config.Driver,
+		LOG_FIELD_DRIVER: s.Driver,
 		LOG_FIELD_IMAGE:  imageUUID,
 	}).Debug()
 	return nil
@@ -710,9 +898,21 @@ func cmdBlockStoreDeactivateImage(c *cli.Context) {
 }
 
 func doBlockStoreDeactivateImage(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, "blockstore-uuid", true, err)
 	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	if err != nil {
+		return err
+	}
+
+	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/deactivate"
+	return sendRequest("POST", request, nil)
+}
+
+func (s *Server) doBlockStoreDeactivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+	blockstoreUUID, err := getLowerCaseHTTPFlag(objs[KEY_BLOCKSTORE], KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseHTTPFlag(objs[KEY_IMAGE], KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -721,17 +921,17 @@ func doBlockStoreDeactivateImage(c *cli.Context) error {
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_DEACTIVATE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER: config.Driver,
+		LOG_FIELD_DRIVER: s.Driver,
 		LOG_FIELD_IMAGE:  imageUUID,
 	}).Debug()
-	if err := driver.DeactivateImage(imageUUID); err != nil {
+	if err := s.StorageDriver.DeactivateImage(imageUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:  LOG_EVENT_DEACTIVATE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER: config.Driver,
+		LOG_FIELD_DRIVER: s.Driver,
 		LOG_FIELD_IMAGE:  imageUUID,
 	}).Debug()
 
@@ -740,10 +940,10 @@ func doBlockStoreDeactivateImage(c *cli.Context) error {
 		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_DIR:  config.ImagesDir,
+		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.DeactivateImage(config.Root, config.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+	if err := blockstore.DeactivateImage(s.Root, s.ImagesDir, imageUUID, blockstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

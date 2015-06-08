@@ -2,12 +2,17 @@ package main
 
 import (
 	"code.google.com/p/go-uuid/uuid"
+	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strconv"
 
 	. "github.com/rancherio/volmgr/logging"
 )
@@ -111,7 +116,7 @@ var (
 	}
 
 	volumeCmd = cli.Command{
-		Name:  "volume",
+		Name:  KEY_VOLUME,
 		Usage: "volume related operations",
 		Subcommands: []cli.Command{
 			volumeCreateCmd,
@@ -170,24 +175,68 @@ func cmdVolumeCreate(c *cli.Context) {
 }
 
 func doVolumeCreate(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
-	if err != nil {
-		return err
-	}
+	var err error
 
+	v := url.Values{}
 	size := int64(c.Int("size"))
 	if size == 0 {
 		return genRequiredMissingError("size")
 	}
-	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", false, nil)
-	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, nil)
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", false, err)
+	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, err)
+	if err != nil {
+		return err
+	}
+	v.Set("size", strconv.FormatInt(size, 10))
+	if volumeUUID != "" {
+		v.Set(KEY_VOLUME, volumeUUID)
+	}
+	if imageUUID != "" {
+		v.Set("image", imageUUID)
+	}
+
+	request := "/volumes/create?" + v.Encode()
+
+	return sendRequest("POST", request, nil)
+}
+
+func sendRequest(method, request string, data interface{}) error {
+	log.Debugf("Sending request %v", request)
+	if data != nil {
+		log.Debugf("With data %+v", data)
+	}
+	rc, _, err := client.call(method, request, data, nil)
+	if err != nil {
+		return err
+	}
+
+	defer rc.Close()
+
+	b, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
+	return nil
+}
+
+func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	if err := r.ParseForm(); err != nil {
+		return err
+	}
+	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
+	if size == 0 {
+		return genRequiredMissingError("size")
+	}
+	volumeUUID, err := getLowerCaseHTTPFlag(r.FormValue(KEY_VOLUME), KEY_VOLUME, false, err)
+	imageUUID, err := getLowerCaseHTTPFlag(r.FormValue(KEY_IMAGE), KEY_IMAGE, false, err)
 	if err != nil {
 		return err
 	}
 
 	uuid := uuid.New()
 	if volumeUUID != "" {
-		if config.loadVolume(volumeUUID) != nil {
+		if s.loadVolume(volumeUUID) != nil {
 			return fmt.Errorf("Duplicate volume UUID detected!")
 		}
 		uuid = volumeUUID
@@ -201,7 +250,7 @@ func doVolumeCreate(c *cli.Context) error {
 		LOG_FIELD_IMAGE:  imageUUID,
 		LOG_FIELD_SIZE:   size,
 	}).Debug()
-	if err := driver.CreateVolume(uuid, imageUUID, size); err != nil {
+	if err := s.StorageDriver.CreateVolume(uuid, imageUUID, size); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -219,15 +268,14 @@ func doVolumeCreate(c *cli.Context) error {
 		FileSystem: "",
 		Snapshots:  make(map[string]bool),
 	}
-	if err := config.saveVolume(volume); err != nil {
+	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
-	api.ResponseOutput(api.VolumeResponse{
+	return writeResponseOutput(w, api.VolumeResponse{
 		UUID: uuid,
 		Base: imageUUID,
 		Size: size,
 	})
-	return nil
 }
 
 func cmdVolumeDelete(c *cli.Context) {
@@ -237,19 +285,36 @@ func cmdVolumeDelete(c *cli.Context) {
 }
 
 func doVolumeDelete(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
+
 	uuid, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
 	}
 
+	request := "/volumes/" + uuid + "/"
+
+	return sendRequest("DELETE", request, nil)
+}
+
+func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	uuid, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	if err != nil {
+		return err
+	}
+
+	if s.loadVolume(uuid) == nil {
+		return fmt.Errorf("Cannot find volume %s", uuid)
+	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug()
-	if err = driver.DeleteVolume(uuid); err != nil {
+	if err := s.StorageDriver.DeleteVolume(uuid); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -258,7 +323,7 @@ func doVolumeDelete(c *cli.Context) error {
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug()
-	return config.deleteVolume(uuid)
+	return s.deleteVolume(uuid)
 }
 
 func cmdVolumeList(c *cli.Context) {
@@ -268,21 +333,49 @@ func cmdVolumeList(c *cli.Context) {
 }
 
 func doVolumeList(c *cli.Context) error {
-	_, driver, err := loadGlobalConfig(c)
-	uuid, err := getLowerCaseFlag(c, "volume-uuid", false, err)
+	var err error
+
+	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", false, err)
 	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
 	if err != nil {
 		return err
 	}
 
-	if snapshotUUID != "" && uuid == "" {
-		return fmt.Errorf("--snapshot-uuid must be used with volume uuid")
+	if snapshotUUID != "" && volumeUUID == "" {
+		return fmt.Errorf("snapshot must be specified with volume")
 	}
-	err = driver.ListVolume(uuid, snapshotUUID)
+
+	request := "/volumes"
+	if volumeUUID != "" {
+		request += "/" + volumeUUID
+	}
+	if snapshotUUID != "" {
+		request += "/snapshots/" + snapshotUUID
+	}
+
+	request += "/"
+
+	return sendRequest("GET", request, nil)
+}
+
+func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, false, err)
+	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
-	return nil
+
+	if snapshotUUID != "" && volumeUUID == "" {
+		return fmt.Errorf("snapshot must be specified with volume")
+	}
+	data, err := s.StorageDriver.ListVolume(volumeUUID, snapshotUUID)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
 }
 
 func cmdVolumeMount(c *cli.Context) {
@@ -292,7 +385,8 @@ func cmdVolumeMount(c *cli.Context) {
 }
 
 func doVolumeMount(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
+
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	mountPoint, err := getLowerCaseFlag(c, "mountpoint", true, err)
 	fs, err := getLowerCaseFlag(c, "fs", true, err)
@@ -304,9 +398,34 @@ func doVolumeMount(c *cli.Context) error {
 	needFormat := c.Bool("format")
 	newNS := c.String("switch-ns")
 
-	volume := config.loadVolume(volumeUUID)
+	mountConfig := api.VolumeMountConfig{
+		MountPoint: mountPoint,
+		FileSystem: fs,
+		Options:    option,
+		NeedFormat: needFormat,
+		NameSpace:  newNS,
+	}
+
+	request := "/volumes/" + volumeUUID + "/mount"
+	return sendRequest("POST", request, mountConfig)
+}
+
+func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	if err != nil {
+		return err
+	}
+	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+
+	mountConfig := &api.VolumeMountConfig{}
+	err = json.NewDecoder(r.Body).Decode(mountConfig)
+	if err != nil {
+		return err
 	}
 
 	log.WithFields(logrus.Fields{
@@ -314,13 +433,14 @@ func doVolumeMount(c *cli.Context) error {
 		LOG_FIELD_EVENT:       LOG_EVENT_MOUNT,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_MOUNTPOINT:  mountPoint,
-		LOG_FIELD_FILESYSTEM:  fs,
-		LOG_FIELD_OPTION:      option,
-		LOG_FIELD_NEED_FORMAT: needFormat,
-		LOG_FIELD_NAMESPACE:   newNS,
+		LOG_FIELD_MOUNTPOINT:  mountConfig.MountPoint,
+		LOG_FIELD_FILESYSTEM:  mountConfig.FileSystem,
+		LOG_FIELD_OPTION:      mountConfig.Options,
+		LOG_FIELD_NEED_FORMAT: mountConfig.NeedFormat,
+		LOG_FIELD_NAMESPACE:   mountConfig.NameSpace,
 	}).Debug()
-	if err := drivers.Mount(driver, volumeUUID, mountPoint, fs, option, needFormat, newNS); err != nil {
+	if err := drivers.Mount(s.StorageDriver, volumeUUID, mountConfig.MountPoint, mountConfig.FileSystem,
+		mountConfig.Options, mountConfig.NeedFormat, mountConfig.NameSpace); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -328,11 +448,11 @@ func doVolumeMount(c *cli.Context) error {
 		LOG_FIELD_EVENT:      LOG_EVENT_LIST,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_MOUNTPOINT: mountPoint,
+		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
 	}).Debug()
-	volume.MountPoint = mountPoint
-	volume.FileSystem = fs
-	return config.saveVolume(volume)
+	volume.MountPoint = mountConfig.MountPoint
+	volume.FileSystem = mountConfig.FileSystem
+	return s.saveVolume(volume)
 }
 
 func cmdVolumeUmount(c *cli.Context) {
@@ -342,7 +462,8 @@ func cmdVolumeUmount(c *cli.Context) {
 }
 
 func doVolumeUmount(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
+
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
@@ -350,9 +471,30 @@ func doVolumeUmount(c *cli.Context) error {
 
 	newNS := c.String("switch-ns")
 
-	volume := config.loadVolume(volumeUUID)
+	mountConfig := api.VolumeMountConfig{
+		NameSpace: newNS,
+	}
+
+	request := "/volumes/" + volumeUUID + "/umount"
+	return sendRequest("POST", request, mountConfig)
+}
+
+func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	if err != nil {
+		return err
+	}
+	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+
+	mountConfig := &api.VolumeMountConfig{}
+	err = json.NewDecoder(r.Body).Decode(mountConfig)
+	if err != nil {
+		return err
 	}
 
 	log.WithFields(logrus.Fields{
@@ -361,9 +503,9 @@ func doVolumeUmount(c *cli.Context) error {
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volumeUUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
-		LOG_FIELD_NAMESPACE:  newNS,
+		LOG_FIELD_NAMESPACE:  mountConfig.NameSpace,
 	}).Debug()
-	if err := drivers.Unmount(driver, volume.MountPoint, newNS); err != nil {
+	if err := drivers.Unmount(s.StorageDriver, volume.MountPoint, mountConfig.NameSpace); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -374,5 +516,5 @@ func doVolumeUmount(c *cli.Context) error {
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
 	}).Debug()
 	volume.MountPoint = ""
-	return config.saveVolume(volume)
+	return s.saveVolume(volume)
 }

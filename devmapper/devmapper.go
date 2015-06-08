@@ -476,14 +476,14 @@ func getVolumeInfo(uuid string, volume *Volume) *api.DeviceMapperVolume {
 	return &result
 }
 
-func (d *Driver) ListVolume(id, snapshotID string) error {
+func (d *Driver) ListVolume(id, snapshotID string) ([]byte, error) {
 	volumes := api.DeviceMapperVolumes{
 		Volumes: make(map[string]api.DeviceMapperVolume),
 	}
 	if id != "" {
 		volume := d.loadVolume(id)
 		if volume == nil {
-			return generateError(logrus.Fields{
+			return nil, generateError(logrus.Fields{
 				LOG_FIELD_VOLUME: id,
 			}, "volume doesn't exists")
 		}
@@ -498,15 +498,14 @@ func (d *Driver) ListVolume(id, snapshotID string) error {
 		for _, uuid := range volumeIDs {
 			volume := d.loadVolume(uuid)
 			if volume == nil {
-				return generateError(logrus.Fields{
+				return nil, generateError(logrus.Fields{
 					LOG_FIELD_VOLUME: uuid,
 				}, "Volume list changed for volume")
 			}
 			volumes.Volumes[uuid] = *getVolumeInfo(uuid, volume)
 		}
 	}
-	api.ResponseOutput(volumes)
-	return nil
+	return api.ResponseOutput(volumes)
 }
 
 func (d *Driver) CreateSnapshot(id, volumeID string) error {
@@ -611,7 +610,7 @@ func (d *Driver) CompareSnapshot(id, compareID, volumeID string) (*metadata.Mapp
 	return mapping, err
 }
 
-func (d *Driver) Info() error {
+func (d *Driver) Info() ([]byte, error) {
 	// from sector count to byte
 	blockSize := d.ThinpoolBlockSize * 512
 
@@ -625,9 +624,12 @@ func (d *Driver) Info() error {
 		ThinpoolBlockSize: blockSize,
 	}
 
-	api.ResponseOutput(dmInfo)
+	data, err := api.ResponseOutput(dmInfo)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil
+	return data, nil
 }
 
 func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *Volume, error) {
@@ -836,5 +838,46 @@ func (d *Driver) DeactivateImage(imageUUID string) error {
 	if err := d.deleteImage(imageUUID); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (d *Driver) Shutdown() error {
+	return d.deactivatePool()
+}
+
+func removePool(poolName string) error {
+	err := devicemapper.RemoveDevice(poolName)
+	if err != nil {
+		return err
+	}
+	log.Debugln("Removed pool /dev/mapper/" + poolName)
+
+	return nil
+}
+
+func (d *Driver) deactivatePool() error {
+	dev := d.Device
+
+	volumeIDs := dev.listVolumeIDs()
+	for _, id := range volumeIDs {
+		volume := dev.loadVolume(id)
+		if volume == nil {
+			return generateError(logrus.Fields{
+				LOG_FIELD_VOLUME: id,
+			}, "Cannot find volume")
+		}
+		if err := devicemapper.RemoveDevice(id); err != nil {
+			return err
+		}
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_EVENT:  LOG_EVENT_ACTIVATE,
+			LOG_FIELD_VOLUME: id,
+		}).Debug("Deactivated volume device")
+	}
+
+	if err := removePool(dev.ThinpoolDevice); err != nil {
+		return err
+	}
+	log.Debug("Deactivate the pool ", dev.ThinpoolDevice)
 	return nil
 }

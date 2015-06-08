@@ -546,7 +546,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, blockstoreID string) error {
 	return nil
 }
 
-func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
+func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) ([]byte, error) {
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_VOLUME:   volumeID,
 		LOG_FIELD_SNAPSHOT: snapshotID,
@@ -558,13 +558,12 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 	v, err := loadVolumeConfig(volumeID, driver)
 	if err != nil {
 		// Volume doesn't exist
-		api.ResponseOutput(resp)
-		return nil
+		return api.ResponseOutput(resp)
 	}
 
 	snapshots, err := getSnapshots(volumeID, driver)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	volumeResp := api.VolumeResponse{
@@ -590,33 +589,32 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) error {
 		}
 	}
 	resp.Volumes[volumeID] = volumeResp
-	api.ResponseOutput(resp)
-	return nil
+	return api.ResponseOutput(resp)
 }
 
-func ListVolume(root, blockstoreID, volumeID, snapshotID string) error {
+func ListVolume(root, blockstoreID, volumeID, snapshotID string) ([]byte, error) {
 	_, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return listVolume(volumeID, snapshotID, bsDriver)
 }
 
-func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUID string) error {
+func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUID string) ([]byte, error) {
 	imageStat, err := os.Stat(imageFilePath)
 	if os.IsNotExist(err) || imageStat.IsDir() {
-		return fmt.Errorf("Invalid image file")
+		return nil, fmt.Errorf("Invalid image file")
 	}
 	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
 	if _, err := os.Stat(imageLocalStorePath); err == nil {
-		return generateError(logrus.Fields{
+		return nil, generateError(logrus.Fields{
 			LOG_FIELD_IMAGE: imageUUID,
 		}, "UUID is already used by another image")
 	}
 
 	_, bsDriver, err := getBlockstoreCfgAndDriver(root, blockstoreUUID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	imageBlockStorePath := getImageBlockStorePath(imageUUID)
@@ -625,17 +623,17 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	imageExists := bsDriver.FileExists(imageBlockStorePath)
 	imageCfgExists := bsDriver.FileExists(imageCfgBlockStorePath)
 	if imageExists && imageCfgExists {
-		return generateError(logrus.Fields{
+		return nil, generateError(logrus.Fields{
 			LOG_FIELD_IMAGE: imageUUID,
 		}, "The image already existed in blockstore")
 	} else if imageExists != imageCfgExists {
-		return generateError(logrus.Fields{
+		return nil, generateError(logrus.Fields{
 			LOG_FIELD_IMAGE: imageUUID,
 		}, "The image state is inconsistent in blockstore")
 	}
 
 	if imageStat.Size()%DEFAULT_BLOCK_SIZE != 0 {
-		return fmt.Errorf("The image size must be multiplier of %v", DEFAULT_BLOCK_SIZE)
+		return nil, fmt.Errorf("The image size must be multiplier of %v", DEFAULT_BLOCK_SIZE)
 	}
 
 	image := &Image{}
@@ -646,7 +644,7 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	log.Debugf("Copying image %v to local store %v", imageFilePath, imageLocalStorePath)
 	if err := util.Copy(imageFilePath, imageLocalStorePath); err != nil {
 		log.Debugf("Copying image failed")
-		return err
+		return nil, err
 	}
 	log.Debug("Copied image to local store")
 
@@ -660,11 +658,11 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 	}).Debug("Uploading image to blockstore")
 	if err := uploadImage(imageLocalStorePath, bsDriver, image); err != nil {
 		log.Debugf("Uploading image failed")
-		return err
+		return nil, err
 	}
 
 	if err := saveImageConfig(imageUUID, bsDriver, image); err != nil {
-		return err
+		return nil, err
 	}
 
 	imageResp := api.ImageResponse{
@@ -674,8 +672,7 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, blockstoreUUI
 		Checksum:    image.Checksum,
 		RawChecksum: image.RawChecksum,
 	}
-	api.ResponseOutput(imageResp)
-	return nil
+	return api.ResponseOutput(imageResp)
 }
 
 func uploadImage(imageLocalStorePath string, bsDriver BlockStoreDriver, image *Image) error {

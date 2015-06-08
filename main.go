@@ -4,16 +4,25 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/gorilla/mux"
 	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/volmgr/drivers"
+	"net"
+	"net/http"
 	"os"
-	"path/filepath"
+	"time"
 )
 
 const (
-	VERSION    = "0.1.5"
-	LOCKFILE   = "lock"
-	CONFIGFILE = "volmgr.cfg"
+	VERSION     = "0.1.5"
+	API_VERSION = "1"
+	LOCKFILE    = "lock"
+	CONFIGFILE  = "volmgr.cfg"
+
+	KEY_VOLUME     = "volume"
+	KEY_SNAPSHOT   = "snapshot"
+	KEY_BLOCKSTORE = "blockstore"
+	KEY_IMAGE      = "image"
 )
 
 type Volume struct {
@@ -23,6 +32,12 @@ type Volume struct {
 	MountPoint string
 	FileSystem string
 	Snapshots  map[string]bool
+}
+
+type Server struct {
+	Router        *mux.Router
+	StorageDriver drivers.Driver
+	Config
 }
 
 type Config struct {
@@ -35,50 +50,18 @@ var (
 	lock    string
 	logFile *os.File
 	log     = logrus.WithFields(logrus.Fields{"pkg": "main"})
+
+	sockFile string = "/var/run/volmgr/volmgr.sock"
+	client   Client
 )
 
-func preAppRun(c *cli.Context) error {
-	if c.Bool("debug") {
-		logrus.SetLevel(logrus.DebugLevel)
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
-	}
-
-	root := c.String("root")
-	if root == "" {
-		return fmt.Errorf("Have to specific root directory")
-	}
-	if err := util.MkdirIfNotExists(root); err != nil {
-		return fmt.Errorf("Invalid root directory:", err)
-	}
-
-	lock = filepath.Join(root, LOCKFILE)
-	if err := util.LockFile(lock); err != nil {
-		return fmt.Errorf("Failed to lock the file", err.Error())
-	}
-
-	logName := c.String("log")
-	if logName != "" {
-		logFile, err := os.OpenFile(logName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			return err
-		}
-		logrus.SetFormatter(&logrus.JSONFormatter{})
-		logrus.SetOutput(logFile)
-	} else {
-		logrus.SetOutput(os.Stderr)
-	}
-
-	return nil
+type Client struct {
+	addr      string
+	scheme    string
+	transport *http.Transport
 }
 
 func cleanup() {
-	if lock != "" {
-		util.UnlockFile(lock)
-	}
-	if logFile != nil {
-		logFile.Close()
-	}
 	if r := recover(); r != nil {
 		api.ResponseLogAndError(r)
 		os.Exit(1)
@@ -86,26 +69,12 @@ func cleanup() {
 }
 
 func main() {
+	logrus.SetLevel(logrus.DebugLevel)
+
 	app := cli.NewApp()
 	app.Name = "volmgr"
 	app.Version = VERSION
 	app.Usage = "A volume manager capable of snapshot and delta backup"
-	app.Flags = []cli.Flag{
-		cli.BoolFlag{
-			Name:  "debug",
-			Usage: "Enable debug log.",
-		},
-		cli.StringFlag{
-			Name:  "log",
-			Usage: "specific output log file, otherwise output to stderr by default",
-		},
-		cli.StringFlag{
-			Name:  "root",
-			Value: "/var/lib/volmgr",
-			Usage: "specific root directory of volmgr",
-		},
-	}
-	app.Before = preAppRun
 	app.CommandNotFound = cmdNotFound
 
 	infoCmd := cli.Command{
@@ -114,10 +83,23 @@ func main() {
 		Action: cmdInfo,
 	}
 
-	initCmd := cli.Command{
-		Name:  "init",
-		Usage: "initialize volmgr",
+	serverCmd := cli.Command{
+		Name:  "server",
+		Usage: "start rancher-volmgr server",
 		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "debug",
+				Usage: "Enable debug log.",
+			},
+			cli.StringFlag{
+				Name:  "log",
+				Usage: "specific output log file, otherwise output to stderr by default",
+			},
+			cli.StringFlag{
+				Name:  "root",
+				Value: "/var/lib/volmgr",
+				Usage: "specific root directory of volmgr",
+			},
 			cli.StringFlag{
 				Name:  "driver",
 				Value: "devicemapper",
@@ -132,20 +114,29 @@ func main() {
 				Name:  "images-dir",
 				Value: "/opt/volmgr_images",
 				Usage: "specific local directory would contains base images",
-			},
-		},
-		Action: cmdInitialize,
+			}},
+		Action: cmdStartServer,
 	}
 
 	app.Commands = []cli.Command{
-		initCmd,
+		serverCmd,
 		infoCmd,
 		volumeCmd,
 		snapshotCmd,
 		blockstoreCmd,
 	}
 
+	client.addr = sockFile
+	client.scheme = "http"
+	client.transport = &http.Transport{
+		DisableCompression: true,
+		Dial: func(_, _ string) (net.Conn, error) {
+			return net.DialTimeout("unix", sockFile, 10*time.Second)
+		},
+	}
+
 	defer cleanup()
+
 	err := app.Run(os.Args)
 	if err != nil {
 		panic(fmt.Errorf("Error when executing command", err.Error()))

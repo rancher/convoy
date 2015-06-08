@@ -5,6 +5,7 @@ import os
 import json
 import pytest
 import uuid
+import time
 
 from volmgr import VolumeManager
 
@@ -12,6 +13,8 @@ TEST_ROOT = "/tmp/volmgr_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "volmgr")
 MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
 IMAGES_DIR = os.path.join(TEST_ROOT, "images")
+PID_FILE = os.path.join(TEST_ROOT, "volmgr.pid")
+LOG_FILE= os.path.join(TEST_ROOT, "volmgr.log")
 TEST_IMAGE_FILE = "image.test"
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
@@ -24,8 +27,7 @@ BLOCKSTORE_IMAGES_DIR = os.path.join(BLOCKSTORE_ROOT, "images")
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "volmgr_test_pool"
-VOLMGR_CMDLINE = ["../../bin/volmgr", "--debug", "--log=/tmp/volmgr.log",
-    "--root=" + CFG_ROOT]
+VOLMGR_BINARY = os.path.abspath("../../bin/volmgr")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
@@ -103,7 +105,17 @@ def setup_module():
     detach_loopback_dev(image_dev)
 
     global v
-    v = VolumeManager(VOLMGR_CMDLINE, TEST_ROOT)
+    v = VolumeManager(VOLMGR_BINARY, TEST_ROOT)
+    v.start_server(PID_FILE, ["server",
+        "--root", CFG_ROOT,
+        "--log", LOG_FILE,
+        "--images-dir", IMAGES_DIR,
+        "--driver=devicemapper",
+        "--driver-opts", "dm.datadev=" + data_dev,
+	"--driver-opts", "dm.metadatadev=" + metadata_dev,
+	"--driver-opts", "dm.thinpoolname=" + POOL_NAME])
+    dm_cleanup_list.append(POOL_NAME)
+    wait_for_daemon()
 
 def detach_all_lodev(keyword):
     output = subprocess.check_output(["losetup", "-a"])
@@ -113,6 +125,8 @@ def detach_all_lodev(keyword):
             detach_loopback_dev(line.split(":")[0].strip())
 
 def teardown_module():
+    v.stop_server(PID_FILE)
+
     while mount_cleanup_list:
 	code = subprocess.call(["umount", mount_cleanup_list.pop()])
         if code != 0:
@@ -133,17 +147,15 @@ def teardown_module():
     for filename in filenames:
         assert not filename.startswith('volume')
 
-def test_init():
-    subprocess.check_call(VOLMGR_CMDLINE + ["init",
-        "--images-dir", IMAGES_DIR,
-        "--driver=devicemapper",
-        "--driver-opts", "dm.datadev=" + data_dev,
-	"--driver-opts", "dm.metadatadev=" + metadata_dev,
-	"--driver-opts", "dm.thinpoolname=" + POOL_NAME])
-    dm_cleanup_list.append(POOL_NAME)
+def wait_for_daemon():
+    while True:
+        try:
+                data = v.server_info()
+                break
+        except subprocess.CalledProcessError:
+                print "Fail to communicate with daemon, retrying"
+                time.sleep(1)
 
-def test_info():
-    data = subprocess.check_output(VOLMGR_CMDLINE + ["info"])
     info = json.loads(data)
     assert info["Driver"] == "devicemapper"
     assert info["Root"] == CFG_ROOT

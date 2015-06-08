@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -72,6 +73,18 @@ func SaveConfig(path, name string, v interface{}) error {
 	}
 
 	return nil
+}
+
+func EncodeData(v interface{}) (*bytes.Buffer, error) {
+	param := bytes.NewBuffer(nil)
+	j, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := param.Write(j); err != nil {
+		return nil, err
+	}
+	return param, nil
 }
 
 func ConfigExists(path, name string) bool {

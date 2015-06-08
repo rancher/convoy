@@ -69,10 +69,10 @@ func ResponseLogAndError(v interface{}) {
 	}
 }
 
-func ResponseOutput(v interface{}) {
+func ResponseOutput(v interface{}) ([]byte, error) {
 	j, err := json.MarshalIndent(v, "", "\t")
 	if err != nil {
-		panic(fmt.Sprintf("Failed to generate response due to error:", err))
+		return nil, err
 	}
-	fmt.Println(string(j[:]))
+	return j, nil
 }

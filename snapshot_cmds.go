@@ -6,6 +6,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
+	"net/http"
+	"net/url"
 
 	. "github.com/rancherio/volmgr/logging"
 )
@@ -44,7 +46,7 @@ var (
 	}
 
 	snapshotCmd = cli.Command{
-		Name:  "snapshot",
+		Name:  KEY_SNAPSHOT,
 		Usage: "snapshot related operations",
 		Subcommands: []cli.Command{
 			snapshotCreateCmd,
@@ -72,20 +74,39 @@ func cmdSnapshotCreate(c *cli.Context) {
 }
 
 func doSnapshotCreate(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
+
+	v := url.Values{}
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	snapshotUUID, err := getLowerCaseFlag(c, "snapshot-uuid", false, err)
 	if err != nil {
 		return err
 	}
 
-	volume := config.loadVolume(volumeUUID)
+	if snapshotUUID != "" {
+		v.Set(KEY_SNAPSHOT, snapshotUUID)
+	}
+
+	request := "/volumes/" + volumeUUID + "/snapshots/create?" + v.Encode()
+
+	return sendRequest("POST", request, nil)
+}
+
+func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	err := r.ParseForm()
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseHTTPFlag(r.FormValue(KEY_SNAPSHOT), KEY_SNAPSHOT, false, err)
+	if err != nil {
+		return err
+	}
+	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
+
 	uuid := uuid.New()
 	if snapshotUUID != "" {
-		if config.snapshotExists(volumeUUID, snapshotUUID) {
+		if s.snapshotExists(volumeUUID, snapshotUUID) {
 			return fmt.Errorf("Duplicate snapshot UUID for volume %v detected", volumeUUID)
 		}
 		uuid = snapshotUUID
@@ -98,7 +119,7 @@ func doSnapshotCreate(c *cli.Context) error {
 		LOG_FIELD_SNAPSHOT: uuid,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := driver.CreateSnapshot(uuid, volumeUUID); err != nil {
+	if err := s.StorageDriver.CreateSnapshot(uuid, volumeUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -110,14 +131,13 @@ func doSnapshotCreate(c *cli.Context) error {
 	}).Debug()
 
 	volume.Snapshots[uuid] = true
-	if err := config.saveVolume(volume); err != nil {
+	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
-	api.ResponseOutput(api.SnapshotResponse{
+	return writeResponseOutput(w, api.SnapshotResponse{
 		UUID:       uuid,
 		VolumeUUID: volumeUUID,
 	})
-	return nil
 }
 
 func cmdSnapshotDelete(c *cli.Context) {
@@ -127,36 +147,49 @@ func cmdSnapshotDelete(c *cli.Context) {
 }
 
 func doSnapshotDelete(c *cli.Context) error {
-	config, driver, err := loadGlobalConfig(c)
+	var err error
 	uuid, err := getLowerCaseFlag(c, "snapshot-uuid", true, err)
 	volumeUUID, err := getLowerCaseFlag(c, "volume-uuid", true, err)
 	if err != nil {
 		return err
 	}
 
-	volume := config.loadVolume(volumeUUID)
-	if !config.snapshotExists(volumeUUID, uuid) {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", uuid, volumeUUID)
+	request := "/volumes/" + volumeUUID + "/snapshots/" + uuid + "/"
+	return sendRequest("DELETE", request, nil)
+}
+
+func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	volumeUUID, err := getLowerCaseHTTPFlag(objs[KEY_VOLUME], KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseHTTPFlag(objs[KEY_SNAPSHOT], KEY_SNAPSHOT, true, err)
+	if err != nil {
+		return err
+	}
+
+	volume := s.loadVolume(volumeUUID)
+	if !s.snapshotExists(volumeUUID, snapshotUUID) {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := driver.DeleteSnapshot(uuid, volumeUUID); err != nil {
+	if err := s.StorageDriver.DeleteSnapshot(snapshotUUID, volumeUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
-	delete(volume.Snapshots, uuid)
-	return config.saveVolume(volume)
+	delete(volume.Snapshots, snapshotUUID)
+	return s.saveVolume(volume)
 }

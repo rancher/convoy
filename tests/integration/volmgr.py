@@ -7,9 +7,21 @@ import json
 EXT4_FS = "ext4"
 
 class VolumeManager:
-    def __init__(self, cmdline, mount_root):
-        self.base_cmdline = cmdline
+    def __init__(self, binary, mount_root):
+        self.base_cmdline = [binary]
 	self.mount_root = mount_root
+
+    def start_server(self, pidfile, cmdline):
+        start_cmdline = ["start-stop-daemon", "-S", "-b", "-m", "-p", pidfile,
+			"--exec"] + self.base_cmdline + ["--"] + cmdline
+        subprocess.check_call(start_cmdline)
+
+    def stop_server(self, pidfile):
+        stop_cmdline = ["start-stop-daemon", "-K","-p", pidfile, "-x"] + self.base_cmdline
+        subprocess.check_call(stop_cmdline)
+
+    def server_info(self):
+	return subprocess.check_output(self.base_cmdline + ["info"])
 
     def create_volume(self, size, uuid = "", base = ""):
         cmd = ["volume", "create", "--size", str(size)]
