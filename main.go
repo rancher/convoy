@@ -19,10 +19,10 @@ const (
 	LOCKFILE    = "lock"
 	CONFIGFILE  = "volmgr.cfg"
 
-	KEY_VOLUME     = "volume"
-	KEY_SNAPSHOT   = "snapshot"
-	KEY_BLOCKSTORE = "blockstore"
-	KEY_IMAGE      = "image"
+	KEY_VOLUME     = "volume-uuid"
+	KEY_SNAPSHOT   = "snapshot-uuid"
+	KEY_BLOCKSTORE = "blockstore-uuid"
+	KEY_IMAGE      = "image-uuid"
 )
 
 type Volume struct {

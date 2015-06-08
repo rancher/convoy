@@ -46,7 +46,7 @@ var (
 	}
 
 	snapshotCmd = cli.Command{
-		Name:  KEY_SNAPSHOT,
+		Name:  "snapshot",
 		Usage: "snapshot related operations",
 		Subcommands: []cli.Command{
 			snapshotCreateCmd,

@@ -63,3 +63,23 @@ func (c *Client) clientRequest(method, path string, in io.Reader, headers map[st
 	}
 	return resp.Body, resp.Header.Get("Context-Type"), statusCode, nil
 }
+
+func sendRequest(method, request string, data interface{}) error {
+	log.Debugf("Sending request %v", request)
+	if data != nil {
+		log.Debugf("With data %+v", data)
+	}
+	rc, _, err := client.call(method, request, data, nil)
+	if err != nil {
+		return err
+	}
+
+	defer rc.Close()
+
+	b, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(b))
+	return nil
+}

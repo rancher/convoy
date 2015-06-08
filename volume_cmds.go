@@ -9,7 +9,6 @@ import (
 	"github.com/rancherio/volmgr/api"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -116,7 +115,7 @@ var (
 	}
 
 	volumeCmd = cli.Command{
-		Name:  KEY_VOLUME,
+		Name:  "volume",
 		Usage: "volume related operations",
 		Subcommands: []cli.Command{
 			volumeCreateCmd,
@@ -192,32 +191,12 @@ func doVolumeCreate(c *cli.Context) error {
 		v.Set(KEY_VOLUME, volumeUUID)
 	}
 	if imageUUID != "" {
-		v.Set("image", imageUUID)
+		v.Set(KEY_IMAGE, imageUUID)
 	}
 
 	request := "/volumes/create?" + v.Encode()
 
 	return sendRequest("POST", request, nil)
-}
-
-func sendRequest(method, request string, data interface{}) error {
-	log.Debugf("Sending request %v", request)
-	if data != nil {
-		log.Debugf("With data %+v", data)
-	}
-	rc, _, err := client.call(method, request, data, nil)
-	if err != nil {
-		return err
-	}
-
-	defer rc.Close()
-
-	b, err := ioutil.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(b))
-	return nil
 }
 
 func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
