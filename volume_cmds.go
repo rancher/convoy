@@ -11,7 +11,10 @@ import (
 	"github.com/rancherio/volmgr/util"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	. "github.com/rancherio/volmgr/logging"
 )
@@ -364,7 +367,7 @@ func doVolumeMount(c *cli.Context) error {
 	var err error
 
 	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
-	mountPoint, err := getLowerCaseFlag(c, "mountpoint", true, err)
+	mountPoint, err := getLowerCaseFlag(c, "mountpoint", false, err)
 	fs, err := getLowerCaseFlag(c, "fs", true, err)
 	if err != nil {
 		return err
@@ -404,6 +407,17 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return err
 	}
 
+	if mountConfig.MountPoint == "" {
+		mountConfig.MountPoint = filepath.Join(s.MountsDir, volumeUUID)
+		if err := util.MkdirIfNotExists(mountConfig.MountPoint); err != nil {
+			return err
+		}
+	}
+
+	if st, err := os.Stat(mountConfig.MountPoint); os.IsNotExist(err) || !st.IsDir() {
+		return fmt.Errorf("Mount point %s doesn't exist", mountConfig.MountPoint)
+	}
+
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:       LOG_EVENT_MOUNT,
@@ -428,7 +442,13 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 	}).Debug()
 	volume.MountPoint = mountConfig.MountPoint
 	volume.FileSystem = mountConfig.FileSystem
-	return s.saveVolume(volume)
+	if err := s.saveVolume(volume); err != nil {
+		return err
+	}
+	return writeResponseOutput(w, api.VolumeResponse{
+		UUID:       volumeUUID,
+		MountPoint: volume.MountPoint,
+	})
 }
 
 func cmdVolumeUmount(c *cli.Context) {
@@ -491,6 +511,13 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_VOLUME:     volumeUUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
 	}).Debug()
+
+	if strings.HasPrefix(volume.MountPoint, s.MountsDir) {
+		err := os.Remove(volume.MountPoint)
+		if err != nil {
+			log.Warnf("Cannot cleanup mount point directory %v\n", volume.MountPoint)
+		}
+	}
 	volume.MountPoint = ""
 	return s.saveVolume(volume)
 }

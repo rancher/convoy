@@ -236,7 +236,8 @@ func initServer(c *cli.Context) (*Server, error) {
 	driverName := c.String("driver")
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	imagesDir := c.String("images-dir")
-	if root == "" || driverName == "" || driverOpts == nil || imagesDir == "" {
+	mountsDir := c.String("mounts-dir")
+	if root == "" || driverName == "" || driverOpts == nil || imagesDir == "" || mountsDir == "" {
 		return nil, fmt.Errorf("Missing or invalid parameters")
 	}
 
@@ -250,6 +251,11 @@ func initServer(c *cli.Context) (*Server, error) {
 		return nil, err
 	}
 	log.Debug("Images would be stored at ", imagesDir)
+
+	if err := util.MkdirIfNotExists(mountsDir); err != nil {
+		return nil, err
+	}
+	log.Debug("Default mounting directory would be ", mountsDir)
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
@@ -273,6 +279,7 @@ func initServer(c *cli.Context) (*Server, error) {
 		Root:      root,
 		Driver:    driverName,
 		ImagesDir: imagesDir,
+		MountsDir: mountsDir,
 	}
 	server := &Server{
 		Config:        config,

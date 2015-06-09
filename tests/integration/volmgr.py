@@ -55,6 +55,17 @@ class VolumeManager:
 	subprocess.check_call(cmdline)
         return volume_mount_dir
 
+    def mount_volume_auto(self, uuid, need_format):
+        cmdline = self.base_cmdline + ["volume", "mount",
+                "--volume-uuid", uuid,
+    		"--fs", EXT4_FS]
+        if need_format:
+    	    cmdline = cmdline + ["--format"]
+
+	data = subprocess.check_output(cmdline)
+        volume = json.loads(data)
+        return volume["MountPoint"]
+
     def umount_volume(self, uuid):
         subprocess.check_call(self.base_cmdline + ["volume", "umount",
             "--volume-uuid", uuid])

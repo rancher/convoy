@@ -12,6 +12,7 @@ from volmgr import VolumeManager
 TEST_ROOT = "/tmp/volmgr_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "volmgr")
 MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
+AUTO_MOUNTS_DIR = os.path.join(TEST_ROOT, "auto_mounts")
 IMAGES_DIR = os.path.join(TEST_ROOT, "images")
 PID_FILE = os.path.join(TEST_ROOT, "volmgr.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "volmgr.log")
@@ -110,6 +111,7 @@ def setup_module():
         "--root", CFG_ROOT,
         "--log", LOG_FILE,
         "--images-dir", IMAGES_DIR,
+        "--mounts-dir", AUTO_MOUNTS_DIR,
         "--driver=devicemapper",
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
@@ -179,6 +181,11 @@ def mount_volume(uuid, need_format):
     mount_cleanup_list.append(mount_dir)
     return mount_dir
 
+def mount_volume_auto(uuid, need_format):
+    mount_dir = v.mount_volume_auto(uuid, need_format)
+    mount_cleanup_list.append(mount_dir)
+    return mount_dir
+
 def umount_volume(uuid, mount_dir):
     v.umount_volume(uuid)
     mount_cleanup_list.remove(mount_dir)
@@ -220,6 +227,14 @@ def test_volume_mount():
 
     # without format
     volume_mount_dir = mount_volume(uuid, False)
+    test_file = os.path.join(volume_mount_dir, filename)
+    assert os.path.exists(test_file)
+
+    umount_volume(uuid, volume_mount_dir)
+    assert not os.path.exists(test_file)
+
+    # auto mount 
+    volume_mount_dir = mount_volume_auto(uuid, False)
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 

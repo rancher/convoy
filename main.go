@@ -44,6 +44,7 @@ type Config struct {
 	Root      string
 	Driver    string
 	ImagesDir string
+	MountsDir string
 }
 
 var (
@@ -114,6 +115,11 @@ func main() {
 				Name:  "images-dir",
 				Value: "/opt/volmgr_images",
 				Usage: "specific local directory would contains base images",
+			},
+			cli.StringFlag{
+				Name:  "mounts-dir",
+				Value: "/var/lib/volmgr/mounts",
+				Usage: "default directory for mounting volume",
 			}},
 		Action: cmdStartServer,
 	}

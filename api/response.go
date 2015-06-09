@@ -16,10 +16,11 @@ type VolumesResponse struct {
 }
 
 type VolumeResponse struct {
-	UUID      string
-	Base      string
-	Size      int64
-	Snapshots map[string]SnapshotResponse
+	UUID       string
+	Base       string
+	Size       int64
+	MountPoint string
+	Snapshots  map[string]SnapshotResponse
 }
 
 type SnapshotResponse struct {
