@@ -76,8 +76,3 @@ func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, 
 	}
 	return nil
 }
-
-func (s *Server) notImplemented(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	info := fmt.Sprintf("not implmeneted: %v %v %v", r.Method, r.RequestURI, objs)
-	return fmt.Errorf(info)
-}

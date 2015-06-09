@@ -60,7 +60,14 @@ func createRouter(s *Server) *mux.Router {
 			router.Path(route).Methods(method).HandlerFunc(handler)
 		}
 	}
+	router.NotFoundHandler = s
 	return router
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	info := fmt.Sprintf("Handler not found: %v %v", r.Method, r.RequestURI)
+	log.Errorf(info)
+	w.Write([]byte(info))
 }
 
 type RequestHandler func(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error
@@ -77,7 +84,7 @@ func makeHandlerFunc(method string, route string, version string, f RequestHandl
 			}
 		}
 		if err := f(version, w, r, mux.Vars(r)); err != nil {
-			logrus.Errorf("Handler for %s %s returned error: %s", method, route, err)
+			log.Errorf("Handler for %s %s returned error: %s", method, route, err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 	}
