@@ -171,7 +171,7 @@ var (
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
-				Name:  "image-uuid",
+				Name:  KEY_IMAGE,
 				Usage: "uuid of image",
 			},
 			cli.StringFlag{
@@ -195,7 +195,7 @@ var (
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
-				Name:  "image-uuid",
+				Name:  KEY_IMAGE,
 				Usage: "uuid of image, if unspecified, a random one would be generated",
 			},
 		},
@@ -211,7 +211,7 @@ var (
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
-				Name:  "image-uuid",
+				Name:  KEY_IMAGE,
 				Usage: "uuid of image",
 			},
 		},
@@ -227,7 +227,7 @@ var (
 				Usage: "uuid of blockstore",
 			},
 			cli.StringFlag{
-				Name:  "image-uuid",
+				Name:  KEY_IMAGE,
 				Usage: "uuid of image",
 			},
 		},
@@ -702,7 +702,7 @@ func doBlockStoreAddImage(c *cli.Context) error {
 	v := url.Values{}
 
 	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, err)
+	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, false, err)
 	imageName, err := getLowerCaseFlag(c, "image-name", false, err)
 	if err != nil {
 		return err
@@ -716,7 +716,7 @@ func doBlockStoreAddImage(c *cli.Context) error {
 		ImageFile: imageFile,
 	}
 	if imageUUID != "" {
-		v.Set("image-uuid", imageUUID)
+		v.Set(KEY_IMAGE, imageUUID)
 	}
 	if imageName != "" {
 		v.Set("image-name", imageName)
@@ -730,7 +730,7 @@ func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *
 	var err error
 
 	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(r, "image-uuid", false, err)
+	imageUUID, err := getLowerCaseFlag(r, KEY_IMAGE, false, err)
 	imageName, err := getLowerCaseFlag(r, "image-name", false, err)
 	if err != nil {
 		return err
@@ -784,7 +784,7 @@ func cmdBlockStoreRemoveImage(c *cli.Context) {
 func doBlockStoreRemoveImage(c *cli.Context) error {
 	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -831,7 +831,7 @@ func cmdBlockStoreActivateImage(c *cli.Context) {
 func doBlockStoreActivateImage(c *cli.Context) error {
 	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -898,7 +898,7 @@ func cmdBlockStoreDeactivateImage(c *cli.Context) {
 func doBlockStoreDeactivateImage(c *cli.Context) error {
 	var err error
 	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, "image-uuid", true, err)
+	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}

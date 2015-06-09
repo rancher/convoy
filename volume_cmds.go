@@ -30,7 +30,7 @@ var (
 				Usage: "size of volume, in bytes",
 			},
 			cli.StringFlag{
-				Name:  "image-uuid",
+				Name:  KEY_IMAGE,
 				Usage: "base image's uuid",
 			},
 		},
@@ -182,7 +182,7 @@ func doVolumeCreate(c *cli.Context) error {
 		return genRequiredMissingError("size")
 	}
 	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, false, err)
-	imageUUID, err := getLowerCaseFlag(c, "image-uuid", false, err)
+	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, false, err)
 	if err != nil {
 		return err
 	}
