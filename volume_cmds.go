@@ -389,6 +389,17 @@ func doVolumeMount(c *cli.Context) error {
 	return sendRequest("POST", request, mountConfig)
 }
 
+func (s *Server) getVolumeMountPoint(volumeUUID, mountPoint string) (string, error) {
+	if mountPoint != "" {
+		return mountPoint, nil
+	}
+	dir := filepath.Join(s.MountsDir, volumeUUID)
+	if err := util.MkdirIfNotExists(dir); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
 func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
@@ -407,13 +418,22 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return err
 	}
 
-	if mountConfig.MountPoint == "" {
-		mountConfig.MountPoint = filepath.Join(s.MountsDir, volumeUUID)
-		if err := util.MkdirIfNotExists(mountConfig.MountPoint); err != nil {
-			return err
-		}
+	mountConfig.MountPoint, err = s.getVolumeMountPoint(volumeUUID, mountConfig.MountPoint)
+	if err != nil {
+		return err
 	}
 
+	if err = s.processVolumeMount(volume, mountConfig); err != nil {
+		return err
+	}
+
+	return writeResponseOutput(w, api.VolumeResponse{
+		UUID:       volumeUUID,
+		MountPoint: volume.MountPoint,
+	})
+}
+
+func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMountConfig) error {
 	if st, err := os.Stat(mountConfig.MountPoint); os.IsNotExist(err) || !st.IsDir() {
 		return fmt.Errorf("Mount point %s doesn't exist", mountConfig.MountPoint)
 	}
@@ -422,14 +442,14 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:       LOG_EVENT_MOUNT,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      volumeUUID,
+		LOG_FIELD_VOLUME:      volume.UUID,
 		LOG_FIELD_MOUNTPOINT:  mountConfig.MountPoint,
 		LOG_FIELD_FILESYSTEM:  mountConfig.FileSystem,
 		LOG_FIELD_OPTION:      mountConfig.Options,
 		LOG_FIELD_NEED_FORMAT: mountConfig.NeedFormat,
 		LOG_FIELD_NAMESPACE:   mountConfig.NameSpace,
 	}).Debug()
-	if err := drivers.Mount(s.StorageDriver, volumeUUID, mountConfig.MountPoint, mountConfig.FileSystem,
+	if err := drivers.Mount(s.StorageDriver, volume.UUID, mountConfig.MountPoint, mountConfig.FileSystem,
 		mountConfig.Options, mountConfig.NeedFormat, mountConfig.NameSpace); err != nil {
 		return err
 	}
@@ -437,7 +457,7 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:      LOG_EVENT_LIST,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
 	}).Debug()
 	volume.MountPoint = mountConfig.MountPoint
@@ -445,10 +465,7 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
-	return writeResponseOutput(w, api.VolumeResponse{
-		UUID:       volumeUUID,
-		MountPoint: volume.MountPoint,
-	})
+	return nil
 }
 
 func cmdVolumeUmount(c *cli.Context) {
@@ -493,11 +510,25 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
+	return s.processVolumeUmount(volume, mountConfig)
+}
+
+func (s *Server) putVolumeMountPoint(mountPoint string) string {
+	if strings.HasPrefix(mountPoint, s.MountsDir) {
+		err := os.Remove(mountPoint)
+		if err != nil {
+			log.Warnf("Cannot cleanup mount point directory %v\n", mountPoint)
+		}
+	}
+	return ""
+}
+
+func (s *Server) processVolumeUmount(volume *Volume, mountConfig *api.VolumeMountConfig) error {
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
 		LOG_FIELD_NAMESPACE:  mountConfig.NameSpace,
 	}).Debug()
@@ -508,16 +539,10 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volumeUUID,
+		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
 	}).Debug()
 
-	if strings.HasPrefix(volume.MountPoint, s.MountsDir) {
-		err := os.Remove(volume.MountPoint)
-		if err != nil {
-			log.Warnf("Cannot cleanup mount point directory %v\n", volume.MountPoint)
-		}
-	}
-	volume.MountPoint = ""
+	volume.MountPoint = s.putVolumeMountPoint(volume.MountPoint)
 	return s.saveVolume(volume)
 }
