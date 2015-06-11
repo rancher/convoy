@@ -78,12 +78,6 @@ func main() {
 	app.Usage = "A volume manager capable of snapshot and delta backup"
 	app.CommandNotFound = cmdNotFound
 
-	infoCmd := cli.Command{
-		Name:   "info",
-		Usage:  "information about volmgr",
-		Action: cmdInfo,
-	}
-
 	serverCmd := cli.Command{
 		Name:  "server",
 		Usage: "start rancher-volmgr server",
