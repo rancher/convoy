@@ -65,7 +65,7 @@ func (c *Client) clientRequest(method, path string, in io.Reader, headers map[st
 }
 
 func sendRequest(method, request string, data interface{}) error {
-	log.Debugf("Sending request %v", request)
+	log.Debugf("Sending request %v %v", method, request)
 	if data != nil {
 		log.Debugf("With data %+v", data)
 	}

@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"code.google.com/p/go-uuid/uuid"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
@@ -223,4 +224,8 @@ func DetachLoopbackDevice(file, dev string) error {
 		return err
 	}
 	return nil
+}
+
+func ValidateUUID(s string) bool {
+	return uuid.Parse(s) != nil
 }

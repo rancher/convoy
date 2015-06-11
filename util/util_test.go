@@ -175,3 +175,11 @@ func (s *TestSuite) TestLoopDevice(c *C) {
 	err = DetachLoopbackDevice("/tmp", "/dev/loop0")
 	c.Assert(err, Not(IsNil))
 }
+
+func (s *TestSuite) TestValidateUUID(c *C) {
+	c.Assert(ValidateUUID(""), Equals, false)
+	c.Assert(ValidateUUID("123"), Equals, false)
+	c.Assert(ValidateUUID("asdf"), Equals, false)
+	c.Assert(ValidateUUID("f997529d-904f-4fbc-8ba2-6d296b74470a"), Equals, true)
+	c.Assert(ValidateUUID("00000000-0000-0000-0000-000000000000"), Equals, true)
+}

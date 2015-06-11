@@ -325,7 +325,7 @@ func cmdBlockStoreDeregister(c *cli.Context) {
 func doBlockStoreDeregister(c *cli.Context) error {
 	var err error
 
-	uuid, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
+	uuid, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
 	if err != nil {
 		return err
 	}
@@ -336,7 +336,7 @@ func doBlockStoreDeregister(c *cli.Context) error {
 
 func (s *Server) doBlockStoreDeregister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
 	if err != nil {
 		return err
 	}
@@ -368,8 +368,8 @@ func cmdBlockStoreAddVolume(c *cli.Context) {
 func doBlockStoreAddVolume(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -381,8 +381,8 @@ func doBlockStoreAddVolume(c *cli.Context) error {
 func (s *Server) doBlockStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -422,8 +422,8 @@ func cmdBlockStoreRemoveVolume(c *cli.Context) {
 
 func doBlockStoreRemoveVolume(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -435,8 +435,8 @@ func doBlockStoreRemoveVolume(c *cli.Context) error {
 func (s *Server) doBlockStoreRemoveVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -473,9 +473,9 @@ func cmdBlockStoreListVolume(c *cli.Context) {
 func doBlockStoreListVolume(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, false, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseUUID(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -491,9 +491,9 @@ func doBlockStoreListVolume(c *cli.Context) error {
 func (s *Server) doBlockStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseFlag(objs, KEY_SNAPSHOT, false, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseUUID(objs, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -515,9 +515,9 @@ func cmdSnapshotBackup(c *cli.Context) {
 func doSnapshotBackup(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -529,9 +529,9 @@ func doSnapshotBackup(c *cli.Context) error {
 func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseFlag(objs, KEY_SNAPSHOT, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -572,10 +572,10 @@ func doSnapshotRestore(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	originVolumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
-	targetVolumeUUID, err := getLowerCaseFlag(c, "target-volume-uuid", true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	originVolumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
+	targetVolumeUUID, err := getLowerCaseUUID(c, "target-volume-uuid", true, err)
+	snapshotUUID, err := getLowerCaseUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -588,10 +588,10 @@ func doSnapshotRestore(c *cli.Context) error {
 
 func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	originVolumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseFlag(objs, KEY_SNAPSHOT, true, err)
-	targetVolumeUUID, err := getLowerCaseFlag(r, "target-volume", true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	originVolumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseUUID(objs, KEY_SNAPSHOT, true, err)
+	targetVolumeUUID, err := getLowerCaseUUID(r, "target-volume", true, err)
 	if err != nil {
 		return err
 	}
@@ -645,9 +645,9 @@ func cmdSnapshotRemove(c *cli.Context) {
 
 func doSnapshotRemove(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(c, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseFlag(c, KEY_SNAPSHOT, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -658,9 +658,9 @@ func doSnapshotRemove(c *cli.Context) error {
 
 func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getLowerCaseFlag(objs, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseFlag(objs, KEY_SNAPSHOT, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getLowerCaseUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
@@ -701,8 +701,8 @@ func doBlockStoreAddImage(c *cli.Context) error {
 	var err error
 	v := url.Values{}
 
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, false, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(c, KEY_IMAGE, false, err)
 	imageName, err := getLowerCaseFlag(c, "image-name", false, err)
 	if err != nil {
 		return err
@@ -729,8 +729,8 @@ func doBlockStoreAddImage(c *cli.Context) error {
 func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(r, KEY_IMAGE, false, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(r, KEY_IMAGE, false, err)
 	imageName, err := getLowerCaseFlag(r, "image-name", false, err)
 	if err != nil {
 		return err
@@ -783,8 +783,8 @@ func cmdBlockStoreRemoveImage(c *cli.Context) {
 
 func doBlockStoreRemoveImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -795,8 +795,8 @@ func doBlockStoreRemoveImage(c *cli.Context) error {
 
 func (s *Server) doBlockStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(objs, KEY_IMAGE, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(objs, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -830,8 +830,8 @@ func cmdBlockStoreActivateImage(c *cli.Context) {
 
 func doBlockStoreActivateImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -842,8 +842,8 @@ func doBlockStoreActivateImage(c *cli.Context) error {
 
 func (s *Server) doBlockStoreActivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(objs, KEY_IMAGE, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(objs, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -897,8 +897,8 @@ func cmdBlockStoreDeactivateImage(c *cli.Context) {
 
 func doBlockStoreDeactivateImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(c, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(c, KEY_IMAGE, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(c, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
@@ -909,8 +909,8 @@ func doBlockStoreDeactivateImage(c *cli.Context) error {
 
 func (s *Server) doBlockStoreDeactivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getLowerCaseFlag(objs, KEY_BLOCKSTORE, true, err)
-	imageUUID, err := getLowerCaseFlag(objs, KEY_IMAGE, true, err)
+	blockstoreUUID, err := getLowerCaseUUID(objs, KEY_BLOCKSTORE, true, err)
+	imageUUID, err := getLowerCaseUUID(objs, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}

@@ -366,14 +366,15 @@ def test_blockstore():
 
     volumes = v.list_volume_blockstore(volume1_uuid, blockstore_uuid)
     assert len(volumes) == 0
-    volumes = v.list_volume_blockstore_with_snapshot("random_string", volume1_uuid, blockstore_uuid)
+    # 0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4 is a valid random uuid 
+    volumes = v.list_volume_blockstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, blockstore_uuid)
     assert len(volumes) == 0
 
     v.add_volume_to_blockstore(volume1_uuid, blockstore_uuid)
     volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)
     assert os.path.exists(volume1_cfg_path)
 
-    volumes = v.list_volume_blockstore_with_snapshot("random_string", volume1_uuid, blockstore_uuid)
+    volumes = v.list_volume_blockstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, blockstore_uuid)
     assert len(volumes) == 1
     assert volumes[volume1_uuid]["Size"] == VOLUME_SIZE_500M
     assert volumes[volume1_uuid]["Base"] == ""

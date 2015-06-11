@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
+	"github.com/rancherio/volmgr/util"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -28,6 +29,20 @@ func getCfgName() string {
 
 func genRequiredMissingError(name string) error {
 	return fmt.Errorf("Cannot find valid required parameter:", name)
+}
+
+func getLowerCaseUUID(v interface{}, key string, required bool, err error) (string, error) {
+	uuid, err := getLowerCaseFlag(v, key, required, err)
+	if err != nil {
+		return uuid, err
+	}
+	if !required && uuid == "" {
+		return uuid, nil
+	}
+	if !util.ValidateUUID(uuid) {
+		return "", fmt.Errorf("Invalid UUID %v", uuid)
+	}
+	return uuid, nil
 }
 
 func getLowerCaseFlag(v interface{}, key string, required bool, err error) (string, error) {
