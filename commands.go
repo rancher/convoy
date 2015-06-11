@@ -31,7 +31,7 @@ func genRequiredMissingError(name string) error {
 	return fmt.Errorf("Cannot find valid required parameter:", name)
 }
 
-func getLowerCaseUUID(v interface{}, key string, required bool, err error) (string, error) {
+func getUUID(v interface{}, key string, required bool, err error) (string, error) {
 	uuid, err := getLowerCaseFlag(v, key, required, err)
 	if err != nil {
 		return uuid, err

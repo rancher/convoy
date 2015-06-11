@@ -77,8 +77,8 @@ func doSnapshotCreate(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	volumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseUUID(c, KEY_SNAPSHOT, false, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -94,8 +94,8 @@ func doSnapshotCreate(c *cli.Context) error {
 
 func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	volumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseUUID(r, KEY_SNAPSHOT, false, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getUUID(r, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -148,8 +148,8 @@ func cmdSnapshotDelete(c *cli.Context) {
 
 func doSnapshotDelete(c *cli.Context) error {
 	var err error
-	uuid, err := getLowerCaseUUID(c, KEY_SNAPSHOT, true, err)
-	volumeUUID, err := getLowerCaseUUID(c, KEY_VOLUME, true, err)
+	uuid, err := getUUID(c, KEY_SNAPSHOT, true, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
@@ -161,8 +161,8 @@ func doSnapshotDelete(c *cli.Context) error {
 func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	volumeUUID, err := getLowerCaseUUID(objs, KEY_VOLUME, true, err)
-	snapshotUUID, err := getLowerCaseUUID(objs, KEY_SNAPSHOT, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
