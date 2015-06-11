@@ -16,7 +16,6 @@ type DeviceMapperVolumes struct {
 
 type DeviceMapperVolume struct {
 	DevID     int
-	Size      int64
 	Snapshots map[string]DeviceMapperSnapshot
 }
 

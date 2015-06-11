@@ -16,3 +16,7 @@ type BlockStoreRegisterConfig struct {
 type BlockStoreImageConfig struct {
 	ImageFile string
 }
+
+type VolumeListConfig struct {
+	DriverSpecific bool
+}

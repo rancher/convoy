@@ -159,13 +159,17 @@ def wait_for_daemon():
                 time.sleep(1)
 
     info = json.loads(data)
-    assert info["Driver"] == "devicemapper"
-    assert info["Root"] == CFG_ROOT
-    assert info["DataDevice"] == data_dev
-    assert info["MetadataDevice"] == metadata_dev
-    assert info["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME)
-    assert info["ThinpoolSize"] == DATA_DEVICE_SIZE
-    assert info["ThinpoolBlockSize"] == DM_BLOCK_SIZE
+    assert info["General"]["Driver"] == "devicemapper"
+    assert info["General"]["Root"] == CFG_ROOT
+    assert info["General"]["ImagesDir"]== IMAGES_DIR 
+    assert info["General"]["MountsDir"]== AUTO_MOUNTS_DIR 
+    assert info["Driver"]["Driver"] == "devicemapper"
+    assert info["Driver"]["Root"] == CFG_ROOT
+    assert info["Driver"]["DataDevice"] == data_dev
+    assert info["Driver"]["MetadataDevice"] == metadata_dev
+    assert info["Driver"]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME)
+    assert info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE
+    assert info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
 def create_volume(size, uuid = "", base = ""):
     uuid = v.create_volume(size, uuid, base)

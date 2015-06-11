@@ -23,6 +23,9 @@ const (
 	KEY_SNAPSHOT   = "snapshot-uuid"
 	KEY_BLOCKSTORE = "blockstore-uuid"
 	KEY_IMAGE      = "image-uuid"
+
+	VOLUME_CFG_PREFIX = "volume_"
+	CFG_POSTFIX       = ".json"
 )
 
 type Volume struct {

@@ -113,6 +113,10 @@ var (
 				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot, must be used with volume uuid",
 			},
+			cli.BoolFlag{
+				Name:  "driver",
+				Usage: "Ask for driver specific info of volumes and snapshots",
+			},
 		},
 		Action: cmdVolumeList,
 	}
@@ -134,7 +138,7 @@ func getVolumeCfgName(uuid string) (string, error) {
 	if uuid == "" {
 		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
 	}
-	return "volume_" + uuid + ".json", nil
+	return VOLUME_CFG_PREFIX + uuid + CFG_POSTFIX, nil
 }
 
 func (config *Config) loadVolume(uuid string) *Volume {
@@ -320,6 +324,10 @@ func doVolumeList(c *cli.Context) error {
 		return err
 	}
 
+	config := &api.VolumeListConfig{
+		DriverSpecific: c.Bool("driver"),
+	}
+
 	if snapshotUUID != "" && volumeUUID == "" {
 		return fmt.Errorf("snapshot must be specified with volume")
 	}
@@ -334,7 +342,57 @@ func doVolumeList(c *cli.Context) error {
 
 	request += "/"
 
-	return sendRequest("GET", request, nil)
+	return sendRequest("GET", request, config)
+}
+
+func getVolumeInfo(volume *Volume, snapshotUUID string) *api.VolumeResponse {
+	resp := &api.VolumeResponse{
+		UUID:       volume.UUID,
+		Base:       volume.Base,
+		Size:       volume.Size,
+		MountPoint: volume.MountPoint,
+		Snapshots:  make(map[string]api.SnapshotResponse),
+	}
+	if snapshotUUID != "" {
+		if _, exists := volume.Snapshots[snapshotUUID]; exists {
+			resp.Snapshots[snapshotUUID] = api.SnapshotResponse{
+				UUID:       snapshotUUID,
+				VolumeUUID: volume.UUID,
+			}
+		}
+		return resp
+	}
+	for uuid, _ := range volume.Snapshots {
+		resp.Snapshots[uuid] = api.SnapshotResponse{
+			UUID:       uuid,
+			VolumeUUID: volume.UUID,
+		}
+	}
+	return resp
+}
+
+func (s *Server) ListVolume(volumeUUID, snapshotUUID string) ([]byte, error) {
+	resp := api.VolumesResponse{
+		Volumes: make(map[string]api.VolumeResponse),
+	}
+
+	var volumeUUIDs []string
+
+	if volumeUUID != "" {
+		volumeUUIDs = append(volumeUUIDs, volumeUUID)
+	} else {
+		volumeUUIDs = util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+	}
+
+	for _, uuid := range volumeUUIDs {
+		volume := s.loadVolume(uuid)
+		if volume == nil {
+			return nil, fmt.Errorf("Volume list changed for volume %v", uuid)
+		}
+		resp.Volumes[uuid] = *getVolumeInfo(volume, snapshotUUID)
+	}
+
+	return api.ResponseOutput(resp)
 }
 
 func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -349,7 +407,19 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	if snapshotUUID != "" && volumeUUID == "" {
 		return fmt.Errorf("snapshot must be specified with volume")
 	}
-	data, err := s.StorageDriver.ListVolume(volumeUUID, snapshotUUID)
+
+	config := &api.VolumeListConfig{}
+	err = json.NewDecoder(r.Body).Decode(config)
+	if err != nil {
+		return err
+	}
+
+	var data []byte
+	if !config.DriverSpecific {
+		data, err = s.ListVolume(volumeUUID, snapshotUUID)
+	} else {
+		data, err = s.StorageDriver.ListVolume(volumeUUID, snapshotUUID)
+	}
 	if err != nil {
 		return err
 	}

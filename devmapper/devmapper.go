@@ -36,9 +36,10 @@ const (
 
 	SECTOR_SIZE = 512
 
-	VOLUME_CFG_PREFIX     = "volume_"
-	IMAGE_CFG_PREFIX      = "image_"
-	DEVMAPPER_CFG_POSTFIX = "_" + DRIVER_NAME + ".json"
+	VOLUME_CFG_PREFIX    = "volume_"
+	IMAGE_CFG_PREFIX     = "image_"
+	DEVMAPPER_CFG_PREFIX = DRIVER_NAME + "_"
+	CFG_POSTFIX          = ".json"
 
 	DM_LOG_FIELD_VOLUME_DEVID   = "dm_volume_devid"
 	DM_LOG_FIELD_SNAPSHOT_DEVID = "dm_snapshot_devid"
@@ -97,7 +98,7 @@ func getVolumeCfgName(uuid string) (string, error) {
 	if uuid == "" {
 		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
 	}
-	return VOLUME_CFG_PREFIX + uuid + DEVMAPPER_CFG_POSTFIX, nil
+	return DEVMAPPER_CFG_PREFIX + VOLUME_CFG_PREFIX + uuid + CFG_POSTFIX, nil
 }
 
 func (device *Device) loadVolume(uuid string) *Volume {
@@ -134,7 +135,7 @@ func (device *Device) deleteVolume(uuid string) error {
 }
 
 func (device *Device) listVolumeIDs() []string {
-	return util.ListConfigIDs(device.Root, VOLUME_CFG_PREFIX, DEVMAPPER_CFG_POSTFIX)
+	return util.ListConfigIDs(device.Root, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
 func verifyConfig(config map[string]string) (*Device, error) {
@@ -450,7 +451,6 @@ func (d *Driver) DeleteVolume(id string) error {
 func getVolumeSnapshotInfo(uuid string, volume *Volume, snapshotID string) *api.DeviceMapperVolume {
 	result := api.DeviceMapperVolume{
 		DevID:     volume.DevID,
-		Size:      volume.Size,
 		Snapshots: make(map[string]api.DeviceMapperSnapshot),
 	}
 	if s, exists := volume.Snapshots[snapshotID]; exists {
@@ -464,7 +464,6 @@ func getVolumeSnapshotInfo(uuid string, volume *Volume, snapshotID string) *api.
 func getVolumeInfo(uuid string, volume *Volume) *api.DeviceMapperVolume {
 	result := api.DeviceMapperVolume{
 		DevID:     volume.DevID,
-		Size:      volume.Size,
 		Snapshots: make(map[string]api.DeviceMapperSnapshot),
 	}
 	for uuid, snapshot := range volume.Snapshots {
@@ -735,7 +734,7 @@ func getImageCfgName(uuid string) (string, error) {
 	if uuid == "" {
 		return "", fmt.Errorf("Invalid image UUID specified: %v", uuid)
 	}
-	return IMAGE_CFG_PREFIX + uuid + DEVMAPPER_CFG_POSTFIX, nil
+	return DEVMAPPER_CFG_PREFIX + IMAGE_CFG_PREFIX + uuid, nil
 }
 
 func (device *Device) loadImage(uuid string) *Image {
