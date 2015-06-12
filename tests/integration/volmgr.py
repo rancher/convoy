@@ -6,6 +6,11 @@ import json
 
 EXT4_FS = "ext4"
 
+def _get_volume(volume):
+    if volume.find("-") != -1:
+	return ["--volume-uuid", volume]
+    return ["--volume-name", volume]
+
 class VolumeManager:
     def __init__(self, binary, mount_root):
         self.base_cmdline = [binary]
@@ -35,32 +40,32 @@ class VolumeManager:
         volume = json.loads(data)
         if uuid != "":
             assert volume["UUID"] == uuid
+        if name != "":
+            assert volume["Name"] == name 
         assert volume["Size"] == size
         return volume["UUID"]
 
-    def delete_volume(self, uuid):
+    def delete_volume(self, volume):
         subprocess.check_call(self.base_cmdline + ["volume", "delete",
-            "--volume-uuid", uuid])
+            ] + _get_volume(volume))
 
-    def mount_volume(self, uuid, need_format):
-        volume_mount_dir = os.path.join(self.mount_root, uuid)
+    def mount_volume(self, volume, need_format):
+        volume_mount_dir = os.path.join(self.mount_root, volume)
         if not os.path.exists(volume_mount_dir):
     	    os.makedirs(volume_mount_dir)
         assert os.path.exists(volume_mount_dir)
         cmdline = self.base_cmdline + ["volume", "mount",
-                "--volume-uuid", uuid,
     		"--mountpoint", volume_mount_dir,
-    		"--fs", EXT4_FS]
+    		"--fs", EXT4_FS] + _get_volume(volume)
         if need_format:
     	    cmdline = cmdline + ["--format"]
 
 	subprocess.check_call(cmdline)
         return volume_mount_dir
 
-    def mount_volume_auto(self, uuid, need_format):
+    def mount_volume_auto(self, volume, need_format):
         cmdline = self.base_cmdline + ["volume", "mount",
-                "--volume-uuid", uuid,
-    		"--fs", EXT4_FS]
+    		"--fs", EXT4_FS] + _get_volume(volume)
         if need_format:
     	    cmdline = cmdline + ["--format"]
 
@@ -68,9 +73,9 @@ class VolumeManager:
         volume = json.loads(data)
         return volume["MountPoint"]
 
-    def umount_volume(self, uuid):
+    def umount_volume(self, volume):
         subprocess.check_call(self.base_cmdline + ["volume", "umount",
-            "--volume-uuid", uuid])
+            ] + _get_volume(volume))
 
     def list_volumes(self, uuid = None, snapshot_uuid = None):
         if uuid is None:
@@ -87,21 +92,34 @@ class VolumeManager:
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def create_snapshot(self, volume_uuid, uuid = ""):
-        cmd = ["snapshot", "create", "--volume-uuid", volume_uuid]
+    def list_volumes_by_name(self, name = None, snapshot_uuid = None):
+        if name is None:
+    	    data = subprocess.check_output(self.base_cmdline + \
+			    ["volume", "list"])
+        elif snapshot_uuid is None:
+            data = subprocess.check_output(self.base_cmdline + ["volume", "list",
+                "--volume-name", name])
+        else:
+            data = subprocess.check_output(self.base_cmdline + ["volume", "list",
+                "--volume-name", name,
+                "--snapshot-uuid", snapshot_uuid])
+
+        volumes = json.loads(data)
+        return volumes["Volumes"]
+
+    def create_snapshot(self, volume, uuid = ""):
+        cmd = ["snapshot", "create"] + _get_volume(volume)
         if uuid != "":
             cmd = cmd + ["--snapshot-uuid", uuid]
         data = subprocess.check_output(self.base_cmdline + cmd)
         snapshot = json.loads(data)
         if uuid != "":
             assert snapshot["UUID"] == uuid
-        assert snapshot["VolumeUUID"] == volume_uuid
         return snapshot["UUID"]
 
-    def delete_snapshot(self, snapshot_uuid, volume_uuid):
+    def delete_snapshot(self, snapshot_uuid, volume):
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
-	        "--snapshot-uuid", snapshot_uuid,
-	        "--volume-uuid", volume_uuid])
+	        "--snapshot-uuid", snapshot_uuid] + _get_volume(volume))
 
     def register_vfs_blockstore(self, path):
 	data = subprocess.check_output(self.base_cmdline + ["blockstore",

@@ -25,6 +25,7 @@ func createRouter(s *Server) *mux.Router {
 		"GET": {
 			"/info":                                                                           s.doInfo,
 			"/volumes/":                                                                       s.doVolumeList,
+			"/volumes/uuid":                                                                   s.doVolumeListByName,
 			"/volumes/{volume-uuid}/":                                                         s.doVolumeList,
 			"/volumes/{volume-uuid}/snapshots/{snapshot-uuid}/":                               s.doVolumeList,
 			"/blockstores/{blockstore-uuid}/volumes/{volume-uuid}/":                           s.doBlockStoreListVolume,

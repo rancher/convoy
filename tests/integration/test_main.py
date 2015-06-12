@@ -178,8 +178,11 @@ def create_volume(size, uuid = "", base = "", name = ""):
     dm_cleanup_list.append(uuid)
     return uuid
 
-def delete_volume(uuid):
-    v.delete_volume(uuid)
+def delete_volume(uuid, name = ""):
+    if name == "":
+        v.delete_volume(uuid)
+    else:
+        v.delete_volume(name)
     dm_cleanup_list.remove(uuid)
 
 def mount_volume(uuid, need_format):
@@ -222,7 +225,9 @@ def test_volume_name():
     with pytest.raises(subprocess.CalledProcessError):
         new_uuid = create_volume(VOLUME_SIZE_100M, name=vol_name1)
 
-    delete_volume(vol_uuid)
+    delete_volume(vol_uuid, vol_name1)
+    vols = v.list_volumes()
+    assert vol_uuid not in vols
 
     vol_uuid1 = create_volume(VOLUME_SIZE_100M, name=vol_name1)
     vol_uuid2 = create_volume(VOLUME_SIZE_100M, name=vol_name2)
@@ -231,8 +236,8 @@ def test_volume_name():
     vols = v.list_volumes()
     assert vols[vol_uuid1]["Name"] == vol_name1
     assert vols[vol_uuid2]["Name"] == vol_name2
-    delete_volume(vol_uuid1)
-    delete_volume(vol_uuid2)
+    delete_volume(vol_uuid1, vol_name1)
+    delete_volume(vol_uuid2, vol_name2)
 
 def format_volume_and_create_file(uuid, filename):
     # with format

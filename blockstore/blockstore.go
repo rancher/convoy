@@ -572,6 +572,7 @@ func listVolume(volumeID, snapshotID string, driver BlockStoreDriver) ([]byte, e
 
 	volumeResp := api.VolumeResponse{
 		UUID:      volumeID,
+		Name:      v.Name,
 		Base:      v.Base,
 		Size:      v.Size,
 		Snapshots: make(map[string]api.SnapshotResponse),

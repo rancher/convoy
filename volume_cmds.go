@@ -50,7 +50,11 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
-				Usage: "uuid of volume",
+				Usage: "uuid of volume, not necessary if volume-name presents",
+			},
+			cli.StringFlag{
+				Name:  KEY_VOLUME_NAME,
+				Usage: "name of volume, not necessary if volume-uuid presents",
 			},
 		},
 		Action: cmdVolumeDelete,
@@ -62,7 +66,11 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
-				Usage: "uuid of volume",
+				Usage: "uuid of volume, not necessary if volume-name presents",
+			},
+			cli.StringFlag{
+				Name:  KEY_VOLUME_NAME,
+				Usage: "name of volume, not necessary if volume-uuid presents",
 			},
 			cli.StringFlag{
 				Name:  "mountpoint",
@@ -95,7 +103,11 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
-				Usage: "uuid of volume",
+				Usage: "uuid of volume, not necessary if volume-name presents",
+			},
+			cli.StringFlag{
+				Name:  KEY_VOLUME_NAME,
+				Usage: "name of volume, not necessary if volume-uuid presents",
 			},
 			cli.StringFlag{
 				Name:  "switch-ns",
@@ -111,7 +123,11 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
-				Usage: "uuid of volume, if not supplied, would list all volumes",
+				Usage: "uuid of volume, cannot specified with volume-name. If both not present, would list all volumes",
+			},
+			cli.StringFlag{
+				Name:  KEY_VOLUME_NAME,
+				Usage: "name of volume, cannot specified with volume-name. If both not present, would list all volumes",
 			},
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,
@@ -145,10 +161,6 @@ func getVolumeCfgName(uuid string) (string, error) {
 	return VOLUME_CFG_PREFIX + uuid + CFG_POSTFIX, nil
 }
 
-func (s *Server) loadVolumeByName(volumeName string) *Volume {
-	return s.loadVolume(s.NameVolumeMap[volumeName])
-}
-
 func (config *Config) loadVolume(uuid string) *Volume {
 	cfgName, err := getVolumeCfgName(uuid)
 	if err != nil {
@@ -163,6 +175,14 @@ func (config *Config) loadVolume(uuid string) *Volume {
 		return nil
 	}
 	return volume
+}
+
+func (s *Server) loadVolumeByName(name string) *Volume {
+	uuid, exists := s.NameVolumeMap[name]
+	if !exists {
+		return nil
+	}
+	return s.loadVolume(uuid)
 }
 
 func (s *Server) saveVolume(volume *Volume) error {
@@ -311,10 +331,73 @@ func cmdVolumeDelete(c *cli.Context) {
 	}
 }
 
+func requestVolumeUUID(c *cli.Context) (string, error) {
+	var err error
+	uuid, err := getUUID(c, KEY_VOLUME, false, err)
+	name, err := getName(c, KEY_VOLUME_NAME, false, err)
+
+	if err != nil {
+		return "", err
+	}
+
+	if uuid == "" && name == "" {
+		return "", genRequiredMissingError("volume-uuid or volume-name")
+	}
+
+	// Identify by UUID only
+	if uuid != "" && name == "" {
+		return uuid, nil
+	}
+
+	// Identify by name
+	v := url.Values{}
+	v.Set(KEY_VOLUME_NAME, name)
+
+	request := "/volumes/uuid?" + v.Encode()
+	rc, err := sendRequest("GET", request, nil)
+	if err != nil {
+		return "", err
+	}
+	defer rc.Close()
+
+	volumes := &api.VolumesResponse{}
+	if err := json.NewDecoder(rc).Decode(volumes); err != nil {
+		return "", err
+	}
+	if len(volumes.Volumes) == 0 {
+		return "", fmt.Errorf("Cannot find volume named %v", name)
+	}
+	if len(volumes.Volumes) > 1 {
+		return "", fmt.Errorf("FATAL: Multiple volume with name %v?!", name)
+	}
+	volumeUUID := uuid
+	// Should be only one element
+	for uuid := range volumes.Volumes {
+		if volumeUUID != "" && volumeUUID != uuid {
+			return "", fmt.Errorf("Unmatched volume UUID(%v) and name(%v) provided, name belonged to %v",
+				volumeUUID, name, uuid)
+		}
+		return uuid, nil
+	}
+	return "", fmt.Errorf("FATAL: Has volume map but cannot find one volume in it???")
+}
+
+func doVolumeListByName(volumeName, snapshotUUID string, config *api.VolumeListConfig) error {
+	v := url.Values{}
+	v.Set(KEY_VOLUME_NAME, volumeName)
+
+	if snapshotUUID != "" {
+		v.Set(KEY_SNAPSHOT, snapshotUUID)
+	}
+
+	request := "/volumes/uuid?" + v.Encode()
+	return sendRequestAndPrint("GET", request, config)
+}
+
 func doVolumeDelete(c *cli.Context) error {
 	var err error
 
-	uuid, err := getUUID(c, KEY_VOLUME, true, err)
+	uuid, err := requestVolumeUUID(c)
 	if err != nil {
 		return err
 	}
@@ -365,18 +448,31 @@ func doVolumeList(c *cli.Context) error {
 
 	volumeUUID, err := getUUID(c, KEY_VOLUME, false, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, false, err)
+	volumeName, err := getName(c, KEY_VOLUME_NAME, false, err)
 	if err != nil {
 		return err
+	}
+
+	if volumeUUID != "" && volumeName != "" {
+		return fmt.Errorf("Specified both volume UUID and name")
 	}
 
 	config := &api.VolumeListConfig{
 		DriverSpecific: c.Bool("driver"),
 	}
 
-	if snapshotUUID != "" && volumeUUID == "" {
+	if snapshotUUID != "" && volumeUUID == "" && volumeName == "" {
 		return fmt.Errorf("snapshot must be specified with volume")
 	}
 
+	if volumeName != "" {
+		return doVolumeListByName(volumeName, snapshotUUID, config)
+	}
+
+	return doVolumeListByUUID(volumeUUID, snapshotUUID, config)
+}
+
+func doVolumeListByUUID(volumeUUID, snapshotUUID string, config *api.VolumeListConfig) error {
 	request := "/volumes"
 	if volumeUUID != "" {
 		request += "/" + volumeUUID
@@ -482,7 +578,7 @@ func cmdVolumeMount(c *cli.Context) {
 func doVolumeMount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	volumeUUID, err := requestVolumeUUID(c)
 	mountPoint, err := getLowerCaseFlag(c, "mountpoint", false, err)
 	fs, err := getLowerCaseFlag(c, "fs", true, err)
 	if err != nil {
@@ -593,7 +689,7 @@ func cmdVolumeUmount(c *cli.Context) {
 func doVolumeUmount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	volumeUUID, err := requestVolumeUUID(c)
 	if err != nil {
 		return err
 	}
@@ -661,4 +757,23 @@ func (s *Server) processVolumeUmount(volume *Volume, mountConfig *api.VolumeMoun
 
 	volume.MountPoint = s.putVolumeMountPoint(volume.MountPoint)
 	return s.saveVolume(volume)
+}
+
+func (s *Server) doVolumeListByName(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	var err error
+
+	volumeName, err := getName(r, KEY_VOLUME_NAME, true, err)
+	snapshotUUID, err := getUUID(r, KEY_SNAPSHOT, false, err)
+	if err != nil {
+		return err
+	}
+
+	volumes := &api.VolumesResponse{
+		Volumes: make(map[string]api.VolumeResponse),
+	}
+	volume := s.loadVolumeByName(volumeName)
+	if volume != nil {
+		volumes.Volumes[volume.UUID] = *getVolumeInfo(volume, snapshotUUID)
+	}
+	return writeResponseOutput(w, volumes)
 }
