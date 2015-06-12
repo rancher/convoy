@@ -183,3 +183,12 @@ func (s *TestSuite) TestValidateUUID(c *C) {
 	c.Assert(ValidateUUID("f997529d-904f-4fbc-8ba2-6d296b74470a"), Equals, true)
 	c.Assert(ValidateUUID("00000000-0000-0000-0000-000000000000"), Equals, true)
 }
+
+func (s *TestSuite) TestValidateName(c *C) {
+	c.Assert(ValidateName(""), Equals, false)
+	c.Assert(ValidateName("_09123a."), Equals, true)
+	c.Assert(ValidateName("ubuntu14.04_v1"), Equals, true)
+	c.Assert(ValidateName("123/456.a"), Equals, false)
+	c.Assert(ValidateName("a.\t"), Equals, false)
+	c.Assert(ValidateName("ubuntu14.04_v1 "), Equals, false)
+}

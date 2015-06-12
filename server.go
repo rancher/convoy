@@ -109,8 +109,31 @@ func loadServerConfig(c *cli.Context) (*Server, error) {
 	server := &Server{
 		Config:        config,
 		StorageDriver: driver,
+		NameVolumeMap: make(map[string]string),
 	}
+
+	server.updateNameVolumeMap()
 	return server, nil
+}
+
+func (s *Server) updateNameVolumeMap() error {
+	volumeUUIDs := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+	for _, uuid := range volumeUUIDs {
+		volume := s.loadVolume(uuid)
+		if volume == nil {
+			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
+		}
+		if volume.Name != "" {
+			if oldUUID, exists := s.NameVolumeMap[volume.Name]; exists && oldUUID != uuid {
+				return fmt.Errorf("Duplicate volume name detected! %v used by both %v and %v",
+					oldUUID, uuid)
+			}
+			s.NameVolumeMap[volume.Name] = uuid
+		}
+	}
+	log.Debugf("Current volume name list: %v", s.NameVolumeMap)
+
+	return nil
 }
 
 func serverEnvironmentSetup(c *cli.Context) error {
@@ -284,6 +307,7 @@ func initServer(c *cli.Context) (*Server, error) {
 	server := &Server{
 		Config:        config,
 		StorageDriver: driver,
+		NameVolumeMap: make(map[string]string),
 	}
 	err = util.SaveConfig(root, getCfgName(), &config)
 	return server, err

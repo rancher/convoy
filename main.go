@@ -19,10 +19,11 @@ const (
 	LOCKFILE    = "lock"
 	CONFIGFILE  = "volmgr.cfg"
 
-	KEY_VOLUME     = "volume-uuid"
-	KEY_SNAPSHOT   = "snapshot-uuid"
-	KEY_BLOCKSTORE = "blockstore-uuid"
-	KEY_IMAGE      = "image-uuid"
+	KEY_VOLUME      = "volume-uuid"
+	KEY_SNAPSHOT    = "snapshot-uuid"
+	KEY_BLOCKSTORE  = "blockstore-uuid"
+	KEY_IMAGE       = "image-uuid"
+	KEY_VOLUME_NAME = "volume-name"
 
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
@@ -30,6 +31,7 @@ const (
 
 type Volume struct {
 	UUID       string
+	Name       string
 	Base       string
 	Size       int64
 	MountPoint string
@@ -40,6 +42,7 @@ type Volume struct {
 type Server struct {
 	Router        *mux.Router
 	StorageDriver drivers.Driver
+	NameVolumeMap map[string]string
 	Config
 }
 

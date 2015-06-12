@@ -36,6 +36,10 @@ var (
 				Name:  KEY_IMAGE,
 				Usage: "base image's uuid",
 			},
+			cli.StringFlag{
+				Name:  KEY_VOLUME_NAME,
+				Usage: "name of volume, if defined, must be locally unique. Must contains only lower case alphabets/numbers/period/underscore",
+			},
 		},
 		Action: cmdVolumeCreate,
 	}
@@ -141,6 +145,10 @@ func getVolumeCfgName(uuid string) (string, error) {
 	return VOLUME_CFG_PREFIX + uuid + CFG_POSTFIX, nil
 }
 
+func (s *Server) loadVolumeByName(volumeName string) *Volume {
+	return s.loadVolume(s.NameVolumeMap[volumeName])
+}
+
 func (config *Config) loadVolume(uuid string) *Volume {
 	cfgName, err := getVolumeCfgName(uuid)
 	if err != nil {
@@ -157,21 +165,46 @@ func (config *Config) loadVolume(uuid string) *Volume {
 	return volume
 }
 
-func (config *Config) saveVolume(volume *Volume) error {
+func (s *Server) saveVolume(volume *Volume) error {
 	uuid := volume.UUID
 	cfgName, err := getVolumeCfgName(uuid)
 	if err != nil {
 		return err
 	}
-	return util.SaveConfig(config.Root, cfgName, volume)
+	if err := util.SaveConfig(s.Root, cfgName, volume); err != nil {
+		return err
+	}
+	if volume.Name != "" {
+		if oldUUID, exists := s.NameVolumeMap[volume.Name]; exists {
+			if oldUUID != volume.UUID {
+				log.Fatalf("BUG: Volume name %v already assign to %v, but %v want it too. How did it pass the test?", volume.Name, oldUUID, uuid)
+				return fmt.Errorf("Volume name %v already assign to %v, but %v want it too", volume.Name, oldUUID, uuid)
+
+			}
+			return nil
+		}
+		s.NameVolumeMap[volume.Name] = volume.UUID
+	}
+	return nil
 }
 
-func (config *Config) deleteVolume(uuid string) error {
-	cfgName, err := getVolumeCfgName(uuid)
+func (s *Server) deleteVolume(volume *Volume) error {
+	cfgName, err := getVolumeCfgName(volume.UUID)
 	if err != nil {
 		return err
 	}
-	return util.RemoveConfig(config.Root, cfgName)
+	if err := util.RemoveConfig(s.Root, cfgName); err != nil {
+		return err
+	}
+	if volume.Name != "" {
+		if _, exists := s.NameVolumeMap[volume.Name]; !exists {
+			log.Fatalf("BUG: Volume name %v assign to %v, but doesn't exist in cache", volume.Name, volume.UUID)
+			return fmt.Errorf("BUG: Volume name %v assign to %v, but doesn't exist in cache", volume.Name, volume.UUID)
+
+		}
+		delete(s.NameVolumeMap, volume.Name)
+	}
+	return nil
 }
 
 func cmdVolumeCreate(c *cli.Context) {
@@ -190,15 +223,20 @@ func doVolumeCreate(c *cli.Context) error {
 	}
 	volumeUUID, err := getUUID(c, KEY_VOLUME, false, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, false, err)
+	name, err := getName(c, KEY_VOLUME_NAME, false, err)
 	if err != nil {
 		return err
 	}
+
 	v.Set("size", strconv.FormatInt(size, 10))
 	if volumeUUID != "" {
 		v.Set(KEY_VOLUME, volumeUUID)
 	}
 	if imageUUID != "" {
 		v.Set(KEY_IMAGE, imageUUID)
+	}
+	if name != "" {
+		v.Set(KEY_VOLUME_NAME, name)
 	}
 
 	request := "/volumes/create?" + v.Encode()
@@ -213,8 +251,13 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	}
 	volumeUUID, err := getUUID(r, KEY_VOLUME, false, err)
 	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
+	volumeName, err := getName(r, KEY_VOLUME_NAME, false, err)
 	if err != nil {
 		return err
+	}
+	existedVolume := s.loadVolumeByName(volumeName)
+	if existedVolume != nil {
+		return fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
 	}
 
 	uuid := uuid.New()
@@ -226,12 +269,13 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
-		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: uuid,
-		LOG_FIELD_IMAGE:  imageUUID,
-		LOG_FIELD_SIZE:   size,
+		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:       LOG_EVENT_CREATE,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:      uuid,
+		LOG_FIELD_VOLUME_NAME: volumeName,
+		LOG_FIELD_IMAGE:       imageUUID,
+		LOG_FIELD_SIZE:        size,
 	}).Debug()
 	if err := s.StorageDriver.CreateVolume(uuid, imageUUID, size); err != nil {
 		return err
@@ -244,18 +288,18 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	}).Debug("Created volume")
 
 	volume := &Volume{
-		UUID:       uuid,
-		Base:       imageUUID,
-		Size:       size,
-		MountPoint: "",
-		FileSystem: "",
-		Snapshots:  make(map[string]bool),
+		UUID:      uuid,
+		Name:      volumeName,
+		Base:      imageUUID,
+		Size:      size,
+		Snapshots: make(map[string]bool),
 	}
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
 	return writeResponseOutput(w, api.VolumeResponse{
 		UUID: uuid,
+		Name: volumeName,
 		Base: imageUUID,
 		Size: size,
 	})
@@ -288,7 +332,8 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	if s.loadVolume(uuid) == nil {
+	volume := s.loadVolume(uuid)
+	if volume == nil {
 		return fmt.Errorf("Cannot find volume %s", uuid)
 	}
 	log.WithFields(logrus.Fields{
@@ -306,7 +351,7 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug()
-	return s.deleteVolume(uuid)
+	return s.deleteVolume(volume)
 }
 
 func cmdVolumeList(c *cli.Context) {
@@ -348,6 +393,7 @@ func doVolumeList(c *cli.Context) error {
 func getVolumeInfo(volume *Volume, snapshotUUID string) *api.VolumeResponse {
 	resp := &api.VolumeResponse{
 		UUID:       volume.UUID,
+		Name:       volume.Name,
 		Base:       volume.Base,
 		Size:       volume.Size,
 		MountPoint: volume.MountPoint,

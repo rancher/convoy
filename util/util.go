@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -228,4 +229,9 @@ func DetachLoopbackDevice(file, dev string) error {
 
 func ValidateUUID(s string) bool {
 	return uuid.Parse(s) != nil
+}
+
+func ValidateName(name string) bool {
+	var validName = regexp.MustCompile(`^[0-9a-z_.]+$`)
+	return validName.MatchString(name)
 }

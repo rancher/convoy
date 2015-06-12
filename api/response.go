@@ -17,6 +17,7 @@ type VolumesResponse struct {
 
 type VolumeResponse struct {
 	UUID       string
+	Name       string
 	Base       string
 	Size       int64
 	MountPoint string

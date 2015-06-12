@@ -35,6 +35,8 @@ type BlockStoreDriver interface {
 }
 
 type Volume struct {
+	UUID           string
+	Name           string
 	Size           int64
 	Base           string
 	LastSnapshotID string
@@ -173,7 +175,7 @@ func getBlockstoreCfgAndDriver(root, blockstoreUUID string) (*BlockStore, BlockS
 	return b, driver, nil
 }
 
-func AddVolume(root, id, volumeID, base string, size int64) error {
+func AddVolume(root, id, volumeID, volumeName, base string, size int64) error {
 	_, driver, err := getBlockstoreCfgAndDriver(root, id)
 	if err != nil {
 		return err
@@ -194,6 +196,8 @@ func AddVolume(root, id, volumeID, base string, size int64) error {
 	}
 
 	volume := Volume{
+		UUID:           volumeID,
+		Name:           volumeName,
 		Size:           size,
 		Base:           base,
 		LastSnapshotID: "",

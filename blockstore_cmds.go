@@ -176,7 +176,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  "image-name",
-				Usage: "user defined name of image",
+				Usage: "user defined name of image. Must contains only lower case alphabets/numbers/period/underscore",
 			},
 			cli.StringFlag{
 				Name:  "image-file",
@@ -401,7 +401,7 @@ func (s *Server) doBlockStoreAddVolume(version string, w http.ResponseWriter, r 
 		LOG_FIELD_SIZE:       volume.Size,
 		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
 	}).Debug()
-	if err := blockstore.AddVolume(s.Root, blockstoreUUID, volumeUUID, volume.Base, volume.Size); err != nil {
+	if err := blockstore.AddVolume(s.Root, blockstoreUUID, volumeUUID, volume.Name, volume.Base, volume.Size); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -703,7 +703,7 @@ func doBlockStoreAddImage(c *cli.Context) error {
 
 	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, false, err)
-	imageName, err := getLowerCaseFlag(c, "image-name", false, err)
+	imageName, err := getName(c, "image-name", false, err)
 	if err != nil {
 		return err
 	}
@@ -731,7 +731,7 @@ func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *
 
 	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
-	imageName, err := getLowerCaseFlag(r, "image-name", false, err)
+	imageName, err := getName(r, "image-name", false, err)
 	if err != nil {
 		return err
 	}

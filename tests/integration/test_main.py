@@ -127,21 +127,23 @@ def detach_all_lodev(keyword):
             detach_loopback_dev(line.split(":")[0].strip())
 
 def teardown_module():
-    v.stop_server(PID_FILE)
+    code = v.stop_server(PID_FILE)
+    if code != 0:
+        print "Something wrong when tearing down, continuing with code ", code
 
     while mount_cleanup_list:
 	code = subprocess.call(["umount", mount_cleanup_list.pop()])
         if code != 0:
-            print "Something wrong when tearing down, error {}, continuing", code
+            print "Something wrong when tearing down, continuing with code", code
 
     while dm_cleanup_list:
 	code = subprocess.call(["dmsetup", "remove", dm_cleanup_list.pop()])
         if code != 0:
-            print "Something wrong when tearing down, error {}, continuing", code
+            print "Something wrong when tearing down, continuing with code ", code
 
     code = subprocess.call(["losetup", "-d", data_dev, metadata_dev])
     if code != 0:
-        print "Something wrong when tearing down, error {}, continuing", code
+        print "Something wrong when tearing down, continuing with code", code
 
     detach_all_lodev(TEST_ROOT)
 
@@ -161,8 +163,8 @@ def wait_for_daemon():
     info = json.loads(data)
     assert info["General"]["Driver"] == "devicemapper"
     assert info["General"]["Root"] == CFG_ROOT
-    assert info["General"]["ImagesDir"]== IMAGES_DIR 
-    assert info["General"]["MountsDir"]== AUTO_MOUNTS_DIR 
+    assert info["General"]["ImagesDir"]== IMAGES_DIR
+    assert info["General"]["MountsDir"]== AUTO_MOUNTS_DIR
     assert info["Driver"]["Driver"] == "devicemapper"
     assert info["Driver"]["Root"] == CFG_ROOT
     assert info["Driver"]["DataDevice"] == data_dev
@@ -171,8 +173,8 @@ def wait_for_daemon():
     assert info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE
     assert info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
-def create_volume(size, uuid = "", base = ""):
-    uuid = v.create_volume(size, uuid, base)
+def create_volume(size, uuid = "", base = "", name = ""):
+    uuid = v.create_volume(size, uuid, base, name)
     dm_cleanup_list.append(uuid)
     return uuid
 
@@ -209,6 +211,28 @@ def test_volume_cru():
     delete_volume(uuid3)
     delete_volume(uuid2)
     delete_volume(uuid1)
+
+def test_volume_name():
+    vol_name1 = "vol1"
+    vol_name2 = "vol2"
+    vol_uuid = create_volume(VOLUME_SIZE_500M, name=vol_name1)
+    vols = v.list_volumes()
+    assert vols[vol_uuid]["Name"] == vol_name1
+
+    with pytest.raises(subprocess.CalledProcessError):
+        new_uuid = create_volume(VOLUME_SIZE_100M, name=vol_name1)
+
+    delete_volume(vol_uuid)
+
+    vol_uuid1 = create_volume(VOLUME_SIZE_100M, name=vol_name1)
+    vol_uuid2 = create_volume(VOLUME_SIZE_100M, name=vol_name2)
+    assert vol_uuid1 != vol_uuid
+
+    vols = v.list_volumes()
+    assert vols[vol_uuid1]["Name"] == vol_name1
+    assert vols[vol_uuid2]["Name"] == vol_name2
+    delete_volume(vol_uuid1)
+    delete_volume(vol_uuid2)
 
 def format_volume_and_create_file(uuid, filename):
     # with format

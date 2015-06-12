@@ -45,6 +45,20 @@ func getUUID(v interface{}, key string, required bool, err error) (string, error
 	return uuid, nil
 }
 
+func getName(v interface{}, key string, required bool, err error) (string, error) {
+	name, err := getLowerCaseFlag(v, key, required, err)
+	if err != nil {
+		return name, err
+	}
+	if !required && name == "" {
+		return name, nil
+	}
+	if !util.ValidateName(name) {
+		return "", fmt.Errorf("Invalid name %v", name)
+	}
+	return name, nil
+}
+
 func getLowerCaseFlag(v interface{}, key string, required bool, err error) (string, error) {
 	value := ""
 	switch v := v.(type) {

@@ -18,17 +18,19 @@ class VolumeManager:
 
     def stop_server(self, pidfile):
         stop_cmdline = ["start-stop-daemon", "-K","-p", pidfile, "-x"] + self.base_cmdline
-        subprocess.check_call(stop_cmdline)
+        return subprocess.call(stop_cmdline)
 
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size, uuid = "", base = ""):
+    def create_volume(self, size, uuid = "", base = "", name = ""):
         cmd = ["volume", "create", "--size", str(size)]
         if uuid != "":
             cmd = cmd + ["--volume-uuid", uuid]
         if base != "":
             cmd = cmd + ["--image-uuid", base]
+        if name != "":
+            cmd = cmd + ["--volume-name", name]
         data = subprocess.check_output(self.base_cmdline + cmd)
         volume = json.loads(data)
         if uuid != "":
