@@ -89,7 +89,7 @@ func doSnapshotCreate(c *cli.Context) error {
 
 	request := "/volumes/" + volumeUUID + "/snapshots/create?" + v.Encode()
 
-	return sendRequest("POST", request, nil)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -155,7 +155,7 @@ func doSnapshotDelete(c *cli.Context) error {
 	}
 
 	request := "/volumes/" + volumeUUID + "/snapshots/" + uuid + "/"
-	return sendRequest("DELETE", request, nil)
+	return sendRequestAndPrint("DELETE", request, nil)
 }
 
 func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {

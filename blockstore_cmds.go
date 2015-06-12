@@ -277,7 +277,7 @@ func doBlockStoreRegister(c *cli.Context) error {
 	}
 
 	request := "/blockstores/register"
-	return sendRequest("POST", request, registerConfig)
+	return sendRequestAndPrint("POST", request, registerConfig)
 }
 
 func (s *Server) doBlockStoreRegister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -331,7 +331,7 @@ func doBlockStoreDeregister(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + uuid + "/"
-	return sendRequest("DELETE", request, nil)
+	return sendRequestAndPrint("DELETE", request, nil)
 }
 
 func (s *Server) doBlockStoreDeregister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -375,7 +375,7 @@ func doBlockStoreAddVolume(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/add"
-	return sendRequest("POST", request, nil)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doBlockStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -429,7 +429,7 @@ func doBlockStoreRemoveVolume(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/"
-	return sendRequest("DELETE", request, nil)
+	return sendRequestAndPrint("DELETE", request, nil)
 }
 
 func (s *Server) doBlockStoreRemoveVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -485,7 +485,7 @@ func doBlockStoreListVolume(c *cli.Context) error {
 		request += "/snapshots/" + snapshotUUID
 	}
 	request += "/"
-	return sendRequest("GET", request, nil)
+	return sendRequestAndPrint("GET", request, nil)
 }
 
 func (s *Server) doBlockStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -523,7 +523,7 @@ func doSnapshotBackup(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/backup"
-	return sendRequest("POST", request, nil)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -583,7 +583,7 @@ func doSnapshotRestore(c *cli.Context) error {
 	v.Set("target-volume", targetVolumeUUID)
 	request := "/blockstores/" + blockstoreUUID + "/volumes/" + originVolumeUUID +
 		"/snapshots/" + snapshotUUID + "/restore?" + v.Encode()
-	return sendRequest("POST", request, nil)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -653,7 +653,7 @@ func doSnapshotRemove(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/"
-	return sendRequest("DELETE", request, nil)
+	return sendRequestAndPrint("DELETE", request, nil)
 }
 
 func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -723,7 +723,7 @@ func doBlockStoreAddImage(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/images/add?" + v.Encode()
-	return sendRequest("POST", request, imageConfig)
+	return sendRequestAndPrint("POST", request, imageConfig)
 }
 
 func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -790,7 +790,7 @@ func doBlockStoreRemoveImage(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/"
-	return sendRequest("DELETE", request, nil)
+	return sendRequestAndPrint("DELETE", request, nil)
 }
 
 func (s *Server) doBlockStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -837,7 +837,7 @@ func doBlockStoreActivateImage(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/activate"
-	return sendRequest("POST", request, nil)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doBlockStoreActivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -904,7 +904,7 @@ func doBlockStoreDeactivateImage(c *cli.Context) error {
 	}
 
 	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/deactivate"
-	return sendRequest("POST", request, nil)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doBlockStoreDeactivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {

@@ -203,7 +203,7 @@ func doVolumeCreate(c *cli.Context) error {
 
 	request := "/volumes/create?" + v.Encode()
 
-	return sendRequest("POST", request, nil)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -277,7 +277,7 @@ func doVolumeDelete(c *cli.Context) error {
 
 	request := "/volumes/" + uuid + "/"
 
-	return sendRequest("DELETE", request, nil)
+	return sendRequestAndPrint("DELETE", request, nil)
 }
 
 func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -342,7 +342,7 @@ func doVolumeList(c *cli.Context) error {
 
 	request += "/"
 
-	return sendRequest("GET", request, config)
+	return sendRequestAndPrint("GET", request, config)
 }
 
 func getVolumeInfo(volume *Volume, snapshotUUID string) *api.VolumeResponse {
@@ -456,7 +456,7 @@ func doVolumeMount(c *cli.Context) error {
 	}
 
 	request := "/volumes/" + volumeUUID + "/mount"
-	return sendRequest("POST", request, mountConfig)
+	return sendRequestAndPrint("POST", request, mountConfig)
 }
 
 func (s *Server) getVolumeMountPoint(volumeUUID, mountPoint string) (string, error) {
@@ -559,7 +559,7 @@ func doVolumeUmount(c *cli.Context) error {
 	}
 
 	request := "/volumes/" + volumeUUID + "/umount"
-	return sendRequest("POST", request, mountConfig)
+	return sendRequestAndPrint("POST", request, mountConfig)
 }
 
 func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
