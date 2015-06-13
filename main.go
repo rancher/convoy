@@ -47,10 +47,11 @@ type Server struct {
 }
 
 type Config struct {
-	Root      string
-	Driver    string
-	ImagesDir string
-	MountsDir string
+	Root              string
+	Driver            string
+	ImagesDir         string
+	MountsDir         string
+	DefaultVolumeSize int64
 }
 
 var (
@@ -99,7 +100,7 @@ func main() {
 			cli.StringFlag{
 				Name:  "root",
 				Value: "/var/lib/volmgr",
-				Usage: "specific root directory of volmgr",
+				Usage: "specific root directory of volmgr, if configure file exists, daemon specific options would be ignored",
 			},
 			cli.StringFlag{
 				Name:  "driver",
@@ -120,7 +121,13 @@ func main() {
 				Name:  "mounts-dir",
 				Value: "/var/lib/volmgr/mounts",
 				Usage: "default directory for mounting volume",
-			}},
+			},
+			cli.StringFlag{
+				Name:  "default-volume-size",
+				Value: "10G",
+				Usage: "default size for volume creation",
+			},
+		},
 		Action: cmdStartServer,
 	}
 

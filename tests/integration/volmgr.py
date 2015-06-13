@@ -22,14 +22,20 @@ class VolumeManager:
         subprocess.check_call(start_cmdline)
 
     def stop_server(self, pidfile):
-        stop_cmdline = ["start-stop-daemon", "-K","-p", pidfile, "-x"] + self.base_cmdline
+        stop_cmdline = ["start-stop-daemon", "-K", "-p", pidfile, "-x"] + self.base_cmdline
         return subprocess.call(stop_cmdline)
+
+    def check_server(self, pidfile):
+        check_cmdline = ["start-stop-daemon", "-T", "-p", pidfile]
+        return subprocess.call(check_cmdline)
 
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size, uuid = "", base = "", name = ""):
-        cmd = ["volume", "create", "--size", str(size)]
+    def create_volume(self, size = "", uuid = "", base = "", name = ""):
+        cmd = ["volume", "create"]
+        if size != "":
+            cmd = cmd + ["--size", size]
         if uuid != "":
             cmd = cmd + ["--volume-uuid", uuid]
         if base != "":

@@ -234,9 +234,12 @@ func cmdVolumeCreate(c *cli.Context) {
 }
 
 func getSize(c *cli.Context, err error) (int64, error) {
-	size, err := getLowerCaseFlag(c, "size", true, err)
+	size, err := getLowerCaseFlag(c, "size", false, err)
 	if err != nil {
 		return 0, err
+	}
+	if size == "" {
+		return 0, nil
 	}
 	return util.ParseSize(size)
 }
@@ -271,15 +274,16 @@ func doVolumeCreate(c *cli.Context) error {
 
 func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
-	if size == 0 {
-		return genRequiredMissingError("size")
-	}
 	volumeUUID, err := getUUID(r, KEY_VOLUME, false, err)
 	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
 	volumeName, err := getName(r, KEY_VOLUME_NAME, false, err)
 	if err != nil {
 		return err
 	}
+	if size == 0 {
+		size = s.DefaultVolumeSize
+	}
+
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
 		return fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)

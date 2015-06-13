@@ -214,19 +214,18 @@ func (s *TestSuite) TestParseSize(c *C) {
 	c.Assert(value, Equals, int64(107374182400))
 	c.Assert(err, IsNil)
 
+	value, err = ParseSize("100K")
+	c.Assert(value, Equals, int64(102400))
+
 	value, err = ParseSize("0")
 	c.Assert(value, Equals, int64(0))
-	c.Assert(err, ErrorMatches, "Not valid size.*")
+	c.Assert(err, ErrorMatches, "Invalid size.*")
 
 	value, err = ParseSize("0k")
 	c.Assert(value, Equals, int64(0))
-	c.Assert(err, ErrorMatches, "Not valid size.*")
+	c.Assert(err, ErrorMatches, "Invalid size.*")
 
 	value, err = ParseSize("")
-	c.Assert(value, Equals, int64(0))
-	c.Assert(err, ErrorMatches, "strconv.ParseInt: parsing .*: invalid syntax")
-
-	value, err = ParseSize("100K")
 	c.Assert(value, Equals, int64(0))
 	c.Assert(err, ErrorMatches, "strconv.ParseInt: parsing .*: invalid syntax")
 

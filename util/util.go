@@ -238,11 +238,12 @@ func ValidateName(name string) bool {
 }
 
 func ParseSize(size string) (int64, error) {
+	size = strings.ToLower(size)
 	readableSize := regexp.MustCompile(`^[0-9.]+[kmg]$`)
 	if !readableSize.MatchString(size) {
 		value, err := strconv.ParseInt(size, 10, 64)
 		if value == 0 && err == nil {
-			err = fmt.Errorf("Not valid size %v", size)
+			err = fmt.Errorf("Invalid size %v", size)
 		}
 		return value, err
 	}
@@ -268,7 +269,7 @@ func ParseSize(size string) (int64, error) {
 		return 0, fmt.Errorf("Unrecongized size value %v", size)
 	}
 	if value == 0 && err == nil {
-		err = fmt.Errorf("Not valid size %v", size)
+		err = fmt.Errorf("Invalid size %v", size)
 	}
 	return value, err
 }

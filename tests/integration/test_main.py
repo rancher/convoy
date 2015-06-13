@@ -6,6 +6,7 @@ import json
 import pytest
 import uuid
 import time
+import sys
 
 from volmgr import VolumeManager
 
@@ -37,10 +38,12 @@ DATA_DEVICE_SIZE = 1073618944
 METADATA_DEVICE_SIZE = 40960000
 DM_DIR = "/dev/mapper"
 DM_BLOCK_SIZE = 2097152
+EMPTY_FILE_SIZE = 104857600
 
-VOLUME_SIZE_500M_Bytes = 524288000
+DEFAULT_VOLUME_SIZE = "1073741824"
+VOLUME_SIZE_500M_Bytes = "524288000"
 VOLUME_SIZE_500M = "500M"
-VOLUME_SIZE_100M = 104857600
+VOLUME_SIZE_100M = "104857600"
 
 data_dev = ""
 metadata_dev = ""
@@ -97,7 +100,7 @@ def setup_module():
 
     global image_file
     image_file = os.path.join(TEST_ROOT, IMAGE_FILE)
-    create_empty_file(image_file, VOLUME_SIZE_100M)
+    create_empty_file(image_file, EMPTY_FILE_SIZE)
 
     image_dev = attach_loopback_dev(image_file)
     format_dev(image_dev)
@@ -113,6 +116,7 @@ def setup_module():
         "--log", LOG_FILE,
         "--images-dir", IMAGES_DIR,
         "--mounts-dir", AUTO_MOUNTS_DIR,
+        "--default-volume-size", DEFAULT_VOLUME_SIZE,
         "--driver=devicemapper",
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
@@ -158,7 +162,10 @@ def wait_for_daemon():
                 data = v.server_info()
                 break
         except subprocess.CalledProcessError:
-                print "Fail to communicate with daemon, retrying"
+                print "Fail to communicate with daemon"
+                if v.check_server(PID_FILE) != 0:
+                    print "Server failed to start"
+                    sys.exit(1)
                 time.sleep(1)
 
     info = json.loads(data)
@@ -174,7 +181,7 @@ def wait_for_daemon():
     assert info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE
     assert info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
-def create_volume(size, uuid = "", base = "", name = ""):
+def create_volume(size = "", uuid = "", base = "", name = ""):
     uuid = v.create_volume(size, uuid, base, name)
     dm_cleanup_list.append(uuid)
     return uuid
@@ -207,11 +214,14 @@ def test_volume_cru():
     with pytest.raises(subprocess.CalledProcessError):
         uuid3 = create_volume(VOLUME_SIZE_100M, uuid1)
 
+    uuid4 = create_volume()
+
     specific_uuid = str(uuid.uuid1())
 
     uuid3 = create_volume(VOLUME_SIZE_100M, specific_uuid)
     assert uuid3 == specific_uuid
 
+    delete_volume(uuid4)
     delete_volume(uuid3)
     delete_volume(uuid2)
     delete_volume(uuid1)
@@ -219,19 +229,19 @@ def test_volume_cru():
 def test_volume_name():
     vol_name1 = "vol1"
     vol_name2 = "vol2"
-    vol_uuid = create_volume(VOLUME_SIZE_500M, name=vol_name1)
+    vol_uuid = create_volume(name=vol_name1)
     vols = v.list_volumes()
     assert vols[vol_uuid]["Name"] == vol_name1
 
     with pytest.raises(subprocess.CalledProcessError):
-        new_uuid = create_volume(VOLUME_SIZE_100M, name=vol_name1)
+        new_uuid = create_volume(name=vol_name1)
 
     delete_volume(vol_uuid, vol_name1)
     vols = v.list_volumes()
     assert vol_uuid not in vols
 
-    vol_uuid1 = create_volume(VOLUME_SIZE_100M, name=vol_name1)
-    vol_uuid2 = create_volume(VOLUME_SIZE_100M, name=vol_name2)
+    vol_uuid1 = create_volume(name=vol_name1)
+    vol_uuid2 = create_volume(name=vol_name2)
     assert vol_uuid1 != vol_uuid
 
     vols = v.list_volumes()
@@ -253,7 +263,7 @@ def format_volume_and_create_file(uuid, filename):
     assert not os.path.exists(test_file)
 
 def test_volume_mount():
-    uuid = create_volume(VOLUME_SIZE_500M)
+    uuid = create_volume()
 
     # with format
     filename = "test"
@@ -283,15 +293,15 @@ def test_volume_list():
 
     uuid1 = create_volume(VOLUME_SIZE_500M)
     uuid2 = create_volume(VOLUME_SIZE_100M)
-    uuid3 = create_volume(VOLUME_SIZE_100M)
+    uuid3 = create_volume()
 
     volumes = v.list_volumes(uuid3)
-    assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
+    assert volumes[uuid3]["Size"] == int(DEFAULT_VOLUME_SIZE)
 
     volumes = v.list_volumes()
-    assert volumes[uuid1]["Size"] == VOLUME_SIZE_500M_Bytes
-    assert volumes[uuid2]["Size"] == VOLUME_SIZE_100M
-    assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
+    assert volumes[uuid1]["Size"] == int(VOLUME_SIZE_500M_Bytes)
+    assert volumes[uuid2]["Size"] == int(VOLUME_SIZE_100M)
+    assert volumes[uuid3]["Size"] == int(DEFAULT_VOLUME_SIZE)
 
     delete_volume(uuid3)
     delete_volume(uuid2)
@@ -406,7 +416,7 @@ def test_blockstore():
 
     volumes = v.list_volume_blockstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, blockstore_uuid)
     assert len(volumes) == 1
-    assert volumes[volume1_uuid]["Size"] == VOLUME_SIZE_500M_Bytes
+    assert volumes[volume1_uuid]["Size"] == int(VOLUME_SIZE_500M_Bytes)
     assert volumes[volume1_uuid]["Base"] == ""
     assert len(volumes[volume1_uuid]["Snapshots"]) == 0
 

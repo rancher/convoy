@@ -261,8 +261,14 @@ func initServer(c *cli.Context) (*Server, error) {
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	imagesDir := c.String("images-dir")
 	mountsDir := c.String("mounts-dir")
-	if root == "" || driverName == "" || driverOpts == nil || imagesDir == "" || mountsDir == "" {
+	defaultSize := c.String("default-volume-size")
+	if root == "" || driverName == "" || driverOpts == nil || imagesDir == "" || mountsDir == "" || defaultSize == "" {
 		return nil, fmt.Errorf("Missing or invalid parameters")
+	}
+
+	size, err := util.ParseSize(defaultSize)
+	if err != nil {
+		return nil, err
 	}
 
 	log.Debug("Config root is ", root)
@@ -300,10 +306,11 @@ func initServer(c *cli.Context) (*Server, error) {
 	}).Debug()
 
 	config := Config{
-		Root:      root,
-		Driver:    driverName,
-		ImagesDir: imagesDir,
-		MountsDir: mountsDir,
+		Root:              root,
+		Driver:            driverName,
+		ImagesDir:         imagesDir,
+		MountsDir:         mountsDir,
+		DefaultVolumeSize: size,
 	}
 	server := &Server{
 		Config:        config,
