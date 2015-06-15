@@ -28,9 +28,9 @@ var (
 				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
-			cli.IntFlag{
+			cli.StringFlag{
 				Name:  "size",
-				Usage: "size of volume, in bytes",
+				Usage: "size of volume, in bytes, or end in either G or M or K",
 			},
 			cli.StringFlag{
 				Name:  KEY_IMAGE,
@@ -233,17 +233,22 @@ func cmdVolumeCreate(c *cli.Context) {
 	}
 }
 
+func getSize(c *cli.Context, err error) (int64, error) {
+	size, err := getLowerCaseFlag(c, "size", true, err)
+	if err != nil {
+		return 0, err
+	}
+	return util.ParseSize(size)
+}
+
 func doVolumeCreate(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	size := int64(c.Int("size"))
-	if size == 0 {
-		return genRequiredMissingError("size")
-	}
 	volumeUUID, err := getUUID(c, KEY_VOLUME, false, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, false, err)
 	name, err := getName(c, KEY_VOLUME_NAME, false, err)
+	size, err := getSize(c, err)
 	if err != nil {
 		return err
 	}

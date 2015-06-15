@@ -41,8 +41,7 @@ class VolumeManager:
         if uuid != "":
             assert volume["UUID"] == uuid
         if name != "":
-            assert volume["Name"] == name 
-        assert volume["Size"] == size
+            assert volume["Name"] == name
         return volume["UUID"]
 
     def delete_volume(self, volume):

@@ -60,6 +60,9 @@ func getName(v interface{}, key string, required bool, err error) (string, error
 }
 
 func getLowerCaseFlag(v interface{}, key string, required bool, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
 	value := ""
 	switch v := v.(type) {
 	default:

@@ -38,7 +38,8 @@ METADATA_DEVICE_SIZE = 40960000
 DM_DIR = "/dev/mapper"
 DM_BLOCK_SIZE = 2097152
 
-VOLUME_SIZE_500M = 524288000
+VOLUME_SIZE_500M_Bytes = 524288000
+VOLUME_SIZE_500M = "500M"
 VOLUME_SIZE_100M = 104857600
 
 data_dev = ""
@@ -288,7 +289,7 @@ def test_volume_list():
     assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
 
     volumes = v.list_volumes()
-    assert volumes[uuid1]["Size"] == VOLUME_SIZE_500M
+    assert volumes[uuid1]["Size"] == VOLUME_SIZE_500M_Bytes
     assert volumes[uuid2]["Size"] == VOLUME_SIZE_100M
     assert volumes[uuid3]["Size"] == VOLUME_SIZE_100M
 
@@ -405,7 +406,7 @@ def test_blockstore():
 
     volumes = v.list_volume_blockstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, blockstore_uuid)
     assert len(volumes) == 1
-    assert volumes[volume1_uuid]["Size"] == VOLUME_SIZE_500M
+    assert volumes[volume1_uuid]["Size"] == VOLUME_SIZE_500M_Bytes
     assert volumes[volume1_uuid]["Base"] == ""
     assert len(volumes[volume1_uuid]["Snapshots"]) == 0
 

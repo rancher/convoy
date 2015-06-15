@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -232,6 +233,42 @@ func ValidateUUID(s string) bool {
 }
 
 func ValidateName(name string) bool {
-	var validName = regexp.MustCompile(`^[0-9a-z_.]+$`)
+	validName := regexp.MustCompile(`^[0-9a-z_.]+$`)
 	return validName.MatchString(name)
+}
+
+func ParseSize(size string) (int64, error) {
+	readableSize := regexp.MustCompile(`^[0-9.]+[kmg]$`)
+	if !readableSize.MatchString(size) {
+		value, err := strconv.ParseInt(size, 10, 64)
+		if value == 0 && err == nil {
+			err = fmt.Errorf("Not valid size %v", size)
+		}
+		return value, err
+	}
+
+	last := len(size) - 1
+	unit := string(size[last])
+	value, err := strconv.ParseInt(size[:last], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	kb := int64(1024)
+	mb := 1024 * kb
+	gb := 1024 * mb
+	switch unit {
+	case "k":
+		value *= kb
+	case "m":
+		value *= mb
+	case "g":
+		value *= gb
+	default:
+		return 0, fmt.Errorf("Unrecongized size value %v", size)
+	}
+	if value == 0 && err == nil {
+		err = fmt.Errorf("Not valid size %v", size)
+	}
+	return value, err
 }
