@@ -18,7 +18,7 @@ $(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./util/util.go ./util/util_test.go \
 	./logging/logging.go \
 	./volume_cmds.go ./snapshot_cmds.go ./blockstore_cmds.go \
-	./server.go ./client.go \
+	./server.go ./client.go ./docker.go \
 	./commands.go ./main.go ./main_blockstore.go ./main_devmapper.go
 	go build -tags libdm_no_deferred_remove -o ./bin/volmgr
 

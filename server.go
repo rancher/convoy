@@ -62,6 +62,23 @@ func createRouter(s *Server) *mux.Router {
 		}
 	}
 	router.NotFoundHandler = s
+
+	pluginMap := map[string]map[string]http.HandlerFunc{
+		"POST": {
+			"/Plugin.Activate":      s.dockerActivate,
+			"/VolumeDriver.Create":  s.dockerCreateVolume,
+			"/VolumeDriver.Remove":  s.dockerRemoveVolume,
+			"/VolumeDriver.Mount":   s.dockerMountVolume,
+			"/VolumeDriver.Unmount": s.dockerUnmountVolume,
+			"/VolumeDriver.Path":    s.dockerVolumePath,
+		},
+	}
+	for method, routes := range pluginMap {
+		for route, f := range routes {
+			log.Debugf("Registering plugin handler %s, %s", method, route)
+			router.Path(route).Methods(method).HandlerFunc(f)
+		}
+	}
 	return router
 }
 
@@ -171,6 +188,7 @@ func writeResponseOutput(w http.ResponseWriter, v interface{}) error {
 	if err != nil {
 		return err
 	}
+	log.Debugln("Response: ", string(output))
 	_, err = w.Write(output)
 	return err
 }
