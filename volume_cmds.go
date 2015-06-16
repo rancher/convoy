@@ -40,6 +40,10 @@ var (
 				Name:  KEY_VOLUME_NAME,
 				Usage: "name of volume, if defined, must be locally unique. Must contains only lower case alphabets/numbers/period/underscore",
 			},
+			cli.BoolFlag{
+				Name:  "format",
+				Usage: "format or not, only support ext4 now, would be ignored if base image is provided",
+			},
 		},
 		Action: cmdVolumeCreate,
 	}
@@ -83,7 +87,7 @@ var (
 			},
 			cli.BoolFlag{
 				Name:  "format",
-				Usage: "format or not",
+				Usage: "format or not, only support ext4 now",
 			},
 			cli.StringFlag{
 				Name:  "option",
@@ -256,6 +260,8 @@ func doVolumeCreate(c *cli.Context) error {
 		return err
 	}
 
+	needFormat := c.Bool("format")
+
 	v.Set("size", strconv.FormatInt(size, 10))
 	if volumeUUID != "" {
 		v.Set(KEY_VOLUME, volumeUUID)
@@ -265,6 +271,9 @@ func doVolumeCreate(c *cli.Context) error {
 	}
 	if name != "" {
 		v.Set(KEY_VOLUME_NAME, name)
+	}
+	if needFormat && imageUUID == "" {
+		v.Set("need-format", "true")
 	}
 
 	request := "/volumes/create?" + v.Encode()
@@ -283,6 +292,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	if size == 0 {
 		size = s.DefaultVolumeSize
 	}
+	needFormat := (r.FormValue("need-format") == "true")
 
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
@@ -315,6 +325,13 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug("Created volume")
+
+	if needFormat {
+		if err := drivers.Format(s.StorageDriver, uuid, "ext4"); err != nil {
+			//TODO: Rollback
+			return err
+		}
+	}
 
 	volume := &Volume{
 		UUID:      uuid,

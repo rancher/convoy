@@ -58,23 +58,49 @@ func GetDriver(name, root string, config map[string]string) (Driver, error) {
 	return initializers[name](root, getCfgName(name), config)
 }
 
-func Mount(driver Driver, volumeUUID, mountPoint, fstype, option string, needFormat bool, newNS string) error {
+func Format(driver Driver, volumeUUID, fs string) error {
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_FORMAT,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: volumeUUID,
+	}).Debug()
 	dev, err := driver.GetVolumeDevice(volumeUUID)
 	if err != nil {
 		return err
 	}
-	if fstype != "ext4" {
-		return fmt.Errorf("unsupported filesystem ", fstype)
+	if fs != "ext4" {
+		return fmt.Errorf("unsupported filesystem ", fs)
+	}
+	if err := exec.Command("mkfs."+fs, dev).Run(); err != nil {
+		return err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_FORMAT,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: volumeUUID,
+	}).Debug()
+	return nil
+}
+
+func Mount(driver Driver, volumeUUID, mountPoint, fs, option string, needFormat bool, newNS string) error {
+	dev, err := driver.GetVolumeDevice(volumeUUID)
+	if err != nil {
+		return err
+	}
+	if fs != "ext4" {
+		return fmt.Errorf("unsupported filesystem ", fs)
 	}
 	if needFormat {
-		if err := exec.Command("mkfs."+fstype, dev).Run(); err != nil {
+		if err := Format(driver, volumeUUID, fs); err != nil {
 			return err
 		}
 	}
 	if newNS == "" {
 		newNS = "/proc/1/ns/mnt"
 	}
-	cmdline := []string{newNS, "-m", "-t", fstype}
+	cmdline := []string{newNS, "-m", "-t", fs}
 	if option != "" {
 		cmdline = append(cmdline, option)
 	}

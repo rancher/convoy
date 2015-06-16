@@ -34,6 +34,7 @@ const (
 	LOG_EVENT_INIT       = "init"
 	LOG_EVENT_CREATE     = "create"
 	LOG_EVENT_DELETE     = "delete"
+	LOG_EVENT_FORMAT     = "format"
 	LOG_EVENT_LIST       = "list"
 	LOG_EVENT_MOUNT      = "mount"
 	LOG_EVENT_UMOUNT     = "umount"

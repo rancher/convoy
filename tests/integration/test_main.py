@@ -181,8 +181,9 @@ def wait_for_daemon():
     assert info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE
     assert info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
-def create_volume(size = "", uuid = "", base = "", name = ""):
-    uuid = v.create_volume(size, uuid, base, name)
+def create_volume(size = "", uuid = "", base = "", name = "",
+        need_format = False):
+    uuid = v.create_volume(size, uuid, base, name, need_format)
     dm_cleanup_list.append(uuid)
     return uuid
 
@@ -262,6 +263,18 @@ def format_volume_and_create_file(uuid, filename):
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
 
+def no_format_test_create_file(uuid, filename):
+    # with format
+    volume_mount_dir = mount_volume(uuid, True)
+
+    test_file = os.path.join(volume_mount_dir,filename)
+    with open(test_file, "w") as f:
+	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
+    assert os.path.exists(test_file)
+
+    umount_volume(uuid, volume_mount_dir)
+    assert not os.path.exists(test_file)
+
 def test_volume_mount():
     uuid = create_volume()
 
@@ -277,7 +290,7 @@ def test_volume_mount():
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
 
-    # auto mount 
+    # auto mount
     volume_mount_dir = mount_volume_auto(uuid, False)
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
@@ -285,6 +298,11 @@ def test_volume_mount():
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
 
+    delete_volume(uuid)
+
+    # test format as volume create option
+    uuid = create_volume(need_format=True)
+    no_format_test_create_file(uuid, filename)
     delete_volume(uuid)
 
 def test_volume_list():
