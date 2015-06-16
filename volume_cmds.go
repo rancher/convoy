@@ -281,28 +281,16 @@ func doVolumeCreate(c *cli.Context) error {
 	return sendRequestAndPrint("POST", request, nil)
 }
 
-func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
-	volumeUUID, err := getUUID(r, KEY_VOLUME, false, err)
-	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
-	volumeName, err := getName(r, KEY_VOLUME_NAME, false, err)
-	if err != nil {
-		return err
-	}
-	if size == 0 {
-		size = s.DefaultVolumeSize
-	}
-	needFormat := (r.FormValue("need-format") == "true")
-
+func (s *Server) processVolumeCreate(volumeUUID, volumeName, imageUUID string, size int64, needFormat bool) (*Volume, error) {
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
-		return fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
+		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
 	}
 
 	uuid := uuid.New()
 	if volumeUUID != "" {
 		if s.loadVolume(volumeUUID) != nil {
-			return fmt.Errorf("Duplicate volume UUID detected!")
+			return nil, fmt.Errorf("Duplicate volume UUID detected!")
 		}
 		uuid = volumeUUID
 	}
@@ -317,7 +305,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_SIZE:        size,
 	}).Debug()
 	if err := s.StorageDriver.CreateVolume(uuid, imageUUID, size); err != nil {
-		return err
+		return nil, err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
@@ -329,7 +317,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	if needFormat {
 		if err := drivers.Format(s.StorageDriver, uuid, "ext4"); err != nil {
 			//TODO: Rollback
-			return err
+			return nil, err
 		}
 	}
 
@@ -341,13 +329,34 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 		Snapshots: make(map[string]bool),
 	}
 	if err := s.saveVolume(volume); err != nil {
+		return nil, err
+	}
+	return volume, nil
+}
+
+func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
+	volumeUUID, err := getUUID(r, KEY_VOLUME, false, err)
+	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
+	volumeName, err := getName(r, KEY_VOLUME_NAME, false, err)
+	if err != nil {
 		return err
 	}
+	if size == 0 {
+		size = s.DefaultVolumeSize
+	}
+	needFormat := (r.FormValue("need-format") == "true")
+
+	volume, err := s.processVolumeCreate(volumeUUID, volumeName, imageUUID, size, needFormat)
+	if err != nil {
+		return err
+	}
+
 	return writeResponseOutput(w, api.VolumeResponse{
-		UUID: uuid,
-		Name: volumeName,
-		Base: imageUUID,
-		Size: size,
+		UUID: volume.UUID,
+		Name: volume.Name,
+		Base: volume.Base,
+		Size: volume.Size,
 	})
 }
 

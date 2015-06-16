@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rancherio/volmgr/api"
+	"github.com/rancherio/volmgr/util"
 	"net/http"
 )
 
@@ -28,16 +29,49 @@ func (s *Server) dockerActivate(w http.ResponseWriter, r *http.Request) {
 	writeResponseOutput(w, info)
 }
 
-func (s *Server) getDockerVolume(w http.ResponseWriter, r *http.Request) (*Volume, error) {
+func getDockerVolumeName(r *http.Request) (string, error) {
 	request := &PluginRequest{}
 	if err := json.NewDecoder(r.Body).Decode(request); err != nil {
+		return "", err
+	}
+	return request.Name, nil
+}
+
+func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) {
+	name, err := getDockerVolumeName(r)
+	if err != nil {
 		return nil, err
 	}
 
-	volume := s.loadVolume(request.Name)
-	if volume == nil {
-		return nil, fmt.Errorf("Cannot find volume %v", request.Name)
+	var (
+		volume     *Volume
+		volumeUUID string
+		volumeName string
+	)
+	if util.ValidateUUID(name) {
+		volumeUUID = name
+		volume = s.loadVolume(name)
+	} else if util.ValidateName(name) {
+		volumeName = name
+		volume = s.loadVolumeByName(name)
+	} else {
+		// Not valid UUID or name
+		return nil, fmt.Errorf("Invalid volume name. Must be a valid UUID or only contains 0-9, a-z, understore(_) and dot(.)")
 	}
+
+	if volume == nil {
+		if create {
+			log.Debugf("Creating a new volume %v for docker\n", name)
+
+			volume, err = s.processVolumeCreate(volumeUUID, volumeName, "", s.DefaultVolumeSize, true)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("Cannot find volume %v", name)
+		}
+	}
+
 	return volume, nil
 }
 
@@ -54,13 +88,13 @@ func dockerResponse(w http.ResponseWriter, mountPoint string, err error) {
 func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin create volume: %v %v\n", r.Method, r.RequestURI)
 
-	volume, err := s.getDockerVolume(w, r)
+	volume, err := s.getDockerVolume(r, true)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
-	log.Debugf("Create volume %v for docker\n", volume.UUID)
+	log.Debugf("Prepared volume %v (name %v) for docker\n", volume.UUID, volume.Name)
 
 	dockerResponse(w, "", nil)
 }
@@ -68,13 +102,13 @@ func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin remove volume: %v %v\n", r.Method, r.RequestURI)
 
-	volume, err := s.getDockerVolume(w, r)
+	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
-	log.Debugf("Remove volume %v for docker, nothing would be done\n", volume.UUID)
+	log.Debugf("Remove volume %v (name %v) for docker, nothing would be done\n", volume.UUID, volume.Name)
 
 	dockerResponse(w, "", nil)
 }
@@ -82,7 +116,7 @@ func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin mount volume: %v %v\n", r.Method, r.RequestURI)
 
-	volume, err := s.getDockerVolume(w, r)
+	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
@@ -99,7 +133,7 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Mount volume: %v to %v for docker\n", volume.UUID, mountConfig.MountPoint)
+	log.Debugf("Mount volume: %v (name %v) to %v for docker\n", volume.UUID, volume.Name, mountConfig.MountPoint)
 
 	if err := s.processVolumeMount(volume, mountConfig); err != nil {
 		dockerResponse(w, "", err)
@@ -112,13 +146,13 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin unmount volume: %v %v\n", r.Method, r.RequestURI)
 
-	volume, err := s.getDockerVolume(w, r)
+	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
-	log.Debugf("Unmount volume: %v at %v for docker\n", volume.UUID, volume.MountPoint)
+	log.Debugf("Unmount volume: %v (name %v) at %v for docker\n", volume.UUID, volume.Name, volume.MountPoint)
 
 	mountConfig := &api.VolumeMountConfig{}
 
@@ -133,13 +167,13 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 func (s *Server) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin volume path: %v %v\n", r.Method, r.RequestURI)
 
-	volume, err := s.getDockerVolume(w, r)
+	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
-	log.Debugf("Volume: %v is mounted at %v for docker\n", volume.UUID, volume.MountPoint)
+	log.Debugf("Volume: %v (name %v) is mounted at %v for docker\n", volume.UUID, volume.Name, volume.MountPoint)
 
 	dockerResponse(w, volume.MountPoint, nil)
 }
