@@ -1,4 +1,4 @@
-package s3blockstore
+package s3
 
 import (
 	"fmt"

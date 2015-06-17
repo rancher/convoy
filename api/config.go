@@ -8,12 +8,12 @@ type VolumeMountConfig struct {
 	NameSpace  string
 }
 
-type BlockStoreRegisterConfig struct {
+type ObjectStoreRegisterConfig struct {
 	Kind string
 	Opts map[string]string
 }
 
-type BlockStoreImageConfig struct {
+type ObjectStoreImageConfig struct {
 	ImageFile string
 }
 

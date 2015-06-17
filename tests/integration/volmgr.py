@@ -129,93 +129,93 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
 	        "--snapshot-uuid", snapshot_uuid] + _get_volume(volume))
 
-    def register_vfs_blockstore(self, path):
-	data = subprocess.check_output(self.base_cmdline + ["blockstore",
+    def register_vfs_objectstore(self, path):
+	data = subprocess.check_output(self.base_cmdline + ["objectstore",
 		"register", "--kind", "vfs",
 		"--opts", "vfs.path="+path])
 	bs = json.loads(data)
 	assert bs["Kind"] == "vfs"
 	return bs["UUID"]
 
-    def deregister_blockstore(self, uuid):
-	subprocess.check_call(self.base_cmdline + ["blockstore", "deregister",
-		"--blockstore-uuid", uuid])
+    def deregister_objectstore(self, uuid):
+	subprocess.check_call(self.base_cmdline + ["objectstore", "deregister",
+		"--objectstore-uuid", uuid])
 
-    def add_volume_to_blockstore(self, volume_uuid, bs_uuid):
-	subprocess.check_call(self.base_cmdline + ["blockstore",
+    def add_volume_to_objectstore(self, volume_uuid, bs_uuid):
+	subprocess.check_call(self.base_cmdline + ["objectstore",
                 "add-volume",
 		"--volume-uuid", volume_uuid,
-		"--blockstore-uuid", bs_uuid])
+		"--objectstore-uuid", bs_uuid])
 
-    def remove_volume_from_blockstore(self, volume_uuid, bs_uuid):
-	subprocess.check_call(self.base_cmdline + ["blockstore",
+    def remove_volume_from_objectstore(self, volume_uuid, bs_uuid):
+	subprocess.check_call(self.base_cmdline + ["objectstore",
                 "remove-volume",
 		"--volume-uuid", volume_uuid,
-		"--blockstore-uuid", bs_uuid])
+		"--objectstore-uuid", bs_uuid])
 
-    def backup_snapshot_to_blockstore(self, snapshot_uuid, volume_uuid,
+    def backup_snapshot_to_objectstore(self, snapshot_uuid, volume_uuid,
 		    bs_uuid):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "backup",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
-		"--blockstore-uuid", bs_uuid])
+		"--objectstore-uuid", bs_uuid])
 
-    def restore_snapshot_from_blockstore(self, snapshot_uuid,
+    def restore_snapshot_from_objectstore(self, snapshot_uuid,
 		    origin_volume_uuid, target_volume_uuid, bs_uuid):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "restore",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", origin_volume_uuid,
 		"--target-volume-uuid", target_volume_uuid,
-		"--blockstore-uuid", bs_uuid])
+		"--objectstore-uuid", bs_uuid])
 
-    def remove_snapshot_from_blockstore(self,
+    def remove_snapshot_from_objectstore(self,
 		    snapshot_uuid, volume_uuid, bs_uuid):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "remove",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
-		"--blockstore-uuid", bs_uuid])
+		"--objectstore-uuid", bs_uuid])
 
-    def list_volume_blockstore(self, volume_uuid, bs_uuid):
-	data = subprocess.check_output(self.base_cmdline + ["blockstore",
+    def list_volume_objectstore(self, volume_uuid, bs_uuid):
+	data = subprocess.check_output(self.base_cmdline + ["objectstore",
                 "list-volume",
 		"--volume-uuid", volume_uuid,
-		"--blockstore-uuid", bs_uuid])
+		"--objectstore-uuid", bs_uuid])
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def list_volume_blockstore_with_snapshot(self,
+    def list_volume_objectstore_with_snapshot(self,
             snapshot_uuid, volume_uuid, bs_uuid):
-	data = subprocess.check_output(self.base_cmdline + ["blockstore",
+	data = subprocess.check_output(self.base_cmdline + ["objectstore",
                 "list-volume",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
-		"--blockstore-uuid", bs_uuid])
+		"--objectstore-uuid", bs_uuid])
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def add_image_to_blockstore(self, image_file, bs_uuid):
-        data = subprocess.check_output(self.base_cmdline + ["blockstore",
+    def add_image_to_objectstore(self, image_file, bs_uuid):
+        data = subprocess.check_output(self.base_cmdline + ["objectstore",
                 "add-image",
                 "--image-file", image_file,
-                "--blockstore-uuid", bs_uuid])
+                "--objectstore-uuid", bs_uuid])
         image = json.loads(data)
         return image["UUID"]
 
-    def remove_image_from_blockstore(self, image_uuid, bs_uuid):
-        subprocess.check_call(self.base_cmdline + ["blockstore",
+    def remove_image_from_objectstore(self, image_uuid, bs_uuid):
+        subprocess.check_call(self.base_cmdline + ["objectstore",
                 "remove-image",
                 "--image-uuid", image_uuid,
-                "--blockstore-uuid", bs_uuid])
+                "--objectstore-uuid", bs_uuid])
 
     def activate_image(self, image_uuid, bs_uuid):
-        subprocess.check_call(self.base_cmdline + ["blockstore",
+        subprocess.check_call(self.base_cmdline + ["objectstore",
                 "activate-image",
                 "--image-uuid", image_uuid,
-                "--blockstore-uuid", bs_uuid])
+                "--objectstore-uuid", bs_uuid])
 
     def deactivate_image(self, image_uuid, bs_uuid):
-        subprocess.check_call(self.base_cmdline + ["blockstore",
+        subprocess.check_call(self.base_cmdline + ["objectstore",
                 "deactivate-image",
                 "--image-uuid", image_uuid,
-                "--blockstore-uuid", bs_uuid])
+                "--objectstore-uuid", bs_uuid])
 

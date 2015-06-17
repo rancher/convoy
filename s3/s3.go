@@ -1,9 +1,9 @@
-package s3blockstore
+package s3
 
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancherio/volmgr/blockstore"
+	"github.com/rancherio/volmgr/objectstore"
 	"github.com/rancherio/volmgr/util"
 	"io"
 	"os"
@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	log = logrus.WithFields(logrus.Fields{"pkg": "s3blockstore"})
+	log = logrus.WithFields(logrus.Fields{"pkg": "s3"})
 )
 
-type S3BlockStoreDriver struct {
+type S3ObjectStoreDriver struct {
 	ID      string
 	Path    string
 	Service S3Service
@@ -35,11 +35,11 @@ const (
 )
 
 func init() {
-	blockstore.RegisterDriver(KIND, initFunc)
+	objectstore.RegisterDriver(KIND, initFunc)
 }
 
-func initFunc(root, cfgName string, config map[string]string) (blockstore.BlockStoreDriver, error) {
-	b := &S3BlockStoreDriver{}
+func initFunc(root, cfgName string, config map[string]string) (objectstore.ObjectStoreDriver, error) {
+	b := &S3ObjectStoreDriver{}
 	if cfgName != "" {
 		if util.ConfigExists(root, cfgName) {
 			err := util.LoadConfig(root, cfgName, b)
@@ -48,7 +48,7 @@ func initFunc(root, cfgName string, config map[string]string) (blockstore.BlockS
 			}
 			return b, nil
 		} else {
-			return nil, fmt.Errorf("Wrong configuration file for S3 blockstore driver")
+			return nil, fmt.Errorf("Wrong configuration file for S3 objectstore driver")
 		}
 	}
 
@@ -70,15 +70,15 @@ func initFunc(root, cfgName string, config map[string]string) (blockstore.BlockS
 	return b, nil
 }
 
-func (s *S3BlockStoreDriver) Kind() string {
+func (s *S3ObjectStoreDriver) Kind() string {
 	return KIND
 }
 
-func (s *S3BlockStoreDriver) updatePath(path string) string {
+func (s *S3ObjectStoreDriver) updatePath(path string) string {
 	return filepath.Join(s.Path, path)
 }
 
-func (s *S3BlockStoreDriver) FinalizeInit(root, cfgName, id string) error {
+func (s *S3ObjectStoreDriver) FinalizeInit(root, cfgName, id string) error {
 	s.ID = id
 	if err := util.SaveConfig(root, cfgName, s); err != nil {
 		return err
@@ -86,7 +86,7 @@ func (s *S3BlockStoreDriver) FinalizeInit(root, cfgName, id string) error {
 	return nil
 }
 
-func (s *S3BlockStoreDriver) List(listPath string) ([]string, error) {
+func (s *S3ObjectStoreDriver) List(listPath string) ([]string, error) {
 	var result []string
 
 	path := s.updatePath(listPath)
@@ -108,11 +108,11 @@ func (s *S3BlockStoreDriver) List(listPath string) ([]string, error) {
 	return result, nil
 }
 
-func (s *S3BlockStoreDriver) FileExists(filePath string) bool {
+func (s *S3ObjectStoreDriver) FileExists(filePath string) bool {
 	return s.FileSize(filePath) >= 0
 }
 
-func (s *S3BlockStoreDriver) FileSize(filePath string) int64 {
+func (s *S3ObjectStoreDriver) FileSize(filePath string) int64 {
 	path := s.updatePath(filePath)
 	contents, err := s.Service.ListObjects(path)
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *S3BlockStoreDriver) FileSize(filePath string) int64 {
 	return *contents[0].Size
 }
 
-func (s *S3BlockStoreDriver) Remove(names ...string) error {
+func (s *S3ObjectStoreDriver) Remove(names ...string) error {
 	if len(names) == 0 {
 		return nil
 	}
@@ -138,7 +138,7 @@ func (s *S3BlockStoreDriver) Remove(names ...string) error {
 	return s.Service.DeleteObjects(paths)
 }
 
-func (s *S3BlockStoreDriver) Read(src string) (io.ReadCloser, error) {
+func (s *S3ObjectStoreDriver) Read(src string) (io.ReadCloser, error) {
 	path := s.updatePath(src)
 	rc, err := s.Service.GetObject(path)
 	if err != nil {
@@ -147,12 +147,12 @@ func (s *S3BlockStoreDriver) Read(src string) (io.ReadCloser, error) {
 	return rc, nil
 }
 
-func (s *S3BlockStoreDriver) Write(dst string, rs io.ReadSeeker) error {
+func (s *S3ObjectStoreDriver) Write(dst string, rs io.ReadSeeker) error {
 	path := s.updatePath(dst)
 	return s.Service.PutObject(path, rs)
 }
 
-func (s *S3BlockStoreDriver) Upload(src, dst string) error {
+func (s *S3ObjectStoreDriver) Upload(src, dst string) error {
 	file, err := os.Open(src)
 	if err != nil {
 		return nil
@@ -162,7 +162,7 @@ func (s *S3BlockStoreDriver) Upload(src, dst string) error {
 	return s.Service.PutObject(path, file)
 }
 
-func (s *S3BlockStoreDriver) Download(src, dst string) error {
+func (s *S3ObjectStoreDriver) Download(src, dst string) error {
 	if _, err := os.Stat(dst); err != nil {
 		os.Remove(dst)
 	}

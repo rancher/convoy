@@ -7,7 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/blockstore"
+	"github.com/rancherio/volmgr/objectstore"
 	"github.com/rancherio/volmgr/util"
 	"net/http"
 	"net/url"
@@ -18,7 +18,7 @@ import (
 var (
 	snapshotBackupCmd = cli.Command{
 		Name:  "backup",
-		Usage: "backup an snapshot to blockstore",
+		Usage: "backup an snapshot to objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,
@@ -30,7 +30,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 		},
 		Action: cmdSnapshotBackup,
@@ -38,7 +38,7 @@ var (
 
 	snapshotRestoreCmd = cli.Command{
 		Name:  "restore",
-		Usage: "restore an snapshot from blockstore to volume",
+		Usage: "restore an snapshot from objectstore to volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,
@@ -54,7 +54,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 		},
 		Action: cmdSnapshotRestore,
@@ -62,7 +62,7 @@ var (
 
 	snapshotRemoveCmd = cli.Command{
 		Name:  "remove",
-		Usage: "remove an snapshot in blockstore",
+		Usage: "remove an snapshot in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,
@@ -74,81 +74,81 @@ var (
 			},
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 		},
 		Action: cmdSnapshotRemove,
 	}
 
-	blockstoreRegisterCmd = cli.Command{
+	objectstoreRegisterCmd = cli.Command{
 		Name:  "register",
-		Usage: "register a blockstore for current setup, create it if it's not existed yet",
+		Usage: "register a objectstore for current setup, create it if it's not existed yet",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "kind",
 				Value: "vfs",
-				Usage: "kind of blockstore, only support vfs now",
+				Usage: "kind of objectstore, only support vfs now",
 			},
 			cli.StringSliceFlag{
 				Name:  "opts",
 				Value: &cli.StringSlice{},
-				Usage: "options used to register blockstore",
+				Usage: "options used to register objectstore",
 			},
 		},
-		Action: cmdBlockStoreRegister,
+		Action: cmdObjectStoreRegister,
 	}
 
-	blockstoreDeregisterCmd = cli.Command{
+	objectstoreDeregisterCmd = cli.Command{
 		Name:  "deregister",
-		Usage: "deregister a blockstore from current setup(no data in it would be changed)",
+		Usage: "deregister a objectstore from current setup(no data in it would be changed)",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 		},
-		Action: cmdBlockStoreDeregister,
+		Action: cmdObjectStoreDeregister,
 	}
 
-	blockstoreAddVolumeCmd = cli.Command{
+	objectstoreAddVolumeCmd = cli.Command{
 		Name:  "add-volume",
-		Usage: "add a volume to blockstore",
+		Usage: "add a volume to objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 		},
-		Action: cmdBlockStoreAddVolume,
+		Action: cmdObjectStoreAddVolume,
 	}
 
-	blockstoreRemoveVolumeCmd = cli.Command{
+	objectstoreRemoveVolumeCmd = cli.Command{
 		Name:  "remove-volume",
-		Usage: "remove a volume from blockstore. WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!",
+		Usage: "remove a volume from objectstore. WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS BLOCKSTORE WOULD BE REMOVED!",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
 				Usage: "uuid of volume",
 			},
 		},
-		Action: cmdBlockStoreRemoveVolume,
+		Action: cmdObjectStoreRemoveVolume,
 	}
 
-	blockstoreListCmd = cli.Command{
+	objectstoreListCmd = cli.Command{
 		Name:  "list-volume",
-		Usage: "list volume and snapshots in blockstore",
+		Usage: "list volume and snapshots in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
@@ -159,16 +159,16 @@ var (
 				Usage: "uuid of snapshot",
 			},
 		},
-		Action: cmdBlockStoreListVolume,
+		Action: cmdObjectStoreListVolume,
 	}
 
-	blockstoreAddImageCmd = cli.Command{
+	objectstoreAddImageCmd = cli.Command{
 		Name:  "add-image",
-		Usage: "upload a raw image to blockstore, which can be used as base image later",
+		Usage: "upload a raw image to objectstore, which can be used as base image later",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
 				Name:  KEY_IMAGE,
@@ -183,85 +183,85 @@ var (
 				Usage: "file name of image, image must already existed in <images-dir>",
 			},
 		},
-		Action: cmdBlockStoreAddImage,
+		Action: cmdObjectStoreAddImage,
 	}
 
-	blockstoreRemoveImageCmd = cli.Command{
+	objectstoreRemoveImageCmd = cli.Command{
 		Name:  "remove-image",
-		Usage: "remove an image from blockstore, WARNING: ALL THE VOLUMES/SNAPSHOTS BASED ON THAT IMAGE WON'T BE USABLE AFTER",
+		Usage: "remove an image from objectstore, WARNING: ALL THE VOLUMES/SNAPSHOTS BASED ON THAT IMAGE WON'T BE USABLE AFTER",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
 				Name:  KEY_IMAGE,
 				Usage: "uuid of image, if unspecified, a random one would be generated",
 			},
 		},
-		Action: cmdBlockStoreRemoveImage,
+		Action: cmdObjectStoreRemoveImage,
 	}
 
-	blockstoreActivateImageCmd = cli.Command{
+	objectstoreActivateImageCmd = cli.Command{
 		Name:  "activate-image",
-		Usage: "download a image from blockstore, prepared it to be used as base image",
+		Usage: "download a image from objectstore, prepared it to be used as base image",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
 				Name:  KEY_IMAGE,
 				Usage: "uuid of image",
 			},
 		},
-		Action: cmdBlockStoreActivateImage,
+		Action: cmdObjectStoreActivateImage,
 	}
 
-	blockstoreDeactivateImageCmd = cli.Command{
+	objectstoreDeactivateImageCmd = cli.Command{
 		Name:  "deactivate-image",
 		Usage: "remove local image copy, must be done after all the volumes depends on it removed",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_BLOCKSTORE,
-				Usage: "uuid of blockstore",
+				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
 				Name:  KEY_IMAGE,
 				Usage: "uuid of image",
 			},
 		},
-		Action: cmdBlockStoreDeactivateImage,
+		Action: cmdObjectStoreDeactivateImage,
 	}
 
-	blockstoreCmd = cli.Command{
-		Name:  "blockstore",
-		Usage: "blockstore related operations",
+	objectstoreCmd = cli.Command{
+		Name:  "objectstore",
+		Usage: "objectstore related operations",
 		Subcommands: []cli.Command{
-			blockstoreRegisterCmd,
-			blockstoreDeregisterCmd,
-			blockstoreAddVolumeCmd,
-			blockstoreRemoveVolumeCmd,
-			blockstoreAddImageCmd,
-			blockstoreRemoveImageCmd,
-			blockstoreActivateImageCmd,
-			blockstoreDeactivateImageCmd,
-			blockstoreListCmd,
+			objectstoreRegisterCmd,
+			objectstoreDeregisterCmd,
+			objectstoreAddVolumeCmd,
+			objectstoreRemoveVolumeCmd,
+			objectstoreAddImageCmd,
+			objectstoreRemoveImageCmd,
+			objectstoreActivateImageCmd,
+			objectstoreDeactivateImageCmd,
+			objectstoreListCmd,
 		},
 	}
 )
 
 const (
-	BLOCKSTORE_PATH = "blockstore"
+	BLOCKSTORE_PATH = "objectstore"
 )
 
-func cmdBlockStoreRegister(c *cli.Context) {
-	if err := doBlockStoreRegister(c); err != nil {
+func cmdObjectStoreRegister(c *cli.Context) {
+	if err := doObjectStoreRegister(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreRegister(c *cli.Context) error {
+func doObjectStoreRegister(c *cli.Context) error {
 	kind := c.String("kind")
 	if kind == "" {
 		return genRequiredMissingError("kind")
@@ -271,17 +271,17 @@ func doBlockStoreRegister(c *cli.Context) error {
 		return genRequiredMissingError("opts")
 	}
 
-	registerConfig := api.BlockStoreRegisterConfig{
+	registerConfig := api.ObjectStoreRegisterConfig{
 		Kind: kind,
 		Opts: opts,
 	}
 
-	request := "/blockstores/register"
+	request := "/objectstores/register"
 	return sendRequestAndPrint("POST", request, registerConfig)
 }
 
-func (s *Server) doBlockStoreRegister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	registerConfig := &api.BlockStoreRegisterConfig{}
+func (s *Server) doObjectStoreRegister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	registerConfig := &api.ObjectStoreRegisterConfig{}
 	err := json.NewDecoder(r.Body).Decode(registerConfig)
 	if err != nil {
 		return err
@@ -297,7 +297,7 @@ func (s *Server) doBlockStoreRegister(version string, w http.ResponseWriter, r *
 		LOG_FIELD_KIND:       kind,
 		LOG_FIELD_OPTION:     opts,
 	}).Debug()
-	b, err := blockstore.Register(s.Root, kind, opts)
+	b, err := objectstore.Register(s.Root, kind, opts)
 	if err != nil {
 		return err
 	}
@@ -309,20 +309,20 @@ func (s *Server) doBlockStoreRegister(version string, w http.ResponseWriter, r *
 		LOG_FIELD_BLOCKSIZE:  b.BlockSize,
 	}).Debug()
 
-	return writeResponseOutput(w, api.BlockStoreResponse{
+	return writeResponseOutput(w, api.ObjectStoreResponse{
 		UUID:      b.UUID,
 		Kind:      b.Kind,
 		BlockSize: b.BlockSize,
 	})
 }
 
-func cmdBlockStoreDeregister(c *cli.Context) {
-	if err := doBlockStoreDeregister(c); err != nil {
+func cmdObjectStoreDeregister(c *cli.Context) {
+	if err := doObjectStoreDeregister(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreDeregister(c *cli.Context) error {
+func doObjectStoreDeregister(c *cli.Context) error {
 	var err error
 
 	uuid, err := getUUID(c, KEY_BLOCKSTORE, true, err)
@@ -330,13 +330,13 @@ func doBlockStoreDeregister(c *cli.Context) error {
 		return err
 	}
 
-	request := "/blockstores/" + uuid + "/"
+	request := "/objectstores/" + uuid + "/"
 	return sendRequestAndPrint("DELETE", request, nil)
 }
 
-func (s *Server) doBlockStoreDeregister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreDeregister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	if err != nil {
 		return err
 	}
@@ -345,43 +345,43 @@ func (s *Server) doBlockStoreDeregister(version string, w http.ResponseWriter, r
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_DEREGISTER,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.Deregister(s.Root, blockstoreUUID); err != nil {
+	if err := objectstore.Deregister(s.Root, objectstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:      LOG_EVENT_DEREGISTER,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_BLOCKSTORE,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
 }
 
-func cmdBlockStoreAddVolume(c *cli.Context) {
-	if err := doBlockStoreAddVolume(c); err != nil {
+func cmdObjectStoreAddVolume(c *cli.Context) {
+	if err := doObjectStoreAddVolume(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreAddVolume(c *cli.Context) error {
+func doObjectStoreAddVolume(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/add"
+	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/add"
 	return sendRequestAndPrint("POST", request, nil)
 }
 
-func (s *Server) doBlockStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
@@ -399,9 +399,9 @@ func (s *Server) doBlockStoreAddVolume(version string, w http.ResponseWriter, r 
 		LOG_FIELD_VOLUME:     volumeUUID,
 		LOG_FIELD_IMAGE:      volume.Base,
 		LOG_FIELD_SIZE:       volume.Size,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.AddVolume(s.Root, blockstoreUUID, volumeUUID, volume.Name, volume.Base, volume.Size); err != nil {
+	if err := objectstore.AddVolume(s.Root, objectstoreUUID, volumeUUID, volume.Name, volume.Base, volume.Size); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -409,33 +409,33 @@ func (s *Server) doBlockStoreAddVolume(version string, w http.ResponseWriter, r 
 		LOG_FIELD_EVENT:      LOG_EVENT_ADD,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
 }
 
-func cmdBlockStoreRemoveVolume(c *cli.Context) {
-	if err := doBlockStoreRemoveVolume(c); err != nil {
+func cmdObjectStoreRemoveVolume(c *cli.Context) {
+	if err := doObjectStoreRemoveVolume(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreRemoveVolume(c *cli.Context) error {
+func doObjectStoreRemoveVolume(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/"
+	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/"
 	return sendRequestAndPrint("DELETE", request, nil)
 }
 
-func (s *Server) doBlockStoreRemoveVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreRemoveVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
 	if err != nil {
 		return err
@@ -449,9 +449,9 @@ func (s *Server) doBlockStoreRemoveVolume(version string, w http.ResponseWriter,
 		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.RemoveVolume(s.Root, blockstoreUUID, volumeUUID); err != nil {
+	if err := objectstore.RemoveVolume(s.Root, objectstoreUUID, volumeUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -459,28 +459,28 @@ func (s *Server) doBlockStoreRemoveVolume(version string, w http.ResponseWriter,
 		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
 }
 
-func cmdBlockStoreListVolume(c *cli.Context) {
-	if err := doBlockStoreListVolume(c); err != nil {
+func cmdObjectStoreListVolume(c *cli.Context) {
+	if err := doObjectStoreListVolume(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreListVolume(c *cli.Context) error {
+func doObjectStoreListVolume(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID
+	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID
 	if snapshotUUID != "" {
 		request += "/snapshots/" + snapshotUUID
 	}
@@ -488,16 +488,16 @@ func doBlockStoreListVolume(c *cli.Context) error {
 	return sendRequestAndPrint("GET", request, nil)
 }
 
-func (s *Server) doBlockStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
-	data, err := blockstore.ListVolume(s.Root, blockstoreUUID, volumeUUID, snapshotUUID)
+	data, err := objectstore.ListVolume(s.Root, objectstoreUUID, volumeUUID, snapshotUUID)
 	if err != nil {
 		return err
 	}
@@ -515,21 +515,21 @@ func cmdSnapshotBackup(c *cli.Context) {
 func doSnapshotBackup(c *cli.Context) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/backup"
+	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/backup"
 	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
@@ -546,9 +546,9 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT:   snapshotUUID,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.BackupSnapshot(s.Root, snapshotUUID, volumeUUID, blockstoreUUID, s.StorageDriver); err != nil {
+	if err := objectstore.BackupSnapshot(s.Root, snapshotUUID, volumeUUID, objectstoreUUID, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -557,7 +557,7 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT:   snapshotUUID,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
 }
@@ -572,7 +572,7 @@ func doSnapshotRestore(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	originVolumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
 	targetVolumeUUID, err := getUUID(c, "target-volume-uuid", true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, true, err)
@@ -581,14 +581,14 @@ func doSnapshotRestore(c *cli.Context) error {
 	}
 
 	v.Set("target-volume", targetVolumeUUID)
-	request := "/blockstores/" + blockstoreUUID + "/volumes/" + originVolumeUUID +
+	request := "/objectstores/" + objectstoreUUID + "/volumes/" + originVolumeUUID +
 		"/snapshots/" + snapshotUUID + "/restore?" + v.Encode()
 	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	originVolumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	targetVolumeUUID, err := getUUID(r, "target-volume", true, err)
@@ -619,10 +619,10 @@ func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *htt
 		LOG_FIELD_SNAPSHOT:    snapshotUUID,
 		LOG_FIELD_ORIN_VOLUME: originVolumeUUID,
 		LOG_FIELD_VOLUME:      targetVolumeUUID,
-		LOG_FIELD_BLOCKSTORE:  blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE:  objectstoreUUID,
 	}).Debug()
-	if err := blockstore.RestoreSnapshot(s.Root, snapshotUUID, originVolumeUUID,
-		targetVolumeUUID, blockstoreUUID, s.StorageDriver); err != nil {
+	if err := objectstore.RestoreSnapshot(s.Root, snapshotUUID, originVolumeUUID,
+		targetVolumeUUID, objectstoreUUID, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -632,7 +632,7 @@ func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *htt
 		LOG_FIELD_SNAPSHOT:    snapshotUUID,
 		LOG_FIELD_ORIN_VOLUME: originVolumeUUID,
 		LOG_FIELD_VOLUME:      targetVolumeUUID,
-		LOG_FIELD_BLOCKSTORE:  blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE:  objectstoreUUID,
 	}).Debug()
 	return nil
 }
@@ -645,20 +645,20 @@ func cmdSnapshotRemove(c *cli.Context) {
 
 func doSnapshotRemove(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/"
+	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/"
 	return sendRequestAndPrint("DELETE", request, nil)
 }
 
 func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
@@ -675,9 +675,9 @@ func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT:   snapshotUUID,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.RemoveSnapshot(s.Root, snapshotUUID, volumeUUID, blockstoreUUID); err != nil {
+	if err := objectstore.RemoveSnapshot(s.Root, snapshotUUID, volumeUUID, objectstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -686,22 +686,22 @@ func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT:   snapshotUUID,
 		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
 }
 
-func cmdBlockStoreAddImage(c *cli.Context) {
-	if err := doBlockStoreAddImage(c); err != nil {
+func cmdObjectStoreAddImage(c *cli.Context) {
+	if err := doObjectStoreAddImage(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreAddImage(c *cli.Context) error {
+func doObjectStoreAddImage(c *cli.Context) error {
 	var err error
 	v := url.Values{}
 
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, false, err)
 	imageName, err := getName(c, "image-name", false, err)
 	if err != nil {
@@ -712,7 +712,7 @@ func doBlockStoreAddImage(c *cli.Context) error {
 		return genRequiredMissingError("image-file")
 	}
 
-	imageConfig := api.BlockStoreImageConfig{
+	imageConfig := api.ObjectStoreImageConfig{
 		ImageFile: imageFile,
 	}
 	if imageUUID != "" {
@@ -722,20 +722,20 @@ func doBlockStoreAddImage(c *cli.Context) error {
 		v.Set("image-name", imageName)
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/images/add?" + v.Encode()
+	request := "/objectstores/" + objectstoreUUID + "/images/add?" + v.Encode()
 	return sendRequestAndPrint("POST", request, imageConfig)
 }
 
-func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
 	imageName, err := getName(r, "image-name", false, err)
 	if err != nil {
 		return err
 	}
-	imageConfig := &api.BlockStoreImageConfig{}
+	imageConfig := &api.ObjectStoreImageConfig{}
 	err = json.NewDecoder(r.Body).Decode(imageConfig)
 	if err != nil {
 		return err
@@ -758,9 +758,9 @@ func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *
 		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
 		LOG_FIELD_IMAGE_NAME: imageName,
 		LOG_FIELD_IMAGE_FILE: imageFile,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	data, err := blockstore.AddImage(s.Root, s.ImagesDir, imageUUID, imageName, imageFile, blockstoreUUID)
+	data, err := objectstore.AddImage(s.Root, s.ImagesDir, imageUUID, imageName, imageFile, objectstoreUUID)
 	if err != nil {
 		return err
 	}
@@ -769,33 +769,33 @@ func (s *Server) doBlockStoreAddImage(version string, w http.ResponseWriter, r *
 		LOG_FIELD_EVENT:      LOG_EVENT_ADD,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	_, err = w.Write(data)
 	return err
 }
 
-func cmdBlockStoreRemoveImage(c *cli.Context) {
-	if err := doBlockStoreRemoveImage(c); err != nil {
+func cmdObjectStoreRemoveImage(c *cli.Context) {
+	if err := doObjectStoreRemoveImage(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreRemoveImage(c *cli.Context) error {
+func doObjectStoreRemoveImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/"
+	request := "/objectstores/" + objectstoreUUID + "/images/" + imageUUID + "/"
 	return sendRequestAndPrint("DELETE", request, nil)
 }
 
-func (s *Server) doBlockStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
@@ -807,9 +807,9 @@ func (s *Server) doBlockStoreRemoveImage(version string, w http.ResponseWriter, 
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
 		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.RemoveImage(s.Root, s.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+	if err := objectstore.RemoveImage(s.Root, s.ImagesDir, imageUUID, objectstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -817,32 +817,32 @@ func (s *Server) doBlockStoreRemoveImage(version string, w http.ResponseWriter, 
 		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
 }
 
-func cmdBlockStoreActivateImage(c *cli.Context) {
-	if err := doBlockStoreActivateImage(c); err != nil {
+func cmdObjectStoreActivateImage(c *cli.Context) {
+	if err := doObjectStoreActivateImage(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreActivateImage(c *cli.Context) error {
+func doObjectStoreActivateImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/activate"
+	request := "/objectstores/" + objectstoreUUID + "/images/" + imageUUID + "/activate"
 	return sendRequestAndPrint("POST", request, nil)
 }
 
-func (s *Server) doBlockStoreActivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreActivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
@@ -854,9 +854,9 @@ func (s *Server) doBlockStoreActivateImage(version string, w http.ResponseWriter
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
 		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.ActivateImage(s.Root, s.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+	if err := objectstore.ActivateImage(s.Root, s.ImagesDir, imageUUID, objectstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -864,10 +864,10 @@ func (s *Server) doBlockStoreActivateImage(version string, w http.ResponseWriter
 		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 
-	imagePath := blockstore.GetImageLocalStorePath(s.ImagesDir, imageUUID)
+	imagePath := objectstore.GetImageLocalStorePath(s.ImagesDir, imageUUID)
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
@@ -889,27 +889,27 @@ func (s *Server) doBlockStoreActivateImage(version string, w http.ResponseWriter
 	return nil
 }
 
-func cmdBlockStoreDeactivateImage(c *cli.Context) {
-	if err := doBlockStoreDeactivateImage(c); err != nil {
+func cmdObjectStoreDeactivateImage(c *cli.Context) {
+	if err := doObjectStoreDeactivateImage(c); err != nil {
 		panic(err)
 	}
 }
 
-func doBlockStoreDeactivateImage(c *cli.Context) error {
+func doObjectStoreDeactivateImage(c *cli.Context) error {
 	var err error
-	blockstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(c, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/blockstores/" + blockstoreUUID + "/images/" + imageUUID + "/deactivate"
+	request := "/objectstores/" + objectstoreUUID + "/images/" + imageUUID + "/deactivate"
 	return sendRequestAndPrint("POST", request, nil)
 }
 
-func (s *Server) doBlockStoreDeactivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doObjectStoreDeactivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	blockstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
 	if err != nil {
 		return err
@@ -939,9 +939,9 @@ func (s *Server) doBlockStoreDeactivateImage(version string, w http.ResponseWrit
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
 		LOG_FIELD_IMAGE_DIR:  s.ImagesDir,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
-	if err := blockstore.DeactivateImage(s.Root, s.ImagesDir, imageUUID, blockstoreUUID); err != nil {
+	if err := objectstore.DeactivateImage(s.Root, s.ImagesDir, imageUUID, objectstoreUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -949,7 +949,7 @@ func (s *Server) doBlockStoreDeactivateImage(version string, w http.ResponseWrit
 		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
 		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_BLOCKSTORE: blockstoreUUID,
+		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
 }

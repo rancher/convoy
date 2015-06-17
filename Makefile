@@ -9,17 +9,17 @@ $(VOLMGR_MOUNT_EXEC_FILE): ./tools/volmgr_mount.c
 	gcc -o ./bin/rancher-mount ./tools/volmgr_mount.c
 
 $(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
-	./blockstore/blockstore.go ./blockstore/config.go \
-	./s3blockstore/s3blockstore.go ./s3blockstore/s3_service.go \
-	./vfsblockstore/vfsblockstore.go \
+	./objectstore/objectstore.go ./objectstore/config.go \
+	./s3/s3.go ./s3/s3_service.go \
+	./vfs/vfs.go \
 	./devmapper/devmapper.go \
  	./drivers/drivers.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
 	./util/util.go ./util/util_test.go \
 	./logging/logging.go \
-	./volume_cmds.go ./snapshot_cmds.go ./blockstore_cmds.go \
+	./volume_cmds.go ./snapshot_cmds.go ./objectstore_cmds.go \
 	./server.go ./client.go ./docker.go \
-	./commands.go ./main.go ./main_blockstore.go ./main_devmapper.go
+	./commands.go ./main.go ./main_objectstore.go ./main_devmapper.go
 	go build -tags libdm_no_deferred_remove -o ./bin/rancher-volume
 
 clean:

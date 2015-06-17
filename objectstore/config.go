@@ -1,4 +1,4 @@
-package blockstore
+package objectstore
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	BLOCKSTORE_BASE        = "rancher-blockstore"
-	BLOCKSTORE_CONFIG_FILE = "blockstore.cfg"
+	BLOCKSTORE_BASE        = "rancher-objectstore"
+	BLOCKSTORE_CONFIG_FILE = "objectstore.cfg"
 	VOLUME_DIRECTORY       = "volumes"
 	VOLUME_CONFIG_FILE     = "volume.cfg"
 	VOLUME_SEPARATE_LAYER1 = 2
@@ -32,17 +32,17 @@ func getSnapshotConfigName(id string) string {
 }
 
 func getDriverCfgName(kind, id string) string {
-	return "blockstore_" + id + "_" + kind + ".cfg"
+	return "objectstore_" + id + "_" + kind + ".cfg"
 }
 
 func getCfgName(id string) string {
-	return "blockstore_" + id + ".cfg"
+	return "objectstore_" + id + ".cfg"
 }
 
-func loadConfigInBlockStore(filePath string, driver BlockStoreDriver, v interface{}) error {
+func loadConfigInObjectStore(filePath string, driver ObjectStoreDriver, v interface{}) error {
 	size := driver.FileSize(filePath)
 	if size < 0 {
-		return fmt.Errorf("cannot find %v in blockstore", filePath)
+		return fmt.Errorf("cannot find %v in objectstore", filePath)
 	}
 	rc, err := driver.Read(filePath)
 	if err != nil {
@@ -69,7 +69,7 @@ func loadConfigInBlockStore(filePath string, driver BlockStoreDriver, v interfac
 	return nil
 }
 
-func saveConfigInBlockStore(filePath string, driver BlockStoreDriver, v interface{}) error {
+func saveConfigInObjectStore(filePath string, driver ObjectStoreDriver, v interface{}) error {
 	j, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -93,39 +93,39 @@ func saveConfigInBlockStore(filePath string, driver BlockStoreDriver, v interfac
 	return nil
 }
 
-func loadVolumeConfig(volumeID string, driver BlockStoreDriver) (*Volume, error) {
+func loadVolumeConfig(volumeID string, driver ObjectStoreDriver) (*Volume, error) {
 	v := &Volume{}
 	path := getVolumePath(volumeID)
 	file := VOLUME_CONFIG_FILE
-	if err := loadConfigInBlockStore(filepath.Join(path, file), driver, v); err != nil {
+	if err := loadConfigInObjectStore(filepath.Join(path, file), driver, v); err != nil {
 		return nil, err
 	}
 	return v, nil
 }
 
-func saveVolumeConfig(volumeID string, driver BlockStoreDriver, v *Volume) error {
+func saveVolumeConfig(volumeID string, driver ObjectStoreDriver, v *Volume) error {
 	path := getVolumePath(volumeID)
 	file := VOLUME_CONFIG_FILE
-	if err := saveConfigInBlockStore(filepath.Join(path, file), driver, v); err != nil {
+	if err := saveConfigInObjectStore(filepath.Join(path, file), driver, v); err != nil {
 		return err
 	}
 	return nil
 }
 
-func loadRemoteBlockStoreConfig(driver BlockStoreDriver) (*BlockStore, error) {
-	b := &BlockStore{}
+func loadRemoteObjectStoreConfig(driver ObjectStoreDriver) (*ObjectStore, error) {
+	b := &ObjectStore{}
 	path := BLOCKSTORE_BASE
 	file := BLOCKSTORE_CONFIG_FILE
-	if err := loadConfigInBlockStore(filepath.Join(path, file), driver, b); err != nil {
+	if err := loadConfigInObjectStore(filepath.Join(path, file), driver, b); err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
-func saveRemoteBlockStoreConfig(driver BlockStoreDriver, b *BlockStore) error {
+func saveRemoteObjectStoreConfig(driver ObjectStoreDriver, b *ObjectStore) error {
 	path := BLOCKSTORE_BASE
 	file := BLOCKSTORE_CONFIG_FILE
-	if err := saveConfigInBlockStore(filepath.Join(path, file), driver, b); err != nil {
+	if err := saveConfigInObjectStore(filepath.Join(path, file), driver, b); err != nil {
 		return err
 	}
 	return nil
@@ -149,24 +149,24 @@ func removeConfigFile(root, id string) error {
 	return nil
 }
 
-func snapshotExists(snapshotID, volumeID string, bsDriver BlockStoreDriver) bool {
+func snapshotExists(snapshotID, volumeID string, bsDriver ObjectStoreDriver) bool {
 	path := getSnapshotsPath(volumeID)
 	fileName := getSnapshotConfigName(snapshotID)
 	return bsDriver.FileExists(filepath.Join(path, fileName))
 }
 
-func loadSnapshotMap(snapshotID, volumeID string, bsDriver BlockStoreDriver) (*SnapshotMap, error) {
+func loadSnapshotMap(snapshotID, volumeID string, bsDriver ObjectStoreDriver) (*SnapshotMap, error) {
 	snapshotMap := SnapshotMap{}
 	path := getSnapshotsPath(volumeID)
 	fileName := getSnapshotConfigName(snapshotID)
 
-	if err := loadConfigInBlockStore(filepath.Join(path, fileName), bsDriver, &snapshotMap); err != nil {
+	if err := loadConfigInObjectStore(filepath.Join(path, fileName), bsDriver, &snapshotMap); err != nil {
 		return nil, err
 	}
 	return &snapshotMap, nil
 }
 
-func saveSnapshotMap(snapshotID, volumeID string, bsDriver BlockStoreDriver, snapshotMap *SnapshotMap) error {
+func saveSnapshotMap(snapshotID, volumeID string, bsDriver ObjectStoreDriver, snapshotMap *SnapshotMap) error {
 	path := getSnapshotsPath(volumeID)
 	fileName := getSnapshotConfigName(snapshotID)
 	filePath := filepath.Join(path, fileName)
@@ -176,7 +176,7 @@ func saveSnapshotMap(snapshotID, volumeID string, bsDriver BlockStoreDriver, sna
 			return err
 		}
 	}
-	if err := saveConfigInBlockStore(filePath, bsDriver, snapshotMap); err != nil {
+	if err := saveConfigInObjectStore(filePath, bsDriver, snapshotMap); err != nil {
 		return err
 	}
 	return nil
@@ -205,7 +205,7 @@ func getBlockFilePath(volumeID, checksum string) string {
 	return filepath.Join(path, fileName)
 }
 
-func getSnapshots(volumeID string, driver BlockStoreDriver) (map[string]bool, error) {
+func getSnapshots(volumeID string, driver ObjectStoreDriver) (map[string]bool, error) {
 	result := make(map[string]bool)
 	fileList, err := driver.List(getSnapshotsPath(volumeID))
 	if err != nil {
@@ -231,33 +231,33 @@ func GetImageLocalStorePath(imageDir, imageUUID string) string {
 	return filepath.Join(imageDir, imageUUID+".img")
 }
 
-func getImageBlockStorePath(imageUUID string) string {
+func getImageObjectStorePath(imageUUID string) string {
 	return filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".img.gz")
 }
 
-func getImageCfgBlockStorePath(imageUUID string) string {
+func getImageCfgObjectStorePath(imageUUID string) string {
 	return filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".json")
 }
 
-func saveImageConfig(imageUUID string, driver BlockStoreDriver, img *Image) error {
-	file := getImageCfgBlockStorePath(imageUUID)
-	if err := saveConfigInBlockStore(file, driver, img); err != nil {
+func saveImageConfig(imageUUID string, driver ObjectStoreDriver, img *Image) error {
+	file := getImageCfgObjectStorePath(imageUUID)
+	if err := saveConfigInObjectStore(file, driver, img); err != nil {
 		return err
 	}
 	return nil
 }
 
-func loadImageConfig(imageUUID string, driver BlockStoreDriver) (*Image, error) {
+func loadImageConfig(imageUUID string, driver ObjectStoreDriver) (*Image, error) {
 	img := &Image{}
-	file := getImageCfgBlockStorePath(imageUUID)
-	if err := loadConfigInBlockStore(file, driver, img); err != nil {
+	file := getImageCfgObjectStorePath(imageUUID)
+	if err := loadConfigInObjectStore(file, driver, img); err != nil {
 		return nil, err
 	}
 	return img, nil
 }
 
-func removeImageConfig(image *Image, driver BlockStoreDriver) error {
-	file := getImageCfgBlockStorePath(image.UUID)
+func removeImageConfig(image *Image, driver ObjectStoreDriver) error {
+	file := getImageCfgObjectStorePath(image.UUID)
 	if err := driver.Remove(file); err != nil {
 		return err
 	}

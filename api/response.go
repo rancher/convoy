@@ -30,7 +30,7 @@ type SnapshotResponse struct {
 	VolumeUUID string
 }
 
-type BlockStoreResponse struct {
+type ObjectStoreResponse struct {
 	UUID      string
 	Kind      string
 	BlockSize int64

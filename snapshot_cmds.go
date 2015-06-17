@@ -59,9 +59,9 @@ var (
 		Subcommands: []cli.Command{
 			snapshotCreateCmd,
 			snapshotDeleteCmd,
-			snapshotBackupCmd,  // in blockstore_cmds.go
-			snapshotRestoreCmd, // in blockstore_cmds.go
-			snapshotRemoveCmd,  // in blockstore_cmds.go
+			snapshotBackupCmd,  // in objectstore_cmds.go
+			snapshotRestoreCmd, // in objectstore_cmds.go
+			snapshotRemoveCmd,  // in objectstore_cmds.go
 		},
 	}
 )

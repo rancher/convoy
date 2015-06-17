@@ -21,7 +21,7 @@ const (
 
 	KEY_VOLUME      = "volume-uuid"
 	KEY_SNAPSHOT    = "snapshot-uuid"
-	KEY_BLOCKSTORE  = "blockstore-uuid"
+	KEY_BLOCKSTORE  = "objectstore-uuid"
 	KEY_IMAGE       = "image-uuid"
 	KEY_VOLUME_NAME = "volume-name"
 
@@ -136,7 +136,7 @@ func main() {
 		infoCmd,
 		volumeCmd,
 		snapshotCmd,
-		blockstoreCmd,
+		objectstoreCmd,
 	}
 
 	client.addr = sockFile
