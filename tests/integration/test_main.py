@@ -28,8 +28,8 @@ BLOCKSTORE_SNAPSHOTS_DIR = "snapshots"
 BLOCKSTORE_IMAGES_DIR = os.path.join(BLOCKSTORE_ROOT, "images")
 
 DD_BLOCK_SIZE = 4096
-POOL_NAME = "volmgr_test_pool"
-VOLMGR_BINARY = os.path.abspath("../../bin/volmgr")
+POOL_NAME = "rancher_volume_test_pool"
+VOLMGR_BINARY = os.path.abspath("../../bin/rancher-volume")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"

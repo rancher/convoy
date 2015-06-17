@@ -59,7 +59,7 @@ var (
 	logFile *os.File
 	log     = logrus.WithFields(logrus.Fields{"pkg": "main"})
 
-	sockFile string = "/var/run/rancher-volmgr.sock"
+	sockFile string = "/var/run/rancher/volume.sock"
 	client   Client
 )
 

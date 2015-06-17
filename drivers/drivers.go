@@ -35,6 +35,10 @@ var (
 	log          = logrus.WithFields(logrus.Fields{"pkg": "drivers"})
 )
 
+const (
+	RANCHER_MOUNT_BINARY = "rancher-mount"
+)
+
 func init() {
 	initializers = make(map[string]InitFunc)
 }
@@ -112,7 +116,7 @@ func Mount(driver Driver, volumeUUID, mountPoint, fs, option string, needFormat 
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 		LOG_FIELD_OPTION:     cmdline,
 	}).Debug()
-	output, err := exec.Command("volmgr_mount", cmdline...).CombinedOutput()
+	output, err := exec.Command(RANCHER_MOUNT_BINARY, cmdline...).CombinedOutput()
 	if err != nil {
 		log.Error("Failed mount, ", string(output))
 		return err
@@ -131,7 +135,7 @@ func Unmount(driver Driver, mountPoint, newNS string) error {
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 		LOG_FIELD_OPTION:     cmdline,
 	}).Debug()
-	output, err := exec.Command("volmgr_mount", cmdline...).CombinedOutput()
+	output, err := exec.Command(RANCHER_MOUNT_BINARY, cmdline...).CombinedOutput()
 	if err != nil {
 		log.Error("Failed umount, ", string(output))
 		return err

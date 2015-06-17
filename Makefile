@@ -1,12 +1,12 @@
-VOLMGR_EXEC_FILE = ./bin/volmgr
-VOLMGR_MOUNT_EXEC_FILE = ./bin/volmgr_mount
+VOLMGR_EXEC_FILE = ./bin/rancher-volume
+VOLMGR_MOUNT_EXEC_FILE = ./bin/rancher-mount
 
 .PHONY: all clean
 
 all: $(VOLMGR_EXEC_FILE) $(VOLMGR_MOUNT_EXEC_FILE)
 
 $(VOLMGR_MOUNT_EXEC_FILE): ./tools/volmgr_mount.c
-	gcc -o ./bin/volmgr_mount ./tools/volmgr_mount.c
+	gcc -o ./bin/rancher-mount ./tools/volmgr_mount.c
 
 $(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./blockstore/blockstore.go ./blockstore/config.go \
@@ -20,7 +20,7 @@ $(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./volume_cmds.go ./snapshot_cmds.go ./blockstore_cmds.go \
 	./server.go ./client.go ./docker.go \
 	./commands.go ./main.go ./main_blockstore.go ./main_devmapper.go
-	go build -tags libdm_no_deferred_remove -o ./bin/volmgr
+	go build -tags libdm_no_deferred_remove -o ./bin/rancher-volume
 
 clean:
-	rm -f ./bin/volmgr*
+	rm -f ./bin/rancher-*

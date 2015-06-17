@@ -8,7 +8,7 @@ cd $(dirname $0)
 
 mkdir -p ${CATTLE_HOME}/bin
 
-cp bin/volmgr bin/volmgr_mount ${CATTLE_HOME}/bin
+cp bin/rancher-volume bin/rancher-mount ${CATTLE_HOME}/bin
 
-chmod +x ${CATTLE_HOME}/bin/volmgr
-chmod +x ${CATTLE_HOME}/bin/volmgr_mount
+chmod +x ${CATTLE_HOME}/bin/rancher-volume
+chmod +x ${CATTLE_HOME}/bin/rancher-mount

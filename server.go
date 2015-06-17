@@ -245,6 +245,10 @@ func startServer(c *cli.Context) error {
 
 	server.Router = createRouter(server)
 
+	if err := util.MkdirIfNotExists(filepath.Dir(sockFile)); err != nil {
+		return err
+	}
+
 	l, err := net.Listen("unix", sockFile)
 	if err != nil {
 		fmt.Println("listen err", err)

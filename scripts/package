@@ -16,5 +16,5 @@ cd build
 sha1sum -b $(find ${CONTENT} -type f) > ${CONTENT}/SHA1SUMS
 sha1sum ${CONTENT}/SHA1SUMS > ${CONTENT}/SHA1SUMSSUM
 
-tar czf ../dist/artifacts/volmgr.tar.gz ${CONTENT}
-echo Created dist/artifacts/volmgr.tar.gz
+tar czf ../dist/artifacts/rancher-volume.tar.gz ${CONTENT}
+echo Created dist/artifacts/rancher-volume.tar.gz
