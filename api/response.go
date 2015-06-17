@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"runtime/debug"
 	"strings"
 )
 
@@ -68,6 +69,9 @@ func ResponseLogAndError(v interface{}) {
 	} else if e, ok := v.(error); ok {
 		logrus.Errorf(fmt.Sprint(e))
 		ResponseError(fmt.Sprint(e))
+	} else {
+		logrus.Fatalf("%s: %s", v, debug.Stack())
+		ResponseError("Caught FATAL error: %s", v)
 	}
 }
 
