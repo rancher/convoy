@@ -405,9 +405,14 @@ func (d *Driver) DeleteVolume(id string) error {
 		}, "cannot find volume")
 	}
 	if len(volume.Snapshots) != 0 {
-		return generateError(logrus.Fields{
-			LOG_FIELD_VOLUME: id,
-		}, "Volume still contains snapshots, delete snapshots first")
+		for snapshotUUID := range volume.Snapshots {
+			if err = d.DeleteSnapshot(snapshotUUID, volume.UUID); err != nil {
+				return generateError(logrus.Fields{
+					LOG_FIELD_VOLUME:   volume.UUID,
+					LOG_FIELD_SNAPSHOT: snapshotUUID,
+				}, "cannot remove an snapshot of volume, as part of deletion of volume")
+			}
+		}
 	}
 
 	if err = devicemapper.RemoveDevice(id); err != nil {

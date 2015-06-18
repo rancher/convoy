@@ -50,7 +50,7 @@ var (
 
 	volumeDeleteCmd = cli.Command{
 		Name:  "delete",
-		Usage: "delete a volume with all of it's snapshots",
+		Usage: "delete a volume with ALL of it's snapshots LOCALLY. Objects in object store would remain intact",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
@@ -454,6 +454,11 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 	if volume == nil {
 		return fmt.Errorf("Cannot find volume %s", uuid)
 	}
+
+	if volume.MountPoint != "" {
+		return fmt.Errorf("Cannot delete volume %s, it hasn't been umounted", uuid)
+	}
+
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_DELETE,
