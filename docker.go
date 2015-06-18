@@ -94,7 +94,7 @@ func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Prepared volume %v (name %v) for docker\n", volume.UUID, volume.Name)
+	log.Debugf("Created volume %v (name %v) for docker\n", volume.UUID, volume.Name)
 
 	dockerResponse(w, "", nil)
 }
@@ -108,7 +108,12 @@ func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Remove volume %v (name %v) for docker, nothing would be done\n", volume.UUID, volume.Name)
+	if err := s.processVolumeDelete(volume.UUID); err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
+	log.Debugf("Removed volume %v (name %v) for docker\n", volume.UUID, volume.Name)
 
 	dockerResponse(w, "", nil)
 }

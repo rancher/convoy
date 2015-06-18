@@ -450,6 +450,10 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
+	return s.processVolumeDelete(uuid)
+}
+
+func (s *Server) processVolumeDelete(uuid string) error {
 	volume := s.loadVolume(uuid)
 	if volume == nil {
 		return fmt.Errorf("Cannot find volume %s", uuid)
