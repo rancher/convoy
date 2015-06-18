@@ -70,7 +70,7 @@ func ResponseLogAndError(v interface{}) {
 		logrus.Errorf(fmt.Sprint(e))
 		ResponseError(fmt.Sprint(e))
 	} else {
-		logrus.Fatalf("%s: %s", v, debug.Stack())
+		logrus.Errorf("%s: %s", v, debug.Stack())
 		ResponseError("Caught FATAL error: %s", v)
 	}
 }

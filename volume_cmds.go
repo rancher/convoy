@@ -201,8 +201,8 @@ func (s *Server) saveVolume(volume *Volume) error {
 	if volume.Name != "" {
 		if oldUUID, exists := s.NameVolumeMap[volume.Name]; exists {
 			if oldUUID != volume.UUID {
-				log.Fatalf("BUG: Volume name %v already assign to %v, but %v want it too. How did it pass the test?", volume.Name, oldUUID, uuid)
-				return fmt.Errorf("Volume name %v already assign to %v, but %v want it too", volume.Name, oldUUID, uuid)
+				log.Errorf("BUG: Volume name %v already assign to %v, but %v want it too. How did it pass the test?", volume.Name, oldUUID, uuid)
+				return fmt.Errorf("BUG: Volume name %v already assign to %v, but %v want it too", volume.Name, oldUUID, uuid)
 
 			}
 			return nil
@@ -222,7 +222,7 @@ func (s *Server) deleteVolume(volume *Volume) error {
 	}
 	if volume.Name != "" {
 		if _, exists := s.NameVolumeMap[volume.Name]; !exists {
-			log.Fatalf("BUG: Volume name %v assign to %v, but doesn't exist in cache", volume.Name, volume.UUID)
+			log.Errorf("BUG: Volume name %v assign to %v, but doesn't exist in cache", volume.Name, volume.UUID)
 			return fmt.Errorf("BUG: Volume name %v assign to %v, but doesn't exist in cache", volume.Name, volume.UUID)
 
 		}
