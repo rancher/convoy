@@ -22,7 +22,7 @@ type PluginRequest struct {
 }
 
 func (s *Server) dockerActivate(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("Handle plugin activate: %v %v\n", r.Method, r.RequestURI)
+	log.Debugf("Handle plugin activate: %v %v", r.Method, r.RequestURI)
 	info := PluginInfo{
 		Implements: []string{"VolumeDriver"},
 	}
@@ -61,7 +61,7 @@ func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 
 	if volume == nil {
 		if create {
-			log.Debugf("Creating a new volume %v for docker\n", name)
+			log.Debugf("Create a new volume %v for docker", name)
 
 			volume, err = s.processVolumeCreate(volumeUUID, volumeName, "", s.DefaultVolumeSize, true)
 			if err != nil {
@@ -86,7 +86,7 @@ func dockerResponse(w http.ResponseWriter, mountPoint string, err error) {
 }
 
 func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("Handle plugin create volume: %v %v\n", r.Method, r.RequestURI)
+	log.Debugf("Handle plugin create volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, true)
 	if err != nil {
@@ -94,13 +94,13 @@ func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Created volume %v (name %v) for docker\n", volume.UUID, volume.Name)
+	log.Debugf("Found volume %v (name %v) for docker", volume.UUID, volume.Name)
 
 	dockerResponse(w, "", nil)
 }
 
 func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("Handle plugin remove volume: %v %v\n", r.Method, r.RequestURI)
+	log.Debugf("Handle plugin remove volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
@@ -113,13 +113,13 @@ func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Removed volume %v (name %v) for docker\n", volume.UUID, volume.Name)
+	log.Debugf("Removed volume %v (name %v) for docker", volume.UUID, volume.Name)
 
 	dockerResponse(w, "", nil)
 }
 
 func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("Handle plugin mount volume: %v %v\n", r.Method, r.RequestURI)
+	log.Debugf("Handle plugin mount volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Mount volume: %v (name %v) to %v for docker\n", volume.UUID, volume.Name, mountConfig.MountPoint)
+	log.Debugf("Mount volume: %v (name %v) to %v for docker", volume.UUID, volume.Name, mountConfig.MountPoint)
 
 	if err := s.processVolumeMount(volume, mountConfig); err != nil {
 		dockerResponse(w, "", err)
@@ -149,7 +149,7 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("Handle plugin unmount volume: %v %v\n", r.Method, r.RequestURI)
+	log.Debugf("Handle plugin unmount volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
@@ -157,7 +157,7 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Unmount volume: %v (name %v) at %v for docker\n", volume.UUID, volume.Name, volume.MountPoint)
+	log.Debugf("Unmount volume: %v (name %v) at %v for docker", volume.UUID, volume.Name, volume.MountPoint)
 
 	mountConfig := &api.VolumeMountConfig{}
 
@@ -170,7 +170,7 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("Handle plugin volume path: %v %v\n", r.Method, r.RequestURI)
+	log.Debugf("Handle plugin volume path: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
@@ -178,7 +178,7 @@ func (s *Server) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Volume: %v (name %v) is mounted at %v for docker\n", volume.UUID, volume.Name, volume.MountPoint)
+	log.Debugf("Volume: %v (name %v) is mounted at %v for docker", volume.UUID, volume.Name, volume.MountPoint)
 
 	dockerResponse(w, volume.MountPoint, nil)
 }

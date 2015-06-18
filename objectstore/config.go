@@ -64,7 +64,6 @@ func loadConfigInObjectStore(filePath string, driver ObjectStoreDriver, v interf
 		LOG_FIELD_OBJECT:   LOG_OBJECT_CONFIG,
 		LOG_FIELD_KIND:     driver.Kind(),
 		LOG_FIELD_FILEPATH: filePath,
-		LOG_FIELD_CONTEXT:  v,
 	}).Debug()
 	return nil
 }
@@ -79,7 +78,6 @@ func saveConfigInObjectStore(filePath string, driver ObjectStoreDriver, v interf
 		LOG_FIELD_OBJECT:   LOG_OBJECT_CONFIG,
 		LOG_FIELD_KIND:     driver.Kind(),
 		LOG_FIELD_FILEPATH: filePath,
-		LOG_FIELD_CONTEXT:  v,
 	}).Debug()
 	if err := driver.Write(filePath, bytes.NewReader(j)); err != nil {
 		return err
