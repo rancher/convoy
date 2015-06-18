@@ -192,7 +192,8 @@ func AddVolume(root, id, volumeID, volumeName, base string, size int64) error {
 	volumeCfg := VOLUME_CONFIG_FILE
 	volumeFile := filepath.Join(volumePath, volumeCfg)
 	if driver.FileExists(volumeFile) {
-		return fmt.Errorf("Volume %v already exists in objectstore %v", volumeID, id)
+		log.Debugf("Volume %v already exists in objectstore %v, ignore the command", volumeID, id)
+		return nil
 	}
 
 	volume := Volume{

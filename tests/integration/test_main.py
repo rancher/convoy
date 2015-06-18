@@ -436,6 +436,8 @@ def test_objectstore():
     assert len(volumes) == 0
 
     v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
+    # test idempotency
+    v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
     volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)
     assert os.path.exists(volume1_cfg_path)
 
@@ -445,6 +447,8 @@ def test_objectstore():
     assert volumes[volume1_uuid]["Base"] == ""
     assert len(volumes[volume1_uuid]["Snapshots"]) == 0
 
+    v.add_volume_to_objectstore(volume2_uuid, uuid)
+    # test idempotency
     v.add_volume_to_objectstore(volume2_uuid, uuid)
     volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), BLOCKSTORE_PER_VOLUME_CFG)
     assert os.path.exists(volume2_cfg_path)
@@ -642,6 +646,9 @@ def test_image_based_volume():
     umount_volume(volume_uuid, volume_mount_dir)
 
     snapshot_uuid = v.create_snapshot(volume_uuid)
+    v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
+    # idempotency
+    v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
     v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
     v.backup_snapshot_to_objectstore(snapshot_uuid, volume_uuid, objectstore_uuid)
 
