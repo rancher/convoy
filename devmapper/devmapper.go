@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	. "github.com/rancherio/volmgr/logging"
 )
@@ -48,6 +49,7 @@ const (
 type Driver struct {
 	root       string
 	configName string
+	Mutex      *sync.Mutex
 	Device
 }
 
@@ -219,7 +221,9 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 	if util.ConfigExists(root, cfgName) {
 		dev := Device{}
 		err := util.LoadConfig(root, cfgName, &dev)
-		d := &Driver{}
+		d := &Driver{
+			Mutex: &sync.Mutex{},
+		}
 		if err != nil {
 			return d, err
 		}
@@ -256,7 +260,7 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 		return nil, err
 	}
 	dev.ThinpoolSize = int64(thinpSize)
-	dev.LastDevID = 1
+	dev.LastDevID = 0
 
 	err = createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, uint32(dev.ThinpoolBlockSize))
 	if err != nil {
@@ -271,6 +275,7 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 		root:       root,
 		configName: cfgName,
 		Device:     *dev,
+		Mutex:      &sync.Mutex{},
 	}
 	log.Debug("Init done")
 	return d, nil
@@ -290,7 +295,20 @@ func (d *Driver) Name() string {
 	return DRIVER_NAME
 }
 
+func (d *Driver) allocateDevID() (int, error) {
+	d.Mutex.Lock()
+	defer d.Mutex.Unlock()
+
+	d.LastDevID++
+	log.Debug("Current devID ", d.LastDevID)
+	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
+		return 0, err
+	}
+	return d.LastDevID, nil
+}
+
 func (d *Driver) CreateVolume(id, baseID string, size int64) error {
+	var err error
 	if size%(d.ThinpoolBlockSize*SECTOR_SIZE) != 0 {
 		return fmt.Errorf("Size must be multiple of block size")
 
@@ -323,7 +341,10 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		}
 	}
 
-	devID := d.LastDevID
+	devID, err := d.allocateDevID()
+	if err != nil {
+		return err
+	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:          LOG_REASON_START,
 		LOG_FIELD_EVENT:           LOG_EVENT_CREATE,
@@ -332,7 +353,7 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		LOG_FIELD_IMAGE:           baseID,
 		DM_LOG_FIELD_VOLUME_DEVID: devID,
 	}).Debugf("Creating volume")
-	err := devicemapper.CreateDevice(d.ThinpoolDevice, devID)
+	err = devicemapper.CreateDevice(d.ThinpoolDevice, devID)
 	if err != nil {
 		return err
 	}
@@ -386,11 +407,6 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		}
 	}
 	if err := d.saveVolume(volume); err != nil {
-		return err
-	}
-	d.LastDevID++
-
-	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
 	return nil
@@ -513,13 +529,18 @@ func (d *Driver) ListVolume(id, snapshotID string) ([]byte, error) {
 }
 
 func (d *Driver) CreateSnapshot(id, volumeID string) error {
+	var err error
+
 	volume := d.loadVolume(volumeID)
 	if volume == nil {
 		return generateError(logrus.Fields{
 			LOG_FIELD_VOLUME: volumeID,
 		}, "Cannot find volume")
 	}
-	devID := d.LastDevID
+	devID, err := d.allocateDevID()
+	if err != nil {
+		return err
+	}
 
 	snapshot, exists := volume.Snapshots[id]
 	if exists {
@@ -538,7 +559,7 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 		DM_LOG_FIELD_VOLUME_DEVID:   volume.DevID,
 		DM_LOG_FIELD_SNAPSHOT_DEVID: devID,
 	}).Debugf("Creating snapshot")
-	err := devicemapper.CreateSnapDevice(d.ThinpoolDevice, devID, volumeID, volume.DevID)
+	err = devicemapper.CreateSnapDevice(d.ThinpoolDevice, devID, volumeID, volume.DevID)
 	if err != nil {
 		return err
 	}
@@ -549,12 +570,8 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 		Activated: false,
 	}
 	volume.Snapshots[id] = snapshot
-	d.LastDevID++
 
 	if err := d.saveVolume(volume); err != nil {
-		return err
-	}
-	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
 		return err
 	}
 	return nil
