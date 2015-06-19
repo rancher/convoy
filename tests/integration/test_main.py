@@ -7,6 +7,7 @@ import pytest
 import uuid
 import time
 import sys
+import threading
 
 from volmgr import VolumeManager
 
@@ -19,6 +20,8 @@ PID_FILE = os.path.join(TEST_ROOT, "volmgr.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "volmgr.log")
 TEST_IMAGE_FILE = "image.test"
 TEST_SNAPSHOT_FILE = "snapshot.test"
+
+TEST_THREAD_COUNT = 100
 
 BLOCKSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-objectstore")
 BLOCKSTORE_CFG = os.path.join(BLOCKSTORE_ROOT, "objectstore.cfg")
@@ -676,3 +679,15 @@ def test_image_based_volume():
     v.deactivate_image(image_uuid, objectstore_uuid)
     v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
 
+def create_delete_volume_thread():
+    uuid = v.create_volume()
+    v.delete_volume(uuid)
+
+def test_create_volume_in_parallel():
+    threads = []
+    for i in range(TEST_THREAD_COUNT):
+        threads.append(threading.Thread(target = create_delete_volume_thread))
+        threads[i].start()
+
+    for i in range(TEST_THREAD_COUNT):
+        threads[i].join()

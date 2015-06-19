@@ -335,6 +335,9 @@ func (s *Server) processVolumeCreate(volumeUUID, volumeName, imageUUID string, s
 }
 
 func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
 	volumeUUID, err := getUUID(r, KEY_VOLUME, false, err)
 	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
@@ -443,6 +446,9 @@ func doVolumeDelete(c *cli.Context) error {
 }
 
 func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	uuid, err := getUUID(objs, KEY_VOLUME, true, err)
@@ -582,6 +588,9 @@ func (s *Server) ListVolume(volumeUUID, snapshotUUID string) ([]byte, error) {
 }
 
 func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.RLock()
+	defer s.GlobalLock.RUnlock()
+
 	var err error
 
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, false, err)
@@ -657,6 +666,9 @@ func (s *Server) getVolumeMountPoint(volumeUUID, mountPoint string) (string, err
 }
 
 func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
@@ -749,6 +761,9 @@ func doVolumeUmount(c *cli.Context) error {
 }
 
 func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
@@ -804,6 +819,9 @@ func (s *Server) processVolumeUmount(volume *Volume, mountConfig *api.VolumeMoun
 }
 
 func (s *Server) doVolumeListByName(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.RLock()
+	defer s.GlobalLock.RUnlock()
+
 	var err error
 
 	volumeName, err := getName(r, KEY_VOLUME_NAME, true, err)

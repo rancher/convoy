@@ -86,6 +86,9 @@ func dockerResponse(w http.ResponseWriter, mountPoint string, err error) {
 }
 
 func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	log.Debugf("Handle plugin create volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, true)
@@ -100,6 +103,9 @@ func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	log.Debugf("Handle plugin remove volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)
@@ -119,6 +125,9 @@ func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	log.Debugf("Handle plugin mount volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)
@@ -149,6 +158,9 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	log.Debugf("Handle plugin unmount volume: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)
@@ -170,6 +182,9 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
+	s.GlobalLock.RLock()
+	defer s.GlobalLock.RUnlock()
+
 	log.Debugf("Handle plugin volume path: %v %v", r.Method, r.RequestURI)
 
 	volume, err := s.getDockerVolume(r, false)

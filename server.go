@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	. "github.com/rancherio/volmgr/logging"
@@ -241,6 +242,7 @@ func startServer(c *cli.Context) error {
 			return err
 		}
 	}
+	server.GlobalLock = &sync.RWMutex{}
 	defer server.cleanup()
 
 	server.Router = createRouter(server)

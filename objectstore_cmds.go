@@ -281,6 +281,9 @@ func doObjectStoreRegister(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreRegister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	registerConfig := &api.ObjectStoreRegisterConfig{}
 	err := json.NewDecoder(r.Body).Decode(registerConfig)
 	if err != nil {
@@ -335,6 +338,9 @@ func doObjectStoreDeregister(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreDeregister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	if err != nil {
@@ -379,6 +385,9 @@ func doObjectStoreAddVolume(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
@@ -433,6 +442,9 @@ func doObjectStoreRemoveVolume(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreRemoveVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
@@ -489,6 +501,9 @@ func doObjectStoreListVolume(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.RLock()
+	defer s.GlobalLock.RUnlock()
+
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
@@ -527,6 +542,9 @@ func doSnapshotBackup(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
@@ -587,6 +605,9 @@ func doSnapshotRestore(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	originVolumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
@@ -657,6 +678,9 @@ func doSnapshotRemove(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
@@ -727,6 +751,9 @@ func doObjectStoreAddImage(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
@@ -794,6 +821,9 @@ func doObjectStoreRemoveImage(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
@@ -841,6 +871,9 @@ func doObjectStoreActivateImage(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreActivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
@@ -908,6 +941,9 @@ func doObjectStoreDeactivateImage(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreDeactivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
 	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)

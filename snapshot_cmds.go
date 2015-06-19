@@ -101,6 +101,9 @@ func doSnapshotCreate(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
 	snapshotUUID, err := getUUID(r, KEY_SNAPSHOT, false, err)
@@ -167,6 +170,9 @@ func doSnapshotDelete(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
 	var err error
 
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
