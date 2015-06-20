@@ -617,20 +617,9 @@ func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *htt
 		return err
 	}
 
-	originVol := s.loadVolume(originVolumeUUID)
-	if originVol == nil {
-		return fmt.Errorf("volume %v doesn't exist", originVolumeUUID)
-	}
-	if _, exists := originVol.Snapshots[snapshotUUID]; !exists {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, originVolumeUUID)
-	}
 	targetVol := s.loadVolume(targetVolumeUUID)
 	if targetVol == nil {
 		return fmt.Errorf("volume %v doesn't exist", targetVolumeUUID)
-	}
-	if originVol.Size != targetVol.Size || originVol.Base != targetVol.Base {
-		return fmt.Errorf("target volume %v doesn't match original volume %v's size or base",
-			targetVolumeUUID, originVolumeUUID)
 	}
 
 	log.WithFields(logrus.Fields{

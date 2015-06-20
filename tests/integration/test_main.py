@@ -409,6 +409,24 @@ def get_checksum(filename):
     output = subprocess.check_output(["sha512sum", filename]).decode()
     return output.split(" ")[0]
 
+def test_restore_with_original_removed():
+    objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
+    volume1_uuid = create_volume(VOLUME_SIZE_500M)
+    v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
+    format_volume_and_create_file(volume1_uuid, "test-vol1-v1")
+    snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
+    v.backup_snapshot_to_objectstore(snap1_vol1_uuid, volume1_uuid,
+		    objectstore_uuid)
+    volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
+    delete_volume(volume1_uuid)
+
+    res_volume1_uuid = create_volume(VOLUME_SIZE_500M)
+    v.restore_snapshot_from_objectstore(snap1_vol1_uuid, volume1_uuid,
+		    res_volume1_uuid, objectstore_uuid)
+    res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
+    assert res_volume1_checksum == volume1_checksum
+    delete_volume(res_volume1_uuid)
+
 def test_objectstore():
     #create objectstore
     uuid = v.register_vfs_objectstore(TEST_ROOT)
