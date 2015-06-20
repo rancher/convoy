@@ -80,6 +80,7 @@ func cleanup() {
 
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetOutput(os.Stderr)
 
 	app := cli.NewApp()
 	app.Name = "volmgr"
