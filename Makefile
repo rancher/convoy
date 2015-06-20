@@ -24,3 +24,6 @@ $(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 
 clean:
 	rm -f ./bin/rancher-*
+
+install:
+	cp ./bin/rancher-* /usr/local/bin/
