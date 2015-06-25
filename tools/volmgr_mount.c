@@ -6,9 +6,16 @@
 #include <fcntl.h>
 #include <string.h>
 
+#define VERSION ("0.1")
+
 int main(int argc, char *argv[])
 {
 	int fd;
+
+        if (argc == 2 && strncmp(argv[1], "-V", 3) == 0) {
+                printf("%s\n", VERSION);
+                exit(0);
+        }
 
 	if (argc < 3) {
 		fprintf(stderr, "%s <mount_namespace_fd> <-m|-u> <mount_args>\n", argv[0]);
