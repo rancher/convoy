@@ -11,7 +11,6 @@ import (
 	"github.com/rancherio/volmgr/metadata"
 	"github.com/rancherio/volmgr/util"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -622,12 +621,14 @@ func (d *Driver) CompareSnapshot(id, compareID, volumeID string) (*metadata.Mapp
 	}
 
 	dev := d.MetadataDevice
-	out, err := exec.Command(THIN_PROVISION_TOOLS_BINARY, "thin_delta",
-		"--snap1", strconv.Itoa(snap1.DevID), "--snap2", strconv.Itoa(snap2.DevID), dev).Output()
+	out, err := util.Execute(THIN_PROVISION_TOOLS_BINARY, []string{"thin_delta",
+		"--snap1", strconv.Itoa(snap1.DevID),
+		"--snap2", strconv.Itoa(snap2.DevID),
+		dev})
 	if err != nil {
 		return nil, err
 	}
-	mapping, err := metadata.DeviceMapperThinDeltaParser(out, d.ThinpoolBlockSize*SECTOR_SIZE, includeSame)
+	mapping, err := metadata.DeviceMapperThinDeltaParser([]byte(out), d.ThinpoolBlockSize*SECTOR_SIZE, includeSame)
 	if err != nil {
 		return nil, err
 	}

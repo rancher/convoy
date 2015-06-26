@@ -99,17 +99,17 @@ func ConfigExists(path, name string) bool {
 
 func RemoveConfig(path, name string) error {
 	fileName := filepath.Join(path, name)
-	if err := exec.Command("rm", "-f", fileName).Run(); err != nil {
+	if _, err := Execute("rm", []string{"-f", fileName}); err != nil {
 		return err
 	}
 	return nil
 }
 
 func ListConfigIDs(path, prefix, suffix string) []string {
-	out, err := exec.Command("find", path,
+	out, err := Execute("find", []string{path,
 		"-maxdepth", "1",
-		"-name", prefix+"*"+suffix,
-		"-printf", "%f ").Output()
+		"-name", prefix + "*" + suffix,
+		"-printf", "%f "})
 	if err != nil {
 		return []string{}
 	}
@@ -158,7 +158,7 @@ func UnlockFile(fileName string) error {
 	if err := unix.Flock(int(f.Fd()), unix.LOCK_UN); err != nil {
 		return err
 	}
-	if err := exec.Command("rm", fileName).Run(); err != nil {
+	if _, err := Execute("rm", []string{fileName}); err != nil {
 		return err
 	}
 	return nil
@@ -180,7 +180,7 @@ func SliceToMap(slices []string) map[string]string {
 }
 
 func GetFileChecksum(filePath string) (string, error) {
-	output, err := exec.Command("sha512sum", "-b", filePath).Output()
+	output, err := Execute("sha512sum", []string{"-b", filePath})
 	if err != nil {
 		return "", err
 	}
@@ -188,15 +188,24 @@ func GetFileChecksum(filePath string) (string, error) {
 }
 
 func CompressFile(filePath string) error {
-	return exec.Command("gzip", filePath).Run()
+	if _, err := Execute("gzip", []string{filePath}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func UncompressFile(filePath string) error {
-	return exec.Command("gunzip", filePath).Run()
+	if _, err := Execute("gunzip", []string{filePath}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func Copy(src, dst string) error {
-	return exec.Command("cp", src, dst).Run()
+	if _, err := Execute("cp", []string{src, dst}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func AttachLoopbackDevice(file string, readonly bool) (string, error) {
@@ -205,7 +214,7 @@ func AttachLoopbackDevice(file string, readonly bool) (string, error) {
 		params = append(params, "-r")
 	}
 	params = append(params, file)
-	out, err := exec.Command("losetup", params...).Output()
+	out, err := Execute("losetup", params)
 	if err != nil {
 		return "", err
 	}
@@ -214,7 +223,7 @@ func AttachLoopbackDevice(file string, readonly bool) (string, error) {
 }
 
 func DetachLoopbackDevice(file, dev string) error {
-	output, err := exec.Command("losetup", dev).Output()
+	output, err := Execute("losetup", []string{dev})
 	if err != nil {
 		return err
 	}
@@ -223,7 +232,7 @@ func DetachLoopbackDevice(file, dev string) error {
 	if !strings.HasSuffix(out, suffix) {
 		return fmt.Errorf("Unmatched source file, output %v, suffix %v", out, suffix)
 	}
-	if err := exec.Command("losetup", "-d", dev).Run(); err != nil {
+	if _, err := Execute("losetup", []string{"-d", dev}); err != nil {
 		return err
 	}
 	return nil
@@ -286,4 +295,12 @@ func CheckBinaryVersion(binaryName, minVersion string, args []string) error {
 			binaryName, minVersion, v)
 	}
 	return nil
+}
+
+func Execute(binary string, args []string) (string, error) {
+	output, err := exec.Command(binary, args...).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("Failed to execute: %v %v, output %v, error %v", binary, args, string(output), err)
+	}
+	return string(output), nil
 }

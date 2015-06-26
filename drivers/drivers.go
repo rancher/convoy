@@ -5,7 +5,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/metadata"
 	"github.com/rancherio/volmgr/util"
-	"os/exec"
 
 	. "github.com/rancherio/volmgr/logging"
 )
@@ -79,7 +78,7 @@ func Format(driver Driver, volumeUUID, fs string) error {
 	if fs != "ext4" {
 		return fmt.Errorf("unsupported filesystem ", fs)
 	}
-	if err := exec.Command("mkfs."+fs, dev).Run(); err != nil {
+	if _, err := util.Execute("mkfs", []string{"-t", fs, dev}); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -119,9 +118,9 @@ func Mount(driver Driver, volumeUUID, mountPoint, fs, option string, needFormat 
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 		LOG_FIELD_OPTION:     cmdline,
 	}).Debug()
-	output, err := exec.Command(RANCHER_MOUNT_BINARY, cmdline...).CombinedOutput()
+	_, err = util.Execute(RANCHER_MOUNT_BINARY, cmdline)
 	if err != nil {
-		log.Error("Failed mount, ", string(output))
+		log.Error("Failed mount, ", err)
 		return err
 	}
 	return nil
@@ -138,9 +137,9 @@ func Unmount(driver Driver, mountPoint, newNS string) error {
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 		LOG_FIELD_OPTION:     cmdline,
 	}).Debug()
-	output, err := exec.Command(RANCHER_MOUNT_BINARY, cmdline...).CombinedOutput()
+	_, err := util.Execute(RANCHER_MOUNT_BINARY, cmdline)
 	if err != nil {
-		log.Error("Failed umount, ", string(output))
+		log.Error("Failed umount, ", err)
 		return err
 	}
 	return nil

@@ -6,7 +6,6 @@ import (
 	"github.com/rancherio/volmgr/util"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -140,9 +139,9 @@ func (v *VfsObjectStoreDriver) Write(dst string, rs io.ReadSeeker) error {
 }
 
 func (v *VfsObjectStoreDriver) List(path string) ([]string, error) {
-	out, err := exec.Command("ls", "-1", v.updatePath(path)).CombinedOutput()
+	out, err := util.Execute("ls", []string{"-1", v.updatePath(path)})
 	if err != nil {
-		return nil, fmt.Errorf(string(out))
+		return nil, err
 	}
 	var result []string
 	if len(out) == 0 {
@@ -160,21 +159,21 @@ func (v *VfsObjectStoreDriver) Upload(src, dst string) error {
 	if err := v.preparePath(dst); err != nil {
 		return err
 	}
-	output, err := exec.Command("cp", src, v.updatePath(tmpDst)).CombinedOutput()
+	_, err := util.Execute("cp", []string{src, v.updatePath(tmpDst)})
 	if err != nil {
-		return fmt.Errorf(string(output))
+		return err
 	}
-	output, err = exec.Command("mv", v.updatePath(tmpDst), v.updatePath(dst)).CombinedOutput()
+	_, err = util.Execute("mv", []string{v.updatePath(tmpDst), v.updatePath(dst)})
 	if err != nil {
-		return fmt.Errorf(string(output))
+		return err
 	}
 	return nil
 }
 
 func (v *VfsObjectStoreDriver) Download(src, dst string) error {
-	output, err := exec.Command("cp", v.updatePath(src), dst).CombinedOutput()
+	_, err := util.Execute("cp", []string{v.updatePath(src), dst})
 	if err != nil {
-		return fmt.Errorf(string(output))
+		return err
 	}
 	return nil
 }
