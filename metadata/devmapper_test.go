@@ -7,18 +7,33 @@ import (
 )
 
 const (
-	thinDeltaOutputSame = `<same begin="0" length="1"/>
-			<same begin="1" length="1"/>
-			<same begin="4" length="3"/>
-			<same begin="8" length="1"/>
-			<same begin="12" length="1"/>`
-	thinDeltaOutputDiff = `<different begin="0" length="1"/>
-		<different begin="4" length="1"/>`
-	thinDeltaOutputMix = `<same begin="0" length="1"/>
-		<left begin="2" length="1"/>
-		<different begin="4" length="1"/>
-		<different begin="6" length="1"/>
-		<right begin="8" length="2"/>`
+	thinDeltaOutputSame = `
+		<superblock uuid="" time="0" transaction="0" data_block_size="4096" nr_data_blocks="51200">
+			<diff left="1" right="2">
+				<same begin="0" length="1"/>
+				<same begin="1" length="1"/>
+				<same begin="4" length="3"/>
+				<same begin="8" length="1"/>
+				<same begin="12" length="1"/>
+			</diff>
+		</superblock>`
+	thinDeltaOutputDiff = `
+		<superblock uuid="" time="0" transaction="0" data_block_size="4096" nr_data_blocks="51200">
+			<diff left="1" right="2">
+				<different begin="0" length="1"/>
+				<different begin="4" length="1"/>
+			</diff>
+		</superblock>`
+	thinDeltaOutputMix = `
+		<superblock uuid="" time="0" transaction="0" data_block_size="4096" nr_data_blocks="51200">
+			<diff left="1" right="2">
+				<same begin="0" length="1"/>
+				<left_only begin="2" length="1"/>
+				<different begin="4" length="1"/>
+				<different begin="6" length="1"/>
+				<right_only begin="8" length="2"/>
+			</diff>
+		</superblock>`
 	blockSize = 2097152
 )
 

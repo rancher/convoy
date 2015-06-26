@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"bytes"
 	"encoding/xml"
 )
 
@@ -12,20 +11,21 @@ func DeviceMapperThinDeltaParser(data []byte, blockSize int64, includeSame bool)
 		Length  int64 `xml:"length,attr"`
 	}
 
-	type Delta struct {
+	type Diff struct {
 		Entries []Entry `xml:",any"`
 	}
 
-	wrapStart := []byte("<wrap>")
-	wrapEnd := []byte("</wrap>")
-	wrapData := bytes.Join([][]byte{wrapStart, data, wrapEnd}, []byte(" "))
-	delta := &Delta{}
-	if err := xml.Unmarshal(wrapData, delta); err != nil {
+	type Superblock struct {
+		Diff Diff `xml:"diff"`
+	}
+
+	superblock := &Superblock{}
+	if err := xml.Unmarshal(data, superblock); err != nil {
 		return nil, err
 	}
 
 	mapping := &Mappings{}
-	for _, d := range delta.Entries {
+	for _, d := range superblock.Diff.Entries {
 		if !includeSame && d.XMLName.Local == "same" {
 			continue
 		}
