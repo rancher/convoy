@@ -222,6 +222,13 @@ func cmdStartServer(c *cli.Context) {
 	}
 }
 
+func (s *Server) CheckEnvironment() error {
+	if err := drivers.CheckEnvironment(s.StorageDriver); err != nil {
+		return err
+	}
+	return nil
+}
+
 func startServer(c *cli.Context) error {
 	var err error
 	if err = serverEnvironmentSetup(c); err != nil {
@@ -244,6 +251,10 @@ func startServer(c *cli.Context) error {
 	}
 	server.GlobalLock = &sync.RWMutex{}
 	defer server.cleanup()
+
+	if err := server.CheckEnvironment(); err != nil {
+		return err
+	}
 
 	server.Router = createRouter(server)
 

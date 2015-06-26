@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/metadata"
+	"github.com/rancherio/volmgr/util"
 	"os/exec"
 
 	. "github.com/rancherio/volmgr/logging"
@@ -28,6 +29,7 @@ type Driver interface {
 	ActivateImage(imageUUID, imageFile string) error
 	DeactivateImage(imageUUID string) error
 	Shutdown() error
+	CheckEnvironment() error
 }
 
 var (
@@ -36,7 +38,8 @@ var (
 )
 
 const (
-	RANCHER_MOUNT_BINARY = "rancher-mount"
+	RANCHER_MOUNT_BINARY      = "rancher-mount"
+	RANCHER_MOUNT_MIN_VERSION = "0.1"
 )
 
 func init() {
@@ -138,6 +141,24 @@ func Unmount(driver Driver, mountPoint, newNS string) error {
 	output, err := exec.Command(RANCHER_MOUNT_BINARY, cmdline...).CombinedOutput()
 	if err != nil {
 		log.Error("Failed umount, ", string(output))
+		return err
+	}
+	return nil
+}
+
+func checkRancherMountVersion() error {
+	cmdline := []string{"-V"}
+	if err := util.CheckBinaryVersion(RANCHER_MOUNT_BINARY, RANCHER_MOUNT_MIN_VERSION, cmdline); err != nil {
+		return err
+	}
+	return nil
+}
+
+func CheckEnvironment(driver Driver) error {
+	if err := checkRancherMountVersion(); err != nil {
+		return err
+	}
+	if err := driver.CheckEnvironment(); err != nil {
 		return err
 	}
 	return nil

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/mcuadros/go-version"
 	"golang.org/x/sys/unix"
 	"os"
 	"os/exec"
@@ -272,4 +273,17 @@ func ParseSize(size string) (int64, error) {
 		err = fmt.Errorf("Invalid size %v", size)
 	}
 	return value, err
+}
+
+func CheckBinaryVersion(binaryName, minVersion string, args []string) error {
+	output, err := exec.Command(binaryName, args...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Failed version check for %s, due to %s", binaryName, err.Error())
+	}
+	v := strings.TrimSpace(string(output))
+	if version.Compare(v, minVersion, "<") {
+		return fmt.Errorf("Minimal require version for %s is %s, detected %s",
+			binaryName, minVersion, v)
+	}
+	return nil
 }

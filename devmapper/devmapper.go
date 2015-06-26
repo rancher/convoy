@@ -25,6 +25,9 @@ const (
 	DEFAULT_BLOCK_SIZE    = "4096"
 	DM_DIR                = "/dev/mapper/"
 
+	THIN_PROVISION_TOOLS_BINARY      = "pdata_tools"
+	THIN_PROVISION_TOOLS_MIN_VERSION = "0.5"
+
 	DM_DATA_DEV            = "dm.datadev"
 	DM_METADATA_DEV        = "dm.metadatadev"
 	DM_THINPOOL_NAME       = "dm.thinpoolname"
@@ -619,7 +622,7 @@ func (d *Driver) CompareSnapshot(id, compareID, volumeID string) (*metadata.Mapp
 	}
 
 	dev := d.MetadataDevice
-	out, err := exec.Command("pdata_tools", "thin_delta",
+	out, err := exec.Command(THIN_PROVISION_TOOLS_BINARY, "thin_delta",
 		"--snap1", strconv.Itoa(snap1.DevID), "--snap2", strconv.Itoa(snap2.DevID), dev).Output()
 	if err != nil {
 		return nil, err
@@ -900,5 +903,13 @@ func (d *Driver) deactivatePool() error {
 		return err
 	}
 	log.Debug("Deactivate the pool ", dev.ThinpoolDevice)
+	return nil
+}
+
+func (d *Driver) CheckEnvironment() error {
+	cmdline := []string{"thin_delta", "-V"}
+	if err := util.CheckBinaryVersion(THIN_PROVISION_TOOLS_BINARY, THIN_PROVISION_TOOLS_MIN_VERSION, cmdline); err != nil {
+		return err
+	}
 	return nil
 }
