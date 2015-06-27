@@ -4,7 +4,7 @@ package devmapper
 
 import (
 	"code.google.com/p/go-uuid/uuid"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/rancherio/volmgr/drivers"
 	"github.com/rancherio/volmgr/util"
 	"os"
@@ -28,8 +28,8 @@ const (
 	devMount      = "/tmp/devmapper/mount"
 	devCfg        = "driver_devicemapper.cfg"
 	volumeSize    = 1 << 26
-	dataSize      = 1 << 28
-	metadataSize  = 1 << 25
+	dataSize      = 1 << 30
+	metadataSize  = 1 << 28
 	maxThin       = 10000
 )
 
@@ -47,8 +47,8 @@ type TestSuite struct {
 var _ = Suite(&TestSuite{})
 
 func (s *TestSuite) SetUpSuite(c *C) {
-	log.SetLevel(log.DebugLevel)
-	log.SetOutput(os.Stderr)
+	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetOutput(os.Stderr)
 
 	var err error
 
@@ -60,8 +60,7 @@ func (s *TestSuite) SetUpSuite(c *C) {
 
 	// Prepare base image
 	s.imageFile = filepath.Join(devRoot, imageFile)
-	err = exec.Command("dd", "if=/dev/zero", "of="+s.imageFile, "bs=4096",
-		"count="+strconv.Itoa(volumeSize/4096)).Run()
+	err = exec.Command("truncate", "-s", strconv.Itoa(volumeSize), s.imageFile).Run()
 	c.Assert(err, IsNil)
 
 	tmpDev, err := util.AttachLoopbackDevice(s.imageFile, false)
@@ -95,12 +94,10 @@ func (s *TestSuite) SetUpTest(c *C) {
 	s.dataFile = filepath.Join(devDataRoot, dataFile)
 	s.metadataFile = filepath.Join(devDataRoot, metadataFile)
 
-	err = exec.Command("dd", "if=/dev/zero", "of="+s.dataFile, "bs=4096",
-		"count="+strconv.Itoa(dataSize/4096)).Run()
+	err = exec.Command("truncate", "-s", strconv.Itoa(dataSize), s.dataFile).Run()
 	c.Assert(err, IsNil)
 
-	err = exec.Command("dd", "if=/dev/zero", "of="+s.metadataFile, "bs=4096",
-		"count="+strconv.Itoa(metadataSize/4096)).Run()
+	err = exec.Command("truncate", "-s", strconv.Itoa(metadataSize), s.metadataFile).Run()
 	c.Assert(err, IsNil)
 
 	s.dataDev, err = util.AttachLoopbackDevice(s.dataFile, false)
@@ -185,7 +182,7 @@ func (s *TestSuite) TestVolume(c *C) {
 
 	err = driver.CreateVolume(volumeID, "", volumeSize)
 	c.Assert(err, Not(IsNil))
-	c.Assert(err, ErrorMatches, "Already has volume with uuid.*")
+	c.Assert(err, ErrorMatches, "Already has volume with specific uuid.*")
 
 	volumeID2 := uuid.New()
 
@@ -197,10 +194,10 @@ func (s *TestSuite) TestVolume(c *C) {
 	err = driver.CreateVolume(volumeID2, "", volumeSize)
 	c.Assert(err, IsNil)
 
-	err = driver.ListVolume("", "")
+	_, err = driver.ListVolume("", "")
 	c.Assert(err, IsNil)
 
-	err = driver.ListVolume(volumeID, "")
+	_, err = driver.ListVolume(volumeID, "")
 	c.Assert(err, IsNil)
 
 	err = driver.DeleteVolume("123")
@@ -242,13 +239,6 @@ func (s *TestSuite) TestSnapshot(c *C) {
 	c.Assert(err, ErrorMatches, "cannot find snapshot.*")
 
 	err = driver.DeleteVolume(volumeID)
-	c.Assert(err, Not(IsNil))
-	c.Assert(err, ErrorMatches, ".*delete snapshots first")
-
-	err = driver.DeleteSnapshot(snapshotID2, volumeID)
-	c.Assert(err, IsNil)
-
-	err = driver.DeleteVolume(volumeID)
 	c.Assert(err, IsNil)
 }
 
@@ -288,13 +278,16 @@ func (s *TestSuite) TestCreateVolumeWithBaseImage(c *C) {
 	err = driver.CreateVolume(volumeID, imageID, volumeSize)
 	c.Assert(err, IsNil)
 
-	err = drivers.Mount(driver, volumeID, devMount, "ext4", "", false, "")
+	volumeDev, err := driver.GetVolumeDevice(volumeID)
+	c.Assert(err, IsNil)
+
+	err = exec.Command("mount", volumeDev, devMount).Run()
 	c.Assert(err, IsNil)
 
 	_, err = os.Stat(filepath.Join(devMount, imageTestFile))
 	c.Assert(err, IsNil)
 
-	err = drivers.Unmount(driver, devMount, "")
+	err = exec.Command("umount", devMount).Run()
 	c.Assert(err, IsNil)
 
 	err = driver.DeleteVolume(volumeID)
