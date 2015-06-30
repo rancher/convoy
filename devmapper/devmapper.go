@@ -46,6 +46,8 @@ const (
 
 	DM_LOG_FIELD_VOLUME_DEVID   = "dm_volume_devid"
 	DM_LOG_FIELD_SNAPSHOT_DEVID = "dm_snapshot_devid"
+
+	DMLogLevel = devicemapper.LogLevelDebug
 )
 
 type Driver struct {
@@ -89,6 +91,8 @@ type Device struct {
 var (
 	log = logrus.WithFields(logrus.Fields{"pkg": "devmapper"})
 )
+
+type DMLogger struct{}
 
 func generateError(fields logrus.Fields, format string, v ...interface{}) error {
 	return ErrorWithFields("devmapper", fields, format, v)
@@ -219,7 +223,30 @@ func (d *Driver) activatePool() error {
 	return nil
 }
 
+func (logger *DMLogger) DMLog(level int, file string, line int, dmError int, message string) {
+	// By default libdm sends us all the messages including debug ones.
+	// We need to filter out messages here and figure out which one
+	// should be printed.
+	if level > DMLogLevel {
+		return
+	}
+
+	if level <= devicemapper.LogLevelErr {
+		logrus.Errorf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	} else if level <= devicemapper.LogLevelInfo {
+		logrus.Infof("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	} else {
+		logrus.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	}
+}
+
 func Init(root, cfgName string, config map[string]string) (drivers.Driver, error) {
+	devicemapper.LogInitVerbose(1)
+	devicemapper.LogInit(&DMLogger{})
+
+	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
+		return nil, fmt.Errorf("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors.")
+	}
 	if util.ConfigExists(root, cfgName) {
 		dev := Device{}
 		err := util.LoadConfig(root, cfgName, &dev)
