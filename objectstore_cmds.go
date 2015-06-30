@@ -384,18 +384,7 @@ func doObjectStoreAddVolume(c *cli.Context) error {
 	return sendRequestAndPrint("POST", request, nil)
 }
 
-func (s *Server) doObjectStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	var err error
-
-	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
-	if err != nil {
-		return err
-	}
-
+func (s *Server) processObjectStoreAddVolume(volumeUUID, objectstoreUUID string) error {
 	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
@@ -421,6 +410,20 @@ func (s *Server) doObjectStoreAddVolume(version string, w http.ResponseWriter, r
 		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
+}
+
+func (s *Server) doObjectStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
+	var err error
+
+	objectstoreUUID, err := getUUID(objs, KEY_BLOCKSTORE, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	if err != nil {
+		return err
+	}
+	return s.processObjectStoreAddVolume(volumeUUID, objectstoreUUID)
 }
 
 func cmdObjectStoreRemoveVolume(c *cli.Context) {
@@ -556,6 +559,17 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 
 	if !s.snapshotExists(volumeUUID, snapshotUUID) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
+	}
+
+	if !objectstore.VolumeExists(s.Root, volumeUUID, objectstoreUUID) {
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+			LOG_FIELD_VOLUME:     volumeUUID,
+			LOG_FIELD_BLOCKSTORE: objectstoreUUID,
+		}).Debug("Cannot find volume in objectstore, add it")
+		if err := s.processObjectStoreAddVolume(volumeUUID, objectstoreUUID); err != nil {
+			return err
+		}
 	}
 
 	log.WithFields(logrus.Fields{

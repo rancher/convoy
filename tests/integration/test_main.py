@@ -474,6 +474,10 @@ def test_objectstore():
     volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), BLOCKSTORE_PER_VOLUME_CFG)
     assert os.path.exists(volume2_cfg_path)
 
+    # remove volume from objectstore, it should be added automatically with backup
+    v.remove_volume_from_objectstore(volume1_uuid, uuid)
+    v.remove_volume_from_objectstore(volume2_uuid, uuid)
+
     #first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     v.backup_snapshot_to_objectstore(snap1_vol1_uuid, volume1_uuid,

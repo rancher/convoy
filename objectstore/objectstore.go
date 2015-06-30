@@ -175,6 +175,15 @@ func getObjectStoreCfgAndDriver(root, objectstoreUUID string) (*ObjectStore, Obj
 	return b, driver, nil
 }
 
+func VolumeExists(root, volumeUUID, objectstoreUUID string) bool {
+	_, driver, err := getObjectStoreCfgAndDriver(root, objectstoreUUID)
+	if err != nil {
+		return false
+	}
+
+	return driver.FileExists(getVolumeFilePath(volumeUUID))
+}
+
 func AddVolume(root, id, volumeID, volumeName, base string, size int64) error {
 	_, driver, err := getObjectStoreCfgAndDriver(root, id)
 	if err != nil {
@@ -188,9 +197,7 @@ func AddVolume(root, id, volumeID, volumeName, base string, size int64) error {
 		}
 	}
 
-	volumePath := getVolumePath(volumeID)
-	volumeCfg := VOLUME_CONFIG_FILE
-	volumeFile := filepath.Join(volumePath, volumeCfg)
+	volumeFile := getVolumeFilePath(volumeID)
 	if driver.FileExists(volumeFile) {
 		log.Debugf("Volume %v already exists in objectstore %v, ignore the command", volumeID, id)
 		return nil

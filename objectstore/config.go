@@ -93,18 +93,16 @@ func saveConfigInObjectStore(filePath string, driver ObjectStoreDriver, v interf
 
 func loadVolumeConfig(volumeID string, driver ObjectStoreDriver) (*Volume, error) {
 	v := &Volume{}
-	path := getVolumePath(volumeID)
-	file := VOLUME_CONFIG_FILE
-	if err := loadConfigInObjectStore(filepath.Join(path, file), driver, v); err != nil {
+	file := getVolumeFilePath(volumeID)
+	if err := loadConfigInObjectStore(file, driver, v); err != nil {
 		return nil, err
 	}
 	return v, nil
 }
 
 func saveVolumeConfig(volumeID string, driver ObjectStoreDriver, v *Volume) error {
-	path := getVolumePath(volumeID)
-	file := VOLUME_CONFIG_FILE
-	if err := saveConfigInObjectStore(filepath.Join(path, file), driver, v); err != nil {
+	file := getVolumeFilePath(volumeID)
+	if err := saveConfigInObjectStore(file, driver, v); err != nil {
 		return err
 	}
 	return nil
@@ -184,6 +182,12 @@ func getVolumePath(volumeID string) string {
 	volumeLayer1 := volumeID[0:VOLUME_SEPARATE_LAYER1]
 	volumeLayer2 := volumeID[VOLUME_SEPARATE_LAYER1:VOLUME_SEPARATE_LAYER2]
 	return filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeID)
+}
+
+func getVolumeFilePath(volumeID string) string {
+	volumePath := getVolumePath(volumeID)
+	volumeCfg := VOLUME_CONFIG_FILE
+	return filepath.Join(volumePath, volumeCfg)
 }
 
 func getSnapshotsPath(volumeID string) string {
