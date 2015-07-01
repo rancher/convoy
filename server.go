@@ -115,6 +115,7 @@ func loadServerConfig(c *cli.Context) (*Server, error) {
 	if root == "" {
 		return nil, genRequiredMissingError("root")
 	}
+	log.Debug("Ignore command line opts, loading server config from ", root)
 	err := util.LoadConfig(root, getCfgName(), &config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load config:", err.Error())

@@ -245,7 +245,7 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 	devicemapper.LogInit(&DMLogger{})
 
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
-		return nil, fmt.Errorf("Udev sync is not supported. This will lead to unexpected behavior, data loss and errors.")
+		return nil, fmt.Errorf("Udev sync is not supported. Cannot proceed.")
 	}
 	if util.ConfigExists(root, cfgName) {
 		dev := Device{}
