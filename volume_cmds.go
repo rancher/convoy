@@ -680,6 +680,10 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
+	if volume.MountPoint != "" {
+		return fmt.Errorf("volume %v already mounted at %v as record shows", volumeUUID, volume.MountPoint)
+	}
+
 	mountConfig := &api.VolumeMountConfig{}
 	err = json.NewDecoder(r.Body).Decode(mountConfig)
 	if err != nil {
@@ -773,6 +777,10 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+
+	if volume.MountPoint == "" {
+		return fmt.Errorf("volume %v hasn't been mounted as record shows", volumeUUID)
 	}
 
 	mountConfig := &api.VolumeMountConfig{}

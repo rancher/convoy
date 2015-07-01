@@ -296,8 +296,14 @@ def test_volume_mount():
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 
+    with pytest.raises(subprocess.CalledProcessError):
+        volume_mount_dir = mount_volume(uuid, False)
+
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        umount_volume(uuid, volume_mount_dir)
 
     # auto mount
     volume_mount_dir = mount_volume_auto(uuid, False)

@@ -136,6 +136,11 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if volume.MountPoint != "" {
+		dockerResponse(w, "", fmt.Errorf("Volume %v (name %v) is already mounted at %v", volume.UUID, volume.Name, volume.MountPoint))
+		return
+	}
+
 	mountConfig := &api.VolumeMountConfig{
 		FileSystem: "ext4",
 		NeedFormat: false,
@@ -166,6 +171,11 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
 		dockerResponse(w, "", err)
+		return
+	}
+
+	if volume.MountPoint == "" {
+		dockerResponse(w, "", fmt.Errorf("Volume %v (name %v) is not mounted", volume.UUID, volume.Name))
 		return
 	}
 
