@@ -14,7 +14,7 @@ import (
 var (
 	infoCmd = cli.Command{
 		Name:   "info",
-		Usage:  "information about volmgr",
+		Usage:  "information about rancher-volume",
 		Action: cmdInfo,
 	}
 )

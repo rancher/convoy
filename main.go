@@ -18,7 +18,7 @@ const (
 	VERSION     = "0.1.5"
 	API_VERSION = "1"
 	LOCKFILE    = "lock"
-	CONFIGFILE  = "volmgr.cfg"
+	CONFIGFILE  = "rancher-volume.cfg"
 
 	KEY_VOLUME      = "volume-uuid"
 	KEY_SNAPSHOT    = "snapshot-uuid"
@@ -83,14 +83,14 @@ func main() {
 	logrus.SetOutput(os.Stderr)
 
 	app := cli.NewApp()
-	app.Name = "volmgr"
+	app.Name = "rancher-volume"
 	app.Version = VERSION
 	app.Usage = "A volume manager capable of snapshot and delta backup"
 	app.CommandNotFound = cmdNotFound
 
 	serverCmd := cli.Command{
 		Name:  "server",
-		Usage: "start rancher-volmgr server",
+		Usage: "start rancher-volume server",
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:  "debug",
@@ -102,8 +102,8 @@ func main() {
 			},
 			cli.StringFlag{
 				Name:  "root",
-				Value: "/var/lib/volmgr",
-				Usage: "specific root directory of volmgr, if configure file exists, daemon specific options would be ignored",
+				Value: "/var/lib/rancher-volume",
+				Usage: "specific root directory of rancher-volume, if configure file exists, daemon specific options would be ignored",
 			},
 			cli.StringFlag{
 				Name:  "driver",
@@ -117,12 +117,12 @@ func main() {
 			},
 			cli.StringFlag{
 				Name:  "images-dir",
-				Value: "/opt/volmgr_images",
+				Value: "/opt/rancher-volume_images",
 				Usage: "specific local directory would contains base images",
 			},
 			cli.StringFlag{
 				Name:  "mounts-dir",
-				Value: "/var/lib/volmgr/mounts",
+				Value: "/var/lib/rancher-volume/mounts",
 				Usage: "default directory for mounting volume",
 			},
 			cli.StringFlag{
