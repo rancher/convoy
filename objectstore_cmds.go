@@ -61,8 +61,8 @@ var (
 	}
 
 	snapshotRemoveCmd = cli.Command{
-		Name:  "remove",
-		Usage: "remove an snapshot in objectstore",
+		Name:  "remove-backup",
+		Usage: "remove an snapshot backup in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,

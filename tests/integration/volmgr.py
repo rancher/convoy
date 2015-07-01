@@ -182,7 +182,7 @@ class VolumeManager:
 
     def remove_snapshot_from_objectstore(self,
 		    snapshot_uuid, volume_uuid, bs_uuid):
-	subprocess.check_call(self.base_cmdline + ["snapshot", "remove",
+	subprocess.check_call(self.base_cmdline + ["snapshot", "remove-backup",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
 		"--objectstore-uuid", bs_uuid])
