@@ -30,6 +30,12 @@ BLOCKSTORE_PER_VOLUME_CFG = "volume.cfg"
 BLOCKSTORE_SNAPSHOTS_DIR = "snapshots"
 BLOCKSTORE_IMAGES_DIR = os.path.join(BLOCKSTORE_ROOT, "images")
 
+ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
+ENV_TEST_AWS_SECRET_KEY = "RANCHER_TEST_AWS_SECRET_ACCESS_KEY"
+ENV_TEST_AWS_REGION     = "RANCHER_TEST_AWS_REGION"
+ENV_TEST_AWS_BUCKET     = "RANCHER_TEST_AWS_BUCKET"
+S3_PATH = "test/volume/"
+
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "rancher_volume_test_pool"
 VOLMGR_BINARY = os.path.abspath("../../bin/rancher-volume")
@@ -427,7 +433,7 @@ def test_restore_with_original_removed():
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
 
-def test_objectstore():
+def test_vfs_objectstore():
     #create objectstore
     uuid = v.register_vfs_objectstore(TEST_ROOT)
 
@@ -445,9 +451,37 @@ def test_objectstore():
     objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
     assert uuid == objectstore_uuid
 
+    process_objectstore_test(objectstore_uuid, True)
+
+def register_s3_objectstore():
+    access_key = os.environ[ENV_TEST_AWS_ACCESS_KEY]
+    secret_key = os.environ[ENV_TEST_AWS_SECRET_KEY]
+    region = os.environ[ENV_TEST_AWS_REGION]
+    bucket = os.environ[ENV_TEST_AWS_BUCKET]
+    path = S3_PATH
+
+    # slash is not allowed for prefix of path
+    with pytest.raises(subprocess.CalledProcessError):
+        v.register_s3_objectstore(access_key, secret_key, region, bucket,
+            "/test")
+
+    return v.register_s3_objectstore(access_key, secret_key, region, bucket, path)
+
+@pytest.mark.s3
+def test_s3_objectstore():
+    #create objectstore
+    uuid = register_s3_objectstore()
+    v.deregister_objectstore(uuid)
+
+    #load objectstore from created one
+    objectstore_uuid = register_s3_objectstore()
+    assert uuid == objectstore_uuid
+
+    process_objectstore_test(objectstore_uuid, False)
+
+def process_objectstore_test(objectstore_uuid, is_vfs):
     #add volume to objectstore
     volume1_uuid = create_volume(VOLUME_SIZE_500M)
-
     volume2_uuid = create_volume(VOLUME_SIZE_100M)
 
     volumes = v.list_volume_objectstore(volume1_uuid, objectstore_uuid)
@@ -459,8 +493,9 @@ def test_objectstore():
     v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
     # test idempotency
     v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
-    volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)
-    assert os.path.exists(volume1_cfg_path)
+    if is_vfs:
+        volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)
+        assert os.path.exists(volume1_cfg_path)
 
     volumes = v.list_volume_objectstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, objectstore_uuid)
     assert len(volumes) == 1
@@ -468,24 +503,26 @@ def test_objectstore():
     assert volumes[volume1_uuid]["Base"] == ""
     assert len(volumes[volume1_uuid]["Snapshots"]) == 0
 
-    v.add_volume_to_objectstore(volume2_uuid, uuid)
+    v.add_volume_to_objectstore(volume2_uuid, objectstore_uuid)
     # test idempotency
-    v.add_volume_to_objectstore(volume2_uuid, uuid)
-    volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), BLOCKSTORE_PER_VOLUME_CFG)
-    assert os.path.exists(volume2_cfg_path)
+    v.add_volume_to_objectstore(volume2_uuid, objectstore_uuid)
+    if is_vfs:
+        volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), BLOCKSTORE_PER_VOLUME_CFG)
+        assert os.path.exists(volume2_cfg_path)
 
     # remove volume from objectstore, it should be added automatically with backup
-    v.remove_volume_from_objectstore(volume1_uuid, uuid)
-    v.remove_volume_from_objectstore(volume2_uuid, uuid)
+    v.remove_volume_from_objectstore(volume1_uuid, objectstore_uuid)
+    v.remove_volume_from_objectstore(volume2_uuid, objectstore_uuid)
 
     #first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     v.backup_snapshot_to_objectstore(snap1_vol1_uuid, volume1_uuid,
 		    objectstore_uuid)
-    with open(get_snapshot_cfg(snap1_vol1_uuid, volume1_uuid)) as f:
-	snap1_vol1 = json.loads(f.read())
-    assert snap1_vol1["ID"] == snap1_vol1_uuid
-    assert len(snap1_vol1["Blocks"]) == 0
+    if is_vfs:
+        with open(get_snapshot_cfg(snap1_vol1_uuid, volume1_uuid)) as f:
+            snap1_vol1 = json.loads(f.read())
+        assert snap1_vol1["ID"] == snap1_vol1_uuid
+        assert len(snap1_vol1["Blocks"]) == 0
 
     volumes = v.list_volume_objectstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, objectstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
@@ -493,10 +530,11 @@ def test_objectstore():
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
     v.backup_snapshot_to_objectstore(snap1_vol2_uuid, volume2_uuid,
 		    objectstore_uuid)
-    with open(get_snapshot_cfg(snap1_vol2_uuid, volume2_uuid)) as f:
-	snap1_vol2 = json.loads(f.read())
-    assert snap1_vol2["ID"] == snap1_vol2_uuid
-    assert len(snap1_vol2["Blocks"]) == 0
+    if is_vfs:
+        with open(get_snapshot_cfg(snap1_vol2_uuid, volume2_uuid)) as f:
+            snap1_vol2 = json.loads(f.read())
+        assert snap1_vol2["ID"] == snap1_vol2_uuid
+        assert len(snap1_vol2["Blocks"]) == 0
 
     #list snapshots
     volumes = v.list_volume_objectstore(volume1_uuid, objectstore_uuid)
@@ -511,19 +549,21 @@ def test_objectstore():
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
     v.backup_snapshot_to_objectstore(snap2_vol1_uuid, volume1_uuid,
 		    objectstore_uuid)
-    with open(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid)) as f:
-	snap2_vol1 = json.loads(f.read())
-    assert snap2_vol1["ID"] == snap2_vol1_uuid
-    assert len(snap2_vol1["Blocks"]) != 0
+    if is_vfs:
+        with open(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid)) as f:
+            snap2_vol1 = json.loads(f.read())
+        assert snap2_vol1["ID"] == snap2_vol1_uuid
+        assert len(snap2_vol1["Blocks"]) != 0
 
     format_volume_and_create_file(volume2_uuid, "test-vol2-v2")
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     v.backup_snapshot_to_objectstore(snap2_vol2_uuid, volume2_uuid,
 		    objectstore_uuid)
-    with open(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid)) as f:
-	snap2_vol2 = json.loads(f.read())
-    assert snap2_vol2["ID"] == snap2_vol2_uuid
-    assert len(snap2_vol2["Blocks"]) != 0
+    if is_vfs:
+        with open(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid)) as f:
+            snap2_vol2 = json.loads(f.read())
+        assert snap2_vol2["ID"] == snap2_vol2_uuid
+        assert len(snap2_vol2["Blocks"]) != 0
 
     #dupcliate snapshot backup should fail
     with pytest.raises(subprocess.CalledProcessError):
@@ -555,10 +595,12 @@ def test_objectstore():
 
     #remove snapshots from objectstore
     v.remove_snapshot_from_objectstore(snap2_vol1_uuid, volume1_uuid, objectstore_uuid)
-    assert not os.path.exists(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid))
+    if is_vfs:
+        assert not os.path.exists(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid))
 
     v.remove_snapshot_from_objectstore(snap2_vol2_uuid, volume2_uuid, objectstore_uuid)
-    assert not os.path.exists(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid))
+    if is_vfs:
+        assert not os.path.exists(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid))
 
     #list snapshots again
     volumes = v.list_volume_objectstore(volume1_uuid, objectstore_uuid)
@@ -581,10 +623,12 @@ def test_objectstore():
 
     #remove volume from objectstore
     v.remove_volume_from_objectstore(volume1_uuid, objectstore_uuid)
-    assert not os.path.exists(get_volume_cfg(volume1_uuid))
+    if is_vfs:
+        assert not os.path.exists(get_volume_cfg(volume1_uuid))
 
     v.remove_volume_from_objectstore(volume2_uuid, objectstore_uuid)
-    assert not os.path.exists(get_volume_cfg(volume2_uuid))
+    if is_vfs:
+        assert not os.path.exists(get_volume_cfg(volume2_uuid))
 
     v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
     v.delete_snapshot(snap2_vol1_uuid, volume1_uuid)
@@ -605,53 +649,80 @@ def get_image_gz(uuid):
 def get_local_image(uuid):
     return os.path.join(IMAGES_DIR, uuid + ".img")
 
-def test_objectstore_image():
+def test_vfs_objectstore_image():
     #load objectstore from created one
     objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
+    process_objectstore_image(objectstore_uuid, True)
 
+def test_s3_objectstore_image():
+    #load objectstore from created one
+    objectstore_uuid = register_s3_objectstore()
+    process_objectstore_image(objectstore_uuid, False)
+
+def process_objectstore_image(objectstore_uuid, is_vfs):
     #add/remove image
     global image_file
     image_uuid = v.add_image_to_objectstore(image_file, objectstore_uuid)
 
-    assert os.path.exists(BLOCKSTORE_IMAGES_DIR)
-    assert os.path.exists(get_image_cfg(image_uuid))
-    assert os.path.exists(get_image_gz(image_uuid))
+    if is_vfs:
+	assert os.path.exists(BLOCKSTORE_IMAGES_DIR)
+	assert os.path.exists(get_image_cfg(image_uuid))
+	assert os.path.exists(get_image_gz(image_uuid))
 
     v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
 
-    assert not os.path.exists(get_image_cfg(image_uuid))
-    assert not os.path.exists(get_image_gz(image_uuid))
+    if is_vfs:
+	assert not os.path.exists(get_image_cfg(image_uuid))
+	assert not os.path.exists(get_image_gz(image_uuid))
 
     #activate/deactivate image
     image_uuid = v.add_image_to_objectstore(image_file, objectstore_uuid)
 
     #compressed image cache
-    assert os.path.exists(get_local_image(image_uuid)+".gz")
+    if is_vfs:
+	assert os.path.exists(get_local_image(image_uuid)+".gz")
 
     v.activate_image(image_uuid, objectstore_uuid)
-    assert os.path.exists(get_local_image(image_uuid))
+    if is_vfs:
+	assert os.path.exists(get_local_image(image_uuid))
     v.deactivate_image(image_uuid, objectstore_uuid)
-    assert not os.path.exists(get_local_image(image_uuid))
+    if is_vfs:
+	assert not os.path.exists(get_local_image(image_uuid))
 
     #raw image cache
     subprocess.check_call(["cp", image_file, get_local_image(image_uuid)])
-    assert os.path.exists(get_local_image(image_uuid))
+    if is_vfs:
+	assert os.path.exists(get_local_image(image_uuid))
 
     v.activate_image(image_uuid, objectstore_uuid)
-    assert os.path.exists(get_local_image(image_uuid))
+    if is_vfs:
+	assert os.path.exists(get_local_image(image_uuid))
     v.deactivate_image(image_uuid, objectstore_uuid)
-    assert not os.path.exists(get_local_image(image_uuid))
+    if is_vfs:
+	assert not os.path.exists(get_local_image(image_uuid))
 
     #deactivate would remove the local copy, so this time it would trigger
     # downloading from objectstore
     v.activate_image(image_uuid, objectstore_uuid)
-    assert os.path.exists(get_local_image(image_uuid))
+    if is_vfs:
+	assert os.path.exists(get_local_image(image_uuid))
     v.deactivate_image(image_uuid, objectstore_uuid)
-    assert not os.path.exists(get_local_image(image_uuid))
+    if is_vfs:
+	assert not os.path.exists(get_local_image(image_uuid))
 
     v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
 
-def test_image_based_volume():
+def test_vfs_image_based_volume():
+    #load objectstore from created one
+    objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
+    process_image_based_volume(objectstore_uuid)
+
+def test_s3_image_based_volume():
+    #load objectstore from created one
+    objectstore_uuid = register_s3_objectstore()
+    process_image_based_volume(objectstore_uuid)
+
+def process_image_based_volume(objectstore_uuid):
     #load objectstore from created one
     objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
 

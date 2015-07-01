@@ -63,6 +63,10 @@ func initFunc(root, cfgName string, config map[string]string) (objectstore.Objec
 			S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, S3_BUCKET, S3_PATH)
 	}
 
+	if strings.HasPrefix(b.Path, "/") {
+		return nil, fmt.Errorf("Slash '/' is not allowed at beginning of path: %v", b.Path)
+	}
+
 	//Test connection
 	if _, err := b.List(""); err != nil {
 		return nil, err

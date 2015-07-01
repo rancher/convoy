@@ -117,7 +117,7 @@ func Register(root, kind string, config map[string]string) (*ObjectStore, error)
 		log.Debug("Loaded objectstore cfg in objectstore: ", id)
 		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 	} else {
-		log.Debug("Cannot find existed objectstore cfg in objectstore, create a new one")
+		log.Debug("Cannot load existed objectstore cfg in objectstore, create a new one: ", err.Error())
 		id = uuid.New()
 		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 
