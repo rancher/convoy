@@ -654,6 +654,7 @@ def test_vfs_objectstore_image():
     objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
     process_objectstore_image(objectstore_uuid, True)
 
+@pytest.mark.s3
 def test_s3_objectstore_image():
     #load objectstore from created one
     objectstore_uuid = register_s3_objectstore()
@@ -717,6 +718,7 @@ def test_vfs_image_based_volume():
     objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
     process_image_based_volume(objectstore_uuid)
 
+@pytest.mark.s3
 def test_s3_image_based_volume():
     #load objectstore from created one
     objectstore_uuid = register_s3_objectstore()
