@@ -1,5 +1,3 @@
-// +build s3test
-
 package s3
 
 import (
