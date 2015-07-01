@@ -23,12 +23,12 @@ TEST_SNAPSHOT_FILE = "snapshot.test"
 
 TEST_THREAD_COUNT = 100
 
-BLOCKSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-objectstore")
-BLOCKSTORE_CFG = os.path.join(BLOCKSTORE_ROOT, "objectstore.cfg")
-BLOCKSTORE_VOLUME_DIR = os.path.join(BLOCKSTORE_ROOT, "volumes")
-BLOCKSTORE_PER_VOLUME_CFG = "volume.cfg"
-BLOCKSTORE_SNAPSHOTS_DIR = "snapshots"
-BLOCKSTORE_IMAGES_DIR = os.path.join(BLOCKSTORE_ROOT, "images")
+OBJECTSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-objectstore")
+OBJECTSTORE_CFG = os.path.join(OBJECTSTORE_ROOT, "objectstore.cfg")
+OBJECTSTORE_VOLUME_DIR = os.path.join(OBJECTSTORE_ROOT, "volumes")
+OBJECTSTORE_PER_VOLUME_CFG = "volume.cfg"
+OBJECTSTORE_SNAPSHOTS_DIR = "snapshots"
+OBJECTSTORE_IMAGES_DIR = os.path.join(OBJECTSTORE_ROOT, "images")
 
 ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
 ENV_TEST_AWS_SECRET_KEY = "RANCHER_TEST_AWS_SECRET_ACCESS_KEY"
@@ -399,13 +399,13 @@ def test_snapshot_list():
     delete_volume(volume1_uuid)
 
 def get_volume_dir(uuid):
-    return os.path.join(BLOCKSTORE_VOLUME_DIR, uuid[:2], uuid[2:4], uuid)
+    return os.path.join(OBJECTSTORE_VOLUME_DIR, uuid[:2], uuid[2:4], uuid)
 
 def get_volume_cfg(uuid):
-    return os.path.join(get_volume_dir(uuid), BLOCKSTORE_PER_VOLUME_CFG)
+    return os.path.join(get_volume_dir(uuid), OBJECTSTORE_PER_VOLUME_CFG)
 
 def get_snapshot_dir(snapshot_uuid, volume_uuid):
-    return os.path.join(get_volume_dir(volume_uuid), BLOCKSTORE_SNAPSHOTS_DIR)
+    return os.path.join(get_volume_dir(volume_uuid), OBJECTSTORE_SNAPSHOTS_DIR)
 
 def get_snapshot_cfg(snapshot_uuid, volume_uuid):
     return  os.path.join(get_snapshot_dir(snapshot_uuid, volume_uuid),
@@ -437,10 +437,10 @@ def test_vfs_objectstore():
     #create objectstore
     uuid = v.register_vfs_objectstore(TEST_ROOT)
 
-    assert os.path.exists(BLOCKSTORE_ROOT)
-    assert os.path.exists(BLOCKSTORE_CFG)
+    assert os.path.exists(OBJECTSTORE_ROOT)
+    assert os.path.exists(OBJECTSTORE_CFG)
 
-    with open(BLOCKSTORE_CFG) as f:
+    with open(OBJECTSTORE_CFG) as f:
 	bs = json.loads(f.read())
     assert bs["UUID"] == uuid
     assert bs["Kind"] == "vfs"
@@ -494,7 +494,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     # test idempotency
     v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
     if is_vfs:
-        volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), BLOCKSTORE_PER_VOLUME_CFG)
+        volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), OBJECTSTORE_PER_VOLUME_CFG)
         assert os.path.exists(volume1_cfg_path)
 
     volumes = v.list_volume_objectstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, objectstore_uuid)
@@ -507,7 +507,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     # test idempotency
     v.add_volume_to_objectstore(volume2_uuid, objectstore_uuid)
     if is_vfs:
-        volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), BLOCKSTORE_PER_VOLUME_CFG)
+        volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), OBJECTSTORE_PER_VOLUME_CFG)
         assert os.path.exists(volume2_cfg_path)
 
     # remove volume from objectstore, it should be added automatically with backup
@@ -641,10 +641,10 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     delete_volume(res_volume2_uuid)
 
 def get_image_cfg(uuid):
-    return os.path.join(BLOCKSTORE_IMAGES_DIR, uuid + ".json")
+    return os.path.join(OBJECTSTORE_IMAGES_DIR, uuid + ".json")
 
 def get_image_gz(uuid):
-    return os.path.join(BLOCKSTORE_IMAGES_DIR, uuid + ".img.gz")
+    return os.path.join(OBJECTSTORE_IMAGES_DIR, uuid + ".img.gz")
 
 def get_local_image(uuid):
     return os.path.join(IMAGES_DIR, uuid + ".img")
@@ -665,7 +665,7 @@ def process_objectstore_image(objectstore_uuid, is_vfs):
     image_uuid = v.add_image_to_objectstore(image_file, objectstore_uuid)
 
     if is_vfs:
-	assert os.path.exists(BLOCKSTORE_IMAGES_DIR)
+	assert os.path.exists(OBJECTSTORE_IMAGES_DIR)
 	assert os.path.exists(get_image_cfg(image_uuid))
 	assert os.path.exists(get_image_gz(image_uuid))
 

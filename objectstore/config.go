@@ -13,18 +13,18 @@ import (
 )
 
 const (
-	BLOCKSTORE_BASE        = "rancher-objectstore"
-	BLOCKSTORE_CONFIG_FILE = "objectstore.cfg"
-	VOLUME_DIRECTORY       = "volumes"
-	VOLUME_CONFIG_FILE     = "volume.cfg"
-	VOLUME_SEPARATE_LAYER1 = 2
-	VOLUME_SEPARATE_LAYER2 = 4
-	SNAPSHOTS_DIRECTORY    = "snapshots"
-	SNAPSHOT_CONFIG_PREFIX = "snapshot_"
-	BLOCKS_DIRECTORY       = "blocks"
-	BLOCK_SEPARATE_LAYER1  = 2
-	BLOCK_SEPARATE_LAYER2  = 4
-	IMAGES_DIRECTORY       = "images"
+	OBJECTSTORE_BASE        = "rancher-objectstore"
+	OBJECTSTORE_CONFIG_FILE = "objectstore.cfg"
+	VOLUME_DIRECTORY        = "volumes"
+	VOLUME_CONFIG_FILE      = "volume.cfg"
+	VOLUME_SEPARATE_LAYER1  = 2
+	VOLUME_SEPARATE_LAYER2  = 4
+	SNAPSHOTS_DIRECTORY     = "snapshots"
+	SNAPSHOT_CONFIG_PREFIX  = "snapshot_"
+	BLOCKS_DIRECTORY        = "blocks"
+	BLOCK_SEPARATE_LAYER1   = 2
+	BLOCK_SEPARATE_LAYER2   = 4
+	IMAGES_DIRECTORY        = "images"
 )
 
 func getSnapshotConfigName(id string) string {
@@ -110,8 +110,8 @@ func saveVolumeConfig(volumeID string, driver ObjectStoreDriver, v *Volume) erro
 
 func loadRemoteObjectStoreConfig(driver ObjectStoreDriver) (*ObjectStore, error) {
 	b := &ObjectStore{}
-	path := BLOCKSTORE_BASE
-	file := BLOCKSTORE_CONFIG_FILE
+	path := OBJECTSTORE_BASE
+	file := OBJECTSTORE_CONFIG_FILE
 	if err := loadConfigInObjectStore(filepath.Join(path, file), driver, b); err != nil {
 		return nil, err
 	}
@@ -119,8 +119,8 @@ func loadRemoteObjectStoreConfig(driver ObjectStoreDriver) (*ObjectStore, error)
 }
 
 func saveRemoteObjectStoreConfig(driver ObjectStoreDriver, b *ObjectStore) error {
-	path := BLOCKSTORE_BASE
-	file := BLOCKSTORE_CONFIG_FILE
+	path := OBJECTSTORE_BASE
+	file := OBJECTSTORE_CONFIG_FILE
 	if err := saveConfigInObjectStore(filepath.Join(path, file), driver, b); err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func saveSnapshotMap(snapshotID, volumeID string, bsDriver ObjectStoreDriver, sn
 func getVolumePath(volumeID string) string {
 	volumeLayer1 := volumeID[0:VOLUME_SEPARATE_LAYER1]
 	volumeLayer2 := volumeID[VOLUME_SEPARATE_LAYER1:VOLUME_SEPARATE_LAYER2]
-	return filepath.Join(BLOCKSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeID)
+	return filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeID)
 }
 
 func getVolumeFilePath(volumeID string) string {
@@ -234,11 +234,11 @@ func GetImageLocalStorePath(imageDir, imageUUID string) string {
 }
 
 func getImageObjectStorePath(imageUUID string) string {
-	return filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".img.gz")
+	return filepath.Join(OBJECTSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".img.gz")
 }
 
 func getImageCfgObjectStorePath(imageUUID string) string {
-	return filepath.Join(BLOCKSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".json")
+	return filepath.Join(OBJECTSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".json")
 }
 
 func saveImageConfig(imageUUID string, driver ObjectStoreDriver, img *Image) error {

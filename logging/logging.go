@@ -12,7 +12,7 @@ const (
 	LOG_FIELD_ORIN_VOLUME   = "original_volume"
 	LOG_FIELD_SNAPSHOT      = "snapshot"
 	LOG_FIELD_LAST_SNAPSHOT = "last_snapshot"
-	LOG_FIELD_BLOCKSTORE    = "objectstore"
+	LOG_FIELD_OBJECTSTORE   = "objectstore"
 	LOG_FIELD_MOUNTPOINT    = "mountpoint"
 	LOG_FIELD_NAMESPACE     = "namespace"
 	LOG_FIELD_CFG           = "config_file"
@@ -60,13 +60,13 @@ const (
 	LOG_REASON_ROLLBACK = "rollback"
 	LOG_REASON_FALLBACK = "fallback"
 
-	LOG_FIELD_OBJECT      = "object"
-	LOG_OBJECT_DRIVER     = "driver"
-	LOG_OBJECT_VOLUME     = "volume"
-	LOG_OBJECT_SNAPSHOT   = "snapshot"
-	LOG_OBJECT_BLOCKSTORE = "objectstore"
-	LOG_OBJECT_IMAGE      = "image"
-	LOG_OBJECT_CONFIG     = "config"
+	LOG_FIELD_OBJECT       = "object"
+	LOG_OBJECT_DRIVER      = "driver"
+	LOG_OBJECT_VOLUME      = "volume"
+	LOG_OBJECT_SNAPSHOT    = "snapshot"
+	LOG_OBJECT_OBJECTSTORE = "objectstore"
+	LOG_OBJECT_IMAGE       = "image"
+	LOG_OBJECT_CONFIG      = "config"
 )
 
 type LoggingError struct {

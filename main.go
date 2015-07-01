@@ -22,7 +22,7 @@ const (
 
 	KEY_VOLUME      = "volume-uuid"
 	KEY_SNAPSHOT    = "snapshot-uuid"
-	KEY_BLOCKSTORE  = "objectstore-uuid"
+	KEY_OBJECTSTORE = "objectstore-uuid"
 	KEY_IMAGE       = "image-uuid"
 	KEY_VOLUME_NAME = "volume-name"
 

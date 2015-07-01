@@ -109,8 +109,8 @@ func Register(root, kind string, config map[string]string) (*ObjectStore, error)
 		// ObjectStore has already been created
 		if bs.Kind != kind {
 			return nil, generateError(logrus.Fields{
-				LOG_FIELD_BLOCKSTORE: bs.UUID,
-				LOG_FIELD_KIND:       bs.Kind,
+				LOG_FIELD_OBJECTSTORE: bs.UUID,
+				LOG_FIELD_KIND:        bs.Kind,
 			}, "Specific kind is different from config stored in objectstore")
 		}
 		id = bs.UUID
@@ -257,9 +257,9 @@ func BackupSnapshot(root, snapshotID, volumeID, objectstoreID string, sDriver dr
 
 	if snapshotExists(snapshotID, volumeID, bsDriver) {
 		return generateError(logrus.Fields{
-			LOG_FIELD_SNAPSHOT:   snapshotID,
-			LOG_FIELD_VOLUME:     volumeID,
-			LOG_FIELD_BLOCKSTORE: objectstoreID,
+			LOG_FIELD_SNAPSHOT:    snapshotID,
+			LOG_FIELD_VOLUME:      volumeID,
+			LOG_FIELD_OBJECTSTORE: objectstoreID,
 		}, "Snapshot already exists in objectstore!")
 	}
 
@@ -433,8 +433,8 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreI
 
 	if _, err := loadVolumeConfig(srcVolumeID, bsDriver); err != nil {
 		return generateError(logrus.Fields{
-			LOG_FIELD_VOLUME:     srcVolumeID,
-			LOG_FIELD_BLOCKSTORE: objectstoreID,
+			LOG_FIELD_VOLUME:      srcVolumeID,
+			LOG_FIELD_OBJECTSTORE: objectstoreID,
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
@@ -460,7 +460,7 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreI
 		LOG_FIELD_SNAPSHOT:    srcSnapshotID,
 		LOG_FIELD_ORIN_VOLUME: srcVolumeID,
 		LOG_FIELD_VOLUME:      dstVolumeID,
-		LOG_FIELD_BLOCKSTORE:  objectstoreID,
+		LOG_FIELD_OBJECTSTORE: objectstoreID,
 	}).Debug()
 	for _, block := range snapshotMap.Blocks {
 		blkFile := getBlockFilePath(srcVolumeID, block.BlockChecksum)
@@ -662,12 +662,12 @@ func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, objectstoreUU
 	log.Debug("Copied image to local store")
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_UPLOAD,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_FILE: imageLocalStorePath,
-		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:      LOG_REASON_START,
+		LOG_FIELD_EVENT:       LOG_EVENT_UPLOAD,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:       imageUUID,
+		LOG_FIELD_IMAGE_FILE:  imageLocalStorePath,
+		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug("Uploading image to objectstore")
 	if err := uploadImage(imageLocalStorePath, bsDriver, image); err != nil {
 		log.Debugf("Uploading image failed")
@@ -753,11 +753,11 @@ func RemoveImage(root, imageDir, imageUUID, objectstoreUUID string) error {
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:      LOG_REASON_START,
+		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:       imageUUID,
+		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
 	if err := removeImage(driver, image); err != nil {
 		return err
@@ -778,11 +778,11 @@ func ActivateImage(root, imageDir, imageUUID, objectstoreUUID string) error {
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:      LOG_REASON_START,
+		LOG_FIELD_EVENT:       LOG_EVENT_ACTIVATE,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:       imageUUID,
+		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
 	if err := downloadImage(imageDir, driver, image); err != nil {
 		return err
@@ -866,11 +866,11 @@ func downloadImage(imagesDir string, driver ObjectStoreDriver, image *Image) err
 
 func DeactivateImage(root, imageDir, imageUUID, objectstoreUUID string) error {
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_BLOCKSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:      LOG_REASON_START,
+		LOG_FIELD_EVENT:       LOG_EVENT_DEACTIVATE,
+		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
+		LOG_FIELD_IMAGE:       imageUUID,
+		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
 	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
 	if st, err := os.Stat(imageLocalStorePath); err == nil && !st.IsDir() {
