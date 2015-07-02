@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
-	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/api"
+	"github.com/rancherio/rancher-volume/util"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"

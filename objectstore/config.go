@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/util"
 	"path/filepath"
 	"strings"
 
-	. "github.com/rancherio/volmgr/logging"
+	. "github.com/rancherio/rancher-volume/logging"
 )
 
 const (

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/util"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -39,7 +39,7 @@ func (c *Client) clientRequest(method, path string, in io.Reader, headers map[st
 	if err != nil {
 		return nil, "", -1, err
 	}
-	req.Header.Set("User-Agent", "Rancher-Volmgr-Client/"+API_VERSION)
+	req.Header.Set("User-Agent", "Rancher-Volume-Client/"+API_VERSION)
 	req.URL.Host = c.addr
 	req.URL.Scheme = c.scheme
 

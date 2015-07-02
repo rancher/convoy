@@ -5,14 +5,14 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/api"
+	"github.com/rancherio/rancher-volume/drivers"
+	"github.com/rancherio/rancher-volume/util"
 	"io"
 	"os"
 	"path/filepath"
 
-	. "github.com/rancherio/volmgr/logging"
+	. "github.com/rancherio/rancher-volume/logging"
 )
 
 const (

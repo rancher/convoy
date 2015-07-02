@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/metadata"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/api"
+	"github.com/rancherio/rancher-volume/drivers"
+	"github.com/rancherio/rancher-volume/metadata"
+	"github.com/rancherio/rancher-volume/util"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 
-	. "github.com/rancherio/volmgr/logging"
+	. "github.com/rancherio/rancher-volume/logging"
 )
 
 const (

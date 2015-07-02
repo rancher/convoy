@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/objectstore"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/api"
+	"github.com/rancherio/rancher-volume/objectstore"
+	"github.com/rancherio/rancher-volume/util"
 	"net/http"
 	"net/url"
 
-	. "github.com/rancherio/volmgr/logging"
+	. "github.com/rancherio/rancher-volume/logging"
 )
 
 var (

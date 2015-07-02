@@ -57,7 +57,7 @@ func (s *TestSuite) TearDownSuite(c *C) {
 
 func (s *TestSuite) TestSaveLoadConfig(c *C) {
 	dev := Device{
-		Root:              "/tmp/volmgr/devmapper",
+		Root:              "/tmp/rancher-volume/devmapper",
 		DataDevice:        "/dev/loop0",
 		MetadataDevice:    "/dev/loop1",
 		ThinpoolDevice:    "/dev/mapper/rancher-volume-pool",
@@ -88,7 +88,7 @@ func (s *TestSuite) TestSaveLoadConfig(c *C) {
 }
 
 func (s *TestSuite) TestListConfigIDs(c *C) {
-	tmpdir, err := ioutil.TempDir("/tmp", "volmgr")
+	tmpdir, err := ioutil.TempDir("/tmp", "rancher-volume")
 	c.Assert(err, IsNil)
 	defer os.RemoveAll(tmpdir)
 

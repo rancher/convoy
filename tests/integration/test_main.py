@@ -9,15 +9,15 @@ import time
 import sys
 import threading
 
-from volmgr import VolumeManager
+from rancher_volume import VolumeManager
 
-TEST_ROOT = "/tmp/volmgr_test/"
-CFG_ROOT = os.path.join(TEST_ROOT, "volmgr")
+TEST_ROOT = "/tmp/rancher-volume_test/"
+CFG_ROOT = os.path.join(TEST_ROOT, "rancher-volume")
 MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
 AUTO_MOUNTS_DIR = os.path.join(TEST_ROOT, "auto_mounts")
 IMAGES_DIR = os.path.join(TEST_ROOT, "images")
-PID_FILE = os.path.join(TEST_ROOT, "volmgr.pid")
-LOG_FILE= os.path.join(TEST_ROOT, "volmgr.log")
+PID_FILE = os.path.join(TEST_ROOT, "rancher-volume.pid")
+LOG_FILE= os.path.join(TEST_ROOT, "rancher-volume.log")
 TEST_IMAGE_FILE = "image.test"
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
@@ -38,7 +38,7 @@ S3_PATH = "test/volume/"
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "rancher_volume_test_pool"
-VOLMGR_BINARY = os.path.abspath("../../bin/rancher-volume")
+RANCHER_VOLUME_BINARY = os.path.abspath("../../bin/rancher-volume")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
@@ -119,7 +119,7 @@ def setup_module():
     detach_loopback_dev(image_dev)
 
     global v
-    v = VolumeManager(VOLMGR_BINARY, TEST_ROOT)
+    v = VolumeManager(RANCHER_VOLUME_BINARY, TEST_ROOT)
     v.start_server(PID_FILE, ["server",
         "--root", CFG_ROOT,
         "--log", LOG_FILE,

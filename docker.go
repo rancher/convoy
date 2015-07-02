@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/api"
+	"github.com/rancherio/rancher-volume/util"
 	"net/http"
 )
 

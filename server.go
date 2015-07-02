@@ -5,9 +5,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/gorilla/mux"
-	"github.com/rancherio/volmgr/api"
-	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/api"
+	"github.com/rancherio/rancher-volume/drivers"
+	"github.com/rancherio/rancher-volume/util"
 	"net"
 	"net/http"
 	"os"
@@ -17,7 +17,7 @@ import (
 	"sync"
 	"syscall"
 
-	. "github.com/rancherio/volmgr/logging"
+	. "github.com/rancherio/rancher-volume/logging"
 )
 
 func createRouter(s *Server) *mux.Router {
@@ -95,7 +95,7 @@ func makeHandlerFunc(method string, route string, version string, f RequestHandl
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("Calling: %v, %v, request: %v, %v", method, route, r.Method, r.RequestURI)
 
-		if strings.Contains(r.Header.Get("User-Agent"), "Rancher-Volmgr-Client/") {
+		if strings.Contains(r.Header.Get("User-Agent"), "Rancher-Volume-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 			if len(userAgent) == 2 && userAgent[1] != version {
 				http.Error(w, fmt.Errorf("client version %v doesn't match with server %v", userAgent[1], version).Error(), http.StatusNotFound)

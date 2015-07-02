@@ -2,8 +2,8 @@ package vfs
 
 import (
 	"fmt"
-	"github.com/rancherio/volmgr/objectstore"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/objectstore"
+	"github.com/rancherio/rancher-volume/util"
 	"io"
 	"os"
 	"path/filepath"

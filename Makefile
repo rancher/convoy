@@ -1,14 +1,14 @@
-VOLMGR_EXEC_FILE = ./bin/rancher-volume
-VOLMGR_MOUNT_EXEC_FILE = ./bin/rancher-mount
+RANCHER-VOLUME_EXEC_FILE = ./bin/rancher-volume
+RANCHER-VOLUME_MOUNT_EXEC_FILE = ./bin/rancher-mount
 
 .PHONY: all clean
 
-all: $(VOLMGR_EXEC_FILE) $(VOLMGR_MOUNT_EXEC_FILE)
+all: $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-VOLUME_MOUNT_EXEC_FILE)
 
-$(VOLMGR_MOUNT_EXEC_FILE): ./tools/volmgr_mount.c
-	gcc -o ./bin/rancher-mount ./tools/volmgr_mount.c
+$(RANCHER-VOLUME_MOUNT_EXEC_FILE): ./tools/rancher_mount.c
+	gcc -o ./bin/rancher-mount ./tools/rancher_mount.c
 
-$(VOLMGR_EXEC_FILE): ./api/devmapper.go ./api/response.go \
+$(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./objectstore/objectstore.go ./objectstore/config.go \
 	./s3/s3.go ./s3/s3_service.go \
 	./vfs/vfs.go \

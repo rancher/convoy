@@ -5,8 +5,8 @@ package devmapper
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancherio/volmgr/drivers"
-	"github.com/rancherio/volmgr/util"
+	"github.com/rancherio/rancher-volume/drivers"
+	"github.com/rancherio/rancher-volume/util"
 	"os"
 	"os/exec"
 	"path/filepath"
