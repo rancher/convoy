@@ -1,12 +1,12 @@
-RANCHER-VOLUME_EXEC_FILE = ./bin/rancher-volume
-RANCHER-VOLUME_MOUNT_EXEC_FILE = ./bin/rancher-mount
+RANCHER-VOLUME_EXEC_FILE = ./bin/rvo
+RANCHER-MOUNT_EXEC_FILE = ./bin/rancher-mount
 
 .PHONY: all clean
 
-all: $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-VOLUME_MOUNT_EXEC_FILE)
+all: $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-MOUNT_EXEC_FILE)
 
-$(RANCHER-VOLUME_MOUNT_EXEC_FILE): ./tools/rancher_mount.c
-	gcc -o ./bin/rancher-mount ./tools/rancher_mount.c
+$(RANCHER-MOUNT_EXEC_FILE): ./tools/rancher_mount.c
+	gcc -o $(RANCHER-MOUNT_EXEC_FILE) ./tools/rancher_mount.c
 
 $(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./objectstore/objectstore.go ./objectstore/config.go \
@@ -20,10 +20,11 @@ $(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./volume_cmds.go ./snapshot_cmds.go ./objectstore_cmds.go \
 	./server.go ./client.go ./docker.go \
 	./commands.go ./main.go ./main_objectstore.go ./main_devmapper.go
-	go build -tags libdm_no_deferred_remove -o ./bin/rancher-volume
+	go build -tags libdm_no_deferred_remove -o $(RANCHER-VOLUME_EXEC_FILE)
 
 clean:
-	rm -f ./bin/rancher-*
+	rm -f $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-MOUNT_EXEC_FILE)
 
 install:
-	cp ./bin/rancher-* /usr/local/bin/
+	cp $(RANCHER-VOLUME_EXEC_FILE) /usr/local/bin/
+	cp $(RANCHER-MOUNT_EXEC_FILE) /usr/local/bin/
