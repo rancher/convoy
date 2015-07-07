@@ -1,4 +1,4 @@
-RANCHER-VOLUME_EXEC_FILE = ./bin/rvo
+RANCHER-VOLUME_EXEC_FILE = ./bin/rancher-volume
 RANCHER-MOUNT_EXEC_FILE = ./bin/rancher-mount
 
 .PHONY: all clean

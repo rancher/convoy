@@ -42,7 +42,7 @@ S3_PATH = "test/volume/"
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "rancher_volume_test_pool"
-RANCHER_VOLUME_BINARY = os.path.abspath("../../bin/rvo")
+RANCHER_VOLUME_BINARY = os.path.abspath("../../bin/rancher-volume")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
