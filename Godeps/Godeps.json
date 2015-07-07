@@ -16,40 +16,44 @@
 			"Rev": "539d4dc034c079a7188b5d4ca9650632d73c66e8"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/aws",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/aws",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/apierr",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/internal/endpoints",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/endpoints",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/query",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/query",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/rest",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/rest",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/restxml",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/restxml",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/xml/xmlutil",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/protocol/xml/xmlutil",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/internal/signer/v4",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/internal/signer/v4",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
-		},
-		{
-			"ImportPath": "github.com/awslabs/aws-sdk-go/service/s3",
-			"Rev": "be94f7ca9b5c925574d65a152242415cadeb8dc1"
+			"ImportPath": "github.com/aws/aws-sdk-go/service/s3",
+			"Comment": "v0.6.5",
+			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
