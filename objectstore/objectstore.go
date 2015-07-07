@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	. "github.com/rancherio/rancher-volume/logging"
 )
@@ -160,9 +161,17 @@ func Deregister(root, id string) error {
 	return nil
 }
 
-func getObjectStoreCfgAndDriver(root, objectstoreUUID string) (*ObjectStore, ObjectStoreDriver, error) {
+func loadObjectStoreConfig(root, objectstoreUUID string) (*ObjectStore, error) {
 	b := &ObjectStore{}
 	err := util.LoadConfig(root, getCfgName(objectstoreUUID), b)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func getObjectStoreCfgAndDriver(root, objectstoreUUID string) (*ObjectStore, ObjectStoreDriver, error) {
+	b, err := loadObjectStoreConfig(root, objectstoreUUID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -880,4 +889,45 @@ func DeactivateImage(root, imageDir, imageUUID, objectstoreUUID string) error {
 		log.Debug("Removed local image cache at ", imageLocalStorePath)
 	}
 	return nil
+}
+
+func listObjectStoreIDs(root string) []string {
+	ids := []string{}
+	outputs := util.ListConfigIDs(root, OBJECTSTORE_CFG_PREFIX, CFG_POSTFIX)
+	for _, i := range outputs {
+		// Remove driver specific config
+		if strings.Contains(i, "_") {
+			continue
+		}
+		ids = append(ids, i)
+	}
+	return ids
+}
+
+func List(root, objectstoreUUID string) ([]byte, error) {
+	var objectstoreIDs []string
+
+	resp := &api.ObjectStoresResponse{
+		ObjectStores: make(map[string]api.ObjectStoreResponse),
+	}
+	if objectstoreUUID != "" {
+		objectstoreIDs = []string{objectstoreUUID}
+	} else {
+		objectstoreIDs = listObjectStoreIDs(root)
+	}
+	for _, id := range objectstoreIDs {
+		b, err := loadObjectStoreConfig(root, id)
+		if err != nil {
+			return nil, generateError(logrus.Fields{
+				LOG_FIELD_VOLUME: id,
+			}, "Objectstore %v doesn't exist", err.Error())
+		}
+		store := api.ObjectStoreResponse{
+			UUID:      b.UUID,
+			Kind:      b.Kind,
+			BlockSize: b.BlockSize,
+		}
+		resp.ObjectStores[b.UUID] = store
+	}
+	return api.ResponseOutput(resp)
 }

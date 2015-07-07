@@ -231,3 +231,11 @@ class VolumeManager:
                 "--image-uuid", image_uuid,
                 "--objectstore-uuid", bs_uuid])
 
+    def list_objectstores(self, store_uuid = ""):
+        cmd = ["objectstore", "list"]
+        if store_uuid != "":
+            cmd += ["--objectstore-uuid", store_uuid]
+	data = subprocess.check_output(self.base_cmdline + cmd)
+        stores = json.loads(data)
+        return stores["ObjectStores"]
+

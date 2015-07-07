@@ -30,6 +30,10 @@ type SnapshotResponse struct {
 	VolumeUUID string
 }
 
+type ObjectStoresResponse struct {
+	ObjectStores map[string]ObjectStoreResponse
+}
+
 type ObjectStoreResponse struct {
 	UUID      string
 	Kind      string

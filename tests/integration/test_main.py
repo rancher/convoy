@@ -30,6 +30,10 @@ OBJECTSTORE_PER_VOLUME_CFG = "volume.cfg"
 OBJECTSTORE_SNAPSHOTS_DIR = "snapshots"
 OBJECTSTORE_IMAGES_DIR = os.path.join(OBJECTSTORE_ROOT, "images")
 
+OBJECTSTORE_PATH1 = os.path.join(TEST_ROOT, "store1")
+OBJECTSTORE_PATH2 = os.path.join(TEST_ROOT, "store2")
+OBJECTSTORE_PATH3 = os.path.join(TEST_ROOT, "store3")
+
 ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
 ENV_TEST_AWS_SECRET_KEY = "RANCHER_TEST_AWS_SECRET_ACCESS_KEY"
 ENV_TEST_AWS_REGION     = "RANCHER_TEST_AWS_REGION"
@@ -53,6 +57,8 @@ DEFAULT_VOLUME_SIZE = "1073741824"
 VOLUME_SIZE_500M_Bytes = "524288000"
 VOLUME_SIZE_500M = "500M"
 VOLUME_SIZE_100M = "104857600"
+
+RANDOM_VALID_UUID = "0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4"
 
 data_dev = ""
 metadata_dev = ""
@@ -439,6 +445,8 @@ def test_restore_with_original_removed():
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
 
+    v.deregister_objectstore(objectstore_uuid)
+
 def test_vfs_objectstore():
     #create objectstore
     uuid = v.register_vfs_objectstore(TEST_ROOT)
@@ -492,8 +500,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
 
     volumes = v.list_volume_objectstore(volume1_uuid, objectstore_uuid)
     assert len(volumes) == 0
-    # 0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4 is a valid random uuid 
-    volumes = v.list_volume_objectstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, objectstore_uuid)
+    volumes = v.list_volume_objectstore_with_snapshot(RANDOM_VALID_UUID, volume1_uuid, objectstore_uuid)
     assert len(volumes) == 0
 
     v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
@@ -503,7 +510,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
         volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), OBJECTSTORE_PER_VOLUME_CFG)
         assert os.path.exists(volume1_cfg_path)
 
-    volumes = v.list_volume_objectstore_with_snapshot("0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4", volume1_uuid, objectstore_uuid)
+    volumes = v.list_volume_objectstore_with_snapshot(RANDOM_VALID_UUID, volume1_uuid, objectstore_uuid)
     assert len(volumes) == 1
     assert volumes[volume1_uuid]["Size"] == int(VOLUME_SIZE_500M_Bytes)
     assert volumes[volume1_uuid]["Base"] == ""
@@ -646,6 +653,8 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     delete_volume(res_volume1_uuid)
     delete_volume(res_volume2_uuid)
 
+    v.deregister_objectstore(objectstore_uuid)
+
 def get_image_cfg(uuid):
     return os.path.join(OBJECTSTORE_IMAGES_DIR, uuid + ".json")
 
@@ -718,6 +727,7 @@ def process_objectstore_image(objectstore_uuid, is_vfs):
 	assert not os.path.exists(get_local_image(image_uuid))
 
     v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
+    v.deregister_objectstore(objectstore_uuid)
 
 def test_vfs_image_based_volume():
     #load objectstore from created one
@@ -731,9 +741,6 @@ def test_s3_image_based_volume():
     process_image_based_volume(objectstore_uuid)
 
 def process_image_based_volume(objectstore_uuid):
-    #load objectstore from created one
-    objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
-
     #add/remove image
     global image_file
     image_uuid = v.add_image_to_objectstore(image_file, objectstore_uuid)
@@ -780,6 +787,8 @@ def process_image_based_volume(objectstore_uuid):
     v.deactivate_image(image_uuid, objectstore_uuid)
     v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
 
+    v.deregister_objectstore(objectstore_uuid)
+
 def create_delete_volume_thread():
     uuid = v.create_volume()
     v.delete_volume(uuid)
@@ -792,3 +801,37 @@ def test_create_volume_in_parallel():
 
     for i in range(TEST_THREAD_COUNT):
         threads[i].join()
+
+def test_list_objectstores():
+    os.makedirs(OBJECTSTORE_PATH1)
+    os.makedirs(OBJECTSTORE_PATH2)
+    os.makedirs(OBJECTSTORE_PATH3)
+
+    store1 = v.register_vfs_objectstore(OBJECTSTORE_PATH1)
+    store2 = v.register_vfs_objectstore(OBJECTSTORE_PATH2)
+    store3 = v.register_vfs_objectstore(OBJECTSTORE_PATH3)
+
+    stores = v.list_objectstores()
+    # we may have leftover from previous test cases, don't fail because of that
+    assert len(stores) >= 3
+    assert stores[store1]["UUID"] == store1
+    assert stores[store1]["Kind"] == "vfs"
+
+    assert stores[store2]["UUID"] == store2
+    assert stores[store2]["Kind"] == "vfs"
+
+    assert stores[store3]["UUID"] == store3
+    assert stores[store3]["Kind"] == "vfs"
+
+    stores = v.list_objectstores(store1)
+    assert len(stores) == 1
+    assert stores[store1]["UUID"] == store1
+    assert stores[store1]["Kind"] == "vfs"
+
+    with pytest.raises(subprocess.CalledProcessError):
+        stores = v.list_objectstores(RANDOM_VALID_UUID)
+
+    v.deregister_objectstore(store1)
+    v.deregister_objectstore(store2)
+    v.deregister_objectstore(store3)
+

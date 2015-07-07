@@ -110,6 +110,18 @@ var (
 		Action: cmdObjectStoreDeregister,
 	}
 
+	objectstoreListCmd = cli.Command{
+		Name:  "list",
+		Usage: "list registered objectstores",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  KEY_OBJECTSTORE,
+				Usage: "uuid of objectstore",
+			},
+		},
+		Action: cmdObjectStoreList,
+	}
+
 	objectstoreAddVolumeCmd = cli.Command{
 		Name:  "add-volume",
 		Usage: "add a volume to objectstore",
@@ -142,7 +154,7 @@ var (
 		Action: cmdObjectStoreRemoveVolume,
 	}
 
-	objectstoreListCmd = cli.Command{
+	objectstoreListVolumeCmd = cli.Command{
 		Name:  "list-volume",
 		Usage: "list volume and snapshots in objectstore",
 		Flags: []cli.Flag{
@@ -246,6 +258,7 @@ var (
 			objectstoreRemoveImageCmd,
 			objectstoreActivateImageCmd,
 			objectstoreDeactivateImageCmd,
+			objectstoreListVolumeCmd,
 			objectstoreListCmd,
 		},
 	}
@@ -991,4 +1004,44 @@ func (s *Server) doObjectStoreDeactivateImage(version string, w http.ResponseWri
 		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
 	return nil
+}
+
+func cmdObjectStoreList(c *cli.Context) {
+	if err := doObjectStoreList(c); err != nil {
+		panic(err)
+	}
+}
+
+func doObjectStoreList(c *cli.Context) error {
+	var err error
+	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, false, err)
+	if err != nil {
+		return err
+	}
+
+	request := "/objectstores/"
+	if objectstoreUUID != "" {
+		request += objectstoreUUID + "/"
+	}
+
+	return sendRequestAndPrint("GET", request, nil)
+}
+
+func (s *Server) doObjectStoreList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.Lock()
+	defer s.GlobalLock.Unlock()
+
+	var err error
+	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, false, err)
+	if err != nil {
+		return err
+	}
+
+	data, err := objectstore.List(s.Root, objectstoreUUID)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(data)
+	return err
 }

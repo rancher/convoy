@@ -25,6 +25,9 @@ const (
 	BLOCK_SEPARATE_LAYER1   = 2
 	BLOCK_SEPARATE_LAYER2   = 4
 	IMAGES_DIRECTORY        = "images"
+
+	OBJECTSTORE_CFG_PREFIX = "objectstore_"
+	CFG_POSTFIX            = ".cfg"
 )
 
 func getSnapshotConfigName(id string) string {
@@ -32,11 +35,11 @@ func getSnapshotConfigName(id string) string {
 }
 
 func getDriverCfgName(kind, id string) string {
-	return "objectstore_" + id + "_" + kind + ".cfg"
+	return OBJECTSTORE_CFG_PREFIX + id + "_" + kind + CFG_POSTFIX
 }
 
 func getCfgName(id string) string {
-	return "objectstore_" + id + ".cfg"
+	return OBJECTSTORE_CFG_PREFIX + id + CFG_POSTFIX
 }
 
 func loadConfigInObjectStore(filePath string, driver ObjectStoreDriver, v interface{}) error {
