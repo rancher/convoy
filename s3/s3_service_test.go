@@ -1,3 +1,5 @@
+// +build s3test
+
 package s3
 
 import (
@@ -19,23 +21,17 @@ type TestSuite struct {
 var _ = Suite(&TestSuite{})
 
 const (
-	ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
-	ENV_TEST_AWS_SECRET_KEY = "RANCHER_TEST_AWS_SECRET_ACCESS_KEY"
-	ENV_TEST_AWS_REGION     = "RANCHER_TEST_AWS_REGION"
-	ENV_TEST_AWS_BUCKET     = "RANCHER_TEST_AWS_BUCKET"
+	ENV_TEST_AWS_REGION = "RANCHER_TEST_AWS_REGION"
+	ENV_TEST_AWS_BUCKET = "RANCHER_TEST_AWS_BUCKET"
 )
 
 func (s *TestSuite) SetUpSuite(c *C) {
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetOutput(os.Stderr)
 
-	s.service.Keys.AccessKey = os.Getenv(ENV_TEST_AWS_ACCESS_KEY)
-	s.service.Keys.SecretKey = os.Getenv(ENV_TEST_AWS_SECRET_KEY)
 	s.service.Region = os.Getenv(ENV_TEST_AWS_REGION)
 	s.service.Bucket = os.Getenv(ENV_TEST_AWS_BUCKET)
 
-	c.Assert(s.service.Keys.AccessKey, Not(Equals), "")
-	c.Assert(s.service.Keys.SecretKey, Not(Equals), "")
 	c.Assert(s.service.Region, Not(Equals), "")
 	c.Assert(s.service.Bucket, Not(Equals), "")
 }

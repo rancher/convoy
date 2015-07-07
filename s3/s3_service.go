@@ -7,37 +7,18 @@ import (
 	"github.com/awslabs/aws-sdk-go/aws/awsutil"
 	"github.com/awslabs/aws-sdk-go/service/s3"
 	"io"
-	"os"
 )
 
 type S3Service struct {
-	Keys   AwsKeys
 	Region string
 	Bucket string
 }
 
-type AwsKeys struct {
-	AccessKey string
-	SecretKey string
-}
-
 func (s *S3Service) New() (*s3.S3, error) {
-	if err := os.Setenv(ENV_AWS_ACCESS_KEY, s.Keys.AccessKey); err != nil {
-		return nil, err
-	}
-	if err := os.Setenv(ENV_AWS_SECRET_KEY, s.Keys.SecretKey); err != nil {
-		return nil, err
-	}
 	return s3.New(&aws.Config{Region: s.Region}), nil
 }
 
 func (s *S3Service) Close() {
-	if err := os.Setenv(ENV_AWS_ACCESS_KEY, ""); err != nil {
-		log.Errorln("s3: Fail to cleanup S3 Access key, due to ", err)
-	}
-	if err := os.Setenv(ENV_AWS_SECRET_KEY, ""); err != nil {
-		log.Errorln("s3: Fail to cleanup S3 Secret key, due to ", err)
-	}
 }
 
 func parseAwsError(resp string, err error) error {

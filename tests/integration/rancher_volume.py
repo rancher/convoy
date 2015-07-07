@@ -137,11 +137,9 @@ class VolumeManager:
 	assert bs["Kind"] == "vfs"
 	return bs["UUID"]
 
-    def register_s3_objectstore(self, access_key, secret_key, region, bucket, path):
+    def register_s3_objectstore(self, region, bucket, path):
 	data = subprocess.check_output(self.base_cmdline + ["objectstore",
 		"register", "--kind", "s3",
-		"--opts", "s3.access_key="+access_key,
-		"--opts", "s3.secret_key="+secret_key,
 		"--opts", "s3.region="+region,
 		"--opts", "s3.bucket="+bucket,
 		"--opts", "s3.path="+path])

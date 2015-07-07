@@ -468,18 +468,15 @@ def test_vfs_objectstore():
     process_objectstore_test(objectstore_uuid, True)
 
 def register_s3_objectstore():
-    access_key = os.environ[ENV_TEST_AWS_ACCESS_KEY]
-    secret_key = os.environ[ENV_TEST_AWS_SECRET_KEY]
     region = os.environ[ENV_TEST_AWS_REGION]
     bucket = os.environ[ENV_TEST_AWS_BUCKET]
     path = S3_PATH
 
     # slash is not allowed for prefix of path
     with pytest.raises(subprocess.CalledProcessError):
-        v.register_s3_objectstore(access_key, secret_key, region, bucket,
-            "/test")
+        v.register_s3_objectstore(region, bucket, "/test")
 
-    return v.register_s3_objectstore(access_key, secret_key, region, bucket, path)
+    return v.register_s3_objectstore(region, bucket, path)
 
 @pytest.mark.s3
 def test_s3_objectstore():

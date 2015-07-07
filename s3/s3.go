@@ -24,14 +24,9 @@ type S3ObjectStoreDriver struct {
 const (
 	KIND = "s3"
 
-	S3_ACCESS_KEY = "s3.access_key"
-	S3_SECRET_KEY = "s3.secret_key"
-	S3_REGION     = "s3.region"
-	S3_BUCKET     = "s3.bucket"
-	S3_PATH       = "s3.path"
-
-	ENV_AWS_ACCESS_KEY = "AWS_ACCESS_KEY_ID"
-	ENV_AWS_SECRET_KEY = "AWS_SECRET_ACCESS_KEY"
+	S3_REGION = "s3.region"
+	S3_BUCKET = "s3.bucket"
+	S3_PATH   = "s3.path"
 )
 
 func init() {
@@ -52,15 +47,12 @@ func initFunc(root, cfgName string, config map[string]string) (objectstore.Objec
 		}
 	}
 
-	b.Service.Keys.AccessKey = config[S3_ACCESS_KEY]
-	b.Service.Keys.SecretKey = config[S3_SECRET_KEY]
 	b.Service.Region = config[S3_REGION]
 	b.Service.Bucket = config[S3_BUCKET]
 	b.Path = config[S3_PATH]
-	if b.Service.Keys.AccessKey == "" || b.Service.Keys.SecretKey == "" ||
-		b.Service.Region == "" || b.Service.Bucket == "" || b.Path == "" {
-		return nil, fmt.Errorf("Cannot find all required fields: %v %v %v %v %v",
-			S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION, S3_BUCKET, S3_PATH)
+	if b.Service.Region == "" || b.Service.Bucket == "" || b.Path == "" {
+		return nil, fmt.Errorf("Cannot find all required fields: %v %v %v",
+			S3_REGION, S3_BUCKET, S3_PATH)
 	}
 
 	if strings.HasPrefix(b.Path, "/") {
