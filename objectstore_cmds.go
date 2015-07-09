@@ -558,9 +558,6 @@ func doSnapshotBackup(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
@@ -632,9 +629,6 @@ func doSnapshotRestore(c *cli.Context) error {
 }
 
 func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
 	originVolumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
@@ -767,9 +761,6 @@ func doObjectStoreAddImage(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
@@ -837,9 +828,6 @@ func doObjectStoreRemoveImage(c *cli.Context) error {
 }
 
 func (s *Server) doObjectStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
 	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
