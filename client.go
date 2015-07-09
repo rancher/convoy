@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/rancherio/rancher-volume/util"
+	"github.com/rancher/rancher-volume/util"
 	"io"
 	"io/ioutil"
 	"net/http"

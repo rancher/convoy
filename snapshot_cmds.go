@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/rancherio/rancher-volume/api"
+	"github.com/rancher/rancher-volume/api"
 	"net/http"
 	"net/url"
 
-	. "github.com/rancherio/rancher-volume/logging"
+	. "github.com/rancher/rancher-volume/logging"
 )
 
 var (

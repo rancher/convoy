@@ -3,5 +3,5 @@
 package main
 
 import (
-	_ "github.com/rancherio/rancher-volume/devmapper"
+	_ "github.com/rancher/rancher-volume/devmapper"
 )

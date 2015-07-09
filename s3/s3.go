@@ -3,8 +3,8 @@ package s3
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancherio/rancher-volume/objectstore"
-	"github.com/rancherio/rancher-volume/util"
+	"github.com/rancher/rancher-volume/objectstore"
+	"github.com/rancher/rancher-volume/util"
 	"io"
 	"os"
 	"path/filepath"

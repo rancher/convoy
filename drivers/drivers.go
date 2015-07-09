@@ -3,10 +3,10 @@ package drivers
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancherio/rancher-volume/metadata"
-	"github.com/rancherio/rancher-volume/util"
+	"github.com/rancher/rancher-volume/metadata"
+	"github.com/rancher/rancher-volume/util"
 
-	. "github.com/rancherio/rancher-volume/logging"
+	. "github.com/rancher/rancher-volume/logging"
 )
 
 type InitFunc func(root, cfgName string, config map[string]string) (Driver, error)

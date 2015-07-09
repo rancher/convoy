@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/rancherio/rancher-volume/api"
-	"github.com/rancherio/rancher-volume/drivers"
-	"github.com/rancherio/rancher-volume/util"
+	"github.com/rancher/rancher-volume/api"
+	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/util"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	. "github.com/rancherio/rancher-volume/logging"
+	. "github.com/rancher/rancher-volume/logging"
 )
 
 var (

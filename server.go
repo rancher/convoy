@@ -5,9 +5,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/gorilla/mux"
-	"github.com/rancherio/rancher-volume/api"
-	"github.com/rancherio/rancher-volume/drivers"
-	"github.com/rancherio/rancher-volume/util"
+	"github.com/rancher/rancher-volume/api"
+	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/util"
 	"net"
 	"net/http"
 	"os"
@@ -17,7 +17,7 @@ import (
 	"sync"
 	"syscall"
 
-	. "github.com/rancherio/rancher-volume/logging"
+	. "github.com/rancher/rancher-volume/logging"
 )
 
 func createRouter(s *Server) *mux.Router {
