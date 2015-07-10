@@ -179,15 +179,9 @@ func (s *Server) saveVolume(volume *Volume) error {
 		return err
 	}
 	if volume.Name != "" {
-		if oldUUID, exists := s.NameVolumeMap[volume.Name]; exists {
-			if oldUUID != volume.UUID {
-				log.Errorf("BUG: Volume name %v already assign to %v, but %v want it too. How did it pass the test?", volume.Name, oldUUID, uuid)
-				return fmt.Errorf("BUG: Volume name %v already assign to %v, but %v want it too", volume.Name, oldUUID, uuid)
-
-			}
-			return nil
+		if err := util.AddToIndex(volume.Name, volume.UUID, s.NameVolumeMap); err != nil {
+			return err
 		}
-		s.NameVolumeMap[volume.Name] = volume.UUID
 	}
 	return nil
 }
@@ -201,12 +195,9 @@ func (s *Server) deleteVolume(volume *Volume) error {
 		return err
 	}
 	if volume.Name != "" {
-		if _, exists := s.NameVolumeMap[volume.Name]; !exists {
-			log.Errorf("BUG: Volume name %v assign to %v, but doesn't exist in cache", volume.Name, volume.UUID)
-			return fmt.Errorf("BUG: Volume name %v assign to %v, but doesn't exist in cache", volume.Name, volume.UUID)
-
+		if err := util.RemoveFromIndex(volume.Name, s.NameVolumeMap); err != nil {
+			return err
 		}
-		delete(s.NameVolumeMap, volume.Name)
 	}
 	return nil
 }

@@ -146,11 +146,9 @@ func (s *Server) updateNameVolumeMap() error {
 			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
 		}
 		if volume.Name != "" {
-			if oldUUID, exists := s.NameVolumeMap[volume.Name]; exists && oldUUID != uuid {
-				return fmt.Errorf("Duplicate volume name detected! %v used by both %v and %v",
-					oldUUID, uuid)
+			if err := util.AddToIndex(volume.Name, volume.UUID, s.NameVolumeMap); err != nil {
+				return err
 			}
-			s.NameVolumeMap[volume.Name] = uuid
 		}
 	}
 	log.Debugf("Current volume name list: %v", s.NameVolumeMap)
