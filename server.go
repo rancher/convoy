@@ -49,7 +49,7 @@ func createRouter(s *Server) *mux.Router {
 		},
 		"DELETE": {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":                                                                       s.doVolumeDelete,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/":                                 s.doSnapshotDelete,
+			"/snapshots/{" + KEY_SNAPSHOT_UUID + "}/":                                                                   s.doSnapshotDelete,
 			"/objectstores/{objectstore-uuid}/":                                                                         s.doObjectStoreDeregister,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/":                                       s.doObjectStoreRemoveVolume,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotRemove,
@@ -131,14 +131,11 @@ func loadServerConfig(c *cli.Context) (*Server, error) {
 	server := &Server{
 		Config:        config,
 		StorageDriver: driver,
-		NameVolumeMap: make(map[string]string),
 	}
-
-	server.updateNameVolumeMap()
 	return server, nil
 }
 
-func (s *Server) updateNameVolumeMap() error {
+func (s *Server) updateIndex() error {
 	volumeUUIDs := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
 	for _, uuid := range volumeUUIDs {
 		volume := s.loadVolume(uuid)
@@ -150,8 +147,14 @@ func (s *Server) updateNameVolumeMap() error {
 				return err
 			}
 		}
+		for snapshotUUID := range volume.Snapshots {
+			if err := util.AddToIndex(snapshotUUID, uuid, s.SnapshotVolumeIndex); err != nil {
+				return err
+			}
+		}
 	}
 	log.Debugf("Current volume name list: %v", s.NameVolumeMap)
+	log.Debugf("Current snapshot uuid list: %v", s.SnapshotVolumeIndex)
 
 	return nil
 }
@@ -230,6 +233,14 @@ func (s *Server) CheckEnvironment() error {
 	return nil
 }
 
+func (s *Server) finishInitialization() {
+	s.NameVolumeMap = make(map[string]string)
+	s.SnapshotVolumeIndex = make(map[string]string)
+	s.GlobalLock = &sync.RWMutex{}
+
+	s.updateIndex()
+}
+
 func startServer(c *cli.Context) error {
 	var err error
 	if err = serverEnvironmentSetup(c); err != nil {
@@ -250,7 +261,7 @@ func startServer(c *cli.Context) error {
 			return err
 		}
 	}
-	server.GlobalLock = &sync.RWMutex{}
+	server.finishInitialization()
 	defer server.cleanup()
 
 	if err := server.CheckEnvironment(); err != nil {
@@ -351,7 +362,6 @@ func initServer(c *cli.Context) (*Server, error) {
 	server := &Server{
 		Config:        config,
 		StorageDriver: driver,
-		NameVolumeMap: make(map[string]string),
 	}
 	err = util.SaveConfig(root, getCfgName(), &config)
 	return server, err

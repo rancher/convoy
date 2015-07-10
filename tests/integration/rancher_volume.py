@@ -117,9 +117,9 @@ class VolumeManager:
         snapshot = json.loads(data)
         return snapshot["UUID"]
 
-    def delete_snapshot(self, snapshot_uuid, volume):
+    def delete_snapshot(self, snapshot_uuid):
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
-	        "--snapshot-uuid", snapshot_uuid] + _get_volume(volume))
+	        "--snapshot-uuid", snapshot_uuid])
 
     def register_vfs_objectstore(self, path):
 	data = subprocess.check_output(self.base_cmdline + ["objectstore",

@@ -343,7 +343,7 @@ def test_snapshot_cru():
     volume_uuid = create_volume(VOLUME_SIZE_500M, name="vol1")
 
     snapshot_uuid = v.create_snapshot(volume_uuid)
-    v.delete_snapshot(snapshot_uuid, volume_uuid)
+    v.delete_snapshot(snapshot_uuid)
 
     delete_volume(volume_uuid)
 
@@ -353,7 +353,7 @@ def test_snapshot_cru():
     snap2 = v.create_snapshot(volume_uuid)
     snap3 = v.create_snapshot(volume_uuid)
 
-    v.delete_snapshot(snap1, "vol1")
+    v.delete_snapshot(snap1)
     delete_volume(volume_uuid)
 
     volume_uuid = create_volume(VOLUME_SIZE_500M)
@@ -401,16 +401,16 @@ def test_snapshot_list():
     assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
     assert snap3_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
-    v.delete_snapshot(snap0_vol1_uuid, volume1_uuid)
+    v.delete_snapshot(snap0_vol1_uuid)
 
     volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
     assert snap0_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
 
-    v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
-    v.delete_snapshot(snap2_vol1_uuid, volume1_uuid)
-    v.delete_snapshot(snap1_vol2_uuid, volume2_uuid)
-    v.delete_snapshot(snap2_vol2_uuid, volume2_uuid)
-    v.delete_snapshot(snap3_vol2_uuid, volume2_uuid)
+    v.delete_snapshot(snap1_vol1_uuid)
+    v.delete_snapshot(snap2_vol1_uuid)
+    v.delete_snapshot(snap1_vol2_uuid)
+    v.delete_snapshot(snap2_vol2_uuid)
+    v.delete_snapshot(snap3_vol2_uuid)
 
     delete_volume(volume2_uuid)
     delete_volume(volume1_uuid)
@@ -645,10 +645,10 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     if is_vfs:
         assert not os.path.exists(get_volume_cfg(volume2_uuid))
 
-    v.delete_snapshot(snap1_vol1_uuid, volume1_uuid)
-    v.delete_snapshot(snap2_vol1_uuid, volume1_uuid)
-    v.delete_snapshot(snap1_vol2_uuid, volume2_uuid)
-    v.delete_snapshot(snap2_vol2_uuid, volume2_uuid)
+    v.delete_snapshot(snap1_vol1_uuid)
+    v.delete_snapshot(snap2_vol1_uuid)
+    v.delete_snapshot(snap1_vol2_uuid)
+    v.delete_snapshot(snap2_vol2_uuid)
 
     delete_volume(volume1_uuid)
     delete_volume(volume2_uuid)
@@ -779,7 +779,7 @@ def process_image_based_volume(objectstore_uuid):
 
     v.remove_snapshot_from_objectstore(snapshot_uuid, volume_uuid,
             objectstore_uuid)
-    v.delete_snapshot(snapshot_uuid, volume_uuid)
+    v.delete_snapshot(snapshot_uuid)
 
     v.remove_volume_from_objectstore(volume_uuid, objectstore_uuid)
     delete_volume(volume_uuid)

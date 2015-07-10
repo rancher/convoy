@@ -52,10 +52,11 @@ type Snapshot struct {
 }
 
 type Server struct {
-	Router        *mux.Router
-	StorageDriver drivers.Driver
-	GlobalLock    *sync.RWMutex
-	NameVolumeMap map[string]string
+	Router              *mux.Router
+	StorageDriver       drivers.Driver
+	GlobalLock          *sync.RWMutex
+	NameVolumeMap       map[string]string
+	SnapshotVolumeIndex map[string]string
 	Config
 }
 

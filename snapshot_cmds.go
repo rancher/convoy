@@ -38,10 +38,6 @@ var (
 				Name:  KEY_SNAPSHOT,
 				Usage: "uuid of snapshot",
 			},
-			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "name or uuid of volume for snapshot",
-			},
 		},
 		Action: cmdSnapshotDelete,
 	}
@@ -135,6 +131,10 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		CreatedTime: util.Now(),
 	}
 	volume.Snapshots[uuid] = snapshot
+	if err := util.AddToIndex(snapshot.UUID, volume.UUID, s.SnapshotVolumeIndex); err != nil {
+		return err
+	}
+
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
@@ -155,12 +155,11 @@ func cmdSnapshotDelete(c *cli.Context) {
 func doSnapshotDelete(c *cli.Context) error {
 	var err error
 	uuid, err := getUUID(c, KEY_SNAPSHOT, true, err)
-	volumeUUID, err := requestVolumeUUID(c, true)
 	if err != nil {
 		return err
 	}
 
-	request := "/volumes/" + volumeUUID + "/snapshots/" + uuid + "/"
+	request := "/snapshots/" + uuid + "/"
 	return sendRequestAndPrint("DELETE", request, nil)
 }
 
@@ -170,10 +169,13 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 
 	var err error
 
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
+	}
+	volumeUUID, exists := s.SnapshotVolumeIndex[snapshotUUID]
+	if !exists {
+		return fmt.Errorf("cannot find volume for snapshot %v", snapshotUUID)
 	}
 
 	volume := s.loadVolume(volumeUUID)
@@ -200,5 +202,8 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	}).Debug()
 
 	delete(volume.Snapshots, snapshotUUID)
+	if err := util.RemoveFromIndex(snapshotUUID, s.SnapshotVolumeIndex); err != nil {
+		return err
+	}
 	return s.saveVolume(volume)
 }
