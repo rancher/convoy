@@ -238,6 +238,7 @@ def test_volume_name():
     vol_uuid = create_volume(name=vol_name1)
     vols = v.list_volumes()
     assert vols[vol_uuid]["Name"] == vol_name1
+    assert vols[vol_uuid]["CreatedTime"] != ""
 
     with pytest.raises(subprocess.CalledProcessError):
         new_uuid = create_volume(name=vol_name1)
@@ -253,6 +254,8 @@ def test_volume_name():
     vols = v.list_volumes()
     assert vols[vol_uuid1]["Name"] == vol_name1
     assert vols[vol_uuid2]["Name"] == vol_name2
+    assert vols[vol_uuid1]["CreatedTime"] != ""
+    assert vols[vol_uuid2]["CreatedTime"] != ""
     delete_volume(vol_uuid1, vol_name1)
     delete_volume(vol_uuid2, vol_name2)
 
@@ -380,10 +383,13 @@ def test_snapshot_list():
     volumes = v.list_volumes(volume2_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
     assert volumes[volume2_uuid]["Snapshots"][snap1_vol2_uuid]["Name"] == "snap1_vol2"
+    assert volumes[volume2_uuid]["Snapshots"][snap1_vol2_uuid]["CreatedTime"] != ""
     assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
     assert volumes[volume2_uuid]["Snapshots"][snap2_vol2_uuid]["Name"] == "snap2_vol2"
+    assert volumes[volume2_uuid]["Snapshots"][snap2_vol2_uuid]["CreatedTime"] != ""
     assert snap3_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
     assert volumes[volume2_uuid]["Snapshots"][snap3_vol2_uuid]["Name"] == "snap3_vol2"
+    assert volumes[volume2_uuid]["Snapshots"][snap3_vol2_uuid]["CreatedTime"] != ""
 
     volumes = v.list_volumes()
     assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]

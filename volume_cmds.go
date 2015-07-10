@@ -308,11 +308,12 @@ func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64, n
 	}
 
 	volume := &Volume{
-		UUID:      uuid,
-		Name:      volumeName,
-		Base:      imageUUID,
-		Size:      size,
-		Snapshots: make(map[string]Snapshot),
+		UUID:        uuid,
+		Name:        volumeName,
+		Base:        imageUUID,
+		Size:        size,
+		CreatedTime: util.Now(),
+		Snapshots:   make(map[string]Snapshot),
 	}
 	if err := s.saveVolume(volume); err != nil {
 		return nil, err
@@ -341,10 +342,11 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	return writeResponseOutput(w, api.VolumeResponse{
-		UUID: volume.UUID,
-		Name: volume.Name,
-		Base: volume.Base,
-		Size: volume.Size,
+		UUID:        volume.UUID,
+		Name:        volume.Name,
+		Base:        volume.Base,
+		Size:        volume.Size,
+		CreatedTime: volume.CreatedTime,
 	})
 }
 
@@ -523,12 +525,13 @@ func doVolumeListByUUID(volumeUUID, snapshotUUID string, config *api.VolumeListC
 
 func getVolumeInfo(volume *Volume, snapshotUUID string) *api.VolumeResponse {
 	resp := &api.VolumeResponse{
-		UUID:       volume.UUID,
-		Name:       volume.Name,
-		Base:       volume.Base,
-		Size:       volume.Size,
-		MountPoint: volume.MountPoint,
-		Snapshots:  make(map[string]api.SnapshotResponse),
+		UUID:        volume.UUID,
+		Name:        volume.Name,
+		Base:        volume.Base,
+		Size:        volume.Size,
+		MountPoint:  volume.MountPoint,
+		CreatedTime: volume.CreatedTime,
+		Snapshots:   make(map[string]api.SnapshotResponse),
 	}
 	if snapshotUUID != "" {
 		if _, exists := volume.Snapshots[snapshotUUID]; exists {
@@ -541,9 +544,10 @@ func getVolumeInfo(volume *Volume, snapshotUUID string) *api.VolumeResponse {
 	}
 	for uuid, snapshot := range volume.Snapshots {
 		resp.Snapshots[uuid] = api.SnapshotResponse{
-			UUID:       uuid,
-			VolumeUUID: volume.UUID,
-			Name:       snapshot.Name,
+			UUID:        uuid,
+			VolumeUUID:  volume.UUID,
+			Name:        snapshot.Name,
+			CreatedTime: snapshot.CreatedTime,
 		}
 	}
 	return resp

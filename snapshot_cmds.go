@@ -6,6 +6,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
+	"github.com/rancher/rancher-volume/util"
 	"net/http"
 	"net/url"
 
@@ -135,17 +136,21 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
-	volume.Snapshots[uuid] = Snapshot{
-		UUID:       uuid,
-		VolumeUUID: volumeUUID,
-		Name:       snapshotName,
+	snapshot := Snapshot{
+		UUID:        uuid,
+		VolumeUUID:  volumeUUID,
+		Name:        snapshotName,
+		CreatedTime: util.Now(),
 	}
+	volume.Snapshots[uuid] = snapshot
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
 	return writeResponseOutput(w, api.SnapshotResponse{
-		UUID:       uuid,
-		VolumeUUID: volumeUUID,
+		UUID:        snapshot.UUID,
+		VolumeUUID:  snapshot.VolumeUUID,
+		Name:        snapshot.Name,
+		CreatedTime: snapshot.CreatedTime,
 	})
 }
 

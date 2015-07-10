@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -303,4 +304,8 @@ func Execute(binary string, args []string) (string, error) {
 		return "", fmt.Errorf("Failed to execute: %v %v, output %v, error %v", binary, args, string(output), err)
 	}
 	return string(output), nil
+}
+
+func Now() string {
+	return time.Now().Format(time.RubyDate)
 }

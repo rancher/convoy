@@ -32,19 +32,21 @@ const (
 )
 
 type Volume struct {
-	UUID       string
-	Name       string
-	Base       string
-	Size       int64
-	MountPoint string
-	FileSystem string
-	Snapshots  map[string]Snapshot
+	UUID        string
+	Name        string
+	Base        string
+	Size        int64
+	MountPoint  string
+	FileSystem  string
+	CreatedTime string
+	Snapshots   map[string]Snapshot
 }
 
 type Snapshot struct {
-	UUID       string
-	VolumeUUID string
-	Name       string
+	UUID        string
+	VolumeUUID  string
+	Name        string
+	CreatedTime string
 }
 
 type Server struct {

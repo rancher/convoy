@@ -17,18 +17,20 @@ type VolumesResponse struct {
 }
 
 type VolumeResponse struct {
-	UUID       string
-	Name       string
-	Base       string
-	Size       int64
-	MountPoint string
-	Snapshots  map[string]SnapshotResponse
+	UUID        string
+	Name        string
+	Base        string
+	Size        int64
+	MountPoint  string
+	CreatedTime string
+	Snapshots   map[string]SnapshotResponse
 }
 
 type SnapshotResponse struct {
-	UUID       string
-	VolumeUUID string
-	Name       string
+	UUID        string
+	VolumeUUID  string
+	Name        string
+	CreatedTime string
 }
 
 type ObjectStoresResponse struct {
