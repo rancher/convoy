@@ -32,13 +32,11 @@ class VolumeManager:
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size = "", uuid = "", base = "", name = "",
+    def create_volume(self, size = "", base = "", name = "",
                     need_format = False):
         cmd = ["volume", "create"]
         if size != "":
             cmd = cmd + ["--size", size]
-        if uuid != "":
-            cmd = cmd + ["--volume-uuid", uuid]
         if base != "":
             cmd = cmd + ["--image-uuid", base]
         if name != "":
@@ -47,8 +45,6 @@ class VolumeManager:
             cmd = cmd + ["--format"]
         data = subprocess.check_output(self.base_cmdline + cmd)
         volume = json.loads(data)
-        if uuid != "":
-            assert volume["UUID"] == uuid
         if name != "":
             assert volume["Name"] == name
         return volume["UUID"]
@@ -115,14 +111,10 @@ class VolumeManager:
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def create_snapshot(self, volume, uuid = ""):
+    def create_snapshot(self, volume):
         cmd = ["snapshot", "create"] + _get_volume(volume)
-        if uuid != "":
-            cmd = cmd + ["--snapshot-uuid", uuid]
         data = subprocess.check_output(self.base_cmdline + cmd)
         snapshot = json.loads(data)
-        if uuid != "":
-            assert snapshot["UUID"] == uuid
         return snapshot["UUID"]
 
     def delete_snapshot(self, snapshot_uuid, volume):

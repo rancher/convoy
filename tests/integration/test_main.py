@@ -196,9 +196,9 @@ def wait_for_daemon():
     assert info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE
     assert info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
-def create_volume(size = "", uuid = "", base = "", name = "",
+def create_volume(size = "", base = "", name = "",
         need_format = False):
-    uuid = v.create_volume(size, uuid, base, name, need_format)
+    uuid = v.create_volume(size, base, name, need_format)
     dm_cleanup_list.append(uuid)
     return uuid
 
@@ -226,18 +226,8 @@ def umount_volume(uuid, mount_dir):
 def test_volume_cru():
     uuid1 = create_volume(VOLUME_SIZE_500M)
     uuid2 = create_volume(VOLUME_SIZE_100M)
+    uuid3 = create_volume()
 
-    with pytest.raises(subprocess.CalledProcessError):
-        uuid3 = create_volume(VOLUME_SIZE_100M, uuid1)
-
-    uuid4 = create_volume()
-
-    specific_uuid = str(uuid.uuid1())
-
-    uuid3 = create_volume(VOLUME_SIZE_100M, specific_uuid)
-    assert uuid3 == specific_uuid
-
-    delete_volume(uuid4)
     delete_volume(uuid3)
     delete_volume(uuid2)
     delete_volume(uuid1)
@@ -370,7 +360,7 @@ def test_snapshot_list():
     volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
     assert snap0_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
 
-    v.create_snapshot(volume1_uuid, snap0_vol1_uuid)
+    snap0_vol1_uuid = v.create_snapshot(volume1_uuid)
 
     volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
     assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
@@ -380,8 +370,6 @@ def test_snapshot_list():
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     snap3_vol2_uuid = v.create_snapshot(volume2_uuid)
-    with pytest.raises(subprocess.CalledProcessError):
-	v.create_snapshot(volume2_uuid, snap1_vol2_uuid)
 
     volumes = v.list_volumes(volume2_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]

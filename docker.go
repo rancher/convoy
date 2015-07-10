@@ -51,6 +51,9 @@ func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 	if util.ValidateUUID(name) {
 		volumeUUID = name
 		volume = s.loadVolume(name)
+		if volume == nil {
+			return nil, fmt.Errorf("Cannot find volume with uuid %v", volumeUUID)
+		}
 	} else if util.ValidateName(name) {
 		volumeName = name
 		volume = s.loadVolumeByName(name)
@@ -63,7 +66,7 @@ func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 		if create {
 			log.Debugf("Create a new volume %v for docker", name)
 
-			volume, err = s.processVolumeCreate(volumeUUID, volumeName, "", s.DefaultVolumeSize, true)
+			volume, err = s.processVolumeCreate(volumeName, "", s.DefaultVolumeSize, true)
 			if err != nil {
 				return nil, err
 			}

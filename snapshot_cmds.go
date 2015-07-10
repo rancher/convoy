@@ -18,10 +18,6 @@ var (
 		Usage: "create a snapshot for certain volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_SNAPSHOT,
-				Usage: "uuid of snapshot",
-			},
-			cli.StringFlag{
 				Name:  KEY_VOLUME,
 				Usage: "uuid of volume for snapshot",
 			},
@@ -86,13 +82,8 @@ func doSnapshotCreate(c *cli.Context) error {
 
 	v := url.Values{}
 	volumeUUID, err := requestVolumeUUID(c)
-	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
-	}
-
-	if snapshotUUID != "" {
-		v.Set(KEY_SNAPSHOT, snapshotUUID)
 	}
 
 	request := "/volumes/" + volumeUUID + "/snapshots/create?" + v.Encode()
@@ -106,7 +97,6 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 
 	var err error
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
-	snapshotUUID, err := getUUID(r, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
 	}
@@ -116,12 +106,6 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	}
 
 	uuid := uuid.New()
-	if snapshotUUID != "" {
-		if s.snapshotExists(volumeUUID, snapshotUUID) {
-			return fmt.Errorf("Duplicate snapshot UUID for volume %v detected", volumeUUID)
-		}
-		uuid = snapshotUUID
-	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,

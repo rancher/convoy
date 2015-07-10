@@ -25,10 +25,6 @@ var (
 		Usage: "create a new volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "uuid of volume",
-			},
-			cli.StringFlag{
 				Name:  "size",
 				Usage: "size of volume, in bytes, or end in either G or M or K",
 			},
@@ -252,7 +248,6 @@ func doVolumeCreate(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	volumeUUID, err := getUUID(c, KEY_VOLUME, false, err)
 	imageUUID, err := getUUID(c, KEY_IMAGE, false, err)
 	name, err := getName(c, KEY_VOLUME_NAME, false, err)
 	size, err := getSize(c, err)
@@ -263,9 +258,6 @@ func doVolumeCreate(c *cli.Context) error {
 	needFormat := c.Bool("format")
 
 	v.Set("size", strconv.FormatInt(size, 10))
-	if volumeUUID != "" {
-		v.Set(KEY_VOLUME, volumeUUID)
-	}
 	if imageUUID != "" {
 		v.Set(KEY_IMAGE, imageUUID)
 	}
@@ -281,19 +273,13 @@ func doVolumeCreate(c *cli.Context) error {
 	return sendRequestAndPrint("POST", request, nil)
 }
 
-func (s *Server) processVolumeCreate(volumeUUID, volumeName, imageUUID string, size int64, needFormat bool) (*Volume, error) {
+func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64, needFormat bool) (*Volume, error) {
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
 	}
 
 	uuid := uuid.New()
-	if volumeUUID != "" {
-		if s.loadVolume(volumeUUID) != nil {
-			return nil, fmt.Errorf("Duplicate volume UUID detected!")
-		}
-		uuid = volumeUUID
-	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
@@ -339,7 +325,6 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	defer s.GlobalLock.Unlock()
 
 	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
-	volumeUUID, err := getUUID(r, KEY_VOLUME, false, err)
 	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
 	volumeName, err := getName(r, KEY_VOLUME_NAME, false, err)
 	if err != nil {
@@ -350,7 +335,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	}
 	needFormat := (r.FormValue("need-format") == "true")
 
-	volume, err := s.processVolumeCreate(volumeUUID, volumeName, imageUUID, size, needFormat)
+	volume, err := s.processVolumeCreate(volumeName, imageUUID, size, needFormat)
 	if err != nil {
 		return err
 	}
