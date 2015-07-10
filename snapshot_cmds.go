@@ -20,11 +20,7 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
-				Usage: "uuid of volume for snapshot",
-			},
-			cli.StringFlag{
-				Name:  KEY_VOLUME_NAME,
-				Usage: "name of volume for snapshot, if uuid is unspecified",
+				Usage: "name or uuid of volume for snapshot",
 			},
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT_NAME,
@@ -44,11 +40,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  KEY_VOLUME,
-				Usage: "uuid of volume for snapshot",
-			},
-			cli.StringFlag{
-				Name:  KEY_VOLUME_NAME,
-				Usage: "name of volume for snapshot, if uuid is unspecified",
+				Usage: "name or uuid of volume for snapshot",
 			},
 		},
 		Action: cmdSnapshotDelete,
@@ -86,7 +78,7 @@ func doSnapshotCreate(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	volumeUUID, err := requestVolumeUUID(c)
+	volumeUUID, err := requestVolumeUUID(c, true)
 	snapshotName, err := getName(c, KEY_SNAPSHOT_NAME, false, err)
 	if err != nil {
 		return err
@@ -106,7 +98,7 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	defer s.GlobalLock.Unlock()
 
 	var err error
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotName, err := getName(r, KEY_SNAPSHOT_NAME, false, err)
 	if err != nil {
 		return err
@@ -163,7 +155,7 @@ func cmdSnapshotDelete(c *cli.Context) {
 func doSnapshotDelete(c *cli.Context) error {
 	var err error
 	uuid, err := getUUID(c, KEY_SNAPSHOT, true, err)
-	volumeUUID, err := requestVolumeUUID(c)
+	volumeUUID, err := requestVolumeUUID(c, true)
 	if err != nil {
 		return err
 	}
@@ -178,7 +170,7 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 
 	var err error
 
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err

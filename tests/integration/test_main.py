@@ -340,7 +340,7 @@ def test_volume_list():
     delete_volume(uuid1)
 
 def test_snapshot_cru():
-    volume_uuid = create_volume(VOLUME_SIZE_500M)
+    volume_uuid = create_volume(VOLUME_SIZE_500M, name="vol1")
 
     snapshot_uuid = v.create_snapshot(volume_uuid)
     v.delete_snapshot(snapshot_uuid, volume_uuid)
@@ -348,10 +348,12 @@ def test_snapshot_cru():
     delete_volume(volume_uuid)
 
     # delete snapshot automatically with volume
-    volume_uuid = create_volume(VOLUME_SIZE_500M)
+    volume_uuid = create_volume(VOLUME_SIZE_500M, name="vol1")
     snap1 = v.create_snapshot(volume_uuid)
     snap2 = v.create_snapshot(volume_uuid)
     snap3 = v.create_snapshot(volume_uuid)
+
+    v.delete_snapshot(snap1, "vol1")
     delete_volume(volume_uuid)
 
     volume_uuid = create_volume(VOLUME_SIZE_500M)

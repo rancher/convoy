@@ -7,9 +7,7 @@ import json
 EXT4_FS = "ext4"
 
 def _get_volume(volume):
-    if volume.find("-") != -1:
-	return ["--volume-uuid", volume]
-    return ["--volume-name", volume]
+    return ["--volume", volume]
 
 class VolumeManager:
     def __init__(self, binary, mount_root):
@@ -40,7 +38,7 @@ class VolumeManager:
         if base != "":
             cmd = cmd + ["--image-uuid", base]
         if name != "":
-            cmd = cmd + ["--volume-name", name]
+            cmd = cmd + ["--name", name]
         if need_format:
             cmd = cmd + ["--format"]
         data = subprocess.check_output(self.base_cmdline + cmd)
@@ -87,10 +85,10 @@ class VolumeManager:
 			    ["volume", "list"])
         elif snapshot_uuid is None:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume-uuid", uuid])
+                "--volume", uuid])
         else:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume-uuid", uuid,
+                "--volume", uuid,
                 "--snapshot-uuid", snapshot_uuid])
 
         volumes = json.loads(data)
@@ -102,10 +100,10 @@ class VolumeManager:
 			    ["volume", "list"])
         elif snapshot_uuid is None:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume-name", name])
+                "--volume", name])
         else:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume-name", name,
+                "--volume", name,
                 "--snapshot-uuid", snapshot_uuid])
 
         volumes = json.loads(data)

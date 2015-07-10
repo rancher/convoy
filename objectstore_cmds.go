@@ -25,7 +25,7 @@ var (
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
+				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of volume for snapshot",
 			},
 			cli.StringFlag{
@@ -45,7 +45,7 @@ var (
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
+				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of origin volume for snapshot",
 			},
 			cli.StringFlag{
@@ -69,7 +69,7 @@ var (
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
+				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of volume for snapshot",
 			},
 			cli.StringFlag{
@@ -131,7 +131,7 @@ var (
 				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
+				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of volume",
 			},
 		},
@@ -147,7 +147,7 @@ var (
 				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
+				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of volume",
 			},
 		},
@@ -163,7 +163,7 @@ var (
 				Usage: "uuid of objectstore",
 			},
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
+				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of volume",
 			},
 			cli.StringFlag{
@@ -388,7 +388,7 @@ func doObjectStoreAddVolume(c *cli.Context) error {
 	var err error
 
 	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func (s *Server) doObjectStoreAddVolume(version string, w http.ResponseWriter, r
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -448,7 +448,7 @@ func cmdObjectStoreRemoveVolume(c *cli.Context) {
 func doObjectStoreRemoveVolume(c *cli.Context) error {
 	var err error
 	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -464,7 +464,7 @@ func (s *Server) doObjectStoreRemoveVolume(version string, w http.ResponseWriter
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -502,7 +502,7 @@ func doObjectStoreListVolume(c *cli.Context) error {
 	var err error
 
 	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
@@ -523,7 +523,7 @@ func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, 
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
@@ -547,7 +547,7 @@ func doSnapshotBackup(c *cli.Context) error {
 	var err error
 
 	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
@@ -561,7 +561,7 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
@@ -615,7 +615,7 @@ func doSnapshotRestore(c *cli.Context) error {
 
 	v := url.Values{}
 	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	originVolumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	originVolumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	targetVolumeUUID, err := getUUID(c, "target-volume-uuid", true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
@@ -631,7 +631,7 @@ func doSnapshotRestore(c *cli.Context) error {
 func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	originVolumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	originVolumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	targetVolumeUUID, err := getUUID(r, "target-volume", true, err)
 	if err != nil {
@@ -677,7 +677,7 @@ func cmdSnapshotRemove(c *cli.Context) {
 func doSnapshotRemove(c *cli.Context) error {
 	var err error
 	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
@@ -693,7 +693,7 @@ func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http
 
 	var err error
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
