@@ -28,6 +28,7 @@ type VolumeResponse struct {
 type SnapshotResponse struct {
 	UUID       string
 	VolumeUUID string
+	Name       string
 }
 
 type ObjectStoresResponse struct {

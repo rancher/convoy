@@ -25,6 +25,10 @@ var (
 				Name:  KEY_VOLUME_NAME,
 				Usage: "name of volume for snapshot, if uuid is unspecified",
 			},
+			cli.StringFlag{
+				Name:  KEY_SNAPSHOT_NAME,
+				Usage: "name of snapshot, would automatic generated if unspecificed",
+			},
 		},
 		Action: cmdSnapshotCreate,
 	}
@@ -82,8 +86,13 @@ func doSnapshotCreate(c *cli.Context) error {
 
 	v := url.Values{}
 	volumeUUID, err := requestVolumeUUID(c)
+	snapshotName, err := getName(c, KEY_SNAPSHOT_NAME, false, err)
 	if err != nil {
 		return err
+	}
+
+	if snapshotName != "" {
+		v.Set(KEY_SNAPSHOT_NAME, snapshotName)
 	}
 
 	request := "/volumes/" + volumeUUID + "/snapshots/create?" + v.Encode()
@@ -97,6 +106,7 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 
 	var err error
 	volumeUUID, err := getUUID(objs, KEY_VOLUME, true, err)
+	snapshotName, err := getName(r, KEY_SNAPSHOT_NAME, false, err)
 	if err != nil {
 		return err
 	}
@@ -125,7 +135,11 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
-	volume.Snapshots[uuid] = true
+	volume.Snapshots[uuid] = Snapshot{
+		UUID:       uuid,
+		VolumeUUID: volumeUUID,
+		Name:       snapshotName,
+	}
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}

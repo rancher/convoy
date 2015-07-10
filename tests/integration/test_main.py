@@ -351,6 +351,12 @@ def test_snapshot_cru():
     snap3 = v.create_snapshot(volume_uuid)
     delete_volume(volume_uuid)
 
+    volume_uuid = create_volume(VOLUME_SIZE_500M)
+    snap1 = v.create_snapshot(volume_uuid, "snap1")
+    snap2 = v.create_snapshot(volume_uuid, "snap2")
+    snap3 = v.create_snapshot(volume_uuid, "snap3")
+    delete_volume(volume_uuid)
+
 def test_snapshot_list():
     volume1_uuid = create_volume(VOLUME_SIZE_500M)
     volume2_uuid = create_volume(VOLUME_SIZE_100M)
@@ -367,14 +373,17 @@ def test_snapshot_list():
 
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
-    snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
-    snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
-    snap3_vol2_uuid = v.create_snapshot(volume2_uuid)
+    snap1_vol2_uuid = v.create_snapshot(volume2_uuid, "snap1_vol2")
+    snap2_vol2_uuid = v.create_snapshot(volume2_uuid, "snap2_vol2")
+    snap3_vol2_uuid = v.create_snapshot(volume2_uuid, "snap3_vol2")
 
     volumes = v.list_volumes(volume2_uuid)
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    assert volumes[volume2_uuid]["Snapshots"][snap1_vol2_uuid]["Name"] == "snap1_vol2"
     assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    assert volumes[volume2_uuid]["Snapshots"][snap2_vol2_uuid]["Name"] == "snap2_vol2"
     assert snap3_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    assert volumes[volume2_uuid]["Snapshots"][snap3_vol2_uuid]["Name"] == "snap3_vol2"
 
     volumes = v.list_volumes()
     assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]

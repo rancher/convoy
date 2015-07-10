@@ -312,7 +312,7 @@ func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64, n
 		Name:      volumeName,
 		Base:      imageUUID,
 		Size:      size,
-		Snapshots: make(map[string]bool),
+		Snapshots: make(map[string]Snapshot),
 	}
 	if err := s.saveVolume(volume); err != nil {
 		return nil, err
@@ -539,10 +539,11 @@ func getVolumeInfo(volume *Volume, snapshotUUID string) *api.VolumeResponse {
 		}
 		return resp
 	}
-	for uuid := range volume.Snapshots {
+	for uuid, snapshot := range volume.Snapshots {
 		resp.Snapshots[uuid] = api.SnapshotResponse{
 			UUID:       uuid,
 			VolumeUUID: volume.UUID,
+			Name:       snapshot.Name,
 		}
 	}
 	return resp

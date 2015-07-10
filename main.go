@@ -20,11 +20,12 @@ const (
 	LOCKFILE    = "lock"
 	CONFIGFILE  = "rancher-volume.cfg"
 
-	KEY_VOLUME      = "volume-uuid"
-	KEY_SNAPSHOT    = "snapshot-uuid"
-	KEY_OBJECTSTORE = "objectstore-uuid"
-	KEY_IMAGE       = "image-uuid"
-	KEY_VOLUME_NAME = "volume-name"
+	KEY_VOLUME        = "volume-uuid"
+	KEY_SNAPSHOT      = "snapshot-uuid"
+	KEY_OBJECTSTORE   = "objectstore-uuid"
+	KEY_IMAGE         = "image-uuid"
+	KEY_VOLUME_NAME   = "volume-name"
+	KEY_SNAPSHOT_NAME = "snapshot-name"
 
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
@@ -37,7 +38,13 @@ type Volume struct {
 	Size       int64
 	MountPoint string
 	FileSystem string
-	Snapshots  map[string]bool
+	Snapshots  map[string]Snapshot
+}
+
+type Snapshot struct {
+	UUID       string
+	VolumeUUID string
+	Name       string
 }
 
 type Server struct {
