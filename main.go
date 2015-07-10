@@ -26,8 +26,9 @@ const (
 	KEY_IMAGE         = "image-uuid"
 	KEY_SNAPSHOT_NAME = "snapshot-name"
 
-	KEY_NAME        = "name"
-	KEY_VOLUME_UUID = "volume-uuid"
+	KEY_NAME          = "name"
+	KEY_VOLUME_UUID   = "volume-uuid"
+	KEY_SNAPSHOT_UUID = "snapshot-uuid"
 
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
