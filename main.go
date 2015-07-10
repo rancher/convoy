@@ -20,11 +20,10 @@ const (
 	LOCKFILE    = "lock"
 	CONFIGFILE  = "rancher-volume.cfg"
 
-	KEY_VOLUME        = "volume"
-	KEY_SNAPSHOT      = "snapshot-uuid"
-	KEY_OBJECTSTORE   = "objectstore-uuid"
-	KEY_IMAGE         = "image-uuid"
-	KEY_SNAPSHOT_NAME = "snapshot-name"
+	KEY_VOLUME      = "volume"
+	KEY_SNAPSHOT    = "snapshot-uuid"
+	KEY_OBJECTSTORE = "objectstore-uuid"
+	KEY_IMAGE       = "image-uuid"
 
 	KEY_NAME          = "name"
 	KEY_VOLUME_UUID   = "volume-uuid"
