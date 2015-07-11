@@ -438,8 +438,7 @@ def test_restore_with_original_removed():
     v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
     format_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
-    v.backup_snapshot_to_objectstore(snap1_vol1_uuid, volume1_uuid,
-		    objectstore_uuid)
+    v.backup_snapshot_to_objectstore(snap1_vol1_uuid, objectstore_uuid)
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     delete_volume(volume1_uuid)
 
@@ -531,8 +530,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
 
     #first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
-    v.backup_snapshot_to_objectstore(snap1_vol1_uuid, volume1_uuid,
-		    objectstore_uuid)
+    v.backup_snapshot_to_objectstore(snap1_vol1_uuid, objectstore_uuid)
     if is_vfs:
         with open(get_snapshot_cfg(snap1_vol1_uuid, volume1_uuid)) as f:
             snap1_vol1 = json.loads(f.read())
@@ -543,8 +541,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
 
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
-    v.backup_snapshot_to_objectstore(snap1_vol2_uuid, volume2_uuid,
-		    objectstore_uuid)
+    v.backup_snapshot_to_objectstore(snap1_vol2_uuid, objectstore_uuid)
     if is_vfs:
         with open(get_snapshot_cfg(snap1_vol2_uuid, volume2_uuid)) as f:
             snap1_vol2 = json.loads(f.read())
@@ -562,8 +559,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     #second snapshots
     format_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
-    v.backup_snapshot_to_objectstore(snap2_vol1_uuid, volume1_uuid,
-		    objectstore_uuid)
+    v.backup_snapshot_to_objectstore(snap2_vol1_uuid, objectstore_uuid)
     if is_vfs:
         with open(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid)) as f:
             snap2_vol1 = json.loads(f.read())
@@ -572,8 +568,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
 
     format_volume_and_create_file(volume2_uuid, "test-vol2-v2")
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
-    v.backup_snapshot_to_objectstore(snap2_vol2_uuid, volume2_uuid,
-		    objectstore_uuid)
+    v.backup_snapshot_to_objectstore(snap2_vol2_uuid, objectstore_uuid)
     if is_vfs:
         with open(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid)) as f:
             snap2_vol2 = json.loads(f.read())
@@ -582,8 +577,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
 
     #dupcliate snapshot backup should fail
     with pytest.raises(subprocess.CalledProcessError):
-        v.backup_snapshot_to_objectstore(snap2_vol2_uuid, volume2_uuid,
-                objectstore_uuid)
+        v.backup_snapshot_to_objectstore(snap2_vol2_uuid, objectstore_uuid)
 
     #list snapshots again
     volumes = v.list_volume_objectstore(volume1_uuid, objectstore_uuid)
@@ -763,7 +757,7 @@ def process_image_based_volume(objectstore_uuid):
     # idempotency
     v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
     v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
-    v.backup_snapshot_to_objectstore(snapshot_uuid, volume_uuid, objectstore_uuid)
+    v.backup_snapshot_to_objectstore(snapshot_uuid, objectstore_uuid)
 
     new_volume_uuid = create_volume(VOLUME_SIZE_100M, base=image_uuid)
 

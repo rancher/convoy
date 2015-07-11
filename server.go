@@ -41,7 +41,7 @@ func createRouter(s *Server) *mux.Router {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/create":                                                              s.doSnapshotCreate,
 			"/objectstores/register":                                                                                           s.doObjectStoreRegister,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/add":                                           s.doObjectStoreAddVolume,
-			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/backup":  s.doSnapshotBackup,
+			"/objectstores/{objectstore-uuid}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/backup":                                    s.doSnapshotBackup,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/restore": s.doSnapshotRestore,
 			"/objectstores/{objectstore-uuid}/images/add":                                                                      s.doObjectStoreAddImage,
 			"/objectstores/{objectstore-uuid}/images/{image-uuid}/activate":                                                    s.doObjectStoreActivateImage,

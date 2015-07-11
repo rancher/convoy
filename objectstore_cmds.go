@@ -547,13 +547,12 @@ func doSnapshotBackup(c *cli.Context) error {
 	var err error
 
 	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/backup"
+	request := "/objectstores/" + objectstoreUUID + "/snapshots/" + snapshotUUID + "/backup"
 	return sendRequestAndPrint("POST", request, nil)
 }
 
@@ -561,10 +560,13 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 	var err error
 
 	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
 	if err != nil {
 		return err
+	}
+	volumeUUID, exists := s.SnapshotVolumeIndex[snapshotUUID]
+	if !exists {
+		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotUUID)
 	}
 
 	if !s.snapshotExists(volumeUUID, snapshotUUID) {
