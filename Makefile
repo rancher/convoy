@@ -15,7 +15,7 @@ $(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./devmapper/devmapper.go \
  	./drivers/drivers.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
-	./util/util.go ./util/util_test.go \
+	./util/util.go ./util/util_test.go ./util/index.go \
 	./logging/logging.go \
 	./volume_cmds.go ./snapshot_cmds.go ./objectstore_cmds.go \
 	./server.go ./client.go ./docker.go \

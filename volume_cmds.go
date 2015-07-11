@@ -764,9 +764,6 @@ func (s *Server) processVolumeUmount(volume *Volume, mountConfig *api.VolumeMoun
 }
 
 func (s *Server) doVolumeRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	var err error
 
 	volumeName, err := getName(r, KEY_VOLUME, true, err)
