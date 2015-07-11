@@ -147,9 +147,14 @@ func (s *Server) updateIndex() error {
 				return err
 			}
 		}
-		for snapshotUUID := range volume.Snapshots {
+		for snapshotUUID, snapshot := range volume.Snapshots {
 			if err := s.SnapshotVolumeIndex.Add(snapshotUUID, uuid); err != nil {
 				return err
+			}
+			if snapshot.Name != "" {
+				if err := s.NameUUIDIndex.Add(snapshot.Name, snapshot.UUID); err != nil {
+					return err
+				}
 			}
 		}
 	}

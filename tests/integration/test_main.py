@@ -360,6 +360,8 @@ def test_snapshot_cru():
     snap1 = v.create_snapshot(volume_uuid, "snap1")
     snap2 = v.create_snapshot(volume_uuid, "snap2")
     snap3 = v.create_snapshot(volume_uuid, "snap3")
+    v.delete_snapshot("snap1")
+    v.delete_snapshot("snap2")
     delete_volume(volume_uuid)
 
 def test_snapshot_list():
@@ -540,8 +542,8 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     volumes = v.list_volume_objectstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, objectstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
 
-    snap1_vol2_uuid = v.create_snapshot(volume2_uuid)
-    v.backup_snapshot_to_objectstore(snap1_vol2_uuid, objectstore_uuid)
+    snap1_vol2_uuid = v.create_snapshot(volume2_uuid, "snap1_vol2")
+    v.backup_snapshot_to_objectstore("snap1_vol2", objectstore_uuid)
     if is_vfs:
         with open(get_snapshot_cfg(snap1_vol2_uuid, volume2_uuid)) as f:
             snap1_vol2 = json.loads(f.read())

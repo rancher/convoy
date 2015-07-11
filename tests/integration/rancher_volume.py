@@ -79,32 +79,32 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["volume", "umount",
             ] + _get_volume(volume))
 
-    def list_volumes(self, uuid = None, snapshot_uuid = None):
+    def list_volumes(self, uuid = None, snapshot = None):
         if uuid is None:
     	    data = subprocess.check_output(self.base_cmdline + \
 			    ["volume", "list"])
-        elif snapshot_uuid is None:
+        elif snapshot is None:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
                 "--volume", uuid])
         else:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
                 "--volume", uuid,
-                "--snapshot-uuid", snapshot_uuid])
+                "--snapshot", snapshot])
 
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def list_volumes_by_name(self, name = None, snapshot_uuid = None):
+    def list_volumes_by_name(self, name = None, snapshot = None):
         if name is None:
     	    data = subprocess.check_output(self.base_cmdline + \
 			    ["volume", "list"])
-        elif snapshot_uuid is None:
+        elif snapshot is None:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
                 "--volume", name])
         else:
             data = subprocess.check_output(self.base_cmdline + ["volume", "list",
                 "--volume", name,
-                "--snapshot-uuid", snapshot_uuid])
+                "--snapshot", snapshot])
 
         volumes = json.loads(data)
         return volumes["Volumes"]
@@ -117,9 +117,9 @@ class VolumeManager:
         snapshot = json.loads(data)
         return snapshot["UUID"]
 
-    def delete_snapshot(self, snapshot_uuid):
+    def delete_snapshot(self, snapshot):
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
-	        "--snapshot-uuid", snapshot_uuid])
+	        "--snapshot", snapshot])
 
     def register_vfs_objectstore(self, path):
 	data = subprocess.check_output(self.base_cmdline + ["objectstore",
@@ -157,7 +157,7 @@ class VolumeManager:
 
     def backup_snapshot_to_objectstore(self, snapshot_uuid, bs_uuid):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "backup",
-		"--snapshot-uuid", snapshot_uuid,
+		"--snapshot", snapshot_uuid,
 		"--objectstore-uuid", bs_uuid])
 
     def restore_snapshot_from_objectstore(self, snapshot_uuid,

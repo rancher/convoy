@@ -24,7 +24,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  KEY_NAME,
-				Usage: "name of snapshot, would automatic generated if unspecificed",
+				Usage: "name of snapshot",
 			},
 		},
 		Action: cmdSnapshotCreate,
@@ -36,7 +36,7 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,
-				Usage: "uuid of snapshot",
+				Usage: "name or uuid of snapshot",
 			},
 		},
 		Action: cmdSnapshotDelete,
@@ -130,11 +130,16 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		Name:        snapshotName,
 		CreatedTime: util.Now(),
 	}
+	//TODO: error handling
 	volume.Snapshots[uuid] = snapshot
 	if err := s.SnapshotVolumeIndex.Add(snapshot.UUID, volume.UUID); err != nil {
 		return err
 	}
-
+	if snapshot.Name != "" {
+		if err := s.NameUUIDIndex.Add(snapshot.Name, snapshot.UUID); err != nil {
+			return err
+		}
+	}
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
@@ -154,7 +159,7 @@ func cmdSnapshotDelete(c *cli.Context) {
 
 func doSnapshotDelete(c *cli.Context) error {
 	var err error
-	uuid, err := getUUID(c, KEY_SNAPSHOT, true, err)
+	uuid, err := getOrRequestUUID(c, KEY_SNAPSHOT, true)
 	if err != nil {
 		return err
 	}
@@ -169,7 +174,7 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 
 	var err error
 
-	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT, true, err)
+	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -201,9 +206,16 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
-	delete(volume.Snapshots, snapshotUUID)
+	snapshot := volume.Snapshots[snapshotUUID]
+	//TODO: error handling
 	if err := s.SnapshotVolumeIndex.Remove(snapshotUUID); err != nil {
 		return err
 	}
+	if snapshot.Name != "" {
+		if err = s.NameUUIDIndex.Remove(snapshot.Name); err != nil {
+			return err
+		}
+	}
+	delete(volume.Snapshots, snapshotUUID)
 	return s.saveVolume(volume)
 }

@@ -22,7 +22,7 @@ const (
 	CONFIGFILE  = "rancher-volume.cfg"
 
 	KEY_VOLUME      = "volume"
-	KEY_SNAPSHOT    = "snapshot-uuid"
+	KEY_SNAPSHOT    = "snapshot"
 	KEY_OBJECTSTORE = "objectstore-uuid"
 	KEY_IMAGE       = "image-uuid"
 

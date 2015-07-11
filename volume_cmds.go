@@ -115,7 +115,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,
-				Usage: "uuid of snapshot, must be used with volume uuid",
+				Usage: "name or uuid of snapshot, must be used with volume uuid",
 			},
 			cli.BoolFlag{
 				Name:  "driver",
