@@ -16,7 +16,7 @@ type VolumesResponse struct {
 	Volumes map[string]VolumeResponse
 }
 
-type VolumeUUIDResponse struct {
+type UUIDResponse struct {
 	UUIDs []string
 }
 

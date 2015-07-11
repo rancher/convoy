@@ -25,8 +25,8 @@ func createRouter(s *Server) *mux.Router {
 	m := map[string]map[string]RequestHandler{
 		"GET": {
 			"/info":                                                                     s.doInfo,
+			"/uuid":                                                                     s.doRequestUUID,
 			"/volumes/":                                                                 s.doVolumeList,
-			"/volumes/uuid":                                                             s.doVolumeRequestUUID,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":                                       s.doVolumeList,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doVolumeList,
 			"/objectstores/":                                                                                            s.doObjectStoreList,
@@ -143,7 +143,7 @@ func (s *Server) updateIndex() error {
 			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
 		}
 		if volume.Name != "" {
-			if err := s.NameVolumeIndex.Add(volume.Name, volume.UUID); err != nil {
+			if err := s.NameUUIDIndex.Add(volume.Name, volume.UUID); err != nil {
 				return err
 			}
 		}
@@ -232,7 +232,7 @@ func (s *Server) CheckEnvironment() error {
 }
 
 func (s *Server) finishInitialization() {
-	s.NameVolumeIndex = util.NewIndex()
+	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
 	s.GlobalLock = &sync.RWMutex{}
 

@@ -74,7 +74,7 @@ func doSnapshotCreate(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	volumeUUID, err := requestVolumeUUID(c, true)
+	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
 	snapshotName, err := getName(c, KEY_NAME, false, err)
 	if err != nil {
 		return err

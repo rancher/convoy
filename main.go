@@ -56,7 +56,7 @@ type Server struct {
 	Router              *mux.Router
 	StorageDriver       drivers.Driver
 	GlobalLock          *sync.RWMutex
-	NameVolumeIndex     *util.Index
+	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
 	Config
 }

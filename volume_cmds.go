@@ -162,7 +162,7 @@ func (config *Config) loadVolume(uuid string) *Volume {
 }
 
 func (s *Server) loadVolumeByName(name string) *Volume {
-	uuid := s.NameVolumeIndex.Get(name)
+	uuid := s.NameUUIDIndex.Get(name)
 	if uuid == "" {
 		return nil
 	}
@@ -179,7 +179,7 @@ func (s *Server) saveVolume(volume *Volume) error {
 		return err
 	}
 	if volume.Name != "" {
-		if err := s.NameVolumeIndex.Add(volume.Name, volume.UUID); err != nil {
+		if err := s.NameUUIDIndex.Add(volume.Name, volume.UUID); err != nil {
 			return err
 		}
 	}
@@ -195,7 +195,7 @@ func (s *Server) deleteVolume(volume *Volume) error {
 		return err
 	}
 	if volume.Name != "" {
-		if err := s.NameVolumeIndex.Remove(volume.Name); err != nil {
+		if err := s.NameUUIDIndex.Remove(volume.Name); err != nil {
 			return err
 		}
 	}
@@ -331,9 +331,9 @@ func cmdVolumeDelete(c *cli.Context) {
 	}
 }
 
-func requestVolumeUUID(c *cli.Context, required bool) (string, error) {
+func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error) {
 	var err error
-	id, err := getLowerCaseFlag(c, KEY_VOLUME, required, err)
+	id, err := getLowerCaseFlag(c, key, required, err)
 	if err != nil {
 		return "", err
 	}
@@ -349,20 +349,22 @@ func requestVolumeUUID(c *cli.Context, required bool) (string, error) {
 		return "", fmt.Errorf("Invalid volume name %v", id)
 	}
 
-	name := id
+	return requestUUID(id)
+}
 
+func requestUUID(name string) (string, error) {
 	// Identify by name
 	v := url.Values{}
-	v.Set(KEY_VOLUME, name)
+	v.Set(KEY_NAME, name)
 
-	request := "/volumes/uuid?" + v.Encode()
+	request := "/uuid?" + v.Encode()
 	rc, err := sendRequest("GET", request, nil)
 	if err != nil {
 		return "", err
 	}
 	defer rc.Close()
 
-	resp := &api.VolumeUUIDResponse{}
+	resp := &api.UUIDResponse{}
 	if err := json.NewDecoder(rc).Decode(resp); err != nil {
 		return "", err
 	}
@@ -378,7 +380,7 @@ func requestVolumeUUID(c *cli.Context, required bool) (string, error) {
 func doVolumeDelete(c *cli.Context) error {
 	var err error
 
-	uuid, err := requestVolumeUUID(c, true)
+	uuid, err := getOrRequestUUID(c, KEY_VOLUME, true)
 	if err != nil {
 		return err
 	}
@@ -439,7 +441,7 @@ func cmdVolumeList(c *cli.Context) {
 func doVolumeList(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := requestVolumeUUID(c, false)
+	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, false)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT, false, err)
 	if err != nil {
 		return err
@@ -568,7 +570,7 @@ func cmdVolumeMount(c *cli.Context) {
 func doVolumeMount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := requestVolumeUUID(c, true)
+	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
 	mountPoint, err := getLowerCaseFlag(c, "mountpoint", false, err)
 	fs, err := getLowerCaseFlag(c, "fs", true, err)
 	if err != nil {
@@ -686,7 +688,7 @@ func cmdVolumeUmount(c *cli.Context) {
 func doVolumeUmount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := requestVolumeUUID(c, true)
+	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
 	if err != nil {
 		return err
 	}
@@ -763,18 +765,17 @@ func (s *Server) processVolumeUmount(volume *Volume, mountConfig *api.VolumeMoun
 	return s.saveVolume(volume)
 }
 
-func (s *Server) doVolumeRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-
-	volumeName, err := getName(r, KEY_VOLUME, true, err)
+	name, err := getName(r, KEY_NAME, true, err)
 	if err != nil {
 		return err
 	}
 
-	resp := &api.VolumeUUIDResponse{
+	resp := &api.UUIDResponse{
 		UUIDs: []string{},
 	}
-	uuid := s.NameVolumeIndex.Get(volumeName)
+	uuid := s.NameUUIDIndex.Get(name)
 	if uuid != "" {
 		resp.UUIDs = append(resp.UUIDs, uuid)
 	}
