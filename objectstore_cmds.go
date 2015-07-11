@@ -25,10 +25,6 @@ var (
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  KEY_VOLUME_UUID,
-				Usage: "uuid of volume for snapshot",
-			},
-			cli.StringFlag{
 				Name:  KEY_OBJECTSTORE,
 				Usage: "uuid of objectstore",
 			},
