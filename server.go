@@ -143,18 +143,16 @@ func (s *Server) updateIndex() error {
 			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
 		}
 		if volume.Name != "" {
-			if err := util.AddToIndex(volume.Name, volume.UUID, s.NameVolumeIndex); err != nil {
+			if err := s.NameVolumeIndex.Add(volume.Name, volume.UUID); err != nil {
 				return err
 			}
 		}
 		for snapshotUUID := range volume.Snapshots {
-			if err := util.AddToIndex(snapshotUUID, uuid, s.SnapshotVolumeIndex); err != nil {
+			if err := s.SnapshotVolumeIndex.Add(snapshotUUID, uuid); err != nil {
 				return err
 			}
 		}
 	}
-	log.Debugf("Current volume name list: %v", s.NameVolumeIndex)
-	log.Debugf("Current snapshot uuid list: %v", s.SnapshotVolumeIndex)
 
 	return nil
 }
@@ -234,8 +232,8 @@ func (s *Server) CheckEnvironment() error {
 }
 
 func (s *Server) finishInitialization() {
-	s.NameVolumeIndex = make(map[string]string)
-	s.SnapshotVolumeIndex = make(map[string]string)
+	s.NameVolumeIndex = util.NewIndex()
+	s.SnapshotVolumeIndex = util.NewIndex()
 	s.GlobalLock = &sync.RWMutex{}
 
 	s.updateIndex()

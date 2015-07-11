@@ -162,8 +162,8 @@ func (config *Config) loadVolume(uuid string) *Volume {
 }
 
 func (s *Server) loadVolumeByName(name string) *Volume {
-	uuid, exists := s.NameVolumeIndex[name]
-	if !exists {
+	uuid := s.NameVolumeIndex.Get(name)
+	if uuid == "" {
 		return nil
 	}
 	return s.loadVolume(uuid)
@@ -179,7 +179,7 @@ func (s *Server) saveVolume(volume *Volume) error {
 		return err
 	}
 	if volume.Name != "" {
-		if err := util.AddToIndex(volume.Name, volume.UUID, s.NameVolumeIndex); err != nil {
+		if err := s.NameVolumeIndex.Add(volume.Name, volume.UUID); err != nil {
 			return err
 		}
 	}
@@ -195,7 +195,7 @@ func (s *Server) deleteVolume(volume *Volume) error {
 		return err
 	}
 	if volume.Name != "" {
-		if err := util.RemoveFromIndex(volume.Name, s.NameVolumeIndex); err != nil {
+		if err := s.NameVolumeIndex.Remove(volume.Name); err != nil {
 			return err
 		}
 	}
@@ -777,8 +777,8 @@ func (s *Server) doVolumeRequestUUID(version string, w http.ResponseWriter, r *h
 	resp := &api.VolumeUUIDResponse{
 		UUIDs: []string{},
 	}
-	uuid, exists := s.NameVolumeIndex[volumeName]
-	if exists {
+	uuid := s.NameVolumeIndex.Get(volumeName)
+	if uuid != "" {
 		resp.UUIDs = append(resp.UUIDs, uuid)
 	}
 	return writeResponseOutput(w, resp)

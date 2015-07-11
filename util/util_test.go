@@ -237,3 +237,34 @@ func (s *TestSuite) TestParseSize(c *C) {
 	c.Assert(value, Equals, int64(0))
 	c.Assert(err, ErrorMatches, "strconv.ParseInt: parsing .*: invalid syntax")
 }
+
+func (s *TestSuite) TestIndex(c *C) {
+	var err error
+	index := NewIndex()
+	err = index.Add("key1", "value1")
+	c.Assert(err, IsNil)
+
+	err = index.Add("key1", "value2")
+	c.Assert(err, ErrorMatches, "BUG: Conflict when updating index.*")
+
+	err = index.Add("", "value")
+	c.Assert(err, ErrorMatches, "BUG: Invalid empty index key")
+
+	err = index.Add("key", "")
+	c.Assert(err, ErrorMatches, "BUG: Invalid empty index value")
+
+	value := index.Get("key1")
+	c.Assert(value, Equals, "value1")
+
+	value = index.Get("keyx")
+	c.Assert(value, Equals, "")
+
+	err = index.Remove("")
+	c.Assert(err, ErrorMatches, "BUG: Invalid empty index key")
+
+	err = index.Remove("keyx")
+	c.Assert(err, ErrorMatches, "BUG: About to remove non-existed key.*")
+
+	err = index.Remove("key1")
+	c.Assert(err, IsNil)
+}

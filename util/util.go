@@ -309,22 +309,3 @@ func Execute(binary string, args []string) (string, error) {
 func Now() string {
 	return time.Now().Format(time.RubyDate)
 }
-
-func AddToIndex(key, value string, index map[string]string) error {
-	if oldValue, exists := index[key]; exists {
-		if oldValue != value {
-			return fmt.Errorf("BUG: Conflict when updating index, %v was mapped to %v, but %v want to be mapped too", key, oldValue, value)
-		}
-		return nil
-	}
-	index[key] = value
-	return nil
-}
-
-func RemoveFromIndex(key string, index map[string]string) error {
-	if _, exists := index[key]; !exists {
-		return fmt.Errorf("BUG: About to remove %v from index, but it didn't exist in it", key)
-	}
-	delete(index, key)
-	return nil
-}

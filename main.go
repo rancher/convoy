@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/util"
 	"net"
 	"net/http"
 	"os"
@@ -55,8 +56,8 @@ type Server struct {
 	Router              *mux.Router
 	StorageDriver       drivers.Driver
 	GlobalLock          *sync.RWMutex
-	NameVolumeIndex     map[string]string
-	SnapshotVolumeIndex map[string]string
+	NameVolumeIndex     *util.Index
+	SnapshotVolumeIndex *util.Index
 	Config
 }
 

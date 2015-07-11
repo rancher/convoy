@@ -131,7 +131,7 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		CreatedTime: util.Now(),
 	}
 	volume.Snapshots[uuid] = snapshot
-	if err := util.AddToIndex(snapshot.UUID, volume.UUID, s.SnapshotVolumeIndex); err != nil {
+	if err := s.SnapshotVolumeIndex.Add(snapshot.UUID, volume.UUID); err != nil {
 		return err
 	}
 
@@ -173,8 +173,8 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	if err != nil {
 		return err
 	}
-	volumeUUID, exists := s.SnapshotVolumeIndex[snapshotUUID]
-	if !exists {
+	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
+	if volumeUUID == "" {
 		return fmt.Errorf("cannot find volume for snapshot %v", snapshotUUID)
 	}
 
@@ -202,7 +202,7 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	}).Debug()
 
 	delete(volume.Snapshots, snapshotUUID)
-	if err := util.RemoveFromIndex(snapshotUUID, s.SnapshotVolumeIndex); err != nil {
+	if err := s.SnapshotVolumeIndex.Remove(snapshotUUID); err != nil {
 		return err
 	}
 	return s.saveVolume(volume)

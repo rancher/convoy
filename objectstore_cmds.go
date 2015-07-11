@@ -564,8 +564,8 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 	if err != nil {
 		return err
 	}
-	volumeUUID, exists := s.SnapshotVolumeIndex[snapshotUUID]
-	if !exists {
+	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
+	if volumeUUID == "" {
 		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotUUID)
 	}
 
