@@ -208,11 +208,11 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 
 	snapshot := volume.Snapshots[snapshotUUID]
 	//TODO: error handling
-	if err := s.SnapshotVolumeIndex.Remove(snapshotUUID); err != nil {
+	if err := s.SnapshotVolumeIndex.Delete(snapshotUUID); err != nil {
 		return err
 	}
 	if snapshot.Name != "" {
-		if err = s.NameUUIDIndex.Remove(snapshot.Name); err != nil {
+		if err = s.NameUUIDIndex.Delete(snapshot.Name); err != nil {
 			return err
 		}
 	}

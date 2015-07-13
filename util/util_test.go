@@ -259,12 +259,12 @@ func (s *TestSuite) TestIndex(c *C) {
 	value = index.Get("keyx")
 	c.Assert(value, Equals, "")
 
-	err = index.Remove("")
+	err = index.Delete("")
 	c.Assert(err, ErrorMatches, "BUG: Invalid empty index key")
 
-	err = index.Remove("keyx")
+	err = index.Delete("keyx")
 	c.Assert(err, ErrorMatches, "BUG: About to remove non-existed key.*")
 
-	err = index.Remove("key1")
+	err = index.Delete("key1")
 	c.Assert(err, IsNil)
 }

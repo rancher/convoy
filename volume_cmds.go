@@ -195,7 +195,7 @@ func (s *Server) deleteVolume(volume *Volume) error {
 		return err
 	}
 	if volume.Name != "" {
-		if err := s.NameUUIDIndex.Remove(volume.Name); err != nil {
+		if err := s.NameUUIDIndex.Delete(volume.Name); err != nil {
 			return err
 		}
 	}

@@ -35,7 +35,7 @@ func (idx *Index) Add(key, value string) error {
 	return nil
 }
 
-func (idx *Index) Remove(key string) error {
+func (idx *Index) Delete(key string) error {
 	if key == "" {
 		return fmt.Errorf("BUG: Invalid empty index key")
 	}
