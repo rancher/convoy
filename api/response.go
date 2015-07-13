@@ -17,7 +17,7 @@ type VolumesResponse struct {
 }
 
 type UUIDResponse struct {
-	UUIDs []string
+	UUID string
 }
 
 type VolumeResponse struct {

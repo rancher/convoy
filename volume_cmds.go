@@ -368,13 +368,10 @@ func requestUUID(name string) (string, error) {
 	if err := json.NewDecoder(rc).Decode(resp); err != nil {
 		return "", err
 	}
-	if len(resp.UUIDs) == 0 {
+	if resp.UUID == "" {
 		return "", fmt.Errorf("Cannot find volume named %v", name)
 	}
-	if len(resp.UUIDs) > 1 {
-		return "", fmt.Errorf("FATAL: Multiple volume with name %v?!", name)
-	}
-	return resp.UUIDs[0], nil
+	return resp.UUID, nil
 }
 
 func doVolumeDelete(c *cli.Context) error {
@@ -772,12 +769,10 @@ func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Re
 		return err
 	}
 
-	resp := &api.UUIDResponse{
-		UUIDs: []string{},
-	}
+	resp := &api.UUIDResponse{}
 	uuid := s.NameUUIDIndex.Get(name)
 	if uuid != "" {
-		resp.UUIDs = append(resp.UUIDs, uuid)
+		resp.UUID = uuid
 	}
 	return writeResponseOutput(w, resp)
 }
