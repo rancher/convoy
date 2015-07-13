@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/drivers"
@@ -139,6 +140,9 @@ func (s *Server) updateIndex() error {
 	volumeUUIDs := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
 	for _, uuid := range volumeUUIDs {
 		volume := s.loadVolume(uuid)
+		if err := s.UUIDIndex.Add(uuid); err != nil {
+			return err
+		}
 		if volume == nil {
 			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
 		}
@@ -148,6 +152,9 @@ func (s *Server) updateIndex() error {
 			}
 		}
 		for snapshotUUID, snapshot := range volume.Snapshots {
+			if err := s.UUIDIndex.Add(snapshotUUID); err != nil {
+				return err
+			}
 			if err := s.SnapshotVolumeIndex.Add(snapshotUUID, uuid); err != nil {
 				return err
 			}
@@ -239,6 +246,7 @@ func (s *Server) CheckEnvironment() error {
 func (s *Server) finishInitialization() {
 	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
+	s.UUIDIndex = truncindex.NewTruncIndex([]string{})
 	s.GlobalLock = &sync.RWMutex{}
 
 	s.updateIndex()

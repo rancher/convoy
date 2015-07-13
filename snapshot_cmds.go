@@ -132,6 +132,9 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	}
 	//TODO: error handling
 	volume.Snapshots[uuid] = snapshot
+	if err := s.UUIDIndex.Add(snapshot.UUID); err != nil {
+		return err
+	}
 	if err := s.SnapshotVolumeIndex.Add(snapshot.UUID, volume.UUID); err != nil {
 		return err
 	}
@@ -208,6 +211,9 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 
 	snapshot := volume.Snapshots[snapshotUUID]
 	//TODO: error handling
+	if err := s.UUIDIndex.Delete(snapshot.UUID); err != nil {
+		return err
+	}
 	if err := s.SnapshotVolumeIndex.Delete(snapshotUUID); err != nil {
 		return err
 	}

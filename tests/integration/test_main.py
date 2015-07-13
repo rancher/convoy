@@ -223,12 +223,12 @@ def umount_volume(uuid, mount_dir):
     v.umount_volume(uuid)
     mount_cleanup_list.remove(mount_dir)
 
-def test_volume_cru():
+def test_volume_crud():
     uuid1 = create_volume(VOLUME_SIZE_500M)
     uuid2 = create_volume(VOLUME_SIZE_100M)
     uuid3 = create_volume()
 
-    delete_volume(uuid3)
+    delete_volume(uuid3, uuid3[:6])
     delete_volume(uuid2)
     delete_volume(uuid1)
 
@@ -339,7 +339,7 @@ def test_volume_list():
     delete_volume(uuid2)
     delete_volume(uuid1)
 
-def test_snapshot_cru():
+def test_snapshot_crud():
     volume_uuid = create_volume(VOLUME_SIZE_500M, name="vol1")
 
     snapshot_uuid = v.create_snapshot(volume_uuid)
@@ -354,6 +354,7 @@ def test_snapshot_cru():
     snap3 = v.create_snapshot(volume_uuid)
 
     v.delete_snapshot(snap1)
+    v.delete_snapshot(snap2[:6])
     delete_volume(volume_uuid)
 
     volume_uuid = create_volume(VOLUME_SIZE_500M)

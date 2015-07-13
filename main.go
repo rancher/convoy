@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/drivers"
@@ -58,6 +59,7 @@ type Server struct {
 	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
+	UUIDIndex           *truncindex.TruncIndex
 	Config
 }
 

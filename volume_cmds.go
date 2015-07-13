@@ -293,6 +293,10 @@ func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64, n
 	if err := s.saveVolume(volume); err != nil {
 		return nil, err
 	}
+	if err := s.UUIDIndex.Add(volume.UUID); err != nil {
+		return nil, err
+	}
+
 	return volume, nil
 }
 
@@ -345,17 +349,17 @@ func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error)
 		return id, nil
 	}
 
+	return requestUUID(id)
+}
+
+func requestUUID(id string) (string, error) {
+	// Identify by name
+	v := url.Values{}
 	if !util.ValidateName(id) {
 		return "", fmt.Errorf("Invalid volume name %v", id)
 	}
 
-	return requestUUID(id)
-}
-
-func requestUUID(name string) (string, error) {
-	// Identify by name
-	v := url.Values{}
-	v.Set(KEY_NAME, name)
+	v.Set(KEY_NAME, id)
 
 	request := "/uuid?" + v.Encode()
 	rc, err := sendRequest("GET", request, nil)
@@ -369,7 +373,7 @@ func requestUUID(name string) (string, error) {
 		return "", err
 	}
 	if resp.UUID == "" {
-		return "", fmt.Errorf("Cannot find volume named %v", name)
+		return "", fmt.Errorf("Cannot find volume with name or id %v", id)
 	}
 	return resp.UUID, nil
 }
@@ -426,6 +430,9 @@ func (s *Server) processVolumeDelete(uuid string) error {
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug()
+	if err := s.UUIDIndex.Delete(volume.UUID); err != nil {
+		return err
+	}
 	return s.deleteVolume(volume)
 }
 
@@ -764,13 +771,24 @@ func (s *Server) processVolumeUmount(volume *Volume, mountConfig *api.VolumeMoun
 
 func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	name, err := getName(r, KEY_NAME, true, err)
+	key, err := getLowerCaseFlag(r, KEY_NAME, true, err)
 	if err != nil {
 		return err
 	}
 
+	var uuid string
 	resp := &api.UUIDResponse{}
-	uuid := s.NameUUIDIndex.Get(name)
+
+	if util.ValidateName(key) {
+		// It's probably a name
+		uuid = s.NameUUIDIndex.Get(key)
+	}
+
+	if uuid == "" {
+		// No luck with name, let's try uuid index
+		uuid, _ = s.UUIDIndex.Get(key)
+	}
+
 	if uuid != "" {
 		resp.UUID = uuid
 	}
