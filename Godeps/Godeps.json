@@ -62,8 +62,13 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
-			"Comment": "v1.4.1-3990-g260205c",
-			"Rev": "260205cd79ea96fe738519bb83869b25a32528e9"
+			"Comment": "v1.4.1-4172-g8861d65",
+			"Rev": "8861d65e97413a5824a163a176f9a0aaebb74619"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/truncindex",
+			"Comment": "v1.4.1-4172-g8861d65",
+			"Rev": "8861d65e97413a5824a163a176f9a0aaebb74619"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -76,6 +81,11 @@
 		{
 			"ImportPath": "github.com/mcuadros/go-version",
 			"Rev": "d52711f8d6bea8dc01efafdb68ad95a4e2606630"
+		},
+		{
+			"ImportPath": "github.com/tchap/go-patricia/patricia",
+			"Comment": "v2.2.0",
+			"Rev": "a560f85131e8aafc2cc4bcb1e265ae3fc6ee5f50"
 		},
 		{
 			"ImportPath": "github.com/vaughan0/go-ini",
