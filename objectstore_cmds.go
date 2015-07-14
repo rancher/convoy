@@ -322,6 +322,13 @@ func (s *Server) processObjectStoreAddVolume(volumeUUID, objectstoreUUID string)
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
+	objVolume := &objectstore.Volume{
+		UUID:        volume.UUID,
+		Name:        volume.Name,
+		Size:        volume.Size,
+		FileSystem:  volume.FileSystem,
+		CreatedTime: volume.CreatedTime,
+	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:       LOG_EVENT_ADD,
@@ -330,7 +337,7 @@ func (s *Server) processObjectStoreAddVolume(volumeUUID, objectstoreUUID string)
 		LOG_FIELD_SIZE:        volume.Size,
 		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
-	if err := objectstore.AddVolume(s.Root, objectstoreUUID, volumeUUID, volume.Name, volume.Size); err != nil {
+	if err := objectstore.AddVolume(s.Root, objectstoreUUID, objVolume); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

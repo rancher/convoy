@@ -39,6 +39,8 @@ type Volume struct {
 	UUID           string
 	Name           string
 	Size           int64
+	FileSystem     string
+	CreatedTime    string
 	LastSnapshotID string
 }
 
@@ -184,30 +186,23 @@ func VolumeExists(root, volumeUUID, objectstoreUUID string) bool {
 	return driver.FileExists(getVolumeFilePath(volumeUUID))
 }
 
-func AddVolume(root, id, volumeID, volumeName string, size int64) error {
+func AddVolume(root, id string, volume *Volume) error {
 	_, driver, err := getObjectStoreCfgAndDriver(root, id)
 	if err != nil {
 		return err
 	}
 
-	volumeFile := getVolumeFilePath(volumeID)
+	volumeFile := getVolumeFilePath(volume.UUID)
 	if driver.FileExists(volumeFile) {
-		log.Debugf("Volume %v already exists in objectstore %v, ignore the command", volumeID, id)
+		log.Debugf("Volume %v already exists in objectstore %v, ignore the command", volume.UUID, id)
 		return nil
 	}
 
-	volume := &Volume{
-		UUID:           volumeID,
-		Name:           volumeName,
-		Size:           size,
-		LastSnapshotID: "",
-	}
-
-	if err := saveVolumeConfig(volumeID, driver, volume); err != nil {
-		log.Error("Fail add volume ", volumeID)
+	if err := saveVolumeConfig(volume, driver); err != nil {
+		log.Error("Fail add volume ", volume.UUID)
 		return err
 	}
-	log.Debug("Added objectstore volume ", volumeID)
+	log.Debug("Added objectstore volume ", volume.UUID)
 
 	return nil
 }
@@ -373,7 +368,7 @@ func BackupSnapshot(root, snapshotID, volumeID, objectstoreID string, sDriver dr
 	}
 
 	volume.LastSnapshotID = snapshotID
-	if err := saveVolumeConfig(volumeID, bsDriver, volume); err != nil {
+	if err := saveVolumeConfig(volume, bsDriver); err != nil {
 		return err
 	}
 
@@ -504,7 +499,7 @@ func RemoveSnapshot(root, snapshotID, volumeID, objectstoreID string) error {
 
 	if snapshotID == v.LastSnapshotID {
 		v.LastSnapshotID = ""
-		if err := saveVolumeConfig(volumeID, bsDriver, v); err != nil {
+		if err := saveVolumeConfig(v, bsDriver); err != nil {
 			return err
 		}
 	}

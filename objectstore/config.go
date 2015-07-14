@@ -102,8 +102,8 @@ func loadVolumeConfig(volumeID string, driver ObjectStoreDriver) (*Volume, error
 	return v, nil
 }
 
-func saveVolumeConfig(volumeID string, driver ObjectStoreDriver, v *Volume) error {
-	file := getVolumeFilePath(volumeID)
+func saveVolumeConfig(v *Volume, driver ObjectStoreDriver) error {
+	file := getVolumeFilePath(v.UUID)
 	if err := saveConfigInObjectStore(file, driver, v); err != nil {
 		return err
 	}
