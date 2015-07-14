@@ -196,18 +196,17 @@ func AddVolume(root, id, volumeID, volumeName string, size int64) error {
 		return nil
 	}
 
-	volume := Volume{
+	volume := &Volume{
 		UUID:           volumeID,
 		Name:           volumeName,
 		Size:           size,
 		LastSnapshotID: "",
 	}
 
-	if err := saveConfigInObjectStore(volumeFile, driver, &volume); err != nil {
+	if err := saveVolumeConfig(volumeID, driver, volume); err != nil {
 		log.Error("Fail add volume ", volumeID)
 		return err
 	}
-	log.Debug("Created volume configuration file in objectstore: ", volumeFile)
 	log.Debug("Added objectstore volume ", volumeID)
 
 	return nil
