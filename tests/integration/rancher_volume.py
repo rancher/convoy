@@ -30,8 +30,7 @@ class VolumeManager:
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size = "", base = "", name = "",
-                    need_format = False):
+    def create_volume(self, size = "", base = "", name = ""):
         cmd = ["volume", "create"]
         if size != "":
             cmd = cmd + ["--size", size]
@@ -39,8 +38,6 @@ class VolumeManager:
             cmd = cmd + ["--image-uuid", base]
         if name != "":
             cmd = cmd + ["--name", name]
-        if need_format:
-            cmd = cmd + ["--format"]
         data = subprocess.check_output(self.base_cmdline + cmd)
         volume = json.loads(data)
         if name != "":

@@ -196,9 +196,15 @@ def wait_for_daemon():
     assert info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE
     assert info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE
 
-def create_volume(size = "", base = "", name = "",
-        need_format = False):
-    uuid = v.create_volume(size, base, name, need_format)
+@pytest.yield_fixture(autouse=True)
+def check_test():
+    yield
+    filenames = os.listdir(CFG_ROOT)
+    for filename in filenames:
+        assert not filename.startswith('volume')
+
+def create_volume(size = "", base = "", name = ""):
+    uuid = v.create_volume(size, base, name)
     dm_cleanup_list.append(uuid)
     return uuid
 
@@ -315,7 +321,7 @@ def test_volume_mount():
     delete_volume(uuid)
 
     # test format as volume create option
-    uuid = create_volume(need_format=True)
+    uuid = create_volume()
     no_format_test_create_file(uuid, filename)
     delete_volume(uuid)
 
@@ -538,7 +544,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
         with open(get_snapshot_cfg(snap1_vol1_uuid, volume1_uuid)) as f:
             snap1_vol1 = json.loads(f.read())
         assert snap1_vol1["ID"] == snap1_vol1_uuid
-        assert len(snap1_vol1["Blocks"]) == 0
+        assert len(snap1_vol1["Blocks"]) != 0
 
     volumes = v.list_volume_objectstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, objectstore_uuid)
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
@@ -549,7 +555,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
         with open(get_snapshot_cfg(snap1_vol2_uuid, volume2_uuid)) as f:
             snap1_vol2 = json.loads(f.read())
         assert snap1_vol2["ID"] == snap1_vol2_uuid
-        assert len(snap1_vol2["Blocks"]) == 0
+        assert len(snap1_vol2["Blocks"]) != 0
 
     #list snapshots
     volumes = v.list_volume_objectstore(volume1_uuid, objectstore_uuid)
@@ -788,19 +794,6 @@ def process_image_based_volume(objectstore_uuid):
 
     v.deregister_objectstore(objectstore_uuid)
 
-def create_delete_volume_thread():
-    uuid = v.create_volume()
-    v.delete_volume(uuid)
-
-def test_create_volume_in_parallel():
-    threads = []
-    for i in range(TEST_THREAD_COUNT):
-        threads.append(threading.Thread(target = create_delete_volume_thread))
-        threads[i].start()
-
-    for i in range(TEST_THREAD_COUNT):
-        threads[i].join()
-
 def test_list_objectstores():
     os.makedirs(OBJECTSTORE_PATH1)
     os.makedirs(OBJECTSTORE_PATH2)
@@ -833,4 +826,17 @@ def test_list_objectstores():
     v.deregister_objectstore(store1)
     v.deregister_objectstore(store2)
     v.deregister_objectstore(store3)
+
+#def create_delete_volume_thread():
+#    uuid = v.create_volume()
+#    v.delete_volume(uuid)
+#
+#def test_create_volume_in_parallel():
+#    threads = []
+#    for i in range(TEST_THREAD_COUNT):
+#        threads.append(threading.Thread(target = create_delete_volume_thread))
+#        threads[i].start()
+#
+#    for i in range(TEST_THREAD_COUNT):
+#        threads[i].join()
 
