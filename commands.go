@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
@@ -82,6 +83,10 @@ func getLowerCaseFlag(v interface{}, key string, required bool, err error) (stri
 		err = genRequiredMissingError(key)
 	}
 	return result, err
+}
+
+func decodeRequest(r *http.Request, v interface{}) error {
+	return json.NewDecoder(r.Body).Decode(v)
 }
 
 func cmdInfo(c *cli.Context) {

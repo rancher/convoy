@@ -270,7 +270,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	defer s.GlobalLock.Unlock()
 
 	config := &api.VolumeCreateConfig{}
-	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
+	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
 
@@ -511,8 +511,7 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	}
 
 	config := &api.VolumeListConfig{}
-	err = json.NewDecoder(r.Body).Decode(config)
-	if err != nil {
+	if err = decodeRequest(r, config); err != nil {
 		return err
 	}
 
@@ -585,18 +584,17 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return fmt.Errorf("volume %v already mounted at %v as record shows", volumeUUID, volume.MountPoint)
 	}
 
-	mountConfig := &api.VolumeMountConfig{}
-	err = json.NewDecoder(r.Body).Decode(mountConfig)
+	config := &api.VolumeMountConfig{}
+	if err = decodeRequest(r, config); err != nil {
+		return err
+	}
+
+	config.MountPoint, err = s.getVolumeMountPoint(volumeUUID, config.MountPoint)
 	if err != nil {
 		return err
 	}
 
-	mountConfig.MountPoint, err = s.getVolumeMountPoint(volumeUUID, mountConfig.MountPoint)
-	if err != nil {
-		return err
-	}
-
-	if err = s.processVolumeMount(volume, mountConfig); err != nil {
+	if err = s.processVolumeMount(volume, config); err != nil {
 		return err
 	}
 
@@ -679,13 +677,12 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 		return fmt.Errorf("volume %v hasn't been mounted as record shows", volumeUUID)
 	}
 
-	mountConfig := &api.VolumeMountConfig{}
-	err = json.NewDecoder(r.Body).Decode(mountConfig)
-	if err != nil {
+	config := &api.VolumeMountConfig{}
+	if err = decodeRequest(r, config); err != nil {
 		return err
 	}
 
-	return s.processVolumeUmount(volume, mountConfig)
+	return s.processVolumeUmount(volume, config)
 }
 
 func (s *Server) putVolumeMountPoint(mountPoint string) string {
