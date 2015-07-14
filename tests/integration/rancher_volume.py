@@ -132,18 +132,6 @@ class VolumeManager:
 	subprocess.check_call(self.base_cmdline + ["objectstore", "deregister",
 		"--objectstore-uuid", uuid])
 
-    def add_volume_to_objectstore(self, volume_uuid, bs_uuid):
-	subprocess.check_call(self.base_cmdline + ["objectstore",
-                "add-volume",
-		"--volume-uuid", volume_uuid,
-		"--objectstore-uuid", bs_uuid])
-
-    def remove_volume_from_objectstore(self, volume_uuid, bs_uuid):
-	subprocess.check_call(self.base_cmdline + ["objectstore",
-                "remove-volume",
-		"--volume-uuid", volume_uuid,
-		"--objectstore-uuid", bs_uuid])
-
     def backup_snapshot_to_objectstore(self, snapshot_uuid, bs_uuid):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "backup",
 		"--snapshot", snapshot_uuid,

@@ -41,7 +41,6 @@ func createRouter(s *Server) *mux.Router {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/umount":                                                                        s.doVolumeUmount,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/create":                                                              s.doSnapshotCreate,
 			"/objectstores/register":                                                                                           s.doObjectStoreRegister,
-			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/add":                                           s.doObjectStoreAddVolume,
 			"/objectstores/{objectstore-uuid}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/backup":                                    s.doSnapshotBackup,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/restore": s.doSnapshotRestore,
 		},
@@ -49,7 +48,6 @@ func createRouter(s *Server) *mux.Router {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":                                                                       s.doVolumeDelete,
 			"/snapshots/{" + KEY_SNAPSHOT_UUID + "}/":                                                                   s.doSnapshotDelete,
 			"/objectstores/{objectstore-uuid}/":                                                                         s.doObjectStoreDeregister,
-			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/":                                       s.doObjectStoreRemoveVolume,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotRemove,
 		},
 	}

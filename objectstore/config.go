@@ -110,6 +110,11 @@ func saveVolumeConfig(v *Volume, driver ObjectStoreDriver) error {
 	return nil
 }
 
+func volumeExists(volumeUUID string, driver ObjectStoreDriver) bool {
+	volumeFile := getVolumeFilePath(volumeUUID)
+	return driver.FileExists(volumeFile)
+}
+
 func loadRemoteObjectStoreConfig(driver ObjectStoreDriver) (*ObjectStore, error) {
 	b := &ObjectStore{}
 	path := OBJECTSTORE_BASE

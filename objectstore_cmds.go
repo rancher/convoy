@@ -117,38 +117,6 @@ var (
 		Action: cmdObjectStoreList,
 	}
 
-	objectstoreAddVolumeCmd = cli.Command{
-		Name:  "add-volume",
-		Usage: "add a volume to objectstore",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-			cli.StringFlag{
-				Name:  KEY_VOLUME_UUID,
-				Usage: "uuid of volume",
-			},
-		},
-		Action: cmdObjectStoreAddVolume,
-	}
-
-	objectstoreRemoveVolumeCmd = cli.Command{
-		Name:  "remove-volume",
-		Usage: "remove a volume from objectstore. WARNING: ALL THE DATA ABOUT THE VOLUME IN THIS OBJECTSTORE WOULD BE REMOVED!",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-			cli.StringFlag{
-				Name:  KEY_VOLUME_UUID,
-				Usage: "uuid of volume",
-			},
-		},
-		Action: cmdObjectStoreRemoveVolume,
-	}
-
 	objectstoreListVolumeCmd = cli.Command{
 		Name:  "list-volume",
 		Usage: "list volume and snapshots in objectstore",
@@ -175,8 +143,6 @@ var (
 		Subcommands: []cli.Command{
 			objectstoreRegisterCmd,
 			objectstoreDeregisterCmd,
-			objectstoreAddVolumeCmd,
-			objectstoreRemoveVolumeCmd,
 			objectstoreListVolumeCmd,
 			objectstoreListCmd,
 		},
@@ -297,126 +263,6 @@ func (s *Server) doObjectStoreDeregister(version string, w http.ResponseWriter, 
 	return nil
 }
 
-func cmdObjectStoreAddVolume(c *cli.Context) {
-	if err := doObjectStoreAddVolume(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreAddVolume(c *cli.Context) error {
-	var err error
-
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
-	if err != nil {
-		return err
-	}
-
-	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/add"
-	return sendRequestAndPrint("POST", request, nil)
-}
-
-func (s *Server) processObjectStoreAddVolume(volumeUUID, objectstoreUUID string) error {
-	volume := s.loadVolume(volumeUUID)
-	if volume == nil {
-		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
-	}
-
-	objVolume := &objectstore.Volume{
-		UUID:        volume.UUID,
-		Name:        volume.Name,
-		Size:        volume.Size,
-		FileSystem:  volume.FileSystem,
-		CreatedTime: volume.CreatedTime,
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_ADD,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_SIZE:        volume.Size,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := objectstore.AddVolume(s.Root, objectstoreUUID, objVolume); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_ADD,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	return nil
-}
-
-func (s *Server) doObjectStoreAddVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	var err error
-
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
-	if err != nil {
-		return err
-	}
-	return s.processObjectStoreAddVolume(volumeUUID, objectstoreUUID)
-}
-
-func cmdObjectStoreRemoveVolume(c *cli.Context) {
-	if err := doObjectStoreRemoveVolume(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreRemoveVolume(c *cli.Context) error {
-	var err error
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
-	if err != nil {
-		return err
-	}
-
-	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/"
-	return sendRequestAndPrint("DELETE", request, nil)
-}
-
-func (s *Server) doObjectStoreRemoveVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	var err error
-
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
-	if err != nil {
-		return err
-	}
-	if s.loadVolume(volumeUUID) == nil {
-		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := objectstore.RemoveVolume(s.Root, objectstoreUUID, volumeUUID); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	return nil
-}
-
 func cmdObjectStoreListVolume(c *cli.Context) {
 	if err := doObjectStoreListVolume(c); err != nil {
 		panic(err)
@@ -502,15 +348,13 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
-	if !objectstore.VolumeExists(s.Root, volumeUUID, objectstoreUUID) {
-		log.WithFields(logrus.Fields{
-			LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-			LOG_FIELD_VOLUME:      volumeUUID,
-			LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-		}).Debug("Cannot find volume in objectstore, add it")
-		if err := s.processObjectStoreAddVolume(volumeUUID, objectstoreUUID); err != nil {
-			return err
-		}
+	volume := s.loadVolume(volumeUUID)
+	objVolume := &objectstore.Volume{
+		UUID:        volume.UUID,
+		Name:        volume.Name,
+		Size:        volume.Size,
+		FileSystem:  volume.FileSystem,
+		CreatedTime: volume.CreatedTime,
 	}
 
 	log.WithFields(logrus.Fields{
@@ -521,7 +365,7 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:      volumeUUID,
 		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
-	if err := objectstore.BackupSnapshot(s.Root, snapshotUUID, volumeUUID, objectstoreUUID, s.StorageDriver); err != nil {
+	if err := objectstore.BackupSnapshot(s.Root, objVolume, snapshotUUID, objectstoreUUID, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
