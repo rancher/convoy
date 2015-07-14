@@ -5,11 +5,6 @@ type VolumeMountConfig struct {
 	NameSpace  string
 }
 
-type ObjectStoreRegisterConfig struct {
-	Kind string
-	Opts map[string]string
-}
-
 type VolumeListConfig struct {
 	DriverSpecific bool
 }
@@ -17,4 +12,28 @@ type VolumeListConfig struct {
 type VolumeCreateConfig struct {
 	Name string
 	Size int64
+}
+
+type ObjectStoreListConfig struct {
+	URL          string
+	VolumeUUID   string
+	SnapshotUUID string
+}
+
+type ObjectStoreBackupConfig struct {
+	URL          string
+	SnapshotUUID string
+}
+
+type ObjectStoreRestoreConfig struct {
+	URL                string
+	SourceVolumeUUID   string
+	SourceSnapshotUUID string
+	TargetVolumeUUID   string
+}
+
+type ObjectStoreDeleteConfig struct {
+	URL          string
+	VolumeUUID   string
+	SnapshotUUID string
 }

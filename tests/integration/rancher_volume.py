@@ -110,71 +110,40 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
 	        "--snapshot", snapshot])
 
-    def register_vfs_objectstore(self, path):
-	data = subprocess.check_output(self.base_cmdline + ["objectstore",
-		"register", "--kind", "vfs",
-		"--opts", "vfs.path="+path])
-	bs = json.loads(data)
-	assert bs["Kind"] == "vfs"
-	return bs["UUID"]
-
-    def register_s3_objectstore(self, region, bucket, path):
-	data = subprocess.check_output(self.base_cmdline + ["objectstore",
-		"register", "--kind", "s3",
-		"--opts", "s3.region="+region,
-		"--opts", "s3.bucket="+bucket,
-		"--opts", "s3.path="+path])
-	bs = json.loads(data)
-	assert bs["Kind"] == "s3"
-	return bs["UUID"]
-
-    def deregister_objectstore(self, uuid):
-	subprocess.check_call(self.base_cmdline + ["objectstore", "deregister",
-		"--objectstore-uuid", uuid])
-
-    def backup_snapshot_to_objectstore(self, snapshot_uuid, bs_uuid):
+    def backup_snapshot_to_objectstore(self, snapshot_uuid, dest_url):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "backup",
 		"--snapshot", snapshot_uuid,
-		"--objectstore-uuid", bs_uuid])
+		"--dest-url", dest_url])
 
     def restore_snapshot_from_objectstore(self, snapshot_uuid,
-		    origin_volume_uuid, target_volume_uuid, bs_uuid):
+		    origin_volume_uuid, target_volume_uuid, dest_url):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "restore",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", origin_volume_uuid,
 		"--target-volume-uuid", target_volume_uuid,
-		"--objectstore-uuid", bs_uuid])
+		"--dest-url", dest_url])
 
     def remove_snapshot_from_objectstore(self,
-		    snapshot_uuid, volume_uuid, bs_uuid):
+		    snapshot_uuid, volume_uuid, dest_url):
 	subprocess.check_call(self.base_cmdline + ["snapshot", "remove-backup",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
-		"--objectstore-uuid", bs_uuid])
+		"--dest-url", dest_url])
 
-    def list_volume_objectstore(self, volume_uuid, bs_uuid):
+    def list_volume_objectstore(self, volume_uuid, dest_url):
 	data = subprocess.check_output(self.base_cmdline + ["objectstore",
                 "list-volume",
 		"--volume-uuid", volume_uuid,
-		"--objectstore-uuid", bs_uuid])
+		"--dest-url", dest_url])
         volumes = json.loads(data)
         return volumes["Volumes"]
 
     def list_volume_objectstore_with_snapshot(self,
-            snapshot_uuid, volume_uuid, bs_uuid):
+            snapshot_uuid, volume_uuid, dest_url):
 	data = subprocess.check_output(self.base_cmdline + ["objectstore",
                 "list-volume",
 		"--snapshot-uuid", snapshot_uuid,
 		"--volume-uuid", volume_uuid,
-		"--objectstore-uuid", bs_uuid])
+		"--dest-url", dest_url])
         volumes = json.loads(data)
         return volumes["Volumes"]
-
-    def list_objectstores(self, store_uuid = ""):
-        cmd = ["objectstore", "list"]
-        if store_uuid != "":
-            cmd += ["--objectstore-uuid", store_uuid]
-	data = subprocess.check_output(self.base_cmdline + cmd)
-        stores = json.loads(data)
-        return stores["ObjectStores"]
-

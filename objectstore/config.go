@@ -13,17 +13,16 @@ import (
 )
 
 const (
-	OBJECTSTORE_BASE        = "rancher-objectstore"
-	OBJECTSTORE_CONFIG_FILE = "objectstore.cfg"
-	VOLUME_DIRECTORY        = "volumes"
-	VOLUME_CONFIG_FILE      = "volume.cfg"
-	VOLUME_SEPARATE_LAYER1  = 2
-	VOLUME_SEPARATE_LAYER2  = 4
-	SNAPSHOTS_DIRECTORY     = "snapshots"
-	SNAPSHOT_CONFIG_PREFIX  = "snapshot_"
-	BLOCKS_DIRECTORY        = "blocks"
-	BLOCK_SEPARATE_LAYER1   = 2
-	BLOCK_SEPARATE_LAYER2   = 4
+	OBJECTSTORE_BASE       = "rancher-objectstore"
+	VOLUME_DIRECTORY       = "volumes"
+	VOLUME_CONFIG_FILE     = "volume.cfg"
+	VOLUME_SEPARATE_LAYER1 = 2
+	VOLUME_SEPARATE_LAYER2 = 4
+	SNAPSHOTS_DIRECTORY    = "snapshots"
+	SNAPSHOT_CONFIG_PREFIX = "snapshot_"
+	BLOCKS_DIRECTORY       = "blocks"
+	BLOCK_SEPARATE_LAYER1  = 2
+	BLOCK_SEPARATE_LAYER2  = 4
 
 	OBJECTSTORE_CFG_PREFIX = "objectstore_"
 	CFG_POSTFIX            = ".cfg"
@@ -113,25 +112,6 @@ func saveVolumeConfig(v *Volume, driver ObjectStoreDriver) error {
 func volumeExists(volumeUUID string, driver ObjectStoreDriver) bool {
 	volumeFile := getVolumeFilePath(volumeUUID)
 	return driver.FileExists(volumeFile)
-}
-
-func loadRemoteObjectStoreConfig(driver ObjectStoreDriver) (*ObjectStore, error) {
-	b := &ObjectStore{}
-	path := OBJECTSTORE_BASE
-	file := OBJECTSTORE_CONFIG_FILE
-	if err := loadConfigInObjectStore(filepath.Join(path, file), driver, b); err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func saveRemoteObjectStoreConfig(driver ObjectStoreDriver, b *ObjectStore) error {
-	path := OBJECTSTORE_BASE
-	file := OBJECTSTORE_CONFIG_FILE
-	if err := saveConfigInObjectStore(filepath.Join(path, file), driver, b); err != nil {
-		return err
-	}
-	return nil
 }
 
 func removeDriverConfigFile(root, kind, id string) error {

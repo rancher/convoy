@@ -5,13 +5,13 @@ import (
 	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/util"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 type VfsObjectStoreDriver struct {
-	ID   string
 	Path string
 }
 
@@ -27,24 +27,25 @@ func init() {
 	objectstore.RegisterDriver(KIND, initFunc)
 }
 
-func initFunc(root, cfgName string, config map[string]string) (objectstore.ObjectStoreDriver, error) {
+func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {
 	b := &VfsObjectStoreDriver{}
-	if cfgName != "" {
-		if util.ConfigExists(root, cfgName) {
-			err := util.LoadConfig(root, cfgName, b)
-			if err != nil {
-				return nil, err
-			}
-			return b, nil
-		} else {
-			return nil, fmt.Errorf("Wrong configuration file for VFS objectstore driver")
-		}
+	u, err := url.Parse(destURL)
+	if err != nil {
+		return nil, err
 	}
 
-	//return temporily driver for loading objectstore config
-	b.Path = config[VFS_PATH]
+	if u.Scheme != KIND {
+		return nil, fmt.Errorf("BUG: Why dispatch %v to %v?", u.Scheme, KIND)
+	}
+
+	if u.Host != "" {
+		return nil, fmt.Errorf("VFS path must follow: vfs:///path/ format")
+	}
+
+	b.Path = u.Path
+
 	if b.Path == "" {
-		return nil, fmt.Errorf("Cannot find required field %v", VFS_PATH)
+		return nil, fmt.Errorf("Cannot find vfs path")
 	}
 	if _, err := b.List(""); err != nil {
 		return nil, fmt.Errorf("VFS path %v doesn't exist or is not a directory", b.Path)
@@ -58,14 +59,6 @@ func (v *VfsObjectStoreDriver) updatePath(path string) string {
 
 func (v *VfsObjectStoreDriver) preparePath(file string) error {
 	if err := os.MkdirAll(filepath.Dir(v.updatePath(file)), os.ModeDir|0700); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (v *VfsObjectStoreDriver) FinalizeInit(root, cfgName, id string) error {
-	v.ID = id
-	if err := util.SaveConfig(root, cfgName, v); err != nil {
 		return err
 	}
 	return nil

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/objectstore"
-	"github.com/rancher/rancher-volume/util"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,48 +16,44 @@ var (
 )
 
 type S3ObjectStoreDriver struct {
-	ID      string
 	Path    string
 	Service S3Service
 }
 
 const (
 	KIND = "s3"
-
-	S3_REGION = "s3.region"
-	S3_BUCKET = "s3.bucket"
-	S3_PATH   = "s3.path"
 )
 
 func init() {
 	objectstore.RegisterDriver(KIND, initFunc)
 }
 
-func initFunc(root, cfgName string, config map[string]string) (objectstore.ObjectStoreDriver, error) {
+func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {
 	b := &S3ObjectStoreDriver{}
-	if cfgName != "" {
-		if util.ConfigExists(root, cfgName) {
-			err := util.LoadConfig(root, cfgName, b)
-			if err != nil {
-				return nil, err
-			}
-			return b, nil
-		} else {
-			return nil, fmt.Errorf("Wrong configuration file for S3 objectstore driver")
-		}
+
+	u, err := url.Parse(destURL)
+	if err != nil {
+		return nil, err
 	}
 
-	b.Service.Region = config[S3_REGION]
-	b.Service.Bucket = config[S3_BUCKET]
-	b.Path = config[S3_PATH]
-	if b.Service.Region == "" || b.Service.Bucket == "" || b.Path == "" {
-		return nil, fmt.Errorf("Cannot find all required fields: %v %v %v",
-			S3_REGION, S3_BUCKET, S3_PATH)
+	if u.Scheme != KIND {
+		return nil, fmt.Errorf("BUG: Why dispatch %v to %v?", u.Scheme, KIND)
 	}
 
-	if strings.HasPrefix(b.Path, "/") {
-		return nil, fmt.Errorf("Slash '/' is not allowed at beginning of path: %v", b.Path)
+	if u.User != nil {
+		b.Service.Region = u.Host
+		b.Service.Bucket = u.User.Username()
+	} else {
+		//We would depends on AWS_REGION environment variable
+		b.Service.Bucket = u.Host
 	}
+	b.Path = u.Path
+	if b.Service.Bucket == "" || b.Path == "" {
+		return nil, fmt.Errorf("Invalid URL. Must be either s3://bucket@region/path/, or s3://bucket/path")
+	}
+
+	//Leading '/' can cause mystery problems for s3
+	b.Path = strings.TrimLeft(b.Path, "/")
 
 	//Test connection
 	if _, err := b.List(""); err != nil {
@@ -72,14 +68,6 @@ func (s *S3ObjectStoreDriver) Kind() string {
 
 func (s *S3ObjectStoreDriver) updatePath(path string) string {
 	return filepath.Join(s.Path, path)
-}
-
-func (s *S3ObjectStoreDriver) FinalizeInit(root, cfgName, id string) error {
-	s.ID = id
-	if err := util.SaveConfig(root, cfgName, s); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *S3ObjectStoreDriver) List(listPath string) ([]string, error) {

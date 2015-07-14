@@ -2,16 +2,15 @@ package objectstore
 
 import (
 	"bytes"
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/drivers"
 	"github.com/rancher/rancher-volume/util"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
@@ -20,11 +19,10 @@ const (
 	DEFAULT_BLOCK_SIZE = 2097152
 )
 
-type InitFunc func(root, cfgName string, config map[string]string) (ObjectStoreDriver, error)
+type InitFunc func(destURL string) (ObjectStoreDriver, error)
 
 type ObjectStoreDriver interface {
 	Kind() string
-	FinalizeInit(root, cfgName, id string) error
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
 	Remove(names ...string) error
@@ -83,100 +81,19 @@ func RegisterDriver(kind string, initFunc InitFunc) error {
 	return nil
 }
 
-func GetObjectStoreDriver(kind, root, cfgName string, config map[string]string) (ObjectStoreDriver, error) {
-	if _, exists := initializers[kind]; !exists {
-		return nil, fmt.Errorf("Driver %v is not supported!", kind)
-	}
-	return initializers[kind](root, cfgName, config)
-}
-
-func Register(root, kind string, config map[string]string) (*ObjectStore, error) {
-	driver, err := GetObjectStoreDriver(kind, root, "", config)
+func getObjectStoreDriver(destURL string) (ObjectStoreDriver, error) {
+	u, err := url.Parse(destURL)
 	if err != nil {
 		return nil, err
 	}
-
-	var id string
-	bs, err := loadRemoteObjectStoreConfig(driver)
-	if err == nil {
-		// ObjectStore has already been created
-		if bs.Kind != kind {
-			return nil, generateError(logrus.Fields{
-				LOG_FIELD_OBJECTSTORE: bs.UUID,
-				LOG_FIELD_KIND:        bs.Kind,
-			}, "Specific kind is different from config stored in objectstore")
-		}
-		id = bs.UUID
-		log.Debug("Loaded objectstore cfg in objectstore: ", id)
-		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
-	} else {
-		log.Debug("Cannot load existed objectstore cfg in objectstore, create a new one: ", err.Error())
-		id = uuid.New()
-		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
-
-		bs = &ObjectStore{
-			UUID: id,
-			Kind: kind,
-		}
-
-		if err := saveRemoteObjectStoreConfig(driver, bs); err != nil {
-			return nil, err
-		}
-		log.Debug("Created objectstore cfg in objectstore", bs.UUID)
+	if _, exists := initializers[u.Scheme]; !exists {
+		return nil, fmt.Errorf("Driver %v is not supported!", u.Scheme)
 	}
-
-	if err := util.SaveConfig(root, getCfgName(id), bs); err != nil {
-		return nil, err
-	}
-	log.Debug("Created local copy of ", getCfgName(id))
-	log.Debug("Registered block store ", bs.UUID)
-	return bs, nil
+	return initializers[u.Scheme](destURL)
 }
 
-func Deregister(root, id string) error {
-	b := &ObjectStore{}
-	err := util.LoadConfig(root, getCfgName(id), b)
-	if err != nil {
-		return err
-	}
-
-	err = removeDriverConfigFile(root, b.Kind, id)
-	if err != nil {
-		return err
-	}
-	err = removeConfigFile(root, id)
-	if err != nil {
-		return err
-	}
-	log.Debug("Deregistered block store ", id)
-	return nil
-}
-
-func loadObjectStoreConfig(root, objectstoreUUID string) (*ObjectStore, error) {
-	b := &ObjectStore{}
-	err := util.LoadConfig(root, getCfgName(objectstoreUUID), b)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func getObjectStoreDriver(root, objectstoreUUID string) (ObjectStoreDriver, error) {
-	b, err := loadObjectStoreConfig(root, objectstoreUUID)
-	if err != nil {
-		return nil, err
-	}
-
-	driver, err := GetObjectStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, objectstoreUUID), nil)
-	if err != nil {
-		return nil, err
-	}
-	log.Debug("Loaded configure for objectstore ", objectstoreUUID)
-	return driver, nil
-}
-
-func VolumeExists(root, volumeUUID, objectstoreUUID string) bool {
-	driver, err := getObjectStoreDriver(root, objectstoreUUID)
+func VolumeExists(volumeUUID, destURL string) bool {
+	driver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return false
 	}
@@ -213,26 +130,26 @@ func removeVolume(volumeUUID string, driver ObjectStoreDriver) error {
 	return nil
 }
 
-func BackupSnapshot(root string, volume *Volume, snapshotID, objectstoreID string, sDriver drivers.Driver) error {
-	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
+func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver drivers.Driver) error {
+	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return err
 	}
 
-	if err := addVolume(volume, bsDriver); err != nil {
+	if err := addVolume(volumeDesc, bsDriver); err != nil {
 		return err
 	}
 
-	volume, err = loadVolumeConfig(volume.UUID, bsDriver)
+	volume, err := loadVolumeConfig(volumeDesc.UUID, bsDriver)
 	if err != nil {
 		return err
 	}
 
 	if snapshotExists(snapshotID, volume.UUID, bsDriver) {
 		return generateError(logrus.Fields{
-			LOG_FIELD_SNAPSHOT:    snapshotID,
-			LOG_FIELD_VOLUME:      volume.UUID,
-			LOG_FIELD_OBJECTSTORE: objectstoreID,
+			LOG_FIELD_SNAPSHOT: snapshotID,
+			LOG_FIELD_VOLUME:   volume.UUID,
+			LOG_FIELD_DEST_URL: destURL,
 		}, "Snapshot already exists in objectstore!")
 	}
 
@@ -398,16 +315,16 @@ func mergeSnapshotMap(snapshotID string, deltaMap, lastMap *SnapshotMap) *Snapsh
 	return sMap
 }
 
-func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreID string, sDriver drivers.Driver) error {
-	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
+func RestoreSnapshot(srcSnapshotID, srcVolumeID, dstVolumeID, destURL string, sDriver drivers.Driver) error {
+	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return err
 	}
 
 	if _, err := loadVolumeConfig(srcVolumeID, bsDriver); err != nil {
 		return generateError(logrus.Fields{
-			LOG_FIELD_VOLUME:      srcVolumeID,
-			LOG_FIELD_OBJECTSTORE: objectstoreID,
+			LOG_FIELD_VOLUME:   srcVolumeID,
+			LOG_FIELD_DEST_URL: destURL,
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
@@ -433,7 +350,7 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreI
 		LOG_FIELD_SNAPSHOT:    srcSnapshotID,
 		LOG_FIELD_ORIN_VOLUME: srcVolumeID,
 		LOG_FIELD_VOLUME:      dstVolumeID,
-		LOG_FIELD_OBJECTSTORE: objectstoreID,
+		//LOG_FIELD_OBJECTSTORE: objectstoreID,
 	}).Debug()
 	for _, block := range snapshotMap.Blocks {
 		blkFile := getBlockFilePath(srcVolumeID, block.BlockChecksum)
@@ -455,15 +372,15 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreI
 	return nil
 }
 
-func RemoveSnapshot(root, snapshotID, volumeID, objectstoreID string) error {
-	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
+func RemoveSnapshot(snapshotID, volumeID, destURL string) error {
+	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return err
 	}
 
 	v, err := loadVolumeConfig(volumeID, bsDriver)
 	if err != nil {
-		return fmt.Errorf("Cannot find volume %v in objectstore %v", volumeID, objectstoreID, err)
+		return fmt.Errorf("Cannot find volume %v in %v", volumeID, destURL, err)
 	}
 
 	snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
@@ -585,50 +502,10 @@ func listVolume(volumeID, snapshotID string, driver ObjectStoreDriver) ([]byte, 
 	return api.ResponseOutput(resp)
 }
 
-func ListVolume(root, objectstoreID, volumeID, snapshotID string) ([]byte, error) {
-	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
+func ListVolume(destURL, volumeID, snapshotID string) ([]byte, error) {
+	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return nil, err
 	}
 	return listVolume(volumeID, snapshotID, bsDriver)
-}
-
-func listObjectStoreIDs(root string) []string {
-	ids := []string{}
-	outputs := util.ListConfigIDs(root, OBJECTSTORE_CFG_PREFIX, CFG_POSTFIX)
-	for _, i := range outputs {
-		// Remove driver specific config
-		if strings.Contains(i, "_") {
-			continue
-		}
-		ids = append(ids, i)
-	}
-	return ids
-}
-
-func List(root, objectstoreUUID string) ([]byte, error) {
-	var objectstoreIDs []string
-
-	resp := &api.ObjectStoresResponse{
-		ObjectStores: make(map[string]api.ObjectStoreResponse),
-	}
-	if objectstoreUUID != "" {
-		objectstoreIDs = []string{objectstoreUUID}
-	} else {
-		objectstoreIDs = listObjectStoreIDs(root)
-	}
-	for _, id := range objectstoreIDs {
-		b, err := loadObjectStoreConfig(root, id)
-		if err != nil {
-			return nil, generateError(logrus.Fields{
-				LOG_FIELD_VOLUME: id,
-			}, "Objectstore %v doesn't exist", err.Error())
-		}
-		store := api.ObjectStoreResponse{
-			UUID: b.UUID,
-			Kind: b.Kind,
-		}
-		resp.ObjectStores[b.UUID] = store
-	}
-	return api.ResponseOutput(resp)
 }

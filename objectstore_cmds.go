@@ -1,15 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/objectstore"
-	"github.com/rancher/rancher-volume/util"
 	"net/http"
-	"net/url"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
@@ -24,8 +21,8 @@ var (
 				Usage: "uuid of snapshot",
 			},
 			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
+				Name:  KEY_DEST_URL,
+				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
 		},
 		Action: cmdSnapshotBackup,
@@ -48,8 +45,8 @@ var (
 				Usage: "uuid of target volume",
 			},
 			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
+				Name:  KEY_DEST_URL,
+				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
 		},
 		Action: cmdSnapshotRestore,
@@ -68,53 +65,11 @@ var (
 				Usage: "uuid of volume for snapshot",
 			},
 			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
+				Name:  KEY_DEST_URL,
+				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
 		},
 		Action: cmdSnapshotRemove,
-	}
-
-	objectstoreRegisterCmd = cli.Command{
-		Name:  "register",
-		Usage: "register a objectstore for current setup, create it if it's not existed yet",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "kind",
-				Value: "vfs",
-				Usage: "kind of objectstore, only support vfs now",
-			},
-			cli.StringSliceFlag{
-				Name:  "opts",
-				Value: &cli.StringSlice{},
-				Usage: "options used to register objectstore",
-			},
-		},
-		Action: cmdObjectStoreRegister,
-	}
-
-	objectstoreDeregisterCmd = cli.Command{
-		Name:  "deregister",
-		Usage: "deregister a objectstore from current setup(no data in it would be changed)",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-		},
-		Action: cmdObjectStoreDeregister,
-	}
-
-	objectstoreListCmd = cli.Command{
-		Name:  "list",
-		Usage: "list registered objectstores",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-		},
-		Action: cmdObjectStoreList,
 	}
 
 	objectstoreListVolumeCmd = cli.Command{
@@ -122,8 +77,8 @@ var (
 		Usage: "list volume and snapshots in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
+				Name:  KEY_DEST_URL,
+				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
 			cli.StringFlag{
 				Name:  KEY_VOLUME_UUID,
@@ -141,10 +96,7 @@ var (
 		Name:  "objectstore",
 		Usage: "objectstore related operations",
 		Subcommands: []cli.Command{
-			objectstoreRegisterCmd,
-			objectstoreDeregisterCmd,
 			objectstoreListVolumeCmd,
-			objectstoreListCmd,
 		},
 	}
 )
@@ -152,114 +104,6 @@ var (
 const (
 	OBJECTSTORE_PATH = "objectstore"
 )
-
-func cmdObjectStoreRegister(c *cli.Context) {
-	if err := doObjectStoreRegister(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreRegister(c *cli.Context) error {
-	kind := c.String("kind")
-	if kind == "" {
-		return genRequiredMissingError("kind")
-	}
-	opts := util.SliceToMap(c.StringSlice("opts"))
-	if opts == nil {
-		return genRequiredMissingError("opts")
-	}
-
-	registerConfig := api.ObjectStoreRegisterConfig{
-		Kind: kind,
-		Opts: opts,
-	}
-
-	request := "/objectstores/register"
-	return sendRequestAndPrint("POST", request, registerConfig)
-}
-
-func (s *Server) doObjectStoreRegister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	registerConfig := &api.ObjectStoreRegisterConfig{}
-	err := json.NewDecoder(r.Body).Decode(registerConfig)
-	if err != nil {
-		return err
-	}
-
-	kind := registerConfig.Kind
-	opts := registerConfig.Opts
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REGISTER,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_OBJECTSTORE,
-		LOG_FIELD_OBJECTSTORE: "uuid-unknown",
-		LOG_FIELD_KIND:        kind,
-		LOG_FIELD_OPTION:      opts,
-	}).Debug()
-	b, err := objectstore.Register(s.Root, kind, opts)
-	if err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REGISTER,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_OBJECTSTORE,
-		LOG_FIELD_OBJECTSTORE: b.UUID,
-	}).Debug()
-
-	return writeResponseOutput(w, api.ObjectStoreResponse{
-		UUID: b.UUID,
-		Kind: b.Kind,
-	})
-}
-
-func cmdObjectStoreDeregister(c *cli.Context) {
-	if err := doObjectStoreDeregister(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreDeregister(c *cli.Context) error {
-	var err error
-
-	uuid, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	if err != nil {
-		return err
-	}
-
-	request := "/objectstores/" + uuid + "/"
-	return sendRequestAndPrint("DELETE", request, nil)
-}
-
-func (s *Server) doObjectStoreDeregister(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	var err error
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	if err != nil {
-		return err
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_DEREGISTER,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_OBJECTSTORE,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := objectstore.Deregister(s.Root, objectstoreUUID); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_DEREGISTER,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_OBJECTSTORE,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	return nil
-}
 
 func cmdObjectStoreListVolume(c *cli.Context) {
 	if err := doObjectStoreListVolume(c); err != nil {
@@ -270,34 +114,31 @@ func cmdObjectStoreListVolume(c *cli.Context) {
 func doObjectStoreListVolume(c *cli.Context) error {
 	var err error
 
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
+	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT_UUID, false, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID
-	if snapshotUUID != "" {
-		request += "/snapshots/" + snapshotUUID
+	config := &api.ObjectStoreListConfig{
+		URL:          destURL,
+		VolumeUUID:   volumeUUID,
+		SnapshotUUID: snapshotUUID,
 	}
-	request += "/"
-	return sendRequestAndPrint("GET", request, nil)
+	request := "/objectstores/list"
+	return sendRequestAndPrint("GET", request, config)
 }
 
 func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	var err error
-
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
-	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, false, err)
-	if err != nil {
+	config := &api.ObjectStoreListConfig{}
+	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
-	data, err := objectstore.ListVolume(s.Root, objectstoreUUID, volumeUUID, snapshotUUID)
+	data, err := objectstore.ListVolume(config.URL, config.VolumeUUID, config.SnapshotUUID)
 	if err != nil {
 		return err
 	}
@@ -315,7 +156,7 @@ func cmdSnapshotBackup(c *cli.Context) {
 func doSnapshotBackup(c *cli.Context) error {
 	var err error
 
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
+	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
 	if err != nil {
 		return err
 	}
@@ -325,18 +166,21 @@ func doSnapshotBackup(c *cli.Context) error {
 		return err
 	}
 
-	request := "/objectstores/" + objectstoreUUID + "/snapshots/" + snapshotUUID + "/backup"
-	return sendRequestAndPrint("POST", request, nil)
+	config := &api.ObjectStoreBackupConfig{
+		URL:          destURL,
+		SnapshotUUID: snapshotUUID,
+	}
+
+	request := "/objectstores/backup"
+	return sendRequestAndPrint("POST", request, config)
 }
 
 func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	var err error
-
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, true, err)
-	if err != nil {
+	config := &api.ObjectStoreBackupConfig{}
+	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
+	snapshotUUID := config.SnapshotUUID
 	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
 	if volumeUUID == "" {
 		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotUUID)
@@ -356,23 +200,23 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    snapshotUUID,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	if err := objectstore.BackupSnapshot(s.Root, objVolume, snapshotUUID, objectstoreUUID, s.StorageDriver); err != nil {
+	if err := objectstore.BackupSnapshot(objVolume, snapshotUUID, config.URL, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    snapshotUUID,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
 	return nil
 }
@@ -386,57 +230,57 @@ func cmdSnapshotRestore(c *cli.Context) {
 func doSnapshotRestore(c *cli.Context) error {
 	var err error
 
-	v := url.Values{}
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	originVolumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
+	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
+	sourceVolumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	targetVolumeUUID, err := getUUID(c, "target-volume-uuid", true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT_UUID, true, err)
 	if err != nil {
 		return err
 	}
 
-	v.Set("target-volume", targetVolumeUUID)
-	request := "/objectstores/" + objectstoreUUID + "/volumes/" + originVolumeUUID +
-		"/snapshots/" + snapshotUUID + "/restore?" + v.Encode()
-	return sendRequestAndPrint("POST", request, nil)
+	config := &api.ObjectStoreRestoreConfig{
+		URL:                destURL,
+		SourceVolumeUUID:   sourceVolumeUUID,
+		SourceSnapshotUUID: snapshotUUID,
+		TargetVolumeUUID:   targetVolumeUUID,
+	}
+
+	request := "/objectstores/restore"
+	return sendRequestAndPrint("POST", request, config)
 }
 
 func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	var err error
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	originVolumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
-	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, true, err)
-	targetVolumeUUID, err := getUUID(r, "target-volume", true, err)
-	if err != nil {
+	config := &api.ObjectStoreRestoreConfig{}
+	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
 
-	targetVol := s.loadVolume(targetVolumeUUID)
+	targetVol := s.loadVolume(config.TargetVolumeUUID)
 	if targetVol == nil {
-		return fmt.Errorf("volume %v doesn't exist", targetVolumeUUID)
+		return fmt.Errorf("volume %v doesn't exist", config.TargetVolumeUUID)
 	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    snapshotUUID,
-		LOG_FIELD_ORIN_VOLUME: originVolumeUUID,
-		LOG_FIELD_VOLUME:      targetVolumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
+		LOG_FIELD_SNAPSHOT:    config.SourceSnapshotUUID,
+		LOG_FIELD_ORIN_VOLUME: config.SourceVolumeUUID,
+		LOG_FIELD_VOLUME:      config.TargetVolumeUUID,
+		LOG_FIELD_DEST_URL:    config.URL,
 	}).Debug()
-	if err := objectstore.RestoreSnapshot(s.Root, snapshotUUID, originVolumeUUID,
-		targetVolumeUUID, objectstoreUUID, s.StorageDriver); err != nil {
+	if err := objectstore.RestoreSnapshot(config.SourceSnapshotUUID, config.SourceVolumeUUID,
+		config.TargetVolumeUUID, config.URL, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    snapshotUUID,
-		LOG_FIELD_ORIN_VOLUME: originVolumeUUID,
-		LOG_FIELD_VOLUME:      targetVolumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
+		LOG_FIELD_SNAPSHOT:    config.SourceSnapshotUUID,
+		LOG_FIELD_ORIN_VOLUME: config.SourceVolumeUUID,
+		LOG_FIELD_VOLUME:      config.TargetVolumeUUID,
+		LOG_FIELD_DEST_URL:    config.URL,
 	}).Debug()
 	return nil
 }
@@ -449,91 +293,49 @@ func cmdSnapshotRemove(c *cli.Context) {
 
 func doSnapshotRemove(c *cli.Context) error {
 	var err error
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
+	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
 	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT_UUID, true, err)
 	if err != nil {
 		return err
 	}
 
-	request := "/objectstores/" + objectstoreUUID + "/volumes/" + volumeUUID + "/snapshots/" + snapshotUUID + "/"
-	return sendRequestAndPrint("DELETE", request, nil)
+	config := &api.ObjectStoreDeleteConfig{
+		URL:          destURL,
+		VolumeUUID:   volumeUUID,
+		SnapshotUUID: snapshotUUID,
+	}
+	request := "/objectstores"
+	return sendRequestAndPrint("DELETE", request, config)
 }
 
 func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	var err error
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
-	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, true, err)
-	if err != nil {
+	config := &api.ObjectStoreDeleteConfig{}
+	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
 
-	if !s.snapshotExists(volumeUUID, snapshotUUID) {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
-	}
-
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    snapshotUUID,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: config.SnapshotUUID,
+		LOG_FIELD_VOLUME:   config.VolumeUUID,
+		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	if err := objectstore.RemoveSnapshot(s.Root, snapshotUUID, volumeUUID, objectstoreUUID); err != nil {
+	if err := objectstore.RemoveSnapshot(config.SnapshotUUID, config.VolumeUUID, config.URL); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    snapshotUUID,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
+		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT: config.SnapshotUUID,
+		LOG_FIELD_VOLUME:   config.VolumeUUID,
+		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
 	return nil
-}
-
-func cmdObjectStoreList(c *cli.Context) {
-	if err := doObjectStoreList(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreList(c *cli.Context) error {
-	var err error
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, false, err)
-	if err != nil {
-		return err
-	}
-
-	request := "/objectstores/"
-	if objectstoreUUID != "" {
-		request += objectstoreUUID + "/"
-	}
-
-	return sendRequestAndPrint("GET", request, nil)
-}
-
-func (s *Server) doObjectStoreList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	var err error
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, false, err)
-	if err != nil {
-		return err
-	}
-
-	data, err := objectstore.List(s.Root, objectstoreUUID)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(data)
-	return err
 }
