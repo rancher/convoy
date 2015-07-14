@@ -70,14 +70,6 @@ type Snapshot struct {
 	Activated bool
 }
 
-type Image struct {
-	UUID      string
-	FilePath  string
-	Size      int64
-	Device    string
-	VolumeRef map[string]bool
-}
-
 type Device struct {
 	Root              string
 	DataDevice        string
@@ -336,7 +328,7 @@ func (d *Driver) allocateDevID() (int, error) {
 	return d.LastDevID, nil
 }
 
-func (d *Driver) CreateVolume(id, baseID string, size int64) error {
+func (d *Driver) CreateVolume(id string, size int64) error {
 	var err error
 	if size%(d.ThinpoolBlockSize*SECTOR_SIZE) != 0 {
 		return fmt.Errorf("Size must be multiple of block size")
@@ -349,27 +341,6 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		}, "Already has volume with specific uuid")
 	}
 
-	var image *Image
-	if baseID != "" {
-		image = d.loadImage(baseID)
-		if image == nil {
-			return generateError(logrus.Fields{
-				LOG_FIELD_IMAGE: baseID,
-			}, "Cannot find activated base image")
-		}
-		if _, err := os.Stat(image.Device); err != nil {
-			return generateError(logrus.Fields{
-				LOG_FIELD_IMAGE_DEV: image.Device,
-			}, "Base image device doesn't exist")
-		}
-		if size != image.Size {
-			return generateError(logrus.Fields{
-				LOG_FIELD_IMAGE:  baseID,
-				LOG_FIELD_VOLUME: id,
-			}, "Volume has different size(%v) than base image(%v)", size, image.Size)
-		}
-	}
-
 	devID, err := d.allocateDevID()
 	if err != nil {
 		return err
@@ -379,7 +350,6 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		LOG_FIELD_EVENT:           LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:          id,
-		LOG_FIELD_IMAGE:           baseID,
 		DM_LOG_FIELD_VOLUME_DEVID: devID,
 	}).Debugf("Creating volume")
 	err = devicemapper.CreateDevice(d.ThinpoolDevice, devID)
@@ -392,21 +362,15 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		LOG_FIELD_EVENT:           LOG_EVENT_ACTIVATE,
 		LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:          id,
-		LOG_FIELD_IMAGE:           baseID,
 		DM_LOG_FIELD_VOLUME_DEVID: devID,
 	}).Debugf("Activating device for volume")
-	if image == nil {
-		err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, devID, uint64(size))
-	} else {
-		err = devicemapper.ActivateDeviceWithExternal(d.ThinpoolDevice, id, devID, uint64(size), image.Device)
-	}
+	err = devicemapper.ActivateDevice(d.ThinpoolDevice, id, devID, uint64(size))
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			LOG_FIELD_REASON:          LOG_REASON_ROLLBACK,
 			LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
 			LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 			LOG_FIELD_VOLUME:          id,
-			LOG_FIELD_IMAGE:           baseID,
 			DM_LOG_FIELD_VOLUME_DEVID: devID,
 		}).Debugf("Removing device for volume due to fail to activate")
 		if err := devicemapper.DeleteDevice(d.ThinpoolDevice, devID); err != nil {
@@ -415,7 +379,6 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 				LOG_FIELD_EVENT:           LOG_EVENT_REMOVE,
 				LOG_FIELD_OBJECT:          LOG_OBJECT_VOLUME,
 				LOG_FIELD_VOLUME:          id,
-				LOG_FIELD_IMAGE:           baseID,
 				DM_LOG_FIELD_VOLUME_DEVID: devID,
 			}).Debugf("Failed to remove device")
 		}
@@ -427,13 +390,6 @@ func (d *Driver) CreateVolume(id, baseID string, size int64) error {
 		DevID:     devID,
 		Size:      size,
 		Snapshots: make(map[string]Snapshot),
-	}
-	if image != nil {
-		volume.Base = image.UUID
-		image.VolumeRef[id] = true
-		if err := d.saveImage(image); err != nil {
-			return err
-		}
 	}
 	if err := d.saveVolume(volume); err != nil {
 		return err
@@ -474,22 +430,6 @@ func (d *Driver) DeleteVolume(id string) error {
 	err = devicemapper.DeleteDevice(d.ThinpoolDevice, volume.DevID)
 	if err != nil {
 		return err
-	}
-
-	if volume.Base != "" {
-		image := d.loadImage(volume.Base)
-		if image == nil {
-			return generateError(logrus.Fields{
-				LOG_FIELD_IMAGE: volume.Base,
-			}, "Cannot find volume's base image")
-		}
-		if _, exists := image.VolumeRef[volume.UUID]; !exists {
-			return generateError(logrus.Fields{
-				LOG_FIELD_IMAGE:  volume.Base,
-				LOG_FIELD_VOLUME: volume.UUID,
-			}, "Volume's base image doesn't refer volumev")
-		}
-		delete(image.VolumeRef, volume.UUID)
 	}
 
 	if err := d.deleteVolume(id); err != nil {
@@ -781,116 +721,6 @@ func (d *Driver) HasSnapshot(id, volumeID string) bool {
 		return false
 	}
 	return true
-}
-
-func getImageCfgName(uuid string) (string, error) {
-	if uuid == "" {
-		return "", fmt.Errorf("Invalid image UUID specified: %v", uuid)
-	}
-	return DEVMAPPER_CFG_PREFIX + IMAGE_CFG_PREFIX + uuid, nil
-}
-
-func (device *Device) loadImage(uuid string) *Image {
-	if uuid == "" {
-		return nil
-	}
-	cfgName, err := getImageCfgName(uuid)
-	if err != nil {
-		return nil
-	}
-	if !util.ConfigExists(device.Root, cfgName) {
-		return nil
-	}
-	image := &Image{}
-	if err := util.LoadConfig(device.Root, cfgName, image); err != nil {
-		log.Error("Failed to load volume json ", cfgName)
-		return nil
-	}
-	return image
-}
-
-func (device *Device) saveImage(image *Image) error {
-	uuid := image.UUID
-	cfgName, err := getImageCfgName(uuid)
-	if err != nil {
-		return err
-	}
-	return util.SaveConfig(device.Root, cfgName, image)
-}
-
-func (device *Device) deleteImage(uuid string) error {
-	cfgName, err := getImageCfgName(uuid)
-	if err != nil {
-		return err
-	}
-	return util.RemoveConfig(device.Root, cfgName)
-}
-
-func (d *Driver) ActivateImage(imageUUID, imageFile string) error {
-	image := d.loadImage(imageUUID)
-	if image != nil {
-		return generateError(logrus.Fields{
-			LOG_FIELD_IMAGE: imageUUID,
-		}, "Image already activated")
-	}
-	st, err := os.Stat(imageFile)
-	if err != nil || st.IsDir() {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_FILE: imageFile,
-	}).Debug()
-	loopDev, err := util.AttachLoopbackDevice(imageFile, true)
-	if err != nil {
-		return err
-	}
-	image = &Image{
-		UUID:      imageUUID,
-		Size:      st.Size(),
-		FilePath:  imageFile,
-		Device:    loopDev,
-		VolumeRef: make(map[string]bool),
-	}
-	if err := d.saveImage(image); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Driver) DeactivateImage(imageUUID string) error {
-	image := d.loadImage(imageUUID)
-	if image == nil {
-		return generateError(logrus.Fields{
-			LOG_FIELD_IMAGE: imageUUID,
-		}, "Cannot find image")
-	}
-	for volumeUUID := range image.VolumeRef {
-		if volume := d.loadVolume(volumeUUID); volume != nil {
-			return generateError(logrus.Fields{
-				LOG_FIELD_VOLUME: volumeUUID,
-				LOG_FIELD_IMAGE:  imageUUID,
-			}, "Volume based on the image hasn't been removed yet")
-		}
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_DEACTIVATE,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_FILE: image.FilePath,
-		LOG_FIELD_IMAGE_DEV:  image.Device,
-	}).Debug()
-	if err := util.DetachLoopbackDevice(image.FilePath, image.Device); err != nil {
-		return err
-	}
-	if err := d.deleteImage(imageUUID); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (d *Driver) Shutdown() error {

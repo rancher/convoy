@@ -25,7 +25,6 @@ const (
 	KEY_VOLUME      = "volume"
 	KEY_SNAPSHOT    = "snapshot"
 	KEY_OBJECTSTORE = "objectstore-uuid"
-	KEY_IMAGE       = "image-uuid"
 
 	KEY_NAME          = "name"
 	KEY_VOLUME_UUID   = "volume-uuid"
@@ -66,7 +65,6 @@ type Server struct {
 type Config struct {
 	Root              string
 	Driver            string
-	ImagesDir         string
 	MountsDir         string
 	DefaultVolumeSize int64
 }
@@ -129,11 +127,6 @@ func main() {
 				Name:  "driver-opts",
 				Value: &cli.StringSlice{},
 				Usage: "options for driver",
-			},
-			cli.StringFlag{
-				Name:  "images-dir",
-				Value: "/opt/rancher-volume_images",
-				Usage: "specific local directory would contains base images",
 			},
 			cli.StringFlag{
 				Name:  "mounts-dir",

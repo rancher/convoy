@@ -24,7 +24,6 @@ const (
 	BLOCKS_DIRECTORY        = "blocks"
 	BLOCK_SEPARATE_LAYER1   = 2
 	BLOCK_SEPARATE_LAYER2   = 4
-	IMAGES_DIRECTORY        = "images"
 
 	OBJECTSTORE_CFG_PREFIX = "objectstore_"
 	CFG_POSTFIX            = ".cfg"
@@ -230,41 +229,4 @@ func getSnapshots(volumeID string, driver ObjectStoreDriver) (map[string]bool, e
 		result[parts[0]] = true
 	}
 	return result, nil
-}
-
-func GetImageLocalStorePath(imageDir, imageUUID string) string {
-	return filepath.Join(imageDir, imageUUID+".img")
-}
-
-func getImageObjectStorePath(imageUUID string) string {
-	return filepath.Join(OBJECTSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".img.gz")
-}
-
-func getImageCfgObjectStorePath(imageUUID string) string {
-	return filepath.Join(OBJECTSTORE_BASE, IMAGES_DIRECTORY, imageUUID+".json")
-}
-
-func saveImageConfig(imageUUID string, driver ObjectStoreDriver, img *Image) error {
-	file := getImageCfgObjectStorePath(imageUUID)
-	if err := saveConfigInObjectStore(file, driver, img); err != nil {
-		return err
-	}
-	return nil
-}
-
-func loadImageConfig(imageUUID string, driver ObjectStoreDriver) (*Image, error) {
-	img := &Image{}
-	file := getImageCfgObjectStorePath(imageUUID)
-	if err := loadConfigInObjectStore(file, driver, img); err != nil {
-		return nil, err
-	}
-	return img, nil
-}
-
-func removeImageConfig(image *Image, driver ObjectStoreDriver) error {
-	file := getImageCfgObjectStorePath(image.UUID)
-	if err := driver.Remove(file); err != nil {
-		return err
-	}
-	return nil
 }

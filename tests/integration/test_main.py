@@ -15,10 +15,8 @@ TEST_ROOT = "/tmp/rancher-volume_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "rancher-volume")
 MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
 AUTO_MOUNTS_DIR = os.path.join(TEST_ROOT, "auto_mounts")
-IMAGES_DIR = os.path.join(TEST_ROOT, "images")
 PID_FILE = os.path.join(TEST_ROOT, "rancher-volume.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "rancher-volume.log")
-TEST_IMAGE_FILE = "image.test"
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
 TEST_THREAD_COUNT = 100
@@ -28,7 +26,6 @@ OBJECTSTORE_CFG = os.path.join(OBJECTSTORE_ROOT, "objectstore.cfg")
 OBJECTSTORE_VOLUME_DIR = os.path.join(OBJECTSTORE_ROOT, "volumes")
 OBJECTSTORE_PER_VOLUME_CFG = "volume.cfg"
 OBJECTSTORE_SNAPSHOTS_DIR = "snapshots"
-OBJECTSTORE_IMAGES_DIR = os.path.join(OBJECTSTORE_ROOT, "images")
 
 OBJECTSTORE_PATH1 = os.path.join(TEST_ROOT, "store1")
 OBJECTSTORE_PATH2 = os.path.join(TEST_ROOT, "store2")
@@ -46,7 +43,6 @@ RANCHER_VOLUME_BINARY = os.path.abspath("../../bin/rancher-volume")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
-IMAGE_FILE = "test.img"
 DATA_DEVICE_SIZE = 1073618944
 METADATA_DEVICE_SIZE = 40960000
 DM_DIR = "/dev/mapper"
@@ -62,7 +58,6 @@ RANDOM_VALID_UUID = "0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4"
 
 data_dev = ""
 metadata_dev = ""
-image_file = ""
 
 mount_cleanup_list = []
 dm_cleanup_list = []
@@ -113,23 +108,11 @@ def setup_module():
     global metadata_dev
     metadata_dev = attach_loopback_dev(metadata_file)
 
-    global image_file
-    image_file = os.path.join(TEST_ROOT, IMAGE_FILE)
-    create_empty_file(image_file, EMPTY_FILE_SIZE)
-
-    image_dev = attach_loopback_dev(image_file)
-    format_dev(image_dev)
-    mount_dev(image_dev, MOUNT_ROOT)
-    subprocess.check_call(["touch", os.path.join(MOUNT_ROOT, TEST_IMAGE_FILE)])
-    umount_dev(MOUNT_ROOT)
-    detach_loopback_dev(image_dev)
-
     global v
     v = VolumeManager(RANCHER_VOLUME_BINARY, TEST_ROOT)
     v.start_server(PID_FILE, ["server",
         "--root", CFG_ROOT,
         "--log", LOG_FILE,
-        "--images-dir", IMAGES_DIR,
         "--mounts-dir", AUTO_MOUNTS_DIR,
         "--default-volume-size", DEFAULT_VOLUME_SIZE,
         "--driver=devicemapper",
@@ -186,7 +169,6 @@ def wait_for_daemon():
     info = json.loads(data)
     assert info["General"]["Driver"] == "devicemapper"
     assert info["General"]["Root"] == CFG_ROOT
-    assert info["General"]["ImagesDir"]== IMAGES_DIR
     assert info["General"]["MountsDir"]== AUTO_MOUNTS_DIR
     assert info["Driver"]["Driver"] == "devicemapper"
     assert info["Driver"]["Root"] == CFG_ROOT
@@ -203,8 +185,8 @@ def check_test():
     for filename in filenames:
         assert not filename.startswith('volume')
 
-def create_volume(size = "", base = "", name = ""):
-    uuid = v.create_volume(size, base, name)
+def create_volume(size = "", name = ""):
+    uuid = v.create_volume(size, name)
     dm_cleanup_list.append(uuid)
     return uuid
 
@@ -506,7 +488,6 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     volumes = v.list_volume_objectstore_with_snapshot(RANDOM_VALID_UUID, volume1_uuid, objectstore_uuid)
     assert len(volumes) == 1
     assert volumes[volume1_uuid]["Size"] == int(VOLUME_SIZE_500M_Bytes)
-    assert volumes[volume1_uuid]["Base"] == ""
     assert len(volumes[volume1_uuid]["Snapshots"]) == 0
 
     v.add_volume_to_objectstore(volume2_uuid, objectstore_uuid)
@@ -640,140 +621,6 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     delete_volume(volume2_uuid)
     delete_volume(res_volume1_uuid)
     delete_volume(res_volume2_uuid)
-
-    v.deregister_objectstore(objectstore_uuid)
-
-def get_image_cfg(uuid):
-    return os.path.join(OBJECTSTORE_IMAGES_DIR, uuid + ".json")
-
-def get_image_gz(uuid):
-    return os.path.join(OBJECTSTORE_IMAGES_DIR, uuid + ".img.gz")
-
-def get_local_image(uuid):
-    return os.path.join(IMAGES_DIR, uuid + ".img")
-
-def test_vfs_objectstore_image():
-    #load objectstore from created one
-    objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
-    process_objectstore_image(objectstore_uuid, True)
-
-@pytest.mark.s3
-def test_s3_objectstore_image():
-    #load objectstore from created one
-    objectstore_uuid = register_s3_objectstore()
-    process_objectstore_image(objectstore_uuid, False)
-
-def process_objectstore_image(objectstore_uuid, is_vfs):
-    #add/remove image
-    global image_file
-    image_uuid = v.add_image_to_objectstore(image_file, objectstore_uuid)
-
-    if is_vfs:
-	assert os.path.exists(OBJECTSTORE_IMAGES_DIR)
-	assert os.path.exists(get_image_cfg(image_uuid))
-	assert os.path.exists(get_image_gz(image_uuid))
-
-    v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
-
-    if is_vfs:
-	assert not os.path.exists(get_image_cfg(image_uuid))
-	assert not os.path.exists(get_image_gz(image_uuid))
-
-    #activate/deactivate image
-    image_uuid = v.add_image_to_objectstore(image_file, objectstore_uuid)
-
-    #compressed image cache
-    if is_vfs:
-	assert os.path.exists(get_local_image(image_uuid)+".gz")
-
-    v.activate_image(image_uuid, objectstore_uuid)
-    if is_vfs:
-	assert os.path.exists(get_local_image(image_uuid))
-    v.deactivate_image(image_uuid, objectstore_uuid)
-    if is_vfs:
-	assert not os.path.exists(get_local_image(image_uuid))
-
-    #raw image cache
-    subprocess.check_call(["cp", image_file, get_local_image(image_uuid)])
-    if is_vfs:
-	assert os.path.exists(get_local_image(image_uuid))
-
-    v.activate_image(image_uuid, objectstore_uuid)
-    if is_vfs:
-	assert os.path.exists(get_local_image(image_uuid))
-    v.deactivate_image(image_uuid, objectstore_uuid)
-    if is_vfs:
-	assert not os.path.exists(get_local_image(image_uuid))
-
-    #deactivate would remove the local copy, so this time it would trigger
-    # downloading from objectstore
-    v.activate_image(image_uuid, objectstore_uuid)
-    if is_vfs:
-	assert os.path.exists(get_local_image(image_uuid))
-    v.deactivate_image(image_uuid, objectstore_uuid)
-    if is_vfs:
-	assert not os.path.exists(get_local_image(image_uuid))
-
-    v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
-    v.deregister_objectstore(objectstore_uuid)
-
-def test_vfs_image_based_volume():
-    #load objectstore from created one
-    objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
-    process_image_based_volume(objectstore_uuid)
-
-@pytest.mark.s3
-def test_s3_image_based_volume():
-    #load objectstore from created one
-    objectstore_uuid = register_s3_objectstore()
-    process_image_based_volume(objectstore_uuid)
-
-def process_image_based_volume(objectstore_uuid):
-    #add/remove image
-    global image_file
-    image_uuid = v.add_image_to_objectstore(image_file, objectstore_uuid)
-
-    v.activate_image(image_uuid, objectstore_uuid)
-
-    volume_uuid = create_volume(VOLUME_SIZE_100M, base=image_uuid)
-
-    volume_mount_dir = mount_volume(volume_uuid)
-
-    assert os.path.exists(os.path.join(volume_mount_dir, TEST_IMAGE_FILE))
-    subprocess.check_call(["touch", os.path.join(volume_mount_dir,
-	    TEST_SNAPSHOT_FILE)])
-    umount_volume(volume_uuid, volume_mount_dir)
-
-    snapshot_uuid = v.create_snapshot(volume_uuid)
-    v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
-    # idempotency
-    v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
-    v.add_volume_to_objectstore(volume_uuid, objectstore_uuid)
-    v.backup_snapshot_to_objectstore(snapshot_uuid, objectstore_uuid)
-
-    new_volume_uuid = create_volume(VOLUME_SIZE_100M, base=image_uuid)
-
-    v.restore_snapshot_from_objectstore(snapshot_uuid, volume_uuid,
-            new_volume_uuid, objectstore_uuid)
-
-    new_volume_mount_dir = mount_volume(new_volume_uuid)
-
-    assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_IMAGE_FILE))
-    assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_SNAPSHOT_FILE))
-
-    umount_volume(new_volume_uuid, new_volume_mount_dir)
-
-    v.remove_snapshot_from_objectstore(snapshot_uuid, volume_uuid,
-            objectstore_uuid)
-    v.delete_snapshot(snapshot_uuid)
-
-    v.remove_volume_from_objectstore(volume_uuid, objectstore_uuid)
-    delete_volume(volume_uuid)
-
-    delete_volume(new_volume_uuid)
-
-    v.deactivate_image(image_uuid, objectstore_uuid)
-    v.remove_image_from_objectstore(image_uuid, objectstore_uuid)
 
     v.deregister_objectstore(objectstore_uuid)
 

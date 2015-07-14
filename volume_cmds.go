@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	. "github.com/rancher/rancher-volume/logging"
@@ -27,10 +26,6 @@ var (
 			cli.StringFlag{
 				Name:  "size",
 				Usage: "size of volume, in bytes, or end in either G or M or K",
-			},
-			cli.StringFlag{
-				Name:  KEY_IMAGE,
-				Usage: "base image's uuid",
 			},
 			cli.StringFlag{
 				Name:  KEY_NAME,
@@ -205,28 +200,23 @@ func getSize(c *cli.Context, err error) (int64, error) {
 func doVolumeCreate(c *cli.Context) error {
 	var err error
 
-	v := url.Values{}
-	imageUUID, err := getUUID(c, KEY_IMAGE, false, err)
 	name, err := getName(c, KEY_NAME, false, err)
 	size, err := getSize(c, err)
 	if err != nil {
 		return err
 	}
 
-	v.Set("size", strconv.FormatInt(size, 10))
-	if imageUUID != "" {
-		v.Set(KEY_IMAGE, imageUUID)
-	}
-	if name != "" {
-		v.Set(KEY_NAME, name)
+	config := &api.VolumeCreateConfig{
+		Name: name,
+		Size: size,
 	}
 
-	request := "/volumes/create?" + v.Encode()
+	request := "/volumes/create"
 
-	return sendRequestAndPrint("POST", request, nil)
+	return sendRequestAndPrint("POST", request, config)
 }
 
-func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64) (*Volume, error) {
+func (s *Server) processVolumeCreate(volumeName string, size int64) (*Volume, error) {
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
@@ -240,10 +230,9 @@ func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64) (
 		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:      uuid,
 		LOG_FIELD_VOLUME_NAME: volumeName,
-		LOG_FIELD_IMAGE:       imageUUID,
 		LOG_FIELD_SIZE:        size,
 	}).Debug()
-	if err := s.StorageDriver.CreateVolume(uuid, imageUUID, size); err != nil {
+	if err := s.StorageDriver.CreateVolume(uuid, size); err != nil {
 		return nil, err
 	}
 	log.WithFields(logrus.Fields{
@@ -253,17 +242,14 @@ func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64) (
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug("Created volume")
 
-	if imageUUID == "" {
-		if err := drivers.Format(s.StorageDriver, uuid, "ext4"); err != nil {
-			//TODO: Rollback
-			return nil, err
-		}
+	if err := drivers.Format(s.StorageDriver, uuid, "ext4"); err != nil {
+		//TODO: Rollback
+		return nil, err
 	}
 
 	volume := &Volume{
 		UUID:        uuid,
 		Name:        volumeName,
-		Base:        imageUUID,
 		Size:        size,
 		FileSystem:  "ext4",
 		CreatedTime: util.Now(),
@@ -283,17 +269,19 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	size, err := strconv.ParseInt(r.FormValue("size"), 10, 64)
-	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
-	volumeName, err := getName(r, KEY_NAME, false, err)
-	if err != nil {
+	config := &api.VolumeCreateConfig{}
+	if err := json.NewDecoder(r.Body).Decode(config); err != nil {
 		return err
 	}
+
+	size := config.Size
+	volumeName := config.Name
+
 	if size == 0 {
 		size = s.DefaultVolumeSize
 	}
 
-	volume, err := s.processVolumeCreate(volumeName, imageUUID, size)
+	volume, err := s.processVolumeCreate(volumeName, size)
 	if err != nil {
 		return err
 	}
@@ -301,7 +289,6 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	return writeResponseOutput(w, api.VolumeResponse{
 		UUID:        volume.UUID,
 		Name:        volume.Name,
-		Base:        volume.Base,
 		Size:        volume.Size,
 		CreatedTime: volume.CreatedTime,
 	})
@@ -458,7 +445,6 @@ func getVolumeInfo(volume *Volume, snapshotUUID string) *api.VolumeResponse {
 	resp := &api.VolumeResponse{
 		UUID:        volume.UUID,
 		Name:        volume.Name,
-		Base:        volume.Base,
 		Size:        volume.Size,
 		MountPoint:  volume.MountPoint,
 		CreatedTime: volume.CreatedTime,

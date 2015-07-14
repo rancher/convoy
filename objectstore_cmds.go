@@ -1,7 +1,6 @@
 package main
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
@@ -170,78 +169,6 @@ var (
 		Action: cmdObjectStoreListVolume,
 	}
 
-	objectstoreAddImageCmd = cli.Command{
-		Name:  "add-image",
-		Usage: "upload a raw image to objectstore, which can be used as base image later",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-			cli.StringFlag{
-				Name:  KEY_IMAGE,
-				Usage: "uuid of image",
-			},
-			cli.StringFlag{
-				Name:  "image-name",
-				Usage: "user defined name of image. Must contains only lower case alphabets/numbers/period/underscore",
-			},
-			cli.StringFlag{
-				Name:  "image-file",
-				Usage: "file name of image, image must already existed in <images-dir>",
-			},
-		},
-		Action: cmdObjectStoreAddImage,
-	}
-
-	objectstoreRemoveImageCmd = cli.Command{
-		Name:  "remove-image",
-		Usage: "remove an image from objectstore, WARNING: ALL THE VOLUMES/SNAPSHOTS BASED ON THAT IMAGE WON'T BE USABLE AFTER",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-			cli.StringFlag{
-				Name:  KEY_IMAGE,
-				Usage: "uuid of image, if unspecified, a random one would be generated",
-			},
-		},
-		Action: cmdObjectStoreRemoveImage,
-	}
-
-	objectstoreActivateImageCmd = cli.Command{
-		Name:  "activate-image",
-		Usage: "download a image from objectstore, prepared it to be used as base image",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-			cli.StringFlag{
-				Name:  KEY_IMAGE,
-				Usage: "uuid of image",
-			},
-		},
-		Action: cmdObjectStoreActivateImage,
-	}
-
-	objectstoreDeactivateImageCmd = cli.Command{
-		Name:  "deactivate-image",
-		Usage: "remove local image copy, must be done after all the volumes depends on it removed",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_OBJECTSTORE,
-				Usage: "uuid of objectstore",
-			},
-			cli.StringFlag{
-				Name:  KEY_IMAGE,
-				Usage: "uuid of image",
-			},
-		},
-		Action: cmdObjectStoreDeactivateImage,
-	}
-
 	objectstoreCmd = cli.Command{
 		Name:  "objectstore",
 		Usage: "objectstore related operations",
@@ -250,10 +177,6 @@ var (
 			objectstoreDeregisterCmd,
 			objectstoreAddVolumeCmd,
 			objectstoreRemoveVolumeCmd,
-			objectstoreAddImageCmd,
-			objectstoreRemoveImageCmd,
-			objectstoreActivateImageCmd,
-			objectstoreDeactivateImageCmd,
 			objectstoreListVolumeCmd,
 			objectstoreListCmd,
 		},
@@ -404,11 +327,10 @@ func (s *Server) processObjectStoreAddVolume(volumeUUID, objectstoreUUID string)
 		LOG_FIELD_EVENT:       LOG_EVENT_ADD,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_IMAGE:       volume.Base,
 		LOG_FIELD_SIZE:        volume.Size,
 		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
-	if err := objectstore.AddVolume(s.Root, objectstoreUUID, volumeUUID, volume.Name, volume.Base, volume.Size); err != nil {
+	if err := objectstore.AddVolume(s.Root, objectstoreUUID, volumeUUID, volume.Name, volume.Size); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -722,275 +644,6 @@ func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT:    snapshotUUID,
 		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	return nil
-}
-
-func cmdObjectStoreAddImage(c *cli.Context) {
-	if err := doObjectStoreAddImage(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreAddImage(c *cli.Context) error {
-	var err error
-	v := url.Values{}
-
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(c, KEY_IMAGE, false, err)
-	imageName, err := getName(c, "image-name", false, err)
-	if err != nil {
-		return err
-	}
-	imageFile := c.String("image-file")
-	if imageFile == "" {
-		return genRequiredMissingError("image-file")
-	}
-
-	imageConfig := api.ObjectStoreImageConfig{
-		ImageFile: imageFile,
-	}
-	if imageUUID != "" {
-		v.Set(KEY_IMAGE, imageUUID)
-	}
-	if imageName != "" {
-		v.Set("image-name", imageName)
-	}
-
-	request := "/objectstores/" + objectstoreUUID + "/images/add?" + v.Encode()
-	return sendRequestAndPrint("POST", request, imageConfig)
-}
-
-func (s *Server) doObjectStoreAddImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	var err error
-
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(r, KEY_IMAGE, false, err)
-	imageName, err := getName(r, "image-name", false, err)
-	if err != nil {
-		return err
-	}
-	imageConfig := &api.ObjectStoreImageConfig{}
-	err = json.NewDecoder(r.Body).Decode(imageConfig)
-	if err != nil {
-		return err
-	}
-
-	imageFile := imageConfig.ImageFile
-	if imageFile == "" {
-		return genRequiredMissingError("image-file")
-	}
-
-	if imageUUID == "" {
-		imageUUID = uuid.New()
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_ADD,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_IMAGE_DIR:   s.ImagesDir,
-		LOG_FIELD_IMAGE_NAME:  imageName,
-		LOG_FIELD_IMAGE_FILE:  imageFile,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	data, err := objectstore.AddImage(s.Root, s.ImagesDir, imageUUID, imageName, imageFile, objectstoreUUID)
-	if err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_ADD,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	_, err = w.Write(data)
-	return err
-}
-
-func cmdObjectStoreRemoveImage(c *cli.Context) {
-	if err := doObjectStoreRemoveImage(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreRemoveImage(c *cli.Context) error {
-	var err error
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(c, KEY_IMAGE, true, err)
-	if err != nil {
-		return err
-	}
-
-	request := "/objectstores/" + objectstoreUUID + "/images/" + imageUUID + "/"
-	return sendRequestAndPrint("DELETE", request, nil)
-}
-
-func (s *Server) doObjectStoreRemoveImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	var err error
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
-	if err != nil {
-		return err
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_IMAGE_DIR:   s.ImagesDir,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := objectstore.RemoveImage(s.Root, s.ImagesDir, imageUUID, objectstoreUUID); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	return nil
-}
-
-func cmdObjectStoreActivateImage(c *cli.Context) {
-	if err := doObjectStoreActivateImage(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreActivateImage(c *cli.Context) error {
-	var err error
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(c, KEY_IMAGE, true, err)
-	if err != nil {
-		return err
-	}
-
-	request := "/objectstores/" + objectstoreUUID + "/images/" + imageUUID + "/activate"
-	return sendRequestAndPrint("POST", request, nil)
-}
-
-func (s *Server) doObjectStoreActivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	var err error
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
-	if err != nil {
-		return err
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_ACTIVATE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_IMAGE_DIR:   s.ImagesDir,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := objectstore.ActivateImage(s.Root, s.ImagesDir, imageUUID, objectstoreUUID); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_ACTIVATE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-
-	imagePath := objectstore.GetImageLocalStorePath(s.ImagesDir, imageUUID)
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:      LOG_EVENT_ACTIVATE,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER:     s.Driver,
-		LOG_FIELD_IMAGE:      imageUUID,
-		LOG_FIELD_IMAGE_FILE: imagePath,
-	}).Debug()
-	if err := s.StorageDriver.ActivateImage(imageUUID, imagePath); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:  LOG_EVENT_ACTIVATE,
-		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER: s.Driver,
-		LOG_FIELD_IMAGE:  imageUUID,
-	}).Debug()
-	return nil
-}
-
-func cmdObjectStoreDeactivateImage(c *cli.Context) {
-	if err := doObjectStoreDeactivateImage(c); err != nil {
-		panic(err)
-	}
-}
-
-func doObjectStoreDeactivateImage(c *cli.Context) error {
-	var err error
-	objectstoreUUID, err := getUUID(c, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(c, KEY_IMAGE, true, err)
-	if err != nil {
-		return err
-	}
-
-	request := "/objectstores/" + objectstoreUUID + "/images/" + imageUUID + "/deactivate"
-	return sendRequestAndPrint("POST", request, nil)
-}
-
-func (s *Server) doObjectStoreDeactivateImage(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
-	var err error
-	objectstoreUUID, err := getUUID(objs, KEY_OBJECTSTORE, true, err)
-	imageUUID, err := getUUID(objs, KEY_IMAGE, true, err)
-	if err != nil {
-		return err
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:  LOG_EVENT_DEACTIVATE,
-		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER: s.Driver,
-		LOG_FIELD_IMAGE:  imageUUID,
-	}).Debug()
-	if err := s.StorageDriver.DeactivateImage(imageUUID); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:  LOG_EVENT_DEACTIVATE,
-		LOG_FIELD_OBJECT: LOG_OBJECT_IMAGE,
-		LOG_FIELD_DRIVER: s.Driver,
-		LOG_FIELD_IMAGE:  imageUUID,
-	}).Debug()
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_DEACTIVATE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_IMAGE_DIR:   s.ImagesDir,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := objectstore.DeactivateImage(s.Root, s.ImagesDir, imageUUID, objectstoreUUID); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_DEACTIVATE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
 		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
 	}).Debug()
 	return nil

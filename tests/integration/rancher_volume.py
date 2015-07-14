@@ -30,12 +30,10 @@ class VolumeManager:
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size = "", base = "", name = ""):
+    def create_volume(self, size = "", name = ""):
         cmd = ["volume", "create"]
         if size != "":
             cmd = cmd + ["--size", size]
-        if base != "":
-            cmd = cmd + ["--image-uuid", base]
         if name != "":
             cmd = cmd + ["--name", name]
         data = subprocess.check_output(self.base_cmdline + cmd)
@@ -183,32 +181,6 @@ class VolumeManager:
 		"--objectstore-uuid", bs_uuid])
         volumes = json.loads(data)
         return volumes["Volumes"]
-
-    def add_image_to_objectstore(self, image_file, bs_uuid):
-        data = subprocess.check_output(self.base_cmdline + ["objectstore",
-                "add-image",
-                "--image-file", image_file,
-                "--objectstore-uuid", bs_uuid])
-        image = json.loads(data)
-        return image["UUID"]
-
-    def remove_image_from_objectstore(self, image_uuid, bs_uuid):
-        subprocess.check_call(self.base_cmdline + ["objectstore",
-                "remove-image",
-                "--image-uuid", image_uuid,
-                "--objectstore-uuid", bs_uuid])
-
-    def activate_image(self, image_uuid, bs_uuid):
-        subprocess.check_call(self.base_cmdline + ["objectstore",
-                "activate-image",
-                "--image-uuid", image_uuid,
-                "--objectstore-uuid", bs_uuid])
-
-    def deactivate_image(self, image_uuid, bs_uuid):
-        subprocess.check_call(self.base_cmdline + ["objectstore",
-                "deactivate-image",
-                "--image-uuid", image_uuid,
-                "--objectstore-uuid", bs_uuid])
 
     def list_objectstores(self, store_uuid = ""):
         cmd = ["objectstore", "list"]

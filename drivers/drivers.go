@@ -13,7 +13,7 @@ type InitFunc func(root, cfgName string, config map[string]string) (Driver, erro
 
 type Driver interface {
 	Name() string
-	CreateVolume(id, baseID string, size int64) error
+	CreateVolume(id string, size int64) error
 	DeleteVolume(id string) error
 	GetVolumeDevice(id string) (string, error)
 	ListVolume(id, snapshotID string) ([]byte, error)
@@ -25,8 +25,6 @@ type Driver interface {
 	ReadSnapshot(id, volumeID string, start int64, data []byte) error
 	CloseSnapshot(id, volumeID string) error
 	Info() ([]byte, error)
-	ActivateImage(imageUUID, imageFile string) error
-	DeactivateImage(imageUUID string) error
 	Shutdown() error
 	CheckEnvironment() error
 }

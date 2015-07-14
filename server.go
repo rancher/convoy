@@ -44,9 +44,6 @@ func createRouter(s *Server) *mux.Router {
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/add":                                           s.doObjectStoreAddVolume,
 			"/objectstores/{objectstore-uuid}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/backup":                                    s.doSnapshotBackup,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/restore": s.doSnapshotRestore,
-			"/objectstores/{objectstore-uuid}/images/add":                                                                      s.doObjectStoreAddImage,
-			"/objectstores/{objectstore-uuid}/images/{image-uuid}/activate":                                                    s.doObjectStoreActivateImage,
-			"/objectstores/{objectstore-uuid}/images/{image-uuid}/deactivate":                                                  s.doObjectStoreDeactivateImage,
 		},
 		"DELETE": {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":                                                                       s.doVolumeDelete,
@@ -54,7 +51,6 @@ func createRouter(s *Server) *mux.Router {
 			"/objectstores/{objectstore-uuid}/":                                                                         s.doObjectStoreDeregister,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/":                                       s.doObjectStoreRemoveVolume,
 			"/objectstores/{objectstore-uuid}/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotRemove,
-			"/objectstores/{objectstore-uuid}/images/{image-uuid}/":                                                     s.doObjectStoreRemoveImage,
 		},
 	}
 	for method, routes := range m {
@@ -317,10 +313,9 @@ func initServer(c *cli.Context) (*Server, error) {
 	root := c.String("root")
 	driverName := c.String("driver")
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
-	imagesDir := c.String("images-dir")
 	mountsDir := c.String("mounts-dir")
 	defaultSize := c.String("default-volume-size")
-	if root == "" || driverName == "" || driverOpts == nil || imagesDir == "" || mountsDir == "" || defaultSize == "" {
+	if root == "" || driverName == "" || driverOpts == nil || mountsDir == "" || defaultSize == "" {
 		return nil, fmt.Errorf("Missing or invalid parameters")
 	}
 
@@ -334,11 +329,6 @@ func initServer(c *cli.Context) (*Server, error) {
 	if util.ConfigExists(root, getCfgName()) {
 		return nil, fmt.Errorf("Configuration file already existed. Don't need to initialize.")
 	}
-
-	if err := util.MkdirIfNotExists(imagesDir); err != nil {
-		return nil, err
-	}
-	log.Debug("Images would be stored at ", imagesDir)
 
 	if err := util.MkdirIfNotExists(mountsDir); err != nil {
 		return nil, err
@@ -366,7 +356,6 @@ func initServer(c *cli.Context) (*Server, error) {
 	config := Config{
 		Root:              root,
 		Driver:            driverName,
-		ImagesDir:         imagesDir,
 		MountsDir:         mountsDir,
 		DefaultVolumeSize: size,
 	}

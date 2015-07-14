@@ -10,10 +10,11 @@ type ObjectStoreRegisterConfig struct {
 	Opts map[string]string
 }
 
-type ObjectStoreImageConfig struct {
-	ImageFile string
-}
-
 type VolumeListConfig struct {
 	DriverSpecific bool
+}
+
+type VolumeCreateConfig struct {
+	Name string
+	Size int64
 }

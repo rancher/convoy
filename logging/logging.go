@@ -16,11 +16,6 @@ const (
 	LOG_FIELD_MOUNTPOINT    = "mountpoint"
 	LOG_FIELD_NAMESPACE     = "namespace"
 	LOG_FIELD_CFG           = "config_file"
-	LOG_FIELD_IMAGE         = "image"
-	LOG_FIELD_IMAGE_DEV     = "image_dev"
-	LOG_FIELD_IMAGE_DIR     = "image_dir"
-	LOG_FIELD_IMAGE_NAME    = "image_name"
-	LOG_FIELD_IMAGE_FILE    = "image_file"
 	LOG_FIELD_SIZE          = "size"
 	LOG_FIELD_FILESYSTEM    = "filesystem"
 	LOG_FIELD_OPTION        = "option"
@@ -65,7 +60,6 @@ const (
 	LOG_OBJECT_VOLUME      = "volume"
 	LOG_OBJECT_SNAPSHOT    = "snapshot"
 	LOG_OBJECT_OBJECTSTORE = "objectstore"
-	LOG_OBJECT_IMAGE       = "image"
 	LOG_OBJECT_CONFIG      = "config"
 )
 

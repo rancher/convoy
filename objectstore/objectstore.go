@@ -39,7 +39,6 @@ type Volume struct {
 	UUID           string
 	Name           string
 	Size           int64
-	Base           string
 	LastSnapshotID string
 }
 
@@ -57,14 +56,6 @@ type BlockMapping struct {
 type SnapshotMap struct {
 	ID     string
 	Blocks []BlockMapping
-}
-
-type Image struct {
-	UUID        string
-	Name        string
-	Size        int64
-	Checksum    string
-	RawChecksum string
 }
 
 var (
@@ -193,17 +184,10 @@ func VolumeExists(root, volumeUUID, objectstoreUUID string) bool {
 	return driver.FileExists(getVolumeFilePath(volumeUUID))
 }
 
-func AddVolume(root, id, volumeID, volumeName, base string, size int64) error {
+func AddVolume(root, id, volumeID, volumeName string, size int64) error {
 	_, driver, err := getObjectStoreCfgAndDriver(root, id)
 	if err != nil {
 		return err
-	}
-
-	if base != "" {
-		_, err := loadImageConfig(base, driver)
-		if err != nil {
-			return err
-		}
 	}
 
 	volumeFile := getVolumeFilePath(volumeID)
@@ -216,7 +200,6 @@ func AddVolume(root, id, volumeID, volumeName, base string, size int64) error {
 		UUID:           volumeID,
 		Name:           volumeName,
 		Size:           size,
-		Base:           base,
 		LastSnapshotID: "",
 	}
 
@@ -590,7 +573,6 @@ func listVolume(volumeID, snapshotID string, driver ObjectStoreDriver) ([]byte, 
 	volumeResp := api.VolumeResponse{
 		UUID:      volumeID,
 		Name:      v.Name,
-		Base:      v.Base,
 		Size:      v.Size,
 		Snapshots: make(map[string]api.SnapshotResponse),
 	}
@@ -620,275 +602,6 @@ func ListVolume(root, objectstoreID, volumeID, snapshotID string) ([]byte, error
 		return nil, err
 	}
 	return listVolume(volumeID, snapshotID, bsDriver)
-}
-
-func AddImage(root, imageDir, imageUUID, imageName, imageFilePath, objectstoreUUID string) ([]byte, error) {
-	imageStat, err := os.Stat(imageFilePath)
-	if os.IsNotExist(err) || imageStat.IsDir() {
-		return nil, fmt.Errorf("Invalid image file")
-	}
-	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
-	if _, err := os.Stat(imageLocalStorePath); err == nil {
-		return nil, generateError(logrus.Fields{
-			LOG_FIELD_IMAGE: imageUUID,
-		}, "UUID is already used by another image")
-	}
-
-	_, bsDriver, err := getObjectStoreCfgAndDriver(root, objectstoreUUID)
-	if err != nil {
-		return nil, err
-	}
-
-	imageObjectStorePath := getImageObjectStorePath(imageUUID)
-	imageCfgObjectStorePath := getImageCfgObjectStorePath(imageUUID)
-
-	imageExists := bsDriver.FileExists(imageObjectStorePath)
-	imageCfgExists := bsDriver.FileExists(imageCfgObjectStorePath)
-	if imageExists && imageCfgExists {
-		return nil, generateError(logrus.Fields{
-			LOG_FIELD_IMAGE: imageUUID,
-		}, "The image already existed in objectstore")
-	} else if imageExists != imageCfgExists {
-		return nil, generateError(logrus.Fields{
-			LOG_FIELD_IMAGE: imageUUID,
-		}, "The image state is inconsistent in objectstore")
-	}
-
-	if imageStat.Size()%DEFAULT_BLOCK_SIZE != 0 {
-		return nil, fmt.Errorf("The image size must be multiplier of %v", DEFAULT_BLOCK_SIZE)
-	}
-
-	image := &Image{}
-	image.UUID = imageUUID
-	image.Name = imageName
-	image.Size = imageStat.Size()
-
-	log.Debugf("Copying image %v to local store %v", imageFilePath, imageLocalStorePath)
-	if err := util.Copy(imageFilePath, imageLocalStorePath); err != nil {
-		log.Debugf("Copying image failed")
-		return nil, err
-	}
-	log.Debug("Copied image to local store")
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_START,
-		LOG_FIELD_EVENT:       LOG_EVENT_UPLOAD,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_IMAGE_FILE:  imageLocalStorePath,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug("Uploading image to objectstore")
-	if err := uploadImage(imageLocalStorePath, bsDriver, image); err != nil {
-		log.Debugf("Uploading image failed")
-		return nil, err
-	}
-
-	if err := saveImageConfig(imageUUID, bsDriver, image); err != nil {
-		return nil, err
-	}
-
-	imageResp := api.ImageResponse{
-		UUID:        image.UUID,
-		Name:        image.Name,
-		Size:        image.Size,
-		Checksum:    image.Checksum,
-		RawChecksum: image.RawChecksum,
-	}
-	return api.ResponseOutput(imageResp)
-}
-
-func uploadImage(imageLocalStorePath string, bsDriver ObjectStoreDriver, image *Image) error {
-	log.Debug("Calculating checksum for raw image")
-	rawChecksum, err := util.GetFileChecksum(imageLocalStorePath)
-	if err != nil {
-		log.Debug("Calculation failed")
-		return err
-	}
-	log.Debug("Calculation done, raw checksum: ", rawChecksum)
-	image.RawChecksum = rawChecksum
-
-	log.Debug("Compressing raw image")
-	if err := util.CompressFile(imageLocalStorePath); err != nil {
-		log.Debug("Compressing failed ")
-		return err
-	}
-	compressedLocalPath := imageLocalStorePath + ".gz"
-	log.Debug("Compressed raw image to ", compressedLocalPath)
-
-	log.Debug("Calculating checksum for compressed image")
-	if image.Checksum, err = util.GetFileChecksum(compressedLocalPath); err != nil {
-		log.Debug("Calculation failed")
-		return err
-	}
-	log.Debug("Calculation done, checksum: ", image.Checksum)
-
-	imageObjectStorePath := getImageObjectStorePath(image.UUID)
-	log.Debug("Uploading image to objectstore path: ", imageObjectStorePath)
-	if err := bsDriver.Upload(compressedLocalPath, imageObjectStorePath); err != nil {
-		log.Debugf("Uploading failed")
-		return err
-	}
-	log.Debugf("Uploading done")
-	return nil
-}
-
-func removeImage(bsDriver ObjectStoreDriver, image *Image) error {
-	if err := removeImageConfig(image, bsDriver); err != nil {
-		return err
-	}
-	log.Debugf("Removed image %v's config from objectstore", image.UUID)
-	imageObjectStorePath := getImageObjectStorePath(image.UUID)
-	if err := bsDriver.Remove(imageObjectStorePath); err != nil {
-		return err
-	}
-	log.Debug("Removed image at ", imageObjectStorePath)
-	return nil
-}
-
-func RemoveImage(root, imageDir, imageUUID, objectstoreUUID string) error {
-	_, driver, err := getObjectStoreCfgAndDriver(root, objectstoreUUID)
-	if err != nil {
-		return err
-	}
-
-	image, err := loadImageConfig(imageUUID, driver)
-	if err != nil {
-		return err
-	}
-
-	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
-	if _, err := os.Stat(imageLocalStorePath); err == nil {
-		return fmt.Errorf("Image %v is still activated", imageUUID)
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_START,
-		LOG_FIELD_EVENT:       LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := removeImage(driver, image); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func ActivateImage(root, imageDir, imageUUID, objectstoreUUID string) error {
-	_, driver, err := getObjectStoreCfgAndDriver(root, objectstoreUUID)
-	if err != nil {
-		return err
-	}
-
-	image, err := loadImageConfig(imageUUID, driver)
-	if err != nil {
-		return err
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_START,
-		LOG_FIELD_EVENT:       LOG_EVENT_ACTIVATE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	if err := downloadImage(imageDir, driver, image); err != nil {
-		return err
-	}
-	return nil
-}
-
-func loadImageCache(fileName string, compressed bool, image *Image) (bool, error) {
-	if st, err := os.Stat(fileName); err == nil && !st.IsDir() {
-		log.Debug("Found local image cache at ", fileName)
-		log.Debug("Calculating checksum for local image cache")
-		checksum, err := util.GetFileChecksum(fileName)
-		if err != nil {
-			return false, err
-		}
-		log.Debug("Calculation done, checksum ", checksum)
-		if compressed && checksum == image.Checksum {
-			log.Debugf("Found image %v in local images directory, and checksum matched, no need to re-download\n", image.UUID)
-			return true, nil
-		} else if !compressed && checksum == image.RawChecksum {
-			log.Debugf("Found image %v in local images directory, and checksum matched, no need to re-download\n", image.UUID)
-			return true, nil
-		} else {
-			log.Debugf("Found image %v in local images directory, but checksum doesn't match record, would re-download\n", image.UUID)
-			if err := os.RemoveAll(fileName); err != nil {
-				return false, err
-			}
-			log.Debug("Removed local image cache at ", fileName)
-		}
-	}
-	return false, nil
-}
-
-func uncompressImage(fileName string) error {
-	log.Debugf("Uncompressing image %v ", fileName)
-	if err := util.UncompressFile(fileName); err != nil {
-		return err
-	}
-	log.Debug("Image uncompressed")
-	return nil
-}
-
-func downloadImage(imagesDir string, driver ObjectStoreDriver, image *Image) error {
-	imageLocalStorePath := GetImageLocalStorePath(imagesDir, image.UUID)
-	found, err := loadImageCache(imageLocalStorePath, false, image)
-	if found || err != nil {
-		return err
-	}
-
-	compressedLocalPath := imageLocalStorePath + ".gz"
-	found, err = loadImageCache(compressedLocalPath, true, image)
-	if err != nil {
-		return err
-	}
-	if found {
-		return uncompressImage(compressedLocalPath)
-	}
-
-	imageObjectStorePath := getImageObjectStorePath(image.UUID)
-	log.Debugf("Downloading image from objectstore %v to %v", imageObjectStorePath, compressedLocalPath)
-	if err := driver.Download(imageObjectStorePath, compressedLocalPath); err != nil {
-		return err
-	}
-	log.Debug("Download complete")
-
-	if err := uncompressImage(compressedLocalPath); err != nil {
-		return err
-	}
-
-	log.Debug("Calculating checksum for local image")
-	rawChecksum, err := util.GetFileChecksum(imageLocalStorePath)
-	if err != nil {
-		return err
-	}
-	log.Debug("Calculation done, raw checksum ", rawChecksum)
-	if rawChecksum != image.RawChecksum {
-		return fmt.Errorf("Image %v checksum verification failed!", image.UUID)
-	}
-	return nil
-}
-
-func DeactivateImage(root, imageDir, imageUUID, objectstoreUUID string) error {
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_START,
-		LOG_FIELD_EVENT:       LOG_EVENT_DEACTIVATE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_IMAGE,
-		LOG_FIELD_IMAGE:       imageUUID,
-		LOG_FIELD_OBJECTSTORE: objectstoreUUID,
-	}).Debug()
-	imageLocalStorePath := GetImageLocalStorePath(imageDir, imageUUID)
-	if st, err := os.Stat(imageLocalStorePath); err == nil && !st.IsDir() {
-		if err := os.RemoveAll(imageLocalStorePath); err != nil {
-			return err
-		}
-		log.Debug("Removed local image cache at ", imageLocalStorePath)
-	}
-	return nil
 }
 
 func listObjectStoreIDs(root string) []string {

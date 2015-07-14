@@ -23,7 +23,6 @@ type UUIDResponse struct {
 type VolumeResponse struct {
 	UUID        string
 	Name        string
-	Base        string
 	Size        int64
 	MountPoint  string
 	CreatedTime string
@@ -45,14 +44,6 @@ type ObjectStoreResponse struct {
 	UUID      string
 	Kind      string
 	BlockSize int64
-}
-
-type ImageResponse struct {
-	UUID        string
-	Name        string
-	Size        int64
-	Checksum    string
-	RawChecksum string
 }
 
 func ResponseError(format string, a ...interface{}) {
