@@ -65,19 +65,6 @@ var (
 				Usage: "mountpoint of volume",
 			},
 			cli.StringFlag{
-				Name:  "fs",
-				Value: "ext4",
-				Usage: "filesystem of volume(supports ext4 only)",
-			},
-			cli.BoolFlag{
-				Name:  "format",
-				Usage: "format or not, only support ext4 now",
-			},
-			cli.StringFlag{
-				Name:  "option",
-				Usage: "mount options",
-			},
-			cli.StringFlag{
 				Name:  "switch-ns",
 				Usage: "switch to another mount namespace, need namespace file descriptor",
 			},
@@ -278,6 +265,7 @@ func (s *Server) processVolumeCreate(volumeName, imageUUID string, size int64) (
 		Name:        volumeName,
 		Base:        imageUUID,
 		Size:        size,
+		FileSystem:  "ext4",
 		CreatedTime: util.Now(),
 		Snapshots:   make(map[string]Snapshot),
 	}
@@ -566,20 +554,14 @@ func doVolumeMount(c *cli.Context) error {
 
 	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
 	mountPoint, err := getLowerCaseFlag(c, "mountpoint", false, err)
-	fs, err := getLowerCaseFlag(c, "fs", true, err)
 	if err != nil {
 		return err
 	}
 
-	option := c.String("option")
-	needFormat := c.Bool("format")
 	newNS := c.String("switch-ns")
 
 	mountConfig := api.VolumeMountConfig{
 		MountPoint: mountPoint,
-		FileSystem: fs,
-		Options:    option,
-		NeedFormat: needFormat,
 		NameSpace:  newNS,
 	}
 
@@ -644,18 +626,14 @@ func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMount
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_MOUNT,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      volume.UUID,
-		LOG_FIELD_MOUNTPOINT:  mountConfig.MountPoint,
-		LOG_FIELD_FILESYSTEM:  mountConfig.FileSystem,
-		LOG_FIELD_OPTION:      mountConfig.Options,
-		LOG_FIELD_NEED_FORMAT: mountConfig.NeedFormat,
-		LOG_FIELD_NAMESPACE:   mountConfig.NameSpace,
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volume.UUID,
+		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
+		LOG_FIELD_NAMESPACE:  mountConfig.NameSpace,
 	}).Debug()
-	if err := drivers.Mount(s.StorageDriver, volume.UUID, mountConfig.MountPoint, mountConfig.FileSystem,
-		mountConfig.Options, mountConfig.NeedFormat, mountConfig.NameSpace); err != nil {
+	if err := drivers.Mount(s.StorageDriver, volume.UUID, mountConfig.MountPoint, mountConfig.NameSpace); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -666,7 +644,6 @@ func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMount
 		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
 	}).Debug()
 	volume.MountPoint = mountConfig.MountPoint
-	volume.FileSystem = mountConfig.FileSystem
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}

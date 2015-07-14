@@ -90,26 +90,17 @@ func Format(driver Driver, volumeUUID, fs string) error {
 	return nil
 }
 
-func Mount(driver Driver, volumeUUID, mountPoint, fs, option string, needFormat bool, newNS string) error {
+func Mount(driver Driver, volumeUUID, mountPoint, newNS string) error {
 	dev, err := driver.GetVolumeDevice(volumeUUID)
 	if err != nil {
 		return err
 	}
-	if fs != "ext4" {
-		return fmt.Errorf("unsupported filesystem ", fs)
-	}
-	if needFormat {
-		if err := Format(driver, volumeUUID, fs); err != nil {
-			return err
-		}
-	}
+	fs := "ext4"
+
 	if newNS == "" {
 		newNS = "/proc/1/ns/mnt"
 	}
 	cmdline := []string{newNS, "-m", "-t", fs}
-	if option != "" {
-		cmdline = append(cmdline, option)
-	}
 	cmdline = append(cmdline, dev, mountPoint)
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_START,

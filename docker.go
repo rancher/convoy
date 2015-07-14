@@ -144,10 +144,7 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mountConfig := &api.VolumeMountConfig{
-		FileSystem: "ext4",
-		NeedFormat: false,
-	}
+	mountConfig := &api.VolumeMountConfig{}
 
 	mountConfig.MountPoint, err = s.getVolumeMountPoint(volume.UUID, "")
 	if err != nil {

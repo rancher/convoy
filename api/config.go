@@ -2,9 +2,6 @@ package api
 
 type VolumeMountConfig struct {
 	MountPoint string
-	FileSystem string
-	Options    string
-	NeedFormat bool
 	NameSpace  string
 }
 

@@ -48,25 +48,19 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["volume", "delete",
             ] + _get_volume(volume))
 
-    def mount_volume(self, volume, need_format):
+    def mount_volume(self, volume):
         volume_mount_dir = os.path.join(self.mount_root, volume)
         if not os.path.exists(volume_mount_dir):
     	    os.makedirs(volume_mount_dir)
         assert os.path.exists(volume_mount_dir)
         cmdline = self.base_cmdline + ["volume", "mount",
-    		"--mountpoint", volume_mount_dir,
-    		"--fs", EXT4_FS] + _get_volume(volume)
-        if need_format:
-    	    cmdline = cmdline + ["--format"]
+    		"--mountpoint", volume_mount_dir] + _get_volume(volume)
 
 	subprocess.check_call(cmdline)
         return volume_mount_dir
 
-    def mount_volume_auto(self, volume, need_format):
-        cmdline = self.base_cmdline + ["volume", "mount",
-    		"--fs", EXT4_FS] + _get_volume(volume)
-        if need_format:
-    	    cmdline = cmdline + ["--format"]
+    def mount_volume_auto(self, volume):
+        cmdline = self.base_cmdline + ["volume", "mount"] + _get_volume(volume)
 
 	data = subprocess.check_output(cmdline)
         volume = json.loads(data)

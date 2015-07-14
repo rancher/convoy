@@ -215,13 +215,13 @@ def delete_volume(uuid, name = ""):
         v.delete_volume(name)
     dm_cleanup_list.remove(uuid)
 
-def mount_volume(uuid, need_format):
-    mount_dir = v.mount_volume(uuid, need_format)
+def mount_volume(uuid):
+    mount_dir = v.mount_volume(uuid)
     mount_cleanup_list.append(mount_dir)
     return mount_dir
 
-def mount_volume_auto(uuid, need_format):
-    mount_dir = v.mount_volume_auto(uuid, need_format)
+def mount_volume_auto(uuid):
+    mount_dir = v.mount_volume_auto(uuid)
     mount_cleanup_list.append(mount_dir)
     return mount_dir
 
@@ -265,21 +265,9 @@ def test_volume_name():
     delete_volume(vol_uuid1, vol_name1)
     delete_volume(vol_uuid2, vol_name2)
 
-def format_volume_and_create_file(uuid, filename):
+def mount_volume_and_create_file(uuid, filename):
     # with format
-    volume_mount_dir = mount_volume(uuid, True)
-
-    test_file = os.path.join(volume_mount_dir,filename)
-    with open(test_file, "w") as f:
-	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
-    assert os.path.exists(test_file)
-
-    umount_volume(uuid, volume_mount_dir)
-    assert not os.path.exists(test_file)
-
-def no_format_test_create_file(uuid, filename):
-    # with format
-    volume_mount_dir = mount_volume(uuid, True)
+    volume_mount_dir = mount_volume(uuid)
 
     test_file = os.path.join(volume_mount_dir,filename)
     with open(test_file, "w") as f:
@@ -294,15 +282,15 @@ def test_volume_mount():
 
     # with format
     filename = "test"
-    format_volume_and_create_file(uuid, filename)
+    mount_volume_and_create_file(uuid, filename)
 
     # without format
-    volume_mount_dir = mount_volume(uuid, False)
+    volume_mount_dir = mount_volume(uuid)
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 
     with pytest.raises(subprocess.CalledProcessError):
-        volume_mount_dir = mount_volume(uuid, False)
+        volume_mount_dir = mount_volume(uuid)
 
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
@@ -311,18 +299,13 @@ def test_volume_mount():
         umount_volume(uuid, volume_mount_dir)
 
     # auto mount
-    volume_mount_dir = mount_volume_auto(uuid, False)
+    volume_mount_dir = mount_volume_auto(uuid)
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
 
-    delete_volume(uuid)
-
-    # test format as volume create option
-    uuid = create_volume()
-    no_format_test_create_file(uuid, filename)
     delete_volume(uuid)
 
 def test_volume_list():
@@ -445,7 +428,7 @@ def test_restore_with_original_removed():
     objectstore_uuid = v.register_vfs_objectstore(TEST_ROOT)
     volume1_uuid = create_volume(VOLUME_SIZE_500M)
     v.add_volume_to_objectstore(volume1_uuid, objectstore_uuid)
-    format_volume_and_create_file(volume1_uuid, "test-vol1-v1")
+    mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     v.backup_snapshot_to_objectstore(snap1_vol1_uuid, objectstore_uuid)
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
@@ -566,7 +549,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
     assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
 
     #second snapshots
-    format_volume_and_create_file(volume1_uuid, "test-vol1-v1")
+    mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
     v.backup_snapshot_to_objectstore(snap2_vol1_uuid, objectstore_uuid)
     if is_vfs:
@@ -575,7 +558,7 @@ def process_objectstore_test(objectstore_uuid, is_vfs):
         assert snap2_vol1["ID"] == snap2_vol1_uuid
         assert len(snap2_vol1["Blocks"]) != 0
 
-    format_volume_and_create_file(volume2_uuid, "test-vol2-v2")
+    mount_volume_and_create_file(volume2_uuid, "test-vol2-v2")
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     v.backup_snapshot_to_objectstore(snap2_vol2_uuid, objectstore_uuid)
     if is_vfs:
@@ -754,7 +737,7 @@ def process_image_based_volume(objectstore_uuid):
 
     volume_uuid = create_volume(VOLUME_SIZE_100M, base=image_uuid)
 
-    volume_mount_dir = mount_volume(volume_uuid, False)
+    volume_mount_dir = mount_volume(volume_uuid)
 
     assert os.path.exists(os.path.join(volume_mount_dir, TEST_IMAGE_FILE))
     subprocess.check_call(["touch", os.path.join(volume_mount_dir,
@@ -773,7 +756,7 @@ def process_image_based_volume(objectstore_uuid):
     v.restore_snapshot_from_objectstore(snapshot_uuid, volume_uuid,
             new_volume_uuid, objectstore_uuid)
 
-    new_volume_mount_dir = mount_volume(new_volume_uuid, False)
+    new_volume_mount_dir = mount_volume(new_volume_uuid)
 
     assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_IMAGE_FILE))
     assert os.path.exists(os.path.join(new_volume_mount_dir, TEST_SNAPSHOT_FILE))
