@@ -207,13 +207,11 @@ func (s *Server) doObjectStoreRegister(version string, w http.ResponseWriter, r 
 		LOG_FIELD_EVENT:       LOG_EVENT_REGISTER,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_OBJECTSTORE,
 		LOG_FIELD_OBJECTSTORE: b.UUID,
-		LOG_FIELD_BLOCKSIZE:   b.BlockSize,
 	}).Debug()
 
 	return writeResponseOutput(w, api.ObjectStoreResponse{
-		UUID:      b.UUID,
-		Kind:      b.Kind,
-		BlockSize: b.BlockSize,
+		UUID: b.UUID,
+		Kind: b.Kind,
 	})
 }
 

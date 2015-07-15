@@ -45,9 +45,8 @@ type Volume struct {
 }
 
 type ObjectStore struct {
-	UUID      string
-	Kind      string
-	BlockSize int64
+	UUID string
+	Kind string
 }
 
 type BlockMapping struct {
@@ -116,9 +115,8 @@ func Register(root, kind string, config map[string]string) (*ObjectStore, error)
 		driver.FinalizeInit(root, getDriverCfgName(kind, id), id)
 
 		bs = &ObjectStore{
-			UUID:      id,
-			Kind:      kind,
-			BlockSize: DEFAULT_BLOCK_SIZE,
+			UUID: id,
+			Kind: kind,
 		}
 
 		if err := saveRemoteObjectStoreConfig(driver, bs); err != nil {
@@ -163,22 +161,22 @@ func loadObjectStoreConfig(root, objectstoreUUID string) (*ObjectStore, error) {
 	return b, nil
 }
 
-func getObjectStoreCfgAndDriver(root, objectstoreUUID string) (*ObjectStore, ObjectStoreDriver, error) {
+func getObjectStoreDriver(root, objectstoreUUID string) (ObjectStoreDriver, error) {
 	b, err := loadObjectStoreConfig(root, objectstoreUUID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	driver, err := GetObjectStoreDriver(b.Kind, root, getDriverCfgName(b.Kind, objectstoreUUID), nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	log.Debug("Loaded configure for objectstore ", objectstoreUUID)
-	return b, driver, nil
+	return driver, nil
 }
 
 func VolumeExists(root, volumeUUID, objectstoreUUID string) bool {
-	_, driver, err := getObjectStoreCfgAndDriver(root, objectstoreUUID)
+	driver, err := getObjectStoreDriver(root, objectstoreUUID)
 	if err != nil {
 		return false
 	}
@@ -216,7 +214,7 @@ func removeVolume(volumeUUID string, driver ObjectStoreDriver) error {
 }
 
 func BackupSnapshot(root string, volume *Volume, snapshotID, objectstoreID string, sDriver drivers.Driver) error {
-	b, bsDriver, err := getObjectStoreCfgAndDriver(root, objectstoreID)
+	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
 	if err != nil {
 		return err
 	}
@@ -287,8 +285,8 @@ func BackupSnapshot(root string, volume *Volume, snapshotID, objectstoreID strin
 	if err != nil {
 		return err
 	}
-	if delta.BlockSize != b.BlockSize {
-		return fmt.Errorf("Currently doesn't support different block sizes between objectstore and driver")
+	if delta.BlockSize != DEFAULT_BLOCK_SIZE {
+		return fmt.Errorf("Currently doesn't support different block sizes driver other than %v", DEFAULT_BLOCK_SIZE)
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:        LOG_REASON_COMPLETE,
@@ -312,7 +310,7 @@ func BackupSnapshot(root string, volume *Volume, snapshotID, objectstoreID strin
 	}
 	defer sDriver.CloseSnapshot(snapshotID, volume.UUID)
 	for _, d := range delta.Mappings {
-		block := make([]byte, b.BlockSize)
+		block := make([]byte, DEFAULT_BLOCK_SIZE)
 		for i := int64(0); i < d.Size/delta.BlockSize; i++ {
 			offset := d.Offset + i*delta.BlockSize
 			err := sDriver.ReadSnapshot(snapshotID, volume.UUID, offset, block)
@@ -401,7 +399,7 @@ func mergeSnapshotMap(snapshotID string, deltaMap, lastMap *SnapshotMap) *Snapsh
 }
 
 func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreID string, sDriver drivers.Driver) error {
-	b, bsDriver, err := getObjectStoreCfgAndDriver(root, objectstoreID)
+	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
 	if err != nil {
 		return err
 	}
@@ -447,7 +445,7 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreI
 			rc.Close()
 			return err
 		}
-		if _, err := io.CopyN(volDev, rc, b.BlockSize); err != nil {
+		if _, err := io.CopyN(volDev, rc, DEFAULT_BLOCK_SIZE); err != nil {
 			rc.Close()
 			return err
 		}
@@ -458,7 +456,7 @@ func RestoreSnapshot(root, srcSnapshotID, srcVolumeID, dstVolumeID, objectstoreI
 }
 
 func RemoveSnapshot(root, snapshotID, volumeID, objectstoreID string) error {
-	_, bsDriver, err := getObjectStoreCfgAndDriver(root, objectstoreID)
+	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
 	if err != nil {
 		return err
 	}
@@ -588,7 +586,7 @@ func listVolume(volumeID, snapshotID string, driver ObjectStoreDriver) ([]byte, 
 }
 
 func ListVolume(root, objectstoreID, volumeID, snapshotID string) ([]byte, error) {
-	_, bsDriver, err := getObjectStoreCfgAndDriver(root, objectstoreID)
+	bsDriver, err := getObjectStoreDriver(root, objectstoreID)
 	if err != nil {
 		return nil, err
 	}
@@ -627,9 +625,8 @@ func List(root, objectstoreUUID string) ([]byte, error) {
 			}, "Objectstore %v doesn't exist", err.Error())
 		}
 		store := api.ObjectStoreResponse{
-			UUID:      b.UUID,
-			Kind:      b.Kind,
-			BlockSize: b.BlockSize,
+			UUID: b.UUID,
+			Kind: b.Kind,
 		}
 		resp.ObjectStores[b.UUID] = store
 	}
