@@ -27,6 +27,7 @@ const (
 	KEY_VOLUME_UUID   = "volume-uuid"
 	KEY_SNAPSHOT      = "snapshot"
 	KEY_SNAPSHOT_UUID = "snapshot-uuid"
+	KEY_BACKUP_URL    = "backup-url"
 	KEY_DEST_URL      = "dest-url"
 
 	VOLUME_CFG_PREFIX = "volume_"

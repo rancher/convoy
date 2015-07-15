@@ -359,3 +359,15 @@ func initServer(c *cli.Context) (*Server, error) {
 	err = util.SaveConfig(root, getCfgName(), &config)
 	return server, err
 }
+
+func sendResponse(w http.ResponseWriter, v interface{}) error {
+	resp, err := api.ResponseOutput(v)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		return err
+	}
+	return nil
+}

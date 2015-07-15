@@ -46,6 +46,10 @@ type ObjectStoreResponse struct {
 	BlockSize int64
 }
 
+type BackupResponse struct {
+	URL string
+}
+
 func ResponseError(format string, a ...interface{}) {
 	response := ErrorResponse{Error: fmt.Sprintf(format, a...)}
 	j, err := json.MarshalIndent(&response, "", "\t")

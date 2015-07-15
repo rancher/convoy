@@ -408,13 +408,12 @@ def test_restore_with_original_removed():
     volume1_uuid = create_volume(VOLUME_SIZE_500M)
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
-    v.backup_snapshot_to_objectstore(snap1_vol1_uuid, VFS_URL)
+    bak = v.backup_snapshot_to_objectstore(snap1_vol1_uuid, VFS_URL)
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     delete_volume(volume1_uuid)
 
     res_volume1_uuid = create_volume(VOLUME_SIZE_500M)
-    v.restore_snapshot_from_objectstore(snap1_vol1_uuid, volume1_uuid,
-		    res_volume1_uuid, VFS_URL)
+    v.restore_snapshot_from_objectstore(bak, res_volume1_uuid)
     res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
@@ -445,7 +444,7 @@ def process_objectstore_test(dest_url, is_vfs):
 
     #first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
-    v.backup_snapshot_to_objectstore(snap1_vol1_uuid, dest_url)
+    snap1_vol1_bak = v.backup_snapshot_to_objectstore(snap1_vol1_uuid, dest_url)
     if is_vfs:
         volume1_cfg_path = os.path.join(get_volume_dir(volume1_uuid), OBJECTSTORE_PER_VOLUME_CFG)
         assert os.path.exists(volume1_cfg_path)
@@ -458,7 +457,7 @@ def process_objectstore_test(dest_url, is_vfs):
     assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
 
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid, "snap1_vol2")
-    v.backup_snapshot_to_objectstore("snap1_vol2", dest_url)
+    snap1_vol2_bak = v.backup_snapshot_to_objectstore("snap1_vol2", dest_url)
     if is_vfs:
         volume2_cfg_path = os.path.join(get_volume_dir(volume2_uuid), OBJECTSTORE_PER_VOLUME_CFG)
         assert os.path.exists(volume2_cfg_path)
@@ -478,7 +477,7 @@ def process_objectstore_test(dest_url, is_vfs):
     #second snapshots
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
-    v.backup_snapshot_to_objectstore(snap2_vol1_uuid, dest_url)
+    snap2_vol1_bak = v.backup_snapshot_to_objectstore(snap2_vol1_uuid, dest_url)
     if is_vfs:
         with open(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid)) as f:
             snap2_vol1 = json.loads(f.read())
@@ -487,7 +486,7 @@ def process_objectstore_test(dest_url, is_vfs):
 
     mount_volume_and_create_file(volume2_uuid, "test-vol2-v2")
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
-    v.backup_snapshot_to_objectstore(snap2_vol2_uuid, dest_url)
+    snap2_vol2_bak = v.backup_snapshot_to_objectstore(snap2_vol2_uuid, dest_url)
     if is_vfs:
         with open(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid)) as f:
             snap2_vol2 = json.loads(f.read())
@@ -508,25 +507,23 @@ def process_objectstore_test(dest_url, is_vfs):
 
     #restore snapshot
     res_volume1_uuid = create_volume(VOLUME_SIZE_500M)
-    v.restore_snapshot_from_objectstore(snap2_vol1_uuid, volume1_uuid,
-		    res_volume1_uuid, dest_url)
+    v.restore_snapshot_from_objectstore(snap2_vol1_bak, res_volume1_uuid)
     res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     assert res_volume1_checksum == volume1_checksum
 
     res_volume2_uuid = create_volume(VOLUME_SIZE_100M)
-    v.restore_snapshot_from_objectstore(snap2_vol2_uuid, volume2_uuid,
-		    res_volume2_uuid, dest_url)
+    v.restore_snapshot_from_objectstore(snap2_vol2_bak, res_volume2_uuid)
     res_volume2_checksum = get_checksum(os.path.join(DM_DIR, res_volume2_uuid))
     volume2_checksum = get_checksum(os.path.join(DM_DIR, volume2_uuid))
     assert res_volume2_checksum == volume2_checksum
 
     #remove snapshots from objectstore
-    v.remove_snapshot_from_objectstore(snap2_vol1_uuid, volume1_uuid, dest_url)
+    v.remove_snapshot_from_objectstore(snap2_vol1_bak)
     if is_vfs:
         assert not os.path.exists(get_snapshot_cfg(snap2_vol1_uuid, volume1_uuid))
 
-    v.remove_snapshot_from_objectstore(snap2_vol2_uuid, volume2_uuid, dest_url)
+    v.remove_snapshot_from_objectstore(snap2_vol2_bak)
     if is_vfs:
         assert not os.path.exists(get_snapshot_cfg(snap2_vol2_uuid, volume2_uuid))
 
@@ -550,12 +547,12 @@ def process_objectstore_test(dest_url, is_vfs):
     assert snap2_vol2_uuid not in volumes[volume2_uuid]["Snapshots"]
 
     #remove snapshots from objectstore
-    v.remove_snapshot_from_objectstore(snap1_vol2_uuid, volume2_uuid, dest_url)
+    v.remove_snapshot_from_objectstore(snap1_vol2_bak)
     if is_vfs:
         assert not os.path.exists(get_snapshot_cfg(snap1_vol2_uuid, volume2_uuid))
         assert not os.path.exists(get_volume_cfg(volume2_uuid))
 
-    v.remove_snapshot_from_objectstore(snap1_vol1_uuid, volume1_uuid, dest_url)
+    v.remove_snapshot_from_objectstore(snap1_vol1_bak)
     if is_vfs:
         assert not os.path.exists(get_snapshot_cfg(snap1_vol1_uuid, volume1_uuid))
         assert not os.path.exists(get_volume_cfg(volume1_uuid))

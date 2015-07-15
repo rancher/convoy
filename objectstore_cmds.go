@@ -33,20 +33,12 @@ var (
 		Usage: "restore an snapshot from objectstore to volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_SNAPSHOT_UUID,
-				Usage: "uuid of snapshot",
-			},
-			cli.StringFlag{
-				Name:  KEY_VOLUME_UUID,
-				Usage: "uuid of origin volume for snapshot",
-			},
-			cli.StringFlag{
 				Name:  "target-volume-uuid",
 				Usage: "uuid of target volume",
 			},
 			cli.StringFlag{
-				Name:  KEY_DEST_URL,
-				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
+				Name:  KEY_BACKUP_URL,
+				Usage: "url of backup",
 			},
 		},
 		Action: cmdSnapshotRestore,
@@ -57,16 +49,8 @@ var (
 		Usage: "remove an snapshot backup in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_SNAPSHOT_UUID,
-				Usage: "uuid of snapshot",
-			},
-			cli.StringFlag{
-				Name:  KEY_VOLUME_UUID,
-				Usage: "uuid of volume for snapshot",
-			},
-			cli.StringFlag{
-				Name:  KEY_DEST_URL,
-				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
+				Name:  KEY_BACKUP_URL,
+				Usage: "url of backup",
 			},
 		},
 		Action: cmdSnapshotRemove,
@@ -207,7 +191,8 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	if err := objectstore.BackupSnapshot(objVolume, snapshotUUID, config.URL, s.StorageDriver); err != nil {
+	backupURL, err := objectstore.BackupSnapshot(objVolume, snapshotUUID, config.URL, s.StorageDriver)
+	if err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -218,7 +203,11 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	return nil
+
+	backup := &api.BackupResponse{
+		URL: backupURL,
+	}
+	return sendResponse(w, backup)
 }
 
 func cmdSnapshotRestore(c *cli.Context) {
@@ -230,19 +219,15 @@ func cmdSnapshotRestore(c *cli.Context) {
 func doSnapshotRestore(c *cli.Context) error {
 	var err error
 
-	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
-	sourceVolumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
+	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
 	targetVolumeUUID, err := getUUID(c, "target-volume-uuid", true, err)
-	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT_UUID, true, err)
 	if err != nil {
 		return err
 	}
 
 	config := &api.ObjectStoreRestoreConfig{
-		URL:                destURL,
-		SourceVolumeUUID:   sourceVolumeUUID,
-		SourceSnapshotUUID: snapshotUUID,
-		TargetVolumeUUID:   targetVolumeUUID,
+		URL:              backupURL,
+		TargetVolumeUUID: targetVolumeUUID,
 	}
 
 	request := "/objectstores/restore"
@@ -261,26 +246,21 @@ func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *htt
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    config.SourceSnapshotUUID,
-		LOG_FIELD_ORIN_VOLUME: config.SourceVolumeUUID,
-		LOG_FIELD_VOLUME:      config.TargetVolumeUUID,
-		LOG_FIELD_DEST_URL:    config.URL,
+		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_VOLUME:     config.TargetVolumeUUID,
+		LOG_FIELD_BACKUP_URL: config.URL,
 	}).Debug()
-	if err := objectstore.RestoreSnapshot(config.SourceSnapshotUUID, config.SourceVolumeUUID,
-		config.TargetVolumeUUID, config.URL, s.StorageDriver); err != nil {
+	if err := objectstore.RestoreSnapshot(config.URL, config.TargetVolumeUUID, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:       LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    config.SourceSnapshotUUID,
-		LOG_FIELD_ORIN_VOLUME: config.SourceVolumeUUID,
-		LOG_FIELD_VOLUME:      config.TargetVolumeUUID,
-		LOG_FIELD_DEST_URL:    config.URL,
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_VOLUME:     config.TargetVolumeUUID,
+		LOG_FIELD_BACKUP_URL: config.URL,
 	}).Debug()
 	return nil
 }
@@ -293,17 +273,13 @@ func cmdSnapshotRemove(c *cli.Context) {
 
 func doSnapshotRemove(c *cli.Context) error {
 	var err error
-	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
-	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT_UUID, true, err)
+	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
 	if err != nil {
 		return err
 	}
 
 	config := &api.ObjectStoreDeleteConfig{
-		URL:          destURL,
-		VolumeUUID:   volumeUUID,
-		SnapshotUUID: snapshotUUID,
+		URL: backupURL,
 	}
 	request := "/objectstores"
 	return sendRequestAndPrint("DELETE", request, config)
@@ -322,19 +298,15 @@ func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: config.SnapshotUUID,
-		LOG_FIELD_VOLUME:   config.VolumeUUID,
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	if err := objectstore.RemoveSnapshot(config.SnapshotUUID, config.VolumeUUID, config.URL); err != nil {
+	if err := objectstore.RemoveSnapshot(config.URL); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: config.SnapshotUUID,
-		LOG_FIELD_VOLUME:   config.VolumeUUID,
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
 	return nil

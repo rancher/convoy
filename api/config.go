@@ -26,14 +26,10 @@ type ObjectStoreBackupConfig struct {
 }
 
 type ObjectStoreRestoreConfig struct {
-	URL                string
-	SourceVolumeUUID   string
-	SourceSnapshotUUID string
-	TargetVolumeUUID   string
+	URL              string
+	TargetVolumeUUID string
 }
 
 type ObjectStoreDeleteConfig struct {
-	URL          string
-	VolumeUUID   string
-	SnapshotUUID string
+	URL string
 }
