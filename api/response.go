@@ -46,7 +46,7 @@ type ObjectStoreResponse struct {
 	BlockSize int64
 }
 
-type BackupResponse struct {
+type BackupURLResponse struct {
 	URL string
 }
 

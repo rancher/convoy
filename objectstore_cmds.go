@@ -204,7 +204,7 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
 
-	backup := &api.BackupResponse{
+	backup := &api.BackupURLResponse{
 		URL: backupURL,
 	}
 	return sendResponse(w, backup)
