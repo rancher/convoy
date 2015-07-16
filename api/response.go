@@ -36,14 +36,14 @@ type SnapshotResponse struct {
 	CreatedTime string
 }
 
-type ObjectStoresResponse struct {
-	ObjectStores map[string]ObjectStoreResponse
+type BackupsResponse struct {
+	Backups map[string]BackupResponse
 }
 
-type ObjectStoreResponse struct {
-	UUID      string
-	Kind      string
-	BlockSize int64
+type BackupResponse struct {
+	URL          string
+	VolumeUUID   string
+	SnapshotUUID string
 }
 
 type BackupURLResponse struct {

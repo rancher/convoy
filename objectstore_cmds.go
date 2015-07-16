@@ -56,9 +56,9 @@ var (
 		Action: cmdSnapshotRemove,
 	}
 
-	objectstoreListVolumeCmd = cli.Command{
-		Name:  "list-volume",
-		Usage: "list volume and snapshots in objectstore",
+	objectstoreListCmd = cli.Command{
+		Name:  "list",
+		Usage: "list volume in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_DEST_URL,
@@ -68,19 +68,15 @@ var (
 				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of volume",
 			},
-			cli.StringFlag{
-				Name:  KEY_SNAPSHOT_UUID,
-				Usage: "uuid of snapshot",
-			},
 		},
-		Action: cmdObjectStoreListVolume,
+		Action: cmdObjectStoreList,
 	}
 
 	objectstoreCmd = cli.Command{
 		Name:  "objectstore",
 		Usage: "objectstore related operations",
 		Subcommands: []cli.Command{
-			objectstoreListVolumeCmd,
+			objectstoreListCmd,
 		},
 	}
 )
@@ -89,7 +85,7 @@ const (
 	OBJECTSTORE_PATH = "objectstore"
 )
 
-func cmdObjectStoreListVolume(c *cli.Context) {
+func cmdObjectStoreList(c *cli.Context) {
 	if err := doObjectStoreListVolume(c); err != nil {
 		panic(err)
 	}
@@ -100,15 +96,13 @@ func doObjectStoreListVolume(c *cli.Context) error {
 
 	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
-	snapshotUUID, err := getUUID(c, KEY_SNAPSHOT_UUID, false, err)
 	if err != nil {
 		return err
 	}
 
 	config := &api.ObjectStoreListConfig{
-		URL:          destURL,
-		VolumeUUID:   volumeUUID,
-		SnapshotUUID: snapshotUUID,
+		URL:        destURL,
+		VolumeUUID: volumeUUID,
 	}
 	request := "/objectstores/list"
 	return sendRequestAndPrint("GET", request, config)
@@ -122,7 +116,7 @@ func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, 
 	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
-	data, err := objectstore.ListVolume(config.URL, config.VolumeUUID, config.SnapshotUUID)
+	data, err := objectstore.ListVolume(config.VolumeUUID, config.URL)
 	if err != nil {
 		return err
 	}

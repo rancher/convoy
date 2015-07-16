@@ -2,6 +2,7 @@ package objectstore
 
 import (
 	"bytes"
+	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
@@ -10,7 +11,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"path/filepath"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
@@ -39,7 +39,7 @@ type Volume struct {
 	Size           int64
 	FileSystem     string
 	CreatedTime    string
-	LastSnapshotID string
+	LastBackupUUID string
 }
 
 type ObjectStore struct {
@@ -52,9 +52,11 @@ type BlockMapping struct {
 	BlockChecksum string
 }
 
-type SnapshotMap struct {
-	ID     string
-	Blocks []BlockMapping
+type Backup struct {
+	UUID         string
+	VolumeUUID   string
+	SnapshotUUID string
+	Blocks       []BlockMapping
 }
 
 var (
@@ -130,7 +132,7 @@ func removeVolume(volumeUUID string, driver ObjectStoreDriver) error {
 	return nil
 }
 
-func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver drivers.Driver) (string, error) {
+func BackupSnapshot(volumeDesc *Volume, snapshotUUID, destURL string, sDriver drivers.Driver) (string, error) {
 	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return "", err
@@ -145,49 +147,31 @@ func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver driv
 		return "", err
 	}
 
-	if snapshotExists(snapshotID, volume.UUID, bsDriver) {
-		return "", generateError(logrus.Fields{
-			LOG_FIELD_SNAPSHOT: snapshotID,
-			LOG_FIELD_VOLUME:   volume.UUID,
-			LOG_FIELD_DEST_URL: destURL,
-		}, "Snapshot already exists in objectstore!")
-	}
+	lastBackupUUID := volume.LastBackupUUID
 
-	lastSnapshotID := volume.LastSnapshotID
+	var lastSnapshotUUID string
+	var lastBackup *Backup
+	if lastBackupUUID != "" {
+		lastBackup, err = loadBackup(lastBackupUUID, volume.UUID, bsDriver)
+		if err != nil {
+			return "", err
+		}
 
-	var lastSnapshotMap *SnapshotMap
-	if lastSnapshotID != "" {
-		if lastSnapshotID == snapshotID {
+		lastSnapshotUUID = lastBackup.SnapshotUUID
+		if lastSnapshotUUID == snapshotUUID {
 			//Generate full snapshot if the snapshot has been backed up last time
-			lastSnapshotID = ""
+			lastSnapshotUUID = ""
 			log.Debug("Would create full snapshot metadata")
-		} else if !sDriver.HasSnapshot(lastSnapshotID, volume.UUID) {
+		} else if !sDriver.HasSnapshot(lastSnapshotUUID, volume.UUID) {
 			// It's possible that the snapshot in objectstore doesn't exist
 			// in local storage
-			lastSnapshotID = ""
+			lastSnapshotUUID = ""
 			log.WithFields(logrus.Fields{
 				LOG_FIELD_REASON:   LOG_REASON_FALLBACK,
 				LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-				LOG_FIELD_SNAPSHOT: lastSnapshotID,
+				LOG_FIELD_SNAPSHOT: lastSnapshotUUID,
 				LOG_FIELD_VOLUME:   volume.UUID,
 			}).Debug("Cannot find last snapshot in local storage, would process with full backup")
-		} else {
-			log.WithFields(logrus.Fields{
-				LOG_FIELD_REASON:   LOG_REASON_START,
-				LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-				LOG_FIELD_EVENT:    LOG_EVENT_LOAD,
-				LOG_FIELD_SNAPSHOT: lastSnapshotID,
-			}).Debug("Loading last snapshot")
-			lastSnapshotMap, err = loadSnapshotMap(lastSnapshotID, volume.UUID, bsDriver)
-			if err != nil {
-				return "", err
-			}
-			log.WithFields(logrus.Fields{
-				LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
-				LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-				LOG_FIELD_EVENT:    LOG_EVENT_LOAD,
-				LOG_FIELD_SNAPSHOT: lastSnapshotID,
-			}).Debug("Loaded last snapshot")
 		}
 	}
 
@@ -195,10 +179,10 @@ func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver driv
 		LOG_FIELD_REASON:        LOG_REASON_START,
 		LOG_FIELD_OBJECT:        LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_EVENT:         LOG_EVENT_COMPARE,
-		LOG_FIELD_SNAPSHOT:      snapshotID,
-		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotID,
+		LOG_FIELD_SNAPSHOT:      snapshotUUID,
+		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotUUID,
 	}).Debug("Generating snapshot changed blocks metadata")
-	delta, err := sDriver.CompareSnapshot(snapshotID, lastSnapshotID, volume.UUID)
+	delta, err := sDriver.CompareSnapshot(snapshotUUID, lastSnapshotUUID, volume.UUID)
 	if err != nil {
 		return "", err
 	}
@@ -209,28 +193,32 @@ func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver driv
 		LOG_FIELD_REASON:        LOG_REASON_COMPLETE,
 		LOG_FIELD_OBJECT:        LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_EVENT:         LOG_EVENT_COMPARE,
-		LOG_FIELD_SNAPSHOT:      snapshotID,
-		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotID,
+		LOG_FIELD_SNAPSHOT:      snapshotUUID,
+		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotUUID,
 	}).Debug("Generated snapshot changed blocks metadata")
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_START,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotID,
-	}).Debug("Creating snapshot changed blocks")
-	snapshotDeltaMap := &SnapshotMap{
-		Blocks: []BlockMapping{},
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
+	}).Debug("Creating backup")
+
+	deltaBackup := &Backup{
+		UUID:         uuid.New(),
+		VolumeUUID:   volume.UUID,
+		SnapshotUUID: snapshotUUID,
+		Blocks:       []BlockMapping{},
 	}
-	if err := sDriver.OpenSnapshot(snapshotID, volume.UUID); err != nil {
+	if err := sDriver.OpenSnapshot(snapshotUUID, volume.UUID); err != nil {
 		return "", err
 	}
-	defer sDriver.CloseSnapshot(snapshotID, volume.UUID)
+	defer sDriver.CloseSnapshot(snapshotUUID, volume.UUID)
 	for _, d := range delta.Mappings {
 		block := make([]byte, DEFAULT_BLOCK_SIZE)
 		for i := int64(0); i < d.Size/delta.BlockSize; i++ {
 			offset := d.Offset + i*delta.BlockSize
-			err := sDriver.ReadSnapshot(snapshotID, volume.UUID, offset, block)
+			err := sDriver.ReadSnapshot(snapshotUUID, volume.UUID, offset, block)
 			if err != nil {
 				return "", err
 			}
@@ -241,7 +229,7 @@ func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver driv
 					Offset:        offset,
 					BlockChecksum: checksum,
 				}
-				snapshotDeltaMap.Blocks = append(snapshotDeltaMap.Blocks, blockMapping)
+				deltaBackup.Blocks = append(deltaBackup.Blocks, blockMapping)
 				log.Debugf("Found existed block match at %v", blkFile)
 				continue
 			}
@@ -255,7 +243,7 @@ func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver driv
 				Offset:        offset,
 				BlockChecksum: checksum,
 			}
-			snapshotDeltaMap.Blocks = append(snapshotDeltaMap.Blocks, blockMapping)
+			deltaBackup.Blocks = append(deltaBackup.Blocks, blockMapping)
 		}
 	}
 
@@ -263,26 +251,26 @@ func BackupSnapshot(volumeDesc *Volume, snapshotID, destURL string, sDriver driv
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotID,
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
 	}).Debug("Created snapshot changed blocks")
-	snapshotMap := mergeSnapshotMap(snapshotID, snapshotDeltaMap, lastSnapshotMap)
+	backup := mergeSnapshotMap(deltaBackup, lastBackup)
 
-	if err := saveSnapshotMap(snapshotID, volume.UUID, bsDriver, snapshotMap); err != nil {
+	if err := saveBackup(backup, bsDriver); err != nil {
 		return "", err
 	}
 
-	volume.LastSnapshotID = snapshotID
+	volume.LastBackupUUID = backup.UUID
 	if err := saveVolumeConfig(volume, bsDriver); err != nil {
 		return "", err
 	}
 
-	return encodeBackupURL(destURL, volume.UUID, snapshotID), nil
+	return encodeBackupURL(volume.UUID, backup.UUID, destURL), nil
 }
 
-func encodeBackupURL(destURL, volumeUUID, snapshotUUID string) string {
+func encodeBackupURL(volumeUUID, backupUUID, destURL string) string {
 	v := url.Values{}
 	v.Add("volume", volumeUUID)
-	v.Add("snapshot", snapshotUUID)
+	v.Add("backup", backupUUID)
 	return destURL + "?" + v.Encode()
 }
 
@@ -293,47 +281,48 @@ func decodeBackupURL(backupURL string) (string, string, error) {
 	}
 	v := u.Query()
 	volumeUUID := v.Get("volume")
-	snapshotUUID := v.Get("snapshot")
-	if !util.ValidateUUID(volumeUUID) || !util.ValidateUUID(snapshotUUID) {
+	backupUUID := v.Get("backup")
+	if !util.ValidateUUID(volumeUUID) || !util.ValidateUUID(backupUUID) {
 		return "", "", fmt.Errorf("Invalid UUID parsed")
 	}
-	return volumeUUID, snapshotUUID, nil
+	return volumeUUID, backupUUID, nil
 }
 
-func mergeSnapshotMap(snapshotID string, deltaMap, lastMap *SnapshotMap) *SnapshotMap {
-	if lastMap == nil {
-		deltaMap.ID = snapshotID
-		return deltaMap
+func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
+	if lastBackup == nil {
+		return deltaBackup
 	}
-	sMap := &SnapshotMap{
-		ID:     snapshotID,
-		Blocks: []BlockMapping{},
+	backup := &Backup{
+		UUID:         deltaBackup.UUID,
+		VolumeUUID:   deltaBackup.VolumeUUID,
+		SnapshotUUID: deltaBackup.SnapshotUUID,
+		Blocks:       []BlockMapping{},
 	}
 	var d, l int
-	for d, l = 0, 0; d < len(deltaMap.Blocks) && l < len(lastMap.Blocks); {
-		dB := deltaMap.Blocks[d]
-		lB := lastMap.Blocks[l]
+	for d, l = 0, 0; d < len(deltaBackup.Blocks) && l < len(lastBackup.Blocks); {
+		dB := deltaBackup.Blocks[d]
+		lB := lastBackup.Blocks[l]
 		if dB.Offset == lB.Offset {
-			sMap.Blocks = append(sMap.Blocks, dB)
+			backup.Blocks = append(backup.Blocks, dB)
 			d++
 			l++
 		} else if dB.Offset < lB.Offset {
-			sMap.Blocks = append(sMap.Blocks, dB)
+			backup.Blocks = append(backup.Blocks, dB)
 			d++
 		} else {
 			//dB.Offset > lB.offset
-			sMap.Blocks = append(sMap.Blocks, lB)
+			backup.Blocks = append(backup.Blocks, lB)
 			l++
 		}
 	}
 
-	if d == len(deltaMap.Blocks) {
-		sMap.Blocks = append(sMap.Blocks, lastMap.Blocks[l:]...)
+	if d == len(deltaBackup.Blocks) {
+		backup.Blocks = append(backup.Blocks, lastBackup.Blocks[l:]...)
 	} else {
-		sMap.Blocks = append(sMap.Blocks, deltaMap.Blocks[d:]...)
+		backup.Blocks = append(backup.Blocks, deltaBackup.Blocks[d:]...)
 	}
 
-	return sMap
+	return backup
 }
 
 func RestoreSnapshot(backupURL, dstVolumeID string, sDriver drivers.Driver) error {
@@ -342,7 +331,7 @@ func RestoreSnapshot(backupURL, dstVolumeID string, sDriver drivers.Driver) erro
 		return err
 	}
 
-	srcVolumeID, srcSnapshotID, err := decodeBackupURL(backupURL)
+	srcVolumeID, srcBackupUUID, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return err
 	}
@@ -364,7 +353,7 @@ func RestoreSnapshot(backupURL, dstVolumeID string, sDriver drivers.Driver) erro
 	}
 	defer volDev.Close()
 
-	snapshotMap, err := loadSnapshotMap(srcSnapshotID, srcVolumeID, bsDriver)
+	backup, err := loadBackup(srcBackupUUID, srcVolumeID, bsDriver)
 	if err != nil {
 		return err
 	}
@@ -373,12 +362,12 @@ func RestoreSnapshot(backupURL, dstVolumeID string, sDriver drivers.Driver) erro
 		LOG_FIELD_REASON:      LOG_REASON_START,
 		LOG_FIELD_EVENT:       LOG_EVENT_RESTORE,
 		LOG_FIELD_OBJECT:      LOG_FIELD_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    srcSnapshotID,
+		LOG_FIELD_SNAPSHOT:    srcBackupUUID,
 		LOG_FIELD_ORIN_VOLUME: srcVolumeID,
 		LOG_FIELD_VOLUME:      dstVolumeID,
 		//LOG_FIELD_OBJECTSTORE: objectstoreID,
 	}).Debug()
-	for _, block := range snapshotMap.Blocks {
+	for _, block := range backup.Blocks {
 		blkFile := getBlockFilePath(srcVolumeID, block.BlockChecksum)
 		rc, err := bsDriver.Read(blkFile)
 		if err != nil {
@@ -404,60 +393,56 @@ func RemoveSnapshot(backupURL string) error {
 		return err
 	}
 
-	volumeID, snapshotID, err := decodeBackupURL(backupURL)
+	volumeUUID, backupUUID, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return err
 	}
 
-	v, err := loadVolumeConfig(volumeID, bsDriver)
+	v, err := loadVolumeConfig(volumeUUID, bsDriver)
 	if err != nil {
-		return fmt.Errorf("Cannot find volume %v in objectstore", volumeID, err)
+		return fmt.Errorf("Cannot find volume %v in objectstore", volumeUUID, err)
 	}
 
-	snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
+	backup, err := loadBackup(backupUUID, volumeUUID, bsDriver)
 	if err != nil {
 		return err
 	}
 	discardBlockSet := make(map[string]bool)
-	for _, blk := range snapshotMap.Blocks {
+	for _, blk := range backup.Blocks {
 		discardBlockSet[blk.BlockChecksum] = true
 	}
 	discardBlockCounts := len(discardBlockSet)
 
-	snapshotPath := getSnapshotsPath(volumeID)
-	snapshotFile := getSnapshotConfigName(snapshotID)
-	discardFile := filepath.Join(snapshotPath, snapshotFile)
-	if err := bsDriver.Remove(discardFile); err != nil {
+	if err := removeBackup(backup, bsDriver); err != nil {
 		return err
 	}
-	log.Debugf("Removed snapshot config file %v on objectstore", discardFile)
 
-	if snapshotID == v.LastSnapshotID {
-		v.LastSnapshotID = ""
+	if backup.UUID == v.LastBackupUUID {
+		v.LastBackupUUID = ""
 		if err := saveVolumeConfig(v, bsDriver); err != nil {
 			return err
 		}
 	}
 
-	snapshots, err := getSnapshots(volumeID, bsDriver)
+	backupUUIDs, err := getBackupUUIDsForVolume(volumeUUID, bsDriver)
 	if err != nil {
 		return err
 	}
-	if len(snapshots) == 0 {
-		log.Debugf("No snapshot existed for the volume %v, removing volume", volumeID)
-		if err := removeVolume(volumeID, bsDriver); err != nil {
-			log.Warningf("Failed to remove volume %v due to: %v", volumeID, err.Error())
+	if len(backupUUIDs) == 0 {
+		log.Debugf("No snapshot existed for the volume %v, removing volume", volumeUUID)
+		if err := removeVolume(volumeUUID, bsDriver); err != nil {
+			log.Warningf("Failed to remove volume %v due to: %v", volumeUUID, err.Error())
 		}
 		return nil
 	}
 
 	log.Debug("GC started")
-	for snapshotID := range snapshots {
-		snapshotMap, err := loadSnapshotMap(snapshotID, volumeID, bsDriver)
+	for _, backupUUID := range backupUUIDs {
+		backup, err := loadBackup(backupUUID, volumeUUID, bsDriver)
 		if err != nil {
 			return err
 		}
-		for _, blk := range snapshotMap.Blocks {
+		for _, blk := range backup.Blocks {
 			if _, exists := discardBlockSet[blk.BlockChecksum]; exists {
 				delete(discardBlockSet, blk.BlockChecksum)
 				discardBlockCounts--
@@ -473,70 +458,49 @@ func RemoveSnapshot(backupURL string) error {
 
 	var blkFileList []string
 	for blk := range discardBlockSet {
-		blkFileList = append(blkFileList, getBlockFilePath(volumeID, blk))
-		log.Debugf("Found unused blocks %v for volume %v", blk, volumeID)
+		blkFileList = append(blkFileList, getBlockFilePath(volumeUUID, blk))
+		log.Debugf("Found unused blocks %v for volume %v", blk, volumeUUID)
 	}
 	if err := bsDriver.Remove(blkFileList...); err != nil {
 		return err
 	}
-	log.Debug("Removed unused blocks for volume ", volumeID)
+	log.Debug("Removed unused blocks for volume ", volumeUUID)
 
 	log.Debug("GC completed")
-	log.Debug("Removed objectstore snapshot ", snapshotID)
+	log.Debug("Removed objectstore backup ", backupUUID)
 
 	return nil
 }
 
-func listVolume(volumeID, snapshotID string, driver ObjectStoreDriver) ([]byte, error) {
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_VOLUME:   volumeID,
-		LOG_FIELD_SNAPSHOT: snapshotID,
-	}).Debug("Listing objectstore for volume and snapshot")
-	resp := api.VolumesResponse{
-		Volumes: make(map[string]api.VolumeResponse),
+func listVolume(volumeUUID, destURL string, driver ObjectStoreDriver) ([]byte, error) {
+	resp := api.BackupsResponse{
+		Backups: make(map[string]api.BackupResponse),
 	}
 
-	v, err := loadVolumeConfig(volumeID, driver)
-	if err != nil {
-		// Volume doesn't exist
-		return api.ResponseOutput(resp)
-	}
-
-	snapshots, err := getSnapshots(volumeID, driver)
+	backupUUIDs, err := getBackupUUIDsForVolume(volumeUUID, driver)
 	if err != nil {
 		return nil, err
 	}
 
-	volumeResp := api.VolumeResponse{
-		UUID:      volumeID,
-		Name:      v.Name,
-		Size:      v.Size,
-		Snapshots: make(map[string]api.SnapshotResponse),
-	}
-
-	if snapshotID != "" {
-		if _, exists := snapshots[snapshotID]; exists {
-			volumeResp.Snapshots[snapshotID] = api.SnapshotResponse{
-				UUID:       snapshotID,
-				VolumeUUID: volumeID,
-			}
+	for _, backupUUID := range backupUUIDs {
+		backup, err := loadBackup(backupUUID, volumeUUID, driver)
+		if err != nil {
+			return nil, err
 		}
-	} else {
-		for s := range snapshots {
-			volumeResp.Snapshots[s] = api.SnapshotResponse{
-				UUID:       s,
-				VolumeUUID: volumeID,
-			}
+		backupResp := api.BackupResponse{
+			URL:          encodeBackupURL(backupUUID, volumeUUID, destURL),
+			VolumeUUID:   volumeUUID,
+			SnapshotUUID: backup.SnapshotUUID,
 		}
+		resp.Backups[backupUUID] = backupResp
 	}
-	resp.Volumes[volumeID] = volumeResp
 	return api.ResponseOutput(resp)
 }
 
-func ListVolume(destURL, volumeID, snapshotID string) ([]byte, error) {
+func ListVolume(volumeUUID, destURL string) ([]byte, error) {
 	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return nil, err
 	}
-	return listVolume(volumeID, snapshotID, bsDriver)
+	return listVolume(volumeUUID, destURL, bsDriver)
 }
