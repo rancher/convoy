@@ -480,7 +480,11 @@ func (s *Server) ListVolume(volumeUUID, snapshotUUID string) ([]byte, error) {
 	if volumeUUID != "" {
 		volumeUUIDs = append(volumeUUIDs, volumeUUID)
 	} else {
-		volumeUUIDs = util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+		var err error
+		volumeUUIDs, err = util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, uuid := range volumeUUIDs {

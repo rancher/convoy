@@ -134,7 +134,7 @@ func (device *Device) deleteVolume(uuid string) error {
 	return util.RemoveConfig(device.Root, cfgName)
 }
 
-func (device *Device) listVolumeIDs() []string {
+func (device *Device) listVolumeIDs() ([]string, error) {
 	return util.ListConfigIDs(device.Root, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
@@ -196,7 +196,10 @@ func (d *Driver) activatePool() error {
 	}
 	log.Debug("Reinitialized the existing pool ", dev.ThinpoolDevice)
 
-	volumeIDs := dev.listVolumeIDs()
+	volumeIDs, err := dev.listVolumeIDs()
+	if err != nil {
+		return err
+	}
 	for _, id := range volumeIDs {
 		volume := dev.loadVolume(id)
 		if volume == nil {
@@ -483,7 +486,10 @@ func (d *Driver) ListVolume(id, snapshotID string) ([]byte, error) {
 		}
 
 	} else {
-		volumeIDs := d.listVolumeIDs()
+		volumeIDs, err := d.listVolumeIDs()
+		if err != nil {
+			return nil, err
+		}
 		for _, uuid := range volumeIDs {
 			volume := d.loadVolume(uuid)
 			if volume == nil {
@@ -740,7 +746,10 @@ func removePool(poolName string) error {
 func (d *Driver) deactivatePool() error {
 	dev := d.Device
 
-	volumeIDs := dev.listVolumeIDs()
+	volumeIDs, err := dev.listVolumeIDs()
+	if err != nil {
+		return err
+	}
 	for _, id := range volumeIDs {
 		volume := dev.loadVolume(id)
 		if volume == nil {

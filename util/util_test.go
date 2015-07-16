@@ -87,6 +87,28 @@ func (s *TestSuite) TestSaveLoadConfig(c *C) {
 	c.Assert(dev, DeepEquals, devNew)
 }
 
+func (s *TestSuite) TestExtractUUIDs(c *C) {
+	prefix := "prefix_"
+	suffix := ".suffix"
+	counts := 10
+	uuids := make([]string, counts)
+	names := make([]string, counts)
+	for i := 0; i < counts; i++ {
+		uuids[i] = uuid.New()
+		names[i] = prefix + uuids[i] + suffix
+	}
+
+	result, err := ExtractUUIDs(names, "prefix_", ".suffix")
+	c.Assert(err, Equals, nil)
+	for i := 0; i < counts; i++ {
+		c.Assert(result[i], Equals, uuids[i])
+	}
+
+	names[0] = "prefix_dd_xx.suffix"
+	result, err = ExtractUUIDs(names, "prefix_", ".suffix")
+	c.Assert(err, ErrorMatches, "Invalid name.*")
+}
+
 func (s *TestSuite) TestListConfigIDs(c *C) {
 	tmpdir, err := ioutil.TempDir("/tmp", "rancher-volume")
 	c.Assert(err, IsNil)
@@ -94,7 +116,8 @@ func (s *TestSuite) TestListConfigIDs(c *C) {
 
 	prefix := "prefix_"
 	suffix := "_suffix.cfg"
-	ids := ListConfigIDs(tmpdir, prefix, suffix)
+	ids, err := ListConfigIDs(tmpdir, prefix, suffix)
+	c.Assert(err, Equals, nil)
 	c.Assert(ids, HasLen, 0)
 
 	counts := 10
@@ -105,11 +128,14 @@ func (s *TestSuite) TestListConfigIDs(c *C) {
 		err := exec.Command("touch", filepath.Join(tmpdir, prefix+id+suffix)).Run()
 		c.Assert(err, IsNil)
 	}
-	uuidList := ListConfigIDs(tmpdir, prefix, suffix)
+	uuidList, err := ListConfigIDs(tmpdir, prefix, suffix)
+	c.Assert(err, Equals, nil)
 	c.Assert(uuidList, HasLen, counts)
 	for i := 0; i < counts; i++ {
-		_, exists := uuids[uuidList[i]]
-		c.Assert(exists, Equals, true)
+		uuids[uuidList[i]] = false
+	}
+	for _, notCovered := range uuids {
+		c.Assert(notCovered, Equals, false)
 	}
 }
 

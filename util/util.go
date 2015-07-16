@@ -106,25 +106,33 @@ func RemoveConfig(path, name string) error {
 	return nil
 }
 
-func ListConfigIDs(path, prefix, suffix string) []string {
+func ListConfigIDs(path, prefix, suffix string) ([]string, error) {
 	out, err := Execute("find", []string{path,
 		"-maxdepth", "1",
 		"-name", prefix + "*" + suffix,
 		"-printf", "%f "})
 	if err != nil {
-		return []string{}
+		return []string{}, nil
 	}
 	if len(out) == 0 {
-		return []string{}
+		return []string{}, nil
 	}
 	fileResult := strings.Split(strings.TrimSpace(string(out)), " ")
-	result := make([]string, len(fileResult))
-	for i := range fileResult {
-		f := fileResult[i]
+	return ExtractUUIDs(fileResult, prefix, suffix)
+}
+
+func ExtractUUIDs(names []string, prefix, suffix string) ([]string, error) {
+	result := []string{}
+	for i := range names {
+		f := names[i]
 		f = strings.TrimPrefix(f, prefix)
-		result[i] = strings.TrimSuffix(f, suffix)
+		f = strings.TrimSuffix(f, suffix)
+		if !ValidateUUID(f) {
+			return nil, fmt.Errorf("Invalid name %v was processed to extract UUID with prefix %v surfix %v", names[i], prefix, suffix)
+		}
+		result = append(result, f)
 	}
-	return result
+	return result, nil
 }
 
 func MkdirIfNotExists(path string) error {

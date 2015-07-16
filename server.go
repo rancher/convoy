@@ -126,7 +126,10 @@ func loadServerConfig(c *cli.Context) (*Server, error) {
 }
 
 func (s *Server) updateIndex() error {
-	volumeUUIDs := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+	if err != nil {
+		return err
+	}
 	for _, uuid := range volumeUUIDs {
 		volume := s.loadVolume(uuid)
 		if err := s.UUIDIndex.Add(uuid); err != nil {
