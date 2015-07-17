@@ -148,9 +148,11 @@ def teardown_module():
 
     detach_all_lodev(TEST_ROOT)
 
+'''
     filenames = os.listdir(CFG_ROOT)
     for filename in filenames:
         assert not filename.startswith('volume')
+        '''
 
 def wait_for_daemon():
     while True:
@@ -437,28 +439,35 @@ def process_objectstore_test(dest_url):
     volume1_uuid = create_volume(VOLUME_SIZE_500M)
     volume2_uuid = create_volume(VOLUME_SIZE_100M)
 
-    #volumes = v.list_volume_objectstore(volume1_uuid, dest_url)
-    #assert len(volumes) == 0
-    #volumes = v.list_volume_objectstore_with_snapshot(RANDOM_VALID_UUID, volume1_uuid, dest_url)
-    #assert len(volumes) == 0
+    backups = v.list_volume_objectstore(volume1_uuid, dest_url)
+    assert len(backups) == 0
 
     #first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap1_vol1_bak = v.backup_snapshot_to_objectstore(snap1_vol1_uuid, dest_url)
 
-    #volumes = v.list_volume_objectstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, dest_url)
-    #assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
+    backups = v.list_volume_objectstore(volume1_uuid, dest_url)
+    assert len(backups) == 1
+
+    backups = v.inspect_backup(snap1_vol1_bak)
+    assert len(backups) == 1
+    backup = backups.values()[0]
+    assert backup["URL"] == snap1_vol1_bak
+    assert backup["VolumeUUID"] == volume1_uuid
+    assert backup["SnapshotUUID"] == snap1_vol1_uuid
 
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid, "snap1_vol2")
     snap1_vol2_bak = v.backup_snapshot_to_objectstore("snap1_vol2", dest_url)
 
     #list snapshots
-    #volumes = v.list_volume_objectstore(volume1_uuid, dest_url)
-    #assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    #volumes = v.list_volume_objectstore(volume2_uuid, dest_url)
-    #assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    #volumes = v.list_volume_objectstore_with_snapshot(snap1_vol2_uuid, volume2_uuid, dest_url)
-    #assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    backups = v.list_volume_objectstore(volume2_uuid, dest_url)
+    assert len(backups) == 1
+
+    backups = v.inspect_backup(snap1_vol2_bak)
+    backup = backups.values()[0]
+    assert backup["URL"] == snap1_vol2_bak
+    assert backup["VolumeUUID"] == volume2_uuid
+    assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
     #second snapshots
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
@@ -469,17 +478,11 @@ def process_objectstore_test(dest_url):
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     snap2_vol2_bak = v.backup_snapshot_to_objectstore(snap2_vol2_uuid, dest_url)
 
-    #dupcliate snapshot backup should fail
-    with pytest.raises(subprocess.CalledProcessError):
-        v.backup_snapshot_to_objectstore(snap2_vol2_uuid, dest_url)
-
     #list snapshots again
-    #volumes = v.list_volume_objectstore(volume1_uuid, dest_url)
-    #assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    #assert snap2_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    #volumes = v.list_volume_objectstore(volume2_uuid, dest_url)
-    #assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    #assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
+    backups = v.list_volume_objectstore(volume1_uuid, dest_url)
+    assert len(backups) == 2
+    backups = v.list_volume_objectstore(volume2_uuid, dest_url)
+    assert len(backups) == 2
 
     #restore snapshot
     res_volume1_uuid = create_volume(VOLUME_SIZE_500M)
@@ -499,23 +502,31 @@ def process_objectstore_test(dest_url):
     v.remove_snapshot_from_objectstore(snap2_vol2_bak)
 
     #list snapshots again
-    #volumes = v.list_volume_objectstore(volume1_uuid, dest_url)
-    #assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    #assert snap2_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
-    #volumes = v.list_volume_objectstore_with_snapshot(snap1_vol1_uuid, volume1_uuid, dest_url)
-    #assert snap1_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
-    #volumes = v.list_volume_objectstore_with_snapshot(snap2_vol1_uuid, volume1_uuid, dest_url)
-    #assert snap1_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
-    #assert snap2_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
+    backups = v.list_volume_objectstore(volume1_uuid, dest_url)
+    assert len(backups) == 1
+    backup = backups.values()[0]
+    assert backup["URL"] == snap1_vol1_bak
+    assert backup["VolumeUUID"] == volume1_uuid
+    assert backup["SnapshotUUID"] == snap1_vol1_uuid
 
-    #volumes = v.list_volume_objectstore(volume2_uuid, dest_url)
-    #assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    #assert snap2_vol2_uuid not in volumes[volume2_uuid]["Snapshots"]
-    #volumes = v.list_volume_objectstore_with_snapshot(snap1_vol2_uuid, volume2_uuid, dest_url)
-    #assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    #volumes = v.list_volume_objectstore_with_snapshot(snap2_vol2_uuid, volume2_uuid, dest_url)
-    #assert snap1_vol2_uuid not in volumes[volume2_uuid]["Snapshots"]
-    #assert snap2_vol2_uuid not in volumes[volume2_uuid]["Snapshots"]
+    backups = v.inspect_backup(snap1_vol1_bak)
+    backup = backups.values()[0]
+    assert backup["URL"] == snap1_vol1_bak
+    assert backup["VolumeUUID"] == volume1_uuid
+    assert backup["SnapshotUUID"] == snap1_vol1_uuid
+
+    backups = v.list_volume_objectstore(volume2_uuid, dest_url)
+    assert len(backups) == 1
+    backup = backups.values()[0]
+    assert backup["URL"] == snap1_vol2_bak
+    assert backup["VolumeUUID"] == volume2_uuid
+    assert backup["SnapshotUUID"] == snap1_vol2_uuid
+
+    backups = v.inspect_backup(snap1_vol2_bak)
+    backup = backups.values()[0]
+    assert backup["URL"] == snap1_vol2_bak
+    assert backup["VolumeUUID"] == volume2_uuid
+    assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
     #remove snapshots from objectstore
     v.remove_snapshot_from_objectstore(snap1_vol2_bak)

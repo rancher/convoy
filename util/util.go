@@ -125,6 +125,8 @@ func ExtractUUIDs(names []string, prefix, suffix string) ([]string, error) {
 	result := []string{}
 	for i := range names {
 		f := names[i]
+		// Remove additional slash if exists
+		f = strings.TrimLeft(f, "/")
 		f = strings.TrimPrefix(f, prefix)
 		f = strings.TrimSuffix(f, suffix)
 		if !ValidateUUID(f) {

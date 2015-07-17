@@ -128,11 +128,18 @@ class VolumeManager:
 
     def list_volume_objectstore(self, volume_uuid, dest_url):
 	data = subprocess.check_output(self.base_cmdline + ["objectstore",
-                "list-volume",
+                "list",
 		"--volume-uuid", volume_uuid,
 		"--dest-url", dest_url])
         backups = json.loads(data)
-        return volumes["Backups"]
+        return backups["Backups"]
+
+    def inspect_backup(self, backup_url):
+	data = subprocess.check_output(self.base_cmdline + ["objectstore",
+                "inspect",
+		"--backup-url", backup_url])
+        backups = json.loads(data)
+        return backups["Backups"]
 
 #    def list_volume_objectstore_with_snapshot(self,
 #            snapshot_uuid, volume_uuid, dest_url):

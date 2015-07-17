@@ -104,6 +104,11 @@ func (s *TestSuite) TestExtractUUIDs(c *C) {
 		c.Assert(result[i], Equals, uuids[i])
 	}
 
+	names[0] = "/" + names[0]
+	result, err = ExtractUUIDs(names, "prefix_", ".suffix")
+	c.Assert(err, Equals, nil)
+	c.Assert(result[0], Equals, uuids[0])
+
 	names[0] = "prefix_dd_xx.suffix"
 	result, err = ExtractUUIDs(names, "prefix_", ".suffix")
 	c.Assert(err, ErrorMatches, "Invalid name.*")

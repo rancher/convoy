@@ -72,11 +72,24 @@ var (
 		Action: cmdObjectStoreList,
 	}
 
+	objectstoreInspectCmd = cli.Command{
+		Name:  "inspect",
+		Usage: "inspect a backup",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  KEY_BACKUP_URL,
+				Usage: "url of backup",
+			},
+		},
+		Action: cmdObjectStoreInspect,
+	}
+
 	objectstoreCmd = cli.Command{
 		Name:  "objectstore",
 		Usage: "objectstore related operations",
 		Subcommands: []cli.Command{
 			objectstoreListCmd,
+			objectstoreInspectCmd,
 		},
 	}
 )
@@ -117,6 +130,44 @@ func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, 
 		return err
 	}
 	data, err := objectstore.ListVolume(config.VolumeUUID, config.URL)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(data)
+	return err
+}
+
+func cmdObjectStoreInspect(c *cli.Context) {
+	if err := doObjectStoreInspect(c); err != nil {
+		panic(err)
+	}
+}
+
+func doObjectStoreInspect(c *cli.Context) error {
+	var err error
+
+	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
+	if err != nil {
+		return err
+	}
+
+	config := &api.ObjectStoreListConfig{
+		URL: backupURL,
+	}
+	request := "/objectstores/inspect"
+	return sendRequestAndPrint("GET", request, config)
+}
+
+func (s *Server) doObjectStoreInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.RLock()
+	defer s.GlobalLock.RUnlock()
+
+	config := &api.ObjectStoreListConfig{}
+	if err := decodeRequest(r, config); err != nil {
+		return err
+	}
+	data, err := objectstore.Inspect(config.URL)
 	if err != nil {
 		return err
 	}
