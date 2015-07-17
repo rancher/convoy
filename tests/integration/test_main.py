@@ -406,11 +406,14 @@ def get_checksum(filename):
     output = subprocess.check_output(["sha512sum", filename]).decode()
     return output.split(" ")[0]
 
-def test_restore_with_original_removed():
+def test_vfs_create_restore_only():
+    process_restore_with_original_removed(VFS_URL)
+
+def process_restore_with_original_removed(dest_url):
     volume1_uuid = create_volume(VOLUME_SIZE_500M)
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
-    bak = v.create_backup(snap1_vol1_uuid, VFS_URL)
+    bak = v.create_backup(snap1_vol1_uuid, dest_url)
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     delete_volume(volume1_uuid)
 
@@ -426,16 +429,16 @@ def test_restore_with_original_removed():
 def test_vfs_objectstore():
     process_objectstore_test(VFS_URL)
 
-def get_s3_url():
+def get_s3_url(path = ""):
     region = os.environ[ENV_TEST_AWS_REGION]
     bucket = os.environ[ENV_TEST_AWS_BUCKET]
-    path = S3_PATH
 
-    return "s3://" + bucket + "@" + region + "/" + S3_PATH
+    return "s3://" + bucket + "@" + region + "/" + path
 
 @pytest.mark.s3
 def test_s3_objectstore():
     process_objectstore_test(get_s3_url())
+    process_objectstore_test(get_s3_url(S3_PATH))
 
 def process_objectstore_test(dest_url):
     #add volume to objectstore
