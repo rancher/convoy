@@ -148,11 +148,9 @@ def teardown_module():
 
     detach_all_lodev(TEST_ROOT)
 
-'''
     filenames = os.listdir(CFG_ROOT)
     for filename in filenames:
         assert not filename.startswith('volume')
-        '''
 
 def wait_for_daemon():
     while True:
