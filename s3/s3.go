@@ -97,9 +97,12 @@ func (s *S3ObjectStoreDriver) List(listPath string) ([]string, error) {
 	if size == 0 {
 		return result, nil
 	}
-	result = make([]string, size)
-	for i, obj := range contents {
-		result[i] = strings.TrimPrefix(*obj.Key, path)
+	result = []string{}
+	for _, obj := range contents {
+		r := strings.TrimPrefix(*obj.Key, path)
+		if r != "" {
+			result = append(result, r)
+		}
 	}
 
 	return result, nil
