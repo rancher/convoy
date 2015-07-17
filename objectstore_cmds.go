@@ -40,22 +40,6 @@ var (
 		Action: cmdBackupDelete,
 	}
 
-	backupRestoreCmd = cli.Command{
-		Name:  "restore",
-		Usage: "restore an snapshot from objectstore to volume",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "target-volume-uuid",
-				Usage: "uuid of target volume",
-			},
-			cli.StringFlag{
-				Name:  KEY_BACKUP_URL,
-				Usage: "url of backup",
-			},
-		},
-		Action: cmdBackupRestore,
-	}
-
 	backupListCmd = cli.Command{
 		Name:  "list",
 		Usage: "list volume in objectstore",
@@ -90,7 +74,6 @@ var (
 		Subcommands: []cli.Command{
 			backupCreateCmd,
 			backupDeleteCmd,
-			backupRestoreCmd,
 			backupListCmd,
 			backupInspectCmd,
 		},
@@ -262,61 +245,6 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		URL: backupURL,
 	}
 	return sendResponse(w, backup)
-}
-
-func cmdBackupRestore(c *cli.Context) {
-	if err := doBackupRestore(c); err != nil {
-		panic(err)
-	}
-}
-
-func doBackupRestore(c *cli.Context) error {
-	var err error
-
-	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
-	targetVolumeUUID, err := getUUID(c, "target-volume-uuid", true, err)
-	if err != nil {
-		return err
-	}
-
-	config := &api.BackupRestoreConfig{
-		URL:              backupURL,
-		TargetVolumeUUID: targetVolumeUUID,
-	}
-
-	request := "/backups/restore"
-	return sendRequestAndPrint("POST", request, config)
-}
-
-func (s *Server) doBackupRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	config := &api.BackupRestoreConfig{}
-	if err := decodeRequest(r, config); err != nil {
-		return err
-	}
-
-	targetVol := s.loadVolume(config.TargetVolumeUUID)
-	if targetVol == nil {
-		return fmt.Errorf("volume %v doesn't exist", config.TargetVolumeUUID)
-	}
-
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_VOLUME:     config.TargetVolumeUUID,
-		LOG_FIELD_BACKUP_URL: config.URL,
-	}).Debug()
-	if err := objectstore.RestoreBackup(config.URL, config.TargetVolumeUUID, s.StorageDriver); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_VOLUME:     config.TargetVolumeUUID,
-		LOG_FIELD_BACKUP_URL: config.URL,
-	}).Debug()
-	return nil
 }
 
 func cmdBackupDelete(c *cli.Context) {

@@ -30,12 +30,14 @@ class VolumeManager:
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size = "", name = ""):
+    def create_volume(self, size = "", name = "", backup_url = ""):
         cmd = ["volume", "create"]
         if size != "":
             cmd = cmd + ["--size", size]
         if name != "":
             cmd = cmd + ["--name", name]
+        if backup_url != "":
+            cmd = cmd + ["--backup-url", backup_url]
         data = subprocess.check_output(self.base_cmdline + cmd)
         volume = json.loads(data)
         if name != "":
@@ -101,11 +103,6 @@ class VolumeManager:
 		"--dest-url", dest_url])
         backup = json.loads(data)
         return backup["URL"]
-
-    def restore_backup(self, backup_url, target_volume_uuid):
-	subprocess.check_call(self.base_cmdline + ["backup", "restore",
-		"--target-volume-uuid", target_volume_uuid,
-		"--backup-url", backup_url])
 
     def delete_backup(self, backup_url):
 	subprocess.check_call(self.base_cmdline + ["backup", "delete",

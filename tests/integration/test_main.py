@@ -185,8 +185,8 @@ def check_test():
     for filename in filenames:
         assert not filename.startswith('volume')
 
-def create_volume(size = "", name = ""):
-    uuid = v.create_volume(size, name)
+def create_volume(size = "", name = "", backup_url = ""):
+    uuid = v.create_volume(size, name, backup_url)
     dm_cleanup_list.append(uuid)
     return uuid
 
@@ -414,8 +414,11 @@ def test_restore_with_original_removed():
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     delete_volume(volume1_uuid)
 
-    res_volume1_uuid = create_volume(VOLUME_SIZE_500M)
-    v.restore_backup(bak, res_volume1_uuid)
+    #cannot specify size with backup-url
+    with pytest.raises(subprocess.CalledProcessError):
+	res_volume1_uuid = create_volume(VOLUME_SIZE_500M, "res_vol1", bak)
+
+    res_volume1_uuid = create_volume(name = "res_vol1", backup_url = bak)
     res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
@@ -494,14 +497,12 @@ def process_objectstore_test(dest_url):
     assert len(backups) == 2
 
     #restore snapshot
-    res_volume1_uuid = create_volume(VOLUME_SIZE_500M)
-    v.restore_backup(snap2_vol1_bak, res_volume1_uuid)
+    res_volume1_uuid = create_volume(name = "res_vol1", backup_url = snap2_vol1_bak)
     res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     assert res_volume1_checksum == volume1_checksum
 
-    res_volume2_uuid = create_volume(VOLUME_SIZE_100M)
-    v.restore_backup(snap2_vol2_bak, res_volume2_uuid)
+    res_volume2_uuid = create_volume(backup_url = snap2_vol2_bak)
     res_volume2_checksum = get_checksum(os.path.join(DM_DIR, res_volume2_uuid))
     volume2_checksum = get_checksum(os.path.join(DM_DIR, volume2_uuid))
     assert res_volume2_checksum == volume2_checksum

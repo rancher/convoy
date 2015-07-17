@@ -10,8 +10,9 @@ type VolumeListConfig struct {
 }
 
 type VolumeCreateConfig struct {
-	Name string
-	Size int64
+	Name      string
+	Size      int64
+	BackupURL string
 }
 
 type BackupListConfig struct {
@@ -23,11 +24,6 @@ type BackupListConfig struct {
 type BackupCreateConfig struct {
 	URL          string
 	SnapshotUUID string
-}
-
-type BackupRestoreConfig struct {
-	URL              string
-	TargetVolumeUUID string
 }
 
 type BackupDeleteConfig struct {

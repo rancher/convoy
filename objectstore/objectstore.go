@@ -571,3 +571,15 @@ func Inspect(backupURL string) ([]byte, error) {
 	}
 	return inspect(backupURL, bsDriver)
 }
+
+func LoadVolume(backupURL string) (*Volume, error) {
+	_, volumeUUID, err := decodeBackupURL(backupURL)
+	if err != nil {
+		return nil, err
+	}
+	driver, err := getObjectStoreDriver(backupURL)
+	if err != nil {
+		return nil, err
+	}
+	return loadVolume(volumeUUID, driver)
+}

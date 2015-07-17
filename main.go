@@ -37,7 +37,6 @@ const (
 type Volume struct {
 	UUID        string
 	Name        string
-	Base        string
 	Size        int64
 	MountPoint  string
 	FileSystem  string

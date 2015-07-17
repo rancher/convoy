@@ -39,7 +39,6 @@ func createRouter(s *Server) *mux.Router {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/umount":           s.doVolumeUmount,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/create": s.doSnapshotCreate,
 			"/backups/create":                                     s.doBackupCreate,
-			"/backups/restore":                                    s.doBackupRestore,
 		},
 		"DELETE": {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeDelete,

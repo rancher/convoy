@@ -8,6 +8,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/util"
 	"net/http"
 	"net/url"
@@ -30,6 +31,10 @@ var (
 			cli.StringFlag{
 				Name:  KEY_NAME,
 				Usage: "name of volume, if defined, must be locally unique. Must contains only lower case alphabets/numbers/period/underscore",
+			},
+			cli.StringFlag{
+				Name:  KEY_BACKUP_URL,
+				Usage: "create a volume of backup",
 			},
 		},
 		Action: cmdVolumeCreate,
@@ -202,13 +207,19 @@ func doVolumeCreate(c *cli.Context) error {
 
 	name, err := getName(c, KEY_NAME, false, err)
 	size, err := getSize(c, err)
+	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, false, err)
 	if err != nil {
 		return err
 	}
 
+	if backupURL != "" && size != 0 {
+		return fmt.Errorf("Cannot specify volume size with backup-url. It would be the same size of backup")
+	}
+
 	config := &api.VolumeCreateConfig{
-		Name: name,
-		Size: size,
+		Name:      name,
+		Size:      size,
+		BackupURL: backupURL,
 	}
 
 	request := "/volumes/create"
@@ -216,13 +227,21 @@ func doVolumeCreate(c *cli.Context) error {
 	return sendRequestAndPrint("POST", request, config)
 }
 
-func (s *Server) processVolumeCreate(volumeName string, size int64) (*Volume, error) {
+func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL string) (*Volume, error) {
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
 	}
 
 	uuid := uuid.New()
+
+	if backupURL != "" {
+		objVolume, err := objectstore.LoadVolume(backupURL)
+		if err != nil {
+			return nil, err
+		}
+		size = objVolume.Size
+	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
@@ -242,9 +261,30 @@ func (s *Server) processVolumeCreate(volumeName string, size int64) (*Volume, er
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug("Created volume")
 
-	if err := drivers.Format(s.StorageDriver, uuid, "ext4"); err != nil {
-		//TODO: Rollback
-		return nil, err
+	if backupURL != "" {
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_REASON:     LOG_REASON_PREPARE,
+			LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
+			LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+			LOG_FIELD_VOLUME:     uuid,
+			LOG_FIELD_BACKUP_URL: backupURL,
+		}).Debug()
+		//TODO rollback
+		if err := objectstore.RestoreBackup(backupURL, uuid, s.StorageDriver); err != nil {
+			return nil, err
+		}
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+			LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
+			LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
+			LOG_FIELD_VOLUME:     uuid,
+			LOG_FIELD_BACKUP_URL: backupURL,
+		}).Debug()
+	} else {
+		if err := drivers.Format(s.StorageDriver, uuid, "ext4"); err != nil {
+			//TODO: Rollback
+			return nil, err
+		}
 	}
 
 	volume := &Volume{
@@ -275,13 +315,12 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	size := config.Size
-	volumeName := config.Name
 
 	if size == 0 {
 		size = s.DefaultVolumeSize
 	}
 
-	volume, err := s.processVolumeCreate(volumeName, size)
+	volume, err := s.processVolumeCreate(config.Name, size, config.BackupURL)
 	if err != nil {
 		return err
 	}
@@ -320,10 +359,6 @@ func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error)
 func requestUUID(id string) (string, error) {
 	// Identify by name
 	v := url.Values{}
-	if !util.ValidateName(id) {
-		return "", fmt.Errorf("Invalid volume name %v", id)
-	}
-
 	v.Set(KEY_NAME, id)
 
 	request := "/uuid?" + v.Encode()
