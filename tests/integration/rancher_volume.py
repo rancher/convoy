@@ -83,21 +83,6 @@ class VolumeManager:
         volumes = json.loads(data)
         return volumes["Volumes"]
 
-    def list_volumes_by_name(self, name = None, snapshot = None):
-        if name is None:
-    	    data = subprocess.check_output(self.base_cmdline + \
-			    ["volume", "list"])
-        elif snapshot is None:
-            data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume", name])
-        else:
-            data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume", name,
-                "--snapshot", snapshot])
-
-        volumes = json.loads(data)
-        return volumes["Volumes"]
-
     def create_snapshot(self, volume, snapshot_name = ""):
         cmd = ["snapshot", "create"] + _get_volume(volume)
         if snapshot_name != "":

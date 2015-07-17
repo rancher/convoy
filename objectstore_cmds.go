@@ -227,6 +227,12 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		FileSystem:  volume.FileSystem,
 		CreatedTime: volume.CreatedTime,
 	}
+	objSnapshot := &objectstore.Snapshot{
+		UUID:        snapshotUUID,
+		VolumeUUID:  volumeUUID,
+		Name:        volume.Snapshots[snapshotUUID].Name,
+		CreatedTime: volume.Snapshots[snapshotUUID].CreatedTime,
+	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
@@ -236,7 +242,7 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	backupURL, err := objectstore.BackupSnapshot(objVolume, snapshotUUID, config.URL, s.StorageDriver)
+	backupURL, err := objectstore.BackupSnapshot(objVolume, objSnapshot, config.URL, s.StorageDriver)
 	if err != nil {
 		return err
 	}

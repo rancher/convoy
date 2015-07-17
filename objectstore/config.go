@@ -100,7 +100,7 @@ func getVolumeFilePath(volumeUUID string) string {
 	return filepath.Join(volumePath, volumeCfg)
 }
 
-func loadVolumeConfig(volumeUUID string, driver ObjectStoreDriver) (*Volume, error) {
+func loadVolume(volumeUUID string, driver ObjectStoreDriver) (*Volume, error) {
 	v := &Volume{}
 	file := getVolumeFilePath(volumeUUID)
 	if err := loadConfigInObjectStore(file, driver, v); err != nil {
@@ -109,7 +109,7 @@ func loadVolumeConfig(volumeUUID string, driver ObjectStoreDriver) (*Volume, err
 	return v, nil
 }
 
-func saveVolumeConfig(v *Volume, driver ObjectStoreDriver) error {
+func saveVolume(v *Volume, driver ObjectStoreDriver) error {
 	file := getVolumeFilePath(v.UUID)
 	if err := saveConfigInObjectStore(file, driver, v); err != nil {
 		return err

@@ -436,15 +436,18 @@ def test_s3_objectstore():
 
 def process_objectstore_test(dest_url):
     #add volume to objectstore
-    volume1_uuid = create_volume(VOLUME_SIZE_500M)
-    volume2_uuid = create_volume(VOLUME_SIZE_100M)
+    volume1_uuid = create_volume(VOLUME_SIZE_500M, "volume1")
+    volume1 = v.list_volumes("volume1")[volume1_uuid]
+    volume2_uuid = create_volume(VOLUME_SIZE_100M, "volume2")
 
-    backups = v.list_volume_objectstore(volume1_uuid, dest_url)
-    assert len(backups) == 0
+    with pytest.raises(subprocess.CalledProcessError):
+        backups = v.list_volume_objectstore(volume1_uuid, dest_url)
 
     #first snapshots
-    snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
-    snap1_vol1_bak = v.backup_snapshot_to_objectstore(snap1_vol1_uuid, dest_url)
+    snap1_vol1_uuid = v.create_snapshot(volume1_uuid, "snap1_vol1")
+    snap1_vol1 = v.list_volumes("volume1",
+            snap1_vol1_uuid)[volume1_uuid]["Snapshots"][snap1_vol1_uuid]
+    snap1_vol1_bak = v.backup_snapshot_to_objectstore("snap1_vol1", dest_url)
 
     backups = v.list_volume_objectstore(volume1_uuid, dest_url)
     assert len(backups) == 1
@@ -453,8 +456,14 @@ def process_objectstore_test(dest_url):
     assert len(backups) == 1
     backup = backups.values()[0]
     assert backup["URL"] == snap1_vol1_bak
-    assert backup["VolumeUUID"] == volume1_uuid
-    assert backup["SnapshotUUID"] == snap1_vol1_uuid
+    assert backup["VolumeUUID"] == volume1["UUID"]
+    assert backup["VolumeName"] == volume1["Name"]
+    assert backup["VolumeSize"] == volume1["Size"]
+    assert backup["VolumeCreatedAt"] == volume1["CreatedTime"]
+    assert backup["SnapshotUUID"] == snap1_vol1["UUID"]
+    assert backup["SnapshotName"] == snap1_vol1["Name"]
+    assert backup["SnapshotCreatedAt"] == snap1_vol1["CreatedTime"]
+    assert backup["CreatedTime"] != ""
 
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid, "snap1_vol2")
     snap1_vol2_bak = v.backup_snapshot_to_objectstore("snap1_vol2", dest_url)

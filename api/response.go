@@ -41,9 +41,15 @@ type BackupsResponse struct {
 }
 
 type BackupResponse struct {
-	URL          string
-	VolumeUUID   string
-	SnapshotUUID string
+	URL               string
+	VolumeUUID        string
+	VolumeName        string
+	VolumeSize        int64
+	VolumeCreatedAt   string
+	SnapshotUUID      string
+	SnapshotName      string
+	SnapshotCreatedAt string
+	CreatedTime       string
 }
 
 type BackupURLResponse struct {
