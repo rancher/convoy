@@ -16,8 +16,9 @@ var (
 )
 
 type S3ObjectStoreDriver struct {
-	Path    string
-	Service S3Service
+	destURL string
+	path    string
+	service S3Service
 }
 
 const (
@@ -41,24 +42,32 @@ func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {
 	}
 
 	if u.User != nil {
-		b.Service.Region = u.Host
-		b.Service.Bucket = u.User.Username()
+		b.service.Region = u.Host
+		b.service.Bucket = u.User.Username()
 	} else {
 		//We would depends on AWS_REGION environment variable
-		b.Service.Bucket = u.Host
+		b.service.Bucket = u.Host
 	}
-	b.Path = u.Path
-	if b.Service.Bucket == "" || b.Path == "" {
+	b.path = u.Path
+	if b.service.Bucket == "" || b.path == "" {
 		return nil, fmt.Errorf("Invalid URL. Must be either s3://bucket@region/path/, or s3://bucket/path")
 	}
 
 	//Leading '/' can cause mystery problems for s3
-	b.Path = strings.TrimLeft(b.Path, "/")
+	b.path = strings.TrimLeft(b.path, "/")
 
 	//Test connection
 	if _, err := b.List(""); err != nil {
 		return nil, err
 	}
+
+	b.destURL = KIND + "://" + b.service.Bucket
+	if b.service.Region != "" {
+		b.destURL += "@" + b.service.Region
+	}
+	b.destURL += "/" + b.path
+
+	log.Debug("Loaded driver for %v", b.destURL)
 	return b, nil
 }
 
@@ -66,15 +75,19 @@ func (s *S3ObjectStoreDriver) Kind() string {
 	return KIND
 }
 
+func (s *S3ObjectStoreDriver) GetURL() string {
+	return s.destURL
+}
+
 func (s *S3ObjectStoreDriver) updatePath(path string) string {
-	return filepath.Join(s.Path, path)
+	return filepath.Join(s.path, path)
 }
 
 func (s *S3ObjectStoreDriver) List(listPath string) ([]string, error) {
 	var result []string
 
 	path := s.updatePath(listPath)
-	contents, err := s.Service.ListObjects(path)
+	contents, err := s.service.ListObjects(path)
 	if err != nil {
 		log.Error("Fail to list s3: ", err)
 		return result, err
@@ -98,7 +111,7 @@ func (s *S3ObjectStoreDriver) FileExists(filePath string) bool {
 
 func (s *S3ObjectStoreDriver) FileSize(filePath string) int64 {
 	path := s.updatePath(filePath)
-	contents, err := s.Service.ListObjects(path)
+	contents, err := s.service.ListObjects(path)
 	if err != nil {
 		return -1
 	}
@@ -119,12 +132,12 @@ func (s *S3ObjectStoreDriver) Remove(names ...string) error {
 	for i, name := range names {
 		paths[i] = s.updatePath(name)
 	}
-	return s.Service.DeleteObjects(paths)
+	return s.service.DeleteObjects(paths)
 }
 
 func (s *S3ObjectStoreDriver) Read(src string) (io.ReadCloser, error) {
 	path := s.updatePath(src)
-	rc, err := s.Service.GetObject(path)
+	rc, err := s.service.GetObject(path)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +146,7 @@ func (s *S3ObjectStoreDriver) Read(src string) (io.ReadCloser, error) {
 
 func (s *S3ObjectStoreDriver) Write(dst string, rs io.ReadSeeker) error {
 	path := s.updatePath(dst)
-	return s.Service.PutObject(path, rs)
+	return s.service.PutObject(path, rs)
 }
 
 func (s *S3ObjectStoreDriver) Upload(src, dst string) error {
@@ -143,7 +156,7 @@ func (s *S3ObjectStoreDriver) Upload(src, dst string) error {
 	}
 	defer file.Close()
 	path := s.updatePath(dst)
-	return s.Service.PutObject(path, file)
+	return s.service.PutObject(path, file)
 }
 
 func (s *S3ObjectStoreDriver) Download(src, dst string) error {
@@ -156,7 +169,7 @@ func (s *S3ObjectStoreDriver) Download(src, dst string) error {
 	}
 	defer f.Close()
 	path := s.updatePath(src)
-	rc, err := s.Service.GetObject(path)
+	rc, err := s.service.GetObject(path)
 	if err != nil {
 		return err
 	}

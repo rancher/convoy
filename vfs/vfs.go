@@ -2,6 +2,7 @@ package vfs
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/util"
 	"io"
@@ -11,8 +12,13 @@ import (
 	"strings"
 )
 
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "vfs"})
+)
+
 type VfsObjectStoreDriver struct {
-	Path string
+	destURL string
+	path    string
 }
 
 const (
@@ -42,19 +48,22 @@ func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {
 		return nil, fmt.Errorf("VFS path must follow: vfs:///path/ format")
 	}
 
-	b.Path = u.Path
+	b.path = u.Path
 
-	if b.Path == "" {
+	if b.path == "" {
 		return nil, fmt.Errorf("Cannot find vfs path")
 	}
 	if _, err := b.List(""); err != nil {
-		return nil, fmt.Errorf("VFS path %v doesn't exist or is not a directory", b.Path)
+		return nil, fmt.Errorf("VFS path %v doesn't exist or is not a directory", b.path)
 	}
+
+	b.destURL = KIND + "://" + b.path
+	log.Debug("Loaded driver for %v", b.destURL)
 	return b, nil
 }
 
 func (v *VfsObjectStoreDriver) updatePath(path string) string {
-	return filepath.Join(v.Path, path)
+	return filepath.Join(v.path, path)
 }
 
 func (v *VfsObjectStoreDriver) preparePath(file string) error {
@@ -66,6 +75,10 @@ func (v *VfsObjectStoreDriver) preparePath(file string) error {
 
 func (v *VfsObjectStoreDriver) Kind() string {
 	return KIND
+}
+
+func (v *VfsObjectStoreDriver) GetURL() string {
+	return v.destURL
 }
 
 func (v *VfsObjectStoreDriver) FileSize(filePath string) int64 {

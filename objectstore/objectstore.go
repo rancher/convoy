@@ -23,6 +23,7 @@ type InitFunc func(destURL string) (ObjectStoreDriver, error)
 
 type ObjectStoreDriver interface {
 	Kind() string
+	GetURL() string
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
 	Remove(names ...string) error
@@ -102,15 +103,6 @@ func getObjectStoreDriver(destURL string) (ObjectStoreDriver, error) {
 		return nil, fmt.Errorf("Driver %v is not supported!", u.Scheme)
 	}
 	return initializers[u.Scheme](destURL)
-}
-
-func VolumeExists(volumeUUID, destURL string) bool {
-	driver, err := getObjectStoreDriver(destURL)
-	if err != nil {
-		return false
-	}
-
-	return driver.FileExists(getVolumeFilePath(volumeUUID))
 }
 
 func addVolume(volume *Volume, driver ObjectStoreDriver) error {
@@ -486,7 +478,7 @@ func DeleteBackup(backupURL string) error {
 	return nil
 }
 
-func list(volumeUUID, destURL string, driver ObjectStoreDriver) ([]byte, error) {
+func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
 	resp := api.BackupsResponse{
 		Backups: make(map[string]api.BackupResponse),
 	}
@@ -507,7 +499,7 @@ func list(volumeUUID, destURL string, driver ObjectStoreDriver) ([]byte, error) 
 			return nil, err
 		}
 		backupResp := api.BackupResponse{
-			URL:               encodeBackupURL(backupUUID, volumeUUID, destURL),
+			URL:               encodeBackupURL(backupUUID, volumeUUID, driver.GetURL()),
 			VolumeUUID:        backup.VolumeUUID,
 			VolumeName:        volume.Name,
 			VolumeSize:        volume.Size,
@@ -527,7 +519,7 @@ func List(volumeUUID, destURL string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return list(volumeUUID, destURL, bsDriver)
+	return list(volumeUUID, bsDriver)
 }
 
 func inspect(backupURL string, driver ObjectStoreDriver) ([]byte, error) {
