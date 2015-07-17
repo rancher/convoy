@@ -100,6 +100,33 @@ func getVolumeFilePath(volumeUUID string) string {
 	return filepath.Join(volumePath, volumeCfg)
 }
 
+func getVolumeUUIDs(driver ObjectStoreDriver) ([]string, error) {
+	uuids := []string{}
+
+	volumePathBase := filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY)
+	lv1Dirs, err := driver.List(volumePathBase)
+	// Directory doesn't exist
+	if err != nil {
+		return uuids, nil
+	}
+	for _, lv1 := range lv1Dirs {
+		lv1Path := filepath.Join(volumePathBase, lv1)
+		lv2Dirs, err := driver.List(lv1Path)
+		if err != nil {
+			return nil, err
+		}
+		for _, lv2 := range lv2Dirs {
+			lv2Path := filepath.Join(lv1Path, lv2)
+			volumeUUIDs, err := driver.List(lv2Path)
+			if err != nil {
+				return nil, err
+			}
+			uuids = append(uuids, volumeUUIDs...)
+		}
+	}
+	return uuids, nil
+}
+
 func loadVolume(volumeUUID string, driver ObjectStoreDriver) (*Volume, error) {
 	v := &Volume{}
 	file := getVolumeFilePath(volumeUUID)

@@ -424,6 +424,8 @@ def process_restore_with_original_removed(dest_url):
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
 
+    v.delete_backup(bak)
+
 def test_vfs_objectstore():
     process_objectstore_test(VFS_URL)
 
@@ -439,6 +441,10 @@ def test_s3_objectstore():
     process_objectstore_test(get_s3_url(S3_PATH))
 
 def process_objectstore_test(dest_url):
+    #make sure objectstore is empty
+    backups = v.list_backup(dest_url)
+    assert len(backups) == 0
+
     #add volume to objectstore
     volume1_uuid = create_volume(VOLUME_SIZE_500M, "volume1")
     volume1 = v.list_volumes("volume1")[volume1_uuid]
@@ -499,6 +505,17 @@ def process_objectstore_test(dest_url):
     snap2_vol2_bak = v.create_backup(snap2_vol2_uuid, dest_url)
 
     #list snapshots again
+    backups = v.list_backup(dest_url)
+    assert len(backups) == 4
+    assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
+    assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[snap2_vol1_bak]["VolumeUUID"] == volume1_uuid
+    assert backups[snap2_vol1_bak]["SnapshotUUID"] == snap2_vol1_uuid
+    assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
+    assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
+    assert backups[snap2_vol2_bak]["VolumeUUID"] == volume2_uuid
+    assert backups[snap2_vol2_bak]["SnapshotUUID"] == snap2_vol2_uuid
+
     backups = v.list_backup(dest_url, volume1_uuid)
     assert len(backups) == 2
     assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
@@ -529,6 +546,13 @@ def process_objectstore_test(dest_url):
     v.delete_backup(snap2_vol2_bak)
 
     #list snapshots again
+    backups = v.list_backup(dest_url)
+    assert len(backups) == 2
+    assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
+    assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
+    assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
+
     backups = v.list_backup(dest_url, volume1_uuid)
     assert len(backups) == 1
     backup = backups[snap1_vol1_bak]

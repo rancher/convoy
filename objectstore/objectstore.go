@@ -478,9 +478,13 @@ func DeleteBackup(backupURL string) error {
 	return nil
 }
 
-func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
-	resp := api.BackupsResponse{
+func listVolume(volumeUUID string, driver ObjectStoreDriver) (*api.BackupsResponse, error) {
+	resp := &api.BackupsResponse{
 		Backups: make(map[string]api.BackupResponse),
+	}
+
+	if volumeUUID == "" {
+		return nil, fmt.Errorf("Invalid empty volume UUID")
 	}
 
 	backupUUIDs, err := getBackupUUIDsForVolume(volumeUUID, driver)
@@ -498,7 +502,35 @@ func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		fillBackupResponse(&resp, backup, volume, driver.GetURL())
+		fillBackupResponse(resp, backup, volume, driver.GetURL())
+	}
+	return resp, nil
+}
+
+func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
+	var err error
+	resp := &api.BackupsResponse{
+		Backups: make(map[string]api.BackupResponse),
+	}
+	if volumeUUID != "" {
+		resp, err = listVolume(volumeUUID, driver)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		volumeUUIDs, err := getVolumeUUIDs(driver)
+		if err != nil {
+			return nil, err
+		}
+		for _, volumeUUID := range volumeUUIDs {
+			respVol, err := listVolume(volumeUUID, driver)
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range respVol.Backups {
+				resp.Backups[k] = v
+			}
+		}
 	}
 	return api.ResponseOutput(resp)
 }

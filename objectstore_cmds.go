@@ -94,7 +94,7 @@ func doBackupList(c *cli.Context) error {
 	var err error
 
 	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, true, err)
+	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, false, err)
 	if err != nil {
 		return err
 	}
