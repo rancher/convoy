@@ -455,11 +455,19 @@ def process_objectstore_test(dest_url):
 
     backups = v.list_backup(volume1_uuid, dest_url)
     assert len(backups) == 1
+    backup = backups[snap1_vol1_bak]
+    assert backup["VolumeUUID"] == volume1["UUID"]
+    assert backup["VolumeName"] == volume1["Name"]
+    assert backup["VolumeSize"] == volume1["Size"]
+    assert backup["VolumeCreatedAt"] == volume1["CreatedTime"]
+    assert backup["SnapshotUUID"] == snap1_vol1["UUID"]
+    assert backup["SnapshotName"] == snap1_vol1["Name"]
+    assert backup["SnapshotCreatedAt"] == snap1_vol1["CreatedTime"]
+    assert backup["CreatedTime"] != ""
 
     backups = v.inspect_backup(snap1_vol1_bak)
     assert len(backups) == 1
-    backup = backups.values()[0]
-    assert backup["URL"] == snap1_vol1_bak
+    backup = backups[snap1_vol1_bak]
     assert backup["VolumeUUID"] == volume1["UUID"]
     assert backup["VolumeName"] == volume1["Name"]
     assert backup["VolumeSize"] == volume1["Size"]
@@ -477,8 +485,7 @@ def process_objectstore_test(dest_url):
     assert len(backups) == 1
 
     backups = v.inspect_backup(snap1_vol2_bak)
-    backup = backups.values()[0]
-    assert backup["URL"] == snap1_vol2_bak
+    backup = backups[snap1_vol2_bak]
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
@@ -494,8 +501,17 @@ def process_objectstore_test(dest_url):
     #list snapshots again
     backups = v.list_backup(volume1_uuid, dest_url)
     assert len(backups) == 2
+    assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
+    assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[snap2_vol1_bak]["VolumeUUID"] == volume1_uuid
+    assert backups[snap2_vol1_bak]["SnapshotUUID"] == snap2_vol1_uuid
+
     backups = v.list_backup(volume2_uuid, dest_url)
     assert len(backups) == 2
+    assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
+    assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
+    assert backups[snap2_vol2_bak]["VolumeUUID"] == volume2_uuid
+    assert backups[snap2_vol2_bak]["SnapshotUUID"] == snap2_vol2_uuid
 
     #restore snapshot
     res_volume1_uuid = create_volume(name = "res-vol1", backup_url = snap2_vol1_bak)
@@ -515,27 +531,23 @@ def process_objectstore_test(dest_url):
     #list snapshots again
     backups = v.list_backup(volume1_uuid, dest_url)
     assert len(backups) == 1
-    backup = backups.values()[0]
-    assert backup["URL"] == snap1_vol1_bak
+    backup = backups[snap1_vol1_bak]
     assert backup["VolumeUUID"] == volume1_uuid
     assert backup["SnapshotUUID"] == snap1_vol1_uuid
 
     backups = v.inspect_backup(snap1_vol1_bak)
-    backup = backups.values()[0]
-    assert backup["URL"] == snap1_vol1_bak
+    backup = backups[snap1_vol1_bak]
     assert backup["VolumeUUID"] == volume1_uuid
     assert backup["SnapshotUUID"] == snap1_vol1_uuid
 
     backups = v.list_backup(volume2_uuid, dest_url)
     assert len(backups) == 1
-    backup = backups.values()[0]
-    assert backup["URL"] == snap1_vol2_bak
+    backup = backups[snap1_vol2_bak]
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
     backups = v.inspect_backup(snap1_vol2_bak)
-    backup = backups.values()[0]
-    assert backup["URL"] == snap1_vol2_bak
+    backup = backups[snap1_vol2_bak]
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid
 

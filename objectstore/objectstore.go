@@ -498,18 +498,7 @@ func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		backupResp := api.BackupResponse{
-			URL:               encodeBackupURL(backupUUID, volumeUUID, driver.GetURL()),
-			VolumeUUID:        backup.VolumeUUID,
-			VolumeName:        volume.Name,
-			VolumeSize:        volume.Size,
-			VolumeCreatedAt:   volume.CreatedTime,
-			SnapshotUUID:      backup.SnapshotUUID,
-			SnapshotName:      backup.SnapshotName,
-			SnapshotCreatedAt: backup.SnapshotCreatedAt,
-			CreatedTime:       backup.CreatedTime,
-		}
-		resp.Backups[backupUUID] = backupResp
+		fillBackupResponse(&resp, backup, volume, driver.GetURL())
 	}
 	return api.ResponseOutput(resp)
 }
@@ -520,6 +509,22 @@ func List(volumeUUID, destURL string) ([]byte, error) {
 		return nil, err
 	}
 	return list(volumeUUID, bsDriver)
+}
+
+func fillBackupResponse(resp *api.BackupsResponse, backup *Backup, volume *Volume, destURL string) {
+	backupResp := api.BackupResponse{
+		BackupUUID:        backup.UUID,
+		VolumeUUID:        backup.VolumeUUID,
+		VolumeName:        volume.Name,
+		VolumeSize:        volume.Size,
+		VolumeCreatedAt:   volume.CreatedTime,
+		SnapshotUUID:      backup.SnapshotUUID,
+		SnapshotName:      backup.SnapshotName,
+		SnapshotCreatedAt: backup.SnapshotCreatedAt,
+		CreatedTime:       backup.CreatedTime,
+	}
+	u := encodeBackupURL(backup.UUID, backup.VolumeUUID, destURL)
+	resp.Backups[u] = backupResp
 }
 
 func inspect(backupURL string, driver ObjectStoreDriver) ([]byte, error) {
@@ -541,18 +546,7 @@ func inspect(backupURL string, driver ObjectStoreDriver) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	backupResp := api.BackupResponse{
-		URL:               backupURL,
-		VolumeUUID:        backup.VolumeUUID,
-		VolumeName:        volume.Name,
-		VolumeSize:        volume.Size,
-		VolumeCreatedAt:   volume.CreatedTime,
-		SnapshotUUID:      backup.SnapshotUUID,
-		SnapshotName:      backup.SnapshotName,
-		SnapshotCreatedAt: backup.SnapshotCreatedAt,
-		CreatedTime:       backup.CreatedTime,
-	}
-	resp.Backups[backupUUID] = backupResp
+	fillBackupResponse(&resp, backup, volume, driver.GetURL())
 	return api.ResponseOutput(resp)
 }
 

@@ -41,7 +41,7 @@ type BackupsResponse struct {
 }
 
 type BackupResponse struct {
-	URL               string
+	BackupUUID        string
 	VolumeUUID        string
 	VolumeName        string
 	VolumeSize        int64
