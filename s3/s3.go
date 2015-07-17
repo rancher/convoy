@@ -86,20 +86,28 @@ func (s *S3ObjectStoreDriver) updatePath(path string) string {
 func (s *S3ObjectStoreDriver) List(listPath string) ([]string, error) {
 	var result []string
 
-	path := s.updatePath(listPath)
-	contents, err := s.service.ListObjects(path)
+	path := s.updatePath(listPath) + "/"
+	contents, prefixes, err := s.service.ListObjects(path, "/")
 	if err != nil {
 		log.Error("Fail to list s3: ", err)
 		return result, err
 	}
 
-	size := len(contents)
-	if size == 0 {
+	sizeC := len(contents)
+	sizeP := len(prefixes)
+	if sizeC == 0 && sizeP == 0 {
 		return result, nil
 	}
 	result = []string{}
 	for _, obj := range contents {
 		r := strings.TrimPrefix(*obj.Key, path)
+		if r != "" {
+			result = append(result, r)
+		}
+	}
+	for _, p := range prefixes {
+		r := strings.TrimPrefix(*p.Prefix, path)
+		r = strings.TrimSuffix(r, "/")
 		if r != "" {
 			result = append(result, r)
 		}
@@ -114,7 +122,7 @@ func (s *S3ObjectStoreDriver) FileExists(filePath string) bool {
 
 func (s *S3ObjectStoreDriver) FileSize(filePath string) int64 {
 	path := s.updatePath(filePath)
-	contents, err := s.service.ListObjects(path)
+	contents, _, err := s.service.ListObjects(path, "/")
 	if err != nil {
 		return -1
 	}

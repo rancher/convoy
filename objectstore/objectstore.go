@@ -26,10 +26,10 @@ type ObjectStoreDriver interface {
 	GetURL() string
 	FileExists(filePath string) bool
 	FileSize(filePath string) int64
-	Remove(names ...string) error
+	Remove(names ...string) error           // Bahavior like "rm -rf"
 	Read(src string) (io.ReadCloser, error) // Caller needs to close
 	Write(dst string, rs io.ReadSeeker) error
-	List(path string) ([]string, error)
+	List(path string) ([]string, error) // Behavior like "ls", not like "find"
 	Upload(src, dst string) error
 	Download(src, dst string) error
 }

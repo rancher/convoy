@@ -33,23 +33,24 @@ func parseAwsError(resp string, err error) error {
 	return err
 }
 
-func (s *S3Service) ListObjects(key string) ([]*s3.Object, error) {
+func (s *S3Service) ListObjects(key, delimiter string) ([]*s3.Object, []*s3.CommonPrefix, error) {
 	svc, err := s.New()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer s.Close()
 	// WARNING: Directory must end in "/" in S3, otherwise it may match
 	// unintentially
 	params := &s3.ListObjectsInput{
-		Bucket: aws.String(s.Bucket),
-		Prefix: aws.String(key),
+		Bucket:    aws.String(s.Bucket),
+		Prefix:    aws.String(key),
+		Delimiter: aws.String(delimiter),
 	}
 	resp, err := svc.ListObjects(params)
 	if err != nil {
-		return nil, parseAwsError(awsutil.StringValue(resp), err)
+		return nil, nil, parseAwsError(awsutil.StringValue(resp), err)
 	}
-	return resp.Contents, nil
+	return resp.Contents, resp.CommonPrefixes, nil
 }
 
 func (s *S3Service) PutObject(key string, reader io.ReadSeeker) error {
@@ -96,7 +97,7 @@ func (s *S3Service) DeleteObjects(keys []string) error {
 	var keyList []string
 	totalSize := 0
 	for _, key := range keys {
-		contents, err := s.ListObjects(key)
+		contents, _, err := s.ListObjects(key, "")
 		if err != nil {
 			return err
 		}

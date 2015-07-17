@@ -49,7 +49,7 @@ func (s *TestSuite) TestFuncs(c *C) {
 	err = s.service.PutObject(key2, bytes.NewReader(body))
 	c.Assert(err, IsNil)
 
-	objs, err := s.service.ListObjects(key)
+	objs, _, err := s.service.ListObjects(key, "")
 	c.Assert(err, IsNil)
 	c.Assert(objs, HasLen, 2)
 
@@ -63,7 +63,44 @@ func (s *TestSuite) TestFuncs(c *C) {
 	err = s.service.DeleteObjects([]string{key})
 	c.Assert(err, IsNil)
 
-	objs, err = s.service.ListObjects(key)
+	objs, _, err = s.service.ListObjects(key, "")
 	c.Assert(err, IsNil)
 	c.Assert(objs, HasLen, 0)
+}
+
+func (s *TestSuite) TestList(c *C) {
+	var err error
+
+	body := []byte("this is only a test file")
+	dir1_key1 := "dir/dir1/test_file_1"
+	dir1_key2 := "dir/dir1/test_file_2"
+	dir2_key1 := "dir/dir2/test_file_1"
+	dir2_key2 := "dir/dir2/test_file_2"
+
+	err = s.service.PutObject(dir1_key1, bytes.NewReader(body))
+	c.Assert(err, IsNil)
+	err = s.service.PutObject(dir1_key2, bytes.NewReader(body))
+	c.Assert(err, IsNil)
+	err = s.service.PutObject(dir2_key1, bytes.NewReader(body))
+	c.Assert(err, IsNil)
+	err = s.service.PutObject(dir2_key2, bytes.NewReader(body))
+	c.Assert(err, IsNil)
+
+	objs, prefixes, err := s.service.ListObjects("dir/", "/")
+	c.Assert(err, IsNil)
+	c.Assert(objs, HasLen, 0)
+	c.Assert(prefixes, HasLen, 2)
+
+	objs, prefixes, err = s.service.ListObjects("dir/dir1/", "/")
+	c.Assert(err, IsNil)
+	c.Assert(objs, HasLen, 2)
+	c.Assert(prefixes, HasLen, 0)
+
+	err = s.service.DeleteObjects([]string{"dir"})
+	c.Assert(err, IsNil)
+
+	objs, prefixes, err = s.service.ListObjects("dir/", "")
+	c.Assert(err, IsNil)
+	c.Assert(objs, HasLen, 0)
+	c.Assert(prefixes, HasLen, 0)
 }
