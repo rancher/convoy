@@ -30,21 +30,21 @@ func createRouter(s *Server) *mux.Router {
 			"/volumes/":                                                                 s.doVolumeList,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":                                       s.doVolumeList,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doVolumeList,
-			"/objectstores/list":                                                        s.doObjectStoreListVolume,
-			"/objectstores/inspect":                                                     s.doObjectStoreInspect,
+			"/backups/list":    s.doBackupList,
+			"/backups/inspect": s.doBackupInspect,
 		},
 		"POST": {
 			"/volumes/create":                                     s.doVolumeCreate,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/mount":            s.doVolumeMount,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/umount":           s.doVolumeUmount,
 			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/create": s.doSnapshotCreate,
-			"/objectstores/backup":                                s.doSnapshotBackup,
-			"/objectstores/restore":                               s.doSnapshotRestore,
+			"/backups/create":                                     s.doBackupCreate,
+			"/backups/restore":                                    s.doBackupRestore,
 		},
 		"DELETE": {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeDelete,
 			"/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotDelete,
-			"/objectstores":                           s.doSnapshotRemove,
+			"/backups": s.doBackupDelete,
 		},
 	}
 	for method, routes := range m {

@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	snapshotBackupCmd = cli.Command{
-		Name:  "backup",
-		Usage: "backup an snapshot to objectstore",
+	backupCreateCmd = cli.Command{
+		Name:  "create",
+		Usage: "create a backup in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_SNAPSHOT,
@@ -25,10 +25,22 @@ var (
 				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
 		},
-		Action: cmdSnapshotBackup,
+		Action: cmdBackupCreate,
 	}
 
-	snapshotRestoreCmd = cli.Command{
+	backupDeleteCmd = cli.Command{
+		Name:  "delete",
+		Usage: "delete a backup in objectstore",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  KEY_BACKUP_URL,
+				Usage: "url of backup",
+			},
+		},
+		Action: cmdBackupDelete,
+	}
+
+	backupRestoreCmd = cli.Command{
 		Name:  "restore",
 		Usage: "restore an snapshot from objectstore to volume",
 		Flags: []cli.Flag{
@@ -41,22 +53,10 @@ var (
 				Usage: "url of backup",
 			},
 		},
-		Action: cmdSnapshotRestore,
+		Action: cmdBackupRestore,
 	}
 
-	snapshotRemoveCmd = cli.Command{
-		Name:  "remove-backup",
-		Usage: "remove an snapshot backup in objectstore",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_BACKUP_URL,
-				Usage: "url of backup",
-			},
-		},
-		Action: cmdSnapshotRemove,
-	}
-
-	objectstoreListCmd = cli.Command{
+	backupListCmd = cli.Command{
 		Name:  "list",
 		Usage: "list volume in objectstore",
 		Flags: []cli.Flag{
@@ -69,10 +69,10 @@ var (
 				Usage: "uuid of volume",
 			},
 		},
-		Action: cmdObjectStoreList,
+		Action: cmdBackupList,
 	}
 
-	objectstoreInspectCmd = cli.Command{
+	backupInspectCmd = cli.Command{
 		Name:  "inspect",
 		Usage: "inspect a backup",
 		Flags: []cli.Flag{
@@ -81,15 +81,18 @@ var (
 				Usage: "url of backup",
 			},
 		},
-		Action: cmdObjectStoreInspect,
+		Action: cmdBackupInspect,
 	}
 
-	objectstoreCmd = cli.Command{
-		Name:  "objectstore",
-		Usage: "objectstore related operations",
+	backupCmd = cli.Command{
+		Name:  "backup",
+		Usage: "backup related operations",
 		Subcommands: []cli.Command{
-			objectstoreListCmd,
-			objectstoreInspectCmd,
+			backupCreateCmd,
+			backupDeleteCmd,
+			backupRestoreCmd,
+			backupListCmd,
+			backupInspectCmd,
 		},
 	}
 )
@@ -98,13 +101,13 @@ const (
 	OBJECTSTORE_PATH = "objectstore"
 )
 
-func cmdObjectStoreList(c *cli.Context) {
-	if err := doObjectStoreListVolume(c); err != nil {
+func cmdBackupList(c *cli.Context) {
+	if err := doBackupList(c); err != nil {
 		panic(err)
 	}
 }
 
-func doObjectStoreListVolume(c *cli.Context) error {
+func doBackupList(c *cli.Context) error {
 	var err error
 
 	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
@@ -113,23 +116,23 @@ func doObjectStoreListVolume(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.ObjectStoreListConfig{
+	config := &api.BackupListConfig{
 		URL:        destURL,
 		VolumeUUID: volumeUUID,
 	}
-	request := "/objectstores/list"
+	request := "/backups/list"
 	return sendRequestAndPrint("GET", request, config)
 }
 
-func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doBackupList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	config := &api.ObjectStoreListConfig{}
+	config := &api.BackupListConfig{}
 	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
-	data, err := objectstore.ListVolume(config.VolumeUUID, config.URL)
+	data, err := objectstore.List(config.VolumeUUID, config.URL)
 	if err != nil {
 		return err
 	}
@@ -138,13 +141,13 @@ func (s *Server) doObjectStoreListVolume(version string, w http.ResponseWriter, 
 	return err
 }
 
-func cmdObjectStoreInspect(c *cli.Context) {
-	if err := doObjectStoreInspect(c); err != nil {
+func cmdBackupInspect(c *cli.Context) {
+	if err := doBackupInspect(c); err != nil {
 		panic(err)
 	}
 }
 
-func doObjectStoreInspect(c *cli.Context) error {
+func doBackupInspect(c *cli.Context) error {
 	var err error
 
 	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
@@ -152,18 +155,18 @@ func doObjectStoreInspect(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.ObjectStoreListConfig{
+	config := &api.BackupListConfig{
 		URL: backupURL,
 	}
-	request := "/objectstores/inspect"
+	request := "/backups/inspect"
 	return sendRequestAndPrint("GET", request, config)
 }
 
-func (s *Server) doObjectStoreInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doBackupInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	config := &api.ObjectStoreListConfig{}
+	config := &api.BackupListConfig{}
 	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
@@ -176,13 +179,13 @@ func (s *Server) doObjectStoreInspect(version string, w http.ResponseWriter, r *
 	return err
 }
 
-func cmdSnapshotBackup(c *cli.Context) {
-	if err := doSnapshotBackup(c); err != nil {
+func cmdBackupCreate(c *cli.Context) {
+	if err := doBackupCreate(c); err != nil {
 		panic(err)
 	}
 }
 
-func doSnapshotBackup(c *cli.Context) error {
+func doBackupCreate(c *cli.Context) error {
 	var err error
 
 	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
@@ -195,17 +198,17 @@ func doSnapshotBackup(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.ObjectStoreBackupConfig{
+	config := &api.BackupCreateConfig{
 		URL:          destURL,
 		SnapshotUUID: snapshotUUID,
 	}
 
-	request := "/objectstores/backup"
+	request := "/backups/create"
 	return sendRequestAndPrint("POST", request, config)
 }
 
-func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	config := &api.ObjectStoreBackupConfig{}
+func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	config := &api.BackupCreateConfig{}
 	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
@@ -242,7 +245,7 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	backupURL, err := objectstore.BackupSnapshot(objVolume, objSnapshot, config.URL, s.StorageDriver)
+	backupURL, err := objectstore.CreateBackup(objVolume, objSnapshot, config.URL, s.StorageDriver)
 	if err != nil {
 		return err
 	}
@@ -261,13 +264,13 @@ func (s *Server) doSnapshotBackup(version string, w http.ResponseWriter, r *http
 	return sendResponse(w, backup)
 }
 
-func cmdSnapshotRestore(c *cli.Context) {
-	if err := doSnapshotRestore(c); err != nil {
+func cmdBackupRestore(c *cli.Context) {
+	if err := doBackupRestore(c); err != nil {
 		panic(err)
 	}
 }
 
-func doSnapshotRestore(c *cli.Context) error {
+func doBackupRestore(c *cli.Context) error {
 	var err error
 
 	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
@@ -276,17 +279,17 @@ func doSnapshotRestore(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.ObjectStoreRestoreConfig{
+	config := &api.BackupRestoreConfig{
 		URL:              backupURL,
 		TargetVolumeUUID: targetVolumeUUID,
 	}
 
-	request := "/objectstores/restore"
+	request := "/backups/restore"
 	return sendRequestAndPrint("POST", request, config)
 }
 
-func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	config := &api.ObjectStoreRestoreConfig{}
+func (s *Server) doBackupRestore(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	config := &api.BackupRestoreConfig{}
 	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
@@ -303,7 +306,7 @@ func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *htt
 		LOG_FIELD_VOLUME:     config.TargetVolumeUUID,
 		LOG_FIELD_BACKUP_URL: config.URL,
 	}).Debug()
-	if err := objectstore.RestoreSnapshot(config.URL, config.TargetVolumeUUID, s.StorageDriver); err != nil {
+	if err := objectstore.RestoreBackup(config.URL, config.TargetVolumeUUID, s.StorageDriver); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -316,31 +319,31 @@ func (s *Server) doSnapshotRestore(version string, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func cmdSnapshotRemove(c *cli.Context) {
-	if err := doSnapshotRemove(c); err != nil {
+func cmdBackupDelete(c *cli.Context) {
+	if err := doBackupDelete(c); err != nil {
 		panic(err)
 	}
 }
 
-func doSnapshotRemove(c *cli.Context) error {
+func doBackupDelete(c *cli.Context) error {
 	var err error
 	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
 	if err != nil {
 		return err
 	}
 
-	config := &api.ObjectStoreDeleteConfig{
+	config := &api.BackupDeleteConfig{
 		URL: backupURL,
 	}
-	request := "/objectstores"
+	request := "/backups"
 	return sendRequestAndPrint("DELETE", request, config)
 }
 
-func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	config := &api.ObjectStoreDeleteConfig{}
+	config := &api.BackupDeleteConfig{}
 	if err := decodeRequest(r, config); err != nil {
 		return err
 	}
@@ -351,7 +354,7 @@ func (s *Server) doSnapshotRemove(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_DEST_URL: config.URL,
 	}).Debug()
-	if err := objectstore.RemoveSnapshot(config.URL); err != nil {
+	if err := objectstore.DeleteBackup(config.URL); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

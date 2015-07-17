@@ -14,22 +14,22 @@ type VolumeCreateConfig struct {
 	Size int64
 }
 
-type ObjectStoreListConfig struct {
+type BackupListConfig struct {
 	URL          string
 	VolumeUUID   string
 	SnapshotUUID string
 }
 
-type ObjectStoreBackupConfig struct {
+type BackupCreateConfig struct {
 	URL          string
 	SnapshotUUID string
 }
 
-type ObjectStoreRestoreConfig struct {
+type BackupRestoreConfig struct {
 	URL              string
 	TargetVolumeUUID string
 }
 
-type ObjectStoreDeleteConfig struct {
+type BackupDeleteConfig struct {
 	URL string
 }

@@ -142,7 +142,7 @@ func removeVolume(volumeUUID string, driver ObjectStoreDriver) error {
 	return nil
 }
 
-func BackupSnapshot(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDriver drivers.Driver) (string, error) {
+func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDriver drivers.Driver) (string, error) {
 	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return "", err
@@ -339,7 +339,7 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 	return backup
 }
 
-func RestoreSnapshot(backupURL, dstVolumeUUID string, sDriver drivers.Driver) error {
+func RestoreBackup(backupURL, dstVolumeUUID string, sDriver drivers.Driver) error {
 	bsDriver, err := getObjectStoreDriver(backupURL)
 	if err != nil {
 		return err
@@ -401,7 +401,7 @@ func RestoreSnapshot(backupURL, dstVolumeUUID string, sDriver drivers.Driver) er
 	return nil
 }
 
-func RemoveSnapshot(backupURL string) error {
+func DeleteBackup(backupURL string) error {
 	bsDriver, err := getObjectStoreDriver(backupURL)
 	if err != nil {
 		return err
@@ -486,7 +486,7 @@ func RemoveSnapshot(backupURL string) error {
 	return nil
 }
 
-func listVolume(volumeUUID, destURL string, driver ObjectStoreDriver) ([]byte, error) {
+func list(volumeUUID, destURL string, driver ObjectStoreDriver) ([]byte, error) {
 	resp := api.BackupsResponse{
 		Backups: make(map[string]api.BackupResponse),
 	}
@@ -522,12 +522,12 @@ func listVolume(volumeUUID, destURL string, driver ObjectStoreDriver) ([]byte, e
 	return api.ResponseOutput(resp)
 }
 
-func ListVolume(volumeUUID, destURL string) ([]byte, error) {
+func List(volumeUUID, destURL string) ([]byte, error) {
 	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return nil, err
 	}
-	return listVolume(volumeUUID, destURL, bsDriver)
+	return list(volumeUUID, destURL, bsDriver)
 }
 
 func inspect(backupURL string, driver ObjectStoreDriver) ([]byte, error) {

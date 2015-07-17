@@ -95,24 +95,24 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
 	        "--snapshot", snapshot])
 
-    def backup_snapshot_to_objectstore(self, snapshot_uuid, dest_url):
-        data = subprocess.check_output(self.base_cmdline + ["snapshot", "backup",
+    def create_backup(self, snapshot_uuid, dest_url):
+        data = subprocess.check_output(self.base_cmdline + ["backup", "create",
 		"--snapshot", snapshot_uuid,
 		"--dest-url", dest_url])
         backup = json.loads(data)
         return backup["URL"]
 
-    def restore_snapshot_from_objectstore(self, backup_url, target_volume_uuid):
-	subprocess.check_call(self.base_cmdline + ["snapshot", "restore",
+    def restore_backup(self, backup_url, target_volume_uuid):
+	subprocess.check_call(self.base_cmdline + ["backup", "restore",
 		"--target-volume-uuid", target_volume_uuid,
 		"--backup-url", backup_url])
 
-    def remove_snapshot_from_objectstore(self, backup_url):
-	subprocess.check_call(self.base_cmdline + ["snapshot", "remove-backup",
+    def delete_backup(self, backup_url):
+	subprocess.check_call(self.base_cmdline + ["backup", "delete",
 		"--backup-url", backup_url])
 
-    def list_volume_objectstore(self, volume_uuid, dest_url):
-	data = subprocess.check_output(self.base_cmdline + ["objectstore",
+    def list_backup(self, volume_uuid, dest_url):
+	data = subprocess.check_output(self.base_cmdline + ["backup",
                 "list",
 		"--volume-uuid", volume_uuid,
 		"--dest-url", dest_url])
@@ -120,18 +120,8 @@ class VolumeManager:
         return backups["Backups"]
 
     def inspect_backup(self, backup_url):
-	data = subprocess.check_output(self.base_cmdline + ["objectstore",
+	data = subprocess.check_output(self.base_cmdline + ["backup",
                 "inspect",
 		"--backup-url", backup_url])
         backups = json.loads(data)
         return backups["Backups"]
-
-#    def list_volume_objectstore_with_snapshot(self,
-#            snapshot_uuid, volume_uuid, dest_url):
-#	data = subprocess.check_output(self.base_cmdline + ["objectstore",
-#                "list-volume",
-#		"--snapshot-uuid", snapshot_uuid,
-#		"--volume-uuid", volume_uuid,
-#		"--dest-url", dest_url])
-#        volumes = json.loads(data)
-#        return volumes["Volumes"]

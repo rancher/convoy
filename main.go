@@ -147,7 +147,7 @@ func main() {
 		infoCmd,
 		volumeCmd,
 		snapshotCmd,
-		objectstoreCmd,
+		backupCmd,
 	}
 
 	client.addr = sockFile
