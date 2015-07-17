@@ -254,7 +254,7 @@ func ValidateUUID(s string) bool {
 }
 
 func ValidateName(name string) bool {
-	validName := regexp.MustCompile(`^[0-9a-z_.]+$`)
+	validName := regexp.MustCompile(`^[0-9a-z_.\-]+$`)
 	return validName.MatchString(name)
 }
 

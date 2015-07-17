@@ -416,9 +416,9 @@ def test_restore_with_original_removed():
 
     #cannot specify size with backup-url
     with pytest.raises(subprocess.CalledProcessError):
-	res_volume1_uuid = create_volume(VOLUME_SIZE_500M, "res_vol1", bak)
+	res_volume1_uuid = create_volume(VOLUME_SIZE_500M, "res-vol1", bak)
 
-    res_volume1_uuid = create_volume(name = "res_vol1", backup_url = bak)
+    res_volume1_uuid = create_volume(name = "res-vol1", backup_url = bak)
     res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
@@ -497,7 +497,7 @@ def process_objectstore_test(dest_url):
     assert len(backups) == 2
 
     #restore snapshot
-    res_volume1_uuid = create_volume(name = "res_vol1", backup_url = snap2_vol1_bak)
+    res_volume1_uuid = create_volume(name = "res-vol1", backup_url = snap2_vol1_bak)
     res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
     volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
     assert res_volume1_checksum == volume1_checksum
