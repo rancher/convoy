@@ -23,12 +23,10 @@ const (
 	CONFIGFILE  = "rancher-volume.cfg"
 
 	KEY_NAME          = "name"
-	KEY_VOLUME        = "volume"
 	KEY_VOLUME_UUID   = "volume-uuid"
-	KEY_SNAPSHOT      = "snapshot"
 	KEY_SNAPSHOT_UUID = "snapshot-uuid"
-	KEY_BACKUP_URL    = "backup-url"
-	KEY_DEST_URL      = "dest-url"
+	KEY_BACKUP_URL    = "backup"
+	KEY_DEST_URL      = "dest"
 
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
