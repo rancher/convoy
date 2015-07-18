@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	VERSION     = "0.1.5"
+	VERSION     = "0.2-dev"
 	API_VERSION = "1"
 	LOCKFILE    = "lock"
 	CONFIGFILE  = "rancher-volume.cfg"
@@ -95,6 +95,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "rancher-volume"
 	app.Version = VERSION
+	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
 	app.Usage = "A volume manager capable of snapshot and delta backup"
 	app.CommandNotFound = cmdNotFound
 
@@ -142,15 +143,14 @@ func main() {
 	app.Commands = []cli.Command{
 		serverCmd,
 		infoCmd,
-		snapshotCmd,
-		backupCmd,
-
 		volumeCreateCmd,
 		volumeDeleteCmd,
 		volumeMountCmd,
 		volumeUmountCmd,
 		volumeListCmd,
 		volumeInspectCmd,
+		snapshotCmd,
+		backupCmd,
 	}
 
 	client.addr = sockFile
