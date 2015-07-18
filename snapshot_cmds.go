@@ -19,10 +19,6 @@ var (
 		Usage: "create a snapshot for certain volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "name or uuid of volume for snapshot",
-			},
-			cli.StringFlag{
 				Name:  KEY_NAME,
 				Usage: "name of snapshot",
 			},
@@ -31,26 +27,14 @@ var (
 	}
 
 	snapshotDeleteCmd = cli.Command{
-		Name:  "delete",
-		Usage: "delete a snapshot of certain volume",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_SNAPSHOT,
-				Usage: "name or uuid of snapshot",
-			},
-		},
+		Name:   "delete",
+		Usage:  "delete a snapshot of certain volume",
 		Action: cmdSnapshotDelete,
 	}
 
 	snapshotInspectCmd = cli.Command{
-		Name:  "inspect",
-		Usage: "inspect an snapshot",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_SNAPSHOT,
-				Usage: "name or uuid of snapshot, must be used with volume uuid",
-			},
-		},
+		Name:   "inspect",
+		Usage:  "inspect an snapshot",
 		Action: cmdSnapshotInspect,
 	}
 
@@ -84,7 +68,7 @@ func doSnapshotCreate(c *cli.Context) error {
 	var err error
 
 	v := url.Values{}
-	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
+	volumeUUID, err := getOrRequestUUID(c, "", true)
 	snapshotName, err := getName(c, KEY_NAME, false, err)
 	if err != nil {
 		return err
@@ -172,7 +156,7 @@ func cmdSnapshotDelete(c *cli.Context) {
 
 func doSnapshotDelete(c *cli.Context) error {
 	var err error
-	uuid, err := getOrRequestUUID(c, KEY_SNAPSHOT, true)
+	uuid, err := getOrRequestUUID(c, "", true)
 	if err != nil {
 		return err
 	}
@@ -245,7 +229,7 @@ func cmdSnapshotInspect(c *cli.Context) {
 func doSnapshotInspect(c *cli.Context) error {
 	var err error
 
-	uuid, err := getOrRequestUUID(c, KEY_SNAPSHOT, true)
+	uuid, err := getOrRequestUUID(c, "", true)
 	if err != nil {
 		return err
 	}

@@ -6,9 +6,6 @@ import json
 
 EXT4_FS = "ext4"
 
-def _get_volume(volume):
-        return ["--volume", volume]
-
 class VolumeManager:
     def __init__(self, binary, mount_root):
         self.base_cmdline = [binary]
@@ -80,7 +77,7 @@ class VolumeManager:
         return json.loads(data)
 
     def create_snapshot(self, volume, snapshot_name = ""):
-        cmd = ["snapshot", "create"] + _get_volume(volume)
+        cmd = ["snapshot", "create", volume]
         if snapshot_name != "":
                 cmd += ["--name", snapshot_name]
         data = subprocess.check_output(self.base_cmdline + cmd)
@@ -89,11 +86,11 @@ class VolumeManager:
 
     def delete_snapshot(self, snapshot):
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
-	        "--snapshot", snapshot])
+                snapshot])
 
     def inspect_snapshot(self, snapshot):
         output = subprocess.check_output(self.base_cmdline + ["snapshot", "inspect",
-	        "--snapshot", snapshot])
+                snapshot])
         snapshot = json.loads(output)
         return snapshot
 
