@@ -17,10 +17,6 @@ var (
 		Usage: "create a backup in objectstore",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_SNAPSHOT,
-				Usage: "uuid of snapshot",
-			},
-			cli.StringFlag{
 				Name:  KEY_DEST_URL,
 				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
@@ -29,14 +25,8 @@ var (
 	}
 
 	backupDeleteCmd = cli.Command{
-		Name:  "delete",
-		Usage: "delete a backup in objectstore",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_BACKUP_URL,
-				Usage: "url of backup",
-			},
-		},
+		Name:   "delete",
+		Usage:  "delete a backup in objectstore",
 		Action: cmdBackupDelete,
 	}
 
@@ -44,10 +34,6 @@ var (
 		Name:  "list",
 		Usage: "list volume in objectstore",
 		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_DEST_URL,
-				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
-			},
 			cli.StringFlag{
 				Name:  KEY_VOLUME_UUID,
 				Usage: "uuid of volume",
@@ -57,14 +43,8 @@ var (
 	}
 
 	backupInspectCmd = cli.Command{
-		Name:  "inspect",
-		Usage: "inspect a backup",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_BACKUP_URL,
-				Usage: "url of backup",
-			},
-		},
+		Name:   "inspect",
+		Usage:  "inspect a backup",
 		Action: cmdBackupInspect,
 	}
 
@@ -93,7 +73,7 @@ func cmdBackupList(c *cli.Context) {
 func doBackupList(c *cli.Context) error {
 	var err error
 
-	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
+	destURL, err := getLowerCaseFlag(c, "", true, err)
 	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, false, err)
 	if err != nil {
 		return err
@@ -133,7 +113,7 @@ func cmdBackupInspect(c *cli.Context) {
 func doBackupInspect(c *cli.Context) error {
 	var err error
 
-	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
+	backupURL, err := getLowerCaseFlag(c, "", true, err)
 	if err != nil {
 		return err
 	}
@@ -176,7 +156,7 @@ func doBackupCreate(c *cli.Context) error {
 		return err
 	}
 
-	snapshotUUID, err := getOrRequestUUID(c, KEY_SNAPSHOT, true)
+	snapshotUUID, err := getOrRequestUUID(c, "", true)
 	if err != nil {
 		return err
 	}
@@ -255,7 +235,7 @@ func cmdBackupDelete(c *cli.Context) {
 
 func doBackupDelete(c *cli.Context) error {
 	var err error
-	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, true, err)
+	backupURL, err := getLowerCaseFlag(c, "", true, err)
 	if err != nil {
 		return err
 	}

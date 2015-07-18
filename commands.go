@@ -69,7 +69,11 @@ func getLowerCaseFlag(v interface{}, key string, required bool, err error) (stri
 	default:
 		return "", fmt.Errorf("Unexpected type for getLowerCaseFlag")
 	case *cli.Context:
-		value = v.String(key)
+		if key == "" {
+			value = v.Args().First()
+		} else {
+			value = v.String(key)
+		}
 	case map[string]string:
 		value = v[key]
 	case *http.Request:
