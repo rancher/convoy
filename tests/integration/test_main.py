@@ -296,8 +296,9 @@ def test_volume_list():
     uuid2 = create_volume(VOLUME_SIZE_100M)
     uuid3 = create_volume()
 
-    volumes = v.list_volumes(uuid3)
-    assert volumes[uuid3]["Size"] == int(DEFAULT_VOLUME_SIZE)
+    volume = v.inspect_volume(uuid3)
+    assert volume["UUID"] == uuid3
+    assert volume["Size"] == int(DEFAULT_VOLUME_SIZE)
 
     volumes = v.list_volumes()
     assert volumes[uuid1]["Size"] == int(VOLUME_SIZE_500M_Bytes)
@@ -338,10 +339,11 @@ def test_snapshot_list():
     volume1_uuid = create_volume(VOLUME_SIZE_100M, name = "volume1")
     volume2_uuid = create_volume(VOLUME_SIZE_500M)
 
-    snap0_vol1_uuid = str(uuid.uuid1())
+    with pytest.raises(subprocess.CalledProcessError):
+        snapshot = v.inspect_snapshot(str(uuid.uuid1()))
 
     with pytest.raises(subprocess.CalledProcessError):
-        snapshot = v.inspect_snapshot(snap0_vol1_uuid)
+        volume = v.inspect_snapshot(str(uuid.uuid1()))
 
     snap0_vol1_uuid = v.create_snapshot(volume1_uuid, "snap0_vol1")
 
@@ -358,16 +360,16 @@ def test_snapshot_list():
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid, "snap2_vol2")
     snap3_vol2_uuid = v.create_snapshot(volume2_uuid, "snap3_vol2")
 
-    volumes = v.list_volumes(volume2_uuid)
-    assert snap1_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    assert volumes[volume2_uuid]["Snapshots"][snap1_vol2_uuid]["Name"] == "snap1_vol2"
-    assert volumes[volume2_uuid]["Snapshots"][snap1_vol2_uuid]["CreatedTime"] != ""
-    assert snap2_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    assert volumes[volume2_uuid]["Snapshots"][snap2_vol2_uuid]["Name"] == "snap2_vol2"
-    assert volumes[volume2_uuid]["Snapshots"][snap2_vol2_uuid]["CreatedTime"] != ""
-    assert snap3_vol2_uuid in volumes[volume2_uuid]["Snapshots"]
-    assert volumes[volume2_uuid]["Snapshots"][snap3_vol2_uuid]["Name"] == "snap3_vol2"
-    assert volumes[volume2_uuid]["Snapshots"][snap3_vol2_uuid]["CreatedTime"] != ""
+    volume = v.inspect_volume(volume2_uuid)
+    assert snap1_vol2_uuid in volume["Snapshots"]
+    assert volume["Snapshots"][snap1_vol2_uuid]["Name"] == "snap1_vol2"
+    assert volume["Snapshots"][snap1_vol2_uuid]["CreatedTime"] != ""
+    assert snap2_vol2_uuid in volume["Snapshots"]
+    assert volume["Snapshots"][snap2_vol2_uuid]["Name"] == "snap2_vol2"
+    assert volume["Snapshots"][snap2_vol2_uuid]["CreatedTime"] != ""
+    assert snap3_vol2_uuid in volume["Snapshots"]
+    assert volume["Snapshots"][snap3_vol2_uuid]["Name"] == "snap3_vol2"
+    assert volume["Snapshots"][snap3_vol2_uuid]["CreatedTime"] != ""
 
     volumes = v.list_volumes()
     assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
@@ -451,7 +453,7 @@ def process_objectstore_test(dest_url):
 
     #add volume to objectstore
     volume1_uuid = create_volume(VOLUME_SIZE_500M, "volume1")
-    volume1 = v.list_volumes("volume1")[volume1_uuid]
+    volume1 = v.inspect_volume("volume1")
     volume2_uuid = create_volume(VOLUME_SIZE_100M, "volume2")
 
     with pytest.raises(subprocess.CalledProcessError):

@@ -70,14 +70,16 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["volume", "umount",
             ] + _get_volume(volume))
 
-    def list_volumes(self, volume = None):
-        cmd = ["volume", "list"]
-        if volume is not None:
-            cmd += ["--volume", volume]
-    	data = subprocess.check_output(self.base_cmdline + cmd)
-
+    def list_volumes(self):
+    	data = subprocess.check_output(self.base_cmdline + ["volume", "list"])
         volumes = json.loads(data)
         return volumes["Volumes"]
+
+    def inspect_volume(self, volume):
+        cmd = ["volume", "inspect", "--volume", volume]
+    	data = subprocess.check_output(self.base_cmdline + cmd)
+
+        return json.loads(data)
 
     def create_snapshot(self, volume, snapshot_name = ""):
         cmd = ["snapshot", "create"] + _get_volume(volume)

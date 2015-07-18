@@ -104,6 +104,18 @@ var (
 		Action: cmdVolumeList,
 	}
 
+	volumeInspectCmd = cli.Command{
+		Name:  "inspect",
+		Usage: "inspect a certain volume",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  KEY_VOLUME,
+				Usage: "name or uuid of volume",
+			},
+		},
+		Action: cmdVolumeInspect,
+	}
+
 	volumeCmd = cli.Command{
 		Name:  "volume",
 		Usage: "volume related operations",
@@ -113,6 +125,7 @@ var (
 			volumeMountCmd,
 			volumeUmountCmd,
 			volumeListCmd,
+			volumeInspectCmd,
 		},
 	}
 )
@@ -439,28 +452,31 @@ func cmdVolumeList(c *cli.Context) {
 }
 
 func doVolumeList(c *cli.Context) error {
+	v := url.Values{}
+	if c.Bool("driver") {
+		v.Set("driver", "1")
+	}
+
+	request := "/volumes/" + v.Encode()
+	return sendRequestAndPrint("GET", request, nil)
+}
+
+func cmdVolumeInspect(c *cli.Context) {
+	if err := doVolumeInspect(c); err != nil {
+		panic(err)
+	}
+}
+
+func doVolumeInspect(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, false)
+	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
 	if err != nil {
 		return err
 	}
 
-	config := &api.ListConfig{
-		DriverSpecific: c.Bool("driver"),
-	}
-
-	return doVolumeListByUUID(volumeUUID, config)
-}
-
-func doVolumeListByUUID(volumeUUID string, config *api.ListConfig) error {
-	request := "/volumes"
-	if volumeUUID != "" {
-		request += "/" + volumeUUID
-	}
-	request += "/"
-
-	return sendRequestAndPrint("GET", request, config)
+	request := "/volumes/" + volumeUUID + "/"
+	return sendRequestAndPrint("GET", request, nil)
 }
 
 func getVolumeInfo(volume *Volume) *api.VolumeResponse {
@@ -482,21 +498,14 @@ func getVolumeInfo(volume *Volume) *api.VolumeResponse {
 	return resp
 }
 
-func (s *Server) ListVolume(volumeUUID string) ([]byte, error) {
+func (s *Server) listVolume() ([]byte, error) {
 	resp := api.VolumesResponse{
 		Volumes: make(map[string]api.VolumeResponse),
 	}
 
-	var volumeUUIDs []string
-
-	if volumeUUID != "" {
-		volumeUUIDs = append(volumeUUIDs, volumeUUID)
-	} else {
-		var err error
-		volumeUUIDs, err = util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
-		if err != nil {
-			return nil, err
-		}
+	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+	if err != nil {
+		return nil, err
 	}
 
 	for _, uuid := range volumeUUIDs {
@@ -515,23 +524,45 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	defer s.GlobalLock.RUnlock()
 
 	var err error
-
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, false, err)
+	driverSpecific, err := getLowerCaseFlag(r, "driver", false, err)
 	if err != nil {
 		return err
 	}
 
-	config := &api.ListConfig{}
-	if err = decodeRequest(r, config); err != nil {
+	var data []byte
+	if driverSpecific == "1" {
+		data, err = s.StorageDriver.ListVolume("")
+	} else {
+		data, err = s.listVolume()
+	}
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
+}
+
+func (s *Server) inspectVolume(volumeUUID string) ([]byte, error) {
+	volume := s.loadVolume(volumeUUID)
+	if volume == nil {
+		return nil, fmt.Errorf("Cannot find volume %v", volumeUUID)
+	}
+	resp := *getVolumeInfo(volume)
+	return api.ResponseOutput(resp)
+}
+
+func (s *Server) doVolumeInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.RLock()
+	defer s.GlobalLock.RUnlock()
+
+	var err error
+
+	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
+	if err != nil {
 		return err
 	}
 
-	var data []byte
-	if !config.DriverSpecific {
-		data, err = s.ListVolume(volumeUUID)
-	} else {
-		data, err = s.StorageDriver.ListVolume(volumeUUID)
-	}
+	data, err := s.inspectVolume(volumeUUID)
 	if err != nil {
 		return err
 	}

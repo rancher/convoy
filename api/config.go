@@ -5,10 +5,6 @@ type VolumeMountConfig struct {
 	NameSpace  string
 }
 
-type ListConfig struct {
-	DriverSpecific bool
-}
-
 type VolumeCreateConfig struct {
 	Name      string
 	Size      int64

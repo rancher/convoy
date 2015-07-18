@@ -28,7 +28,7 @@ func createRouter(s *Server) *mux.Router {
 			"/info":                                   s.doInfo,
 			"/uuid":                                   s.doRequestUUID,
 			"/volumes/":                               s.doVolumeList,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeList,
+			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeInspect,
 			"/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotInspect,
 			"/backups/list":                           s.doBackupList,
 			"/backups/inspect":                        s.doBackupInspect,
