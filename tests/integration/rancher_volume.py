@@ -31,7 +31,7 @@ class VolumeManager:
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
     def create_volume(self, size = "", name = "", backup_url = ""):
-        cmd = ["volume", "create"]
+        cmd = ["create"]
         if size != "":
             cmd = cmd + ["--size", size]
         if name != "":
@@ -45,7 +45,7 @@ class VolumeManager:
         return volume["UUID"]
 
     def delete_volume(self, volume):
-        subprocess.check_call(self.base_cmdline + ["volume", "delete",
+        subprocess.check_call(self.base_cmdline + ["delete",
             ] + _get_volume(volume))
 
     def mount_volume(self, volume):
@@ -53,30 +53,30 @@ class VolumeManager:
         if not os.path.exists(volume_mount_dir):
     	    os.makedirs(volume_mount_dir)
         assert os.path.exists(volume_mount_dir)
-        cmdline = self.base_cmdline + ["volume", "mount",
+        cmdline = self.base_cmdline + ["mount",
     		"--mountpoint", volume_mount_dir] + _get_volume(volume)
 
 	subprocess.check_call(cmdline)
         return volume_mount_dir
 
     def mount_volume_auto(self, volume):
-        cmdline = self.base_cmdline + ["volume", "mount"] + _get_volume(volume)
+        cmdline = self.base_cmdline + ["mount"] + _get_volume(volume)
 
 	data = subprocess.check_output(cmdline)
         volume = json.loads(data)
         return volume["MountPoint"]
 
     def umount_volume(self, volume):
-        subprocess.check_call(self.base_cmdline + ["volume", "umount",
+        subprocess.check_call(self.base_cmdline + ["umount",
             ] + _get_volume(volume))
 
     def list_volumes(self):
-    	data = subprocess.check_output(self.base_cmdline + ["volume", "list"])
+    	data = subprocess.check_output(self.base_cmdline + ["list"])
         volumes = json.loads(data)
         return volumes["Volumes"]
 
     def inspect_volume(self, volume):
-        cmd = ["volume", "inspect", "--volume", volume]
+        cmd = ["inspect", "--volume", volume]
     	data = subprocess.check_output(self.base_cmdline + cmd)
 
         return json.loads(data)

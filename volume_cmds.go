@@ -115,19 +115,6 @@ var (
 		},
 		Action: cmdVolumeInspect,
 	}
-
-	volumeCmd = cli.Command{
-		Name:  "volume",
-		Usage: "volume related operations",
-		Subcommands: []cli.Command{
-			volumeCreateCmd,
-			volumeDeleteCmd,
-			volumeMountCmd,
-			volumeUmountCmd,
-			volumeListCmd,
-			volumeInspectCmd,
-		},
-	}
 )
 
 func getVolumeCfgName(uuid string) (string, error) {

@@ -144,9 +144,15 @@ func main() {
 	app.Commands = []cli.Command{
 		serverCmd,
 		infoCmd,
-		volumeCmd,
 		snapshotCmd,
 		backupCmd,
+
+		volumeCreateCmd,
+		volumeDeleteCmd,
+		volumeMountCmd,
+		volumeUmountCmd,
+		volumeListCmd,
+		volumeInspectCmd,
 	}
 
 	client.addr = sockFile
