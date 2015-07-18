@@ -335,18 +335,22 @@ def test_snapshot_crud():
     delete_volume(volume_uuid)
 
 def test_snapshot_list():
-    volume1_uuid = create_volume(VOLUME_SIZE_500M)
-    volume2_uuid = create_volume(VOLUME_SIZE_100M)
+    volume1_uuid = create_volume(VOLUME_SIZE_100M, name = "volume1")
+    volume2_uuid = create_volume(VOLUME_SIZE_500M)
 
     snap0_vol1_uuid = str(uuid.uuid1())
 
-    volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
-    assert snap0_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
+    with pytest.raises(subprocess.CalledProcessError):
+        snapshot = v.inspect_snapshot(snap0_vol1_uuid)
 
-    snap0_vol1_uuid = v.create_snapshot(volume1_uuid)
+    snap0_vol1_uuid = v.create_snapshot(volume1_uuid, "snap0_vol1")
 
-    volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
-    assert snap0_vol1_uuid in volumes[volume1_uuid]["Snapshots"]
+    snapshot = v.inspect_snapshot("snap0_vol1")
+    assert snapshot["UUID"] == snap0_vol1_uuid
+    assert snapshot["VolumeUUID"] == volume1_uuid
+    assert snapshot["VolumeName"] == "volume1"
+    assert str(snapshot["Size"]) == VOLUME_SIZE_100M
+    assert snapshot["Name"] == "snap0_vol1"
 
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
@@ -375,8 +379,8 @@ def test_snapshot_list():
 
     v.delete_snapshot(snap0_vol1_uuid)
 
-    volumes = v.list_volumes(volume1_uuid, snap0_vol1_uuid)
-    assert snap0_vol1_uuid not in volumes[volume1_uuid]["Snapshots"]
+    with pytest.raises(subprocess.CalledProcessError):
+        snapshot = v.inspect_snapshot(snap0_vol1_uuid)
 
     v.delete_snapshot(snap1_vol1_uuid)
     v.delete_snapshot(snap2_vol1_uuid)
@@ -455,8 +459,7 @@ def process_objectstore_test(dest_url):
 
     #first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid, "snap1_vol1")
-    snap1_vol1 = v.list_volumes("volume1",
-            snap1_vol1_uuid)[volume1_uuid]["Snapshots"][snap1_vol1_uuid]
+    snap1_vol1 = v.inspect_snapshot("snap1_vol1")
     snap1_vol1_bak = v.create_backup("snap1_vol1", dest_url)
 
     backups = v.list_backup(dest_url, volume1_uuid)

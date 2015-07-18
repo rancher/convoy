@@ -5,7 +5,7 @@ type VolumeMountConfig struct {
 	NameSpace  string
 }
 
-type VolumeListConfig struct {
+type ListConfig struct {
 	DriverSpecific bool
 }
 

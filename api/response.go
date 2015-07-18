@@ -30,10 +30,13 @@ type VolumeResponse struct {
 }
 
 type SnapshotResponse struct {
-	UUID        string
-	VolumeUUID  string
-	Name        string
-	CreatedTime string
+	UUID            string
+	VolumeUUID      string `json:",omitempty"`
+	VolumeName      string `json:",omitempty"`
+	Size            int64  `json:",omitempty"`
+	VolumeCreatedAt string `json:",omitempty"`
+	Name            string
+	CreatedTime     string
 }
 
 type BackupsResponse struct {

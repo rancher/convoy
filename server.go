@@ -25,13 +25,13 @@ func createRouter(s *Server) *mux.Router {
 	router := mux.NewRouter()
 	m := map[string]map[string]RequestHandler{
 		"GET": {
-			"/info":                                                                     s.doInfo,
-			"/uuid":                                                                     s.doRequestUUID,
-			"/volumes/":                                                                 s.doVolumeList,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/":                                       s.doVolumeList,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doVolumeList,
-			"/backups/list":    s.doBackupList,
-			"/backups/inspect": s.doBackupInspect,
+			"/info":                                   s.doInfo,
+			"/uuid":                                   s.doRequestUUID,
+			"/volumes/":                               s.doVolumeList,
+			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeList,
+			"/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotInspect,
+			"/backups/list":                           s.doBackupList,
+			"/backups/inspect":                        s.doBackupInspect,
 		},
 		"POST": {
 			"/volumes/create":                                     s.doVolumeCreate,

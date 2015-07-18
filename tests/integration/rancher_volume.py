@@ -70,17 +70,11 @@ class VolumeManager:
         subprocess.check_call(self.base_cmdline + ["volume", "umount",
             ] + _get_volume(volume))
 
-    def list_volumes(self, uuid = None, snapshot = None):
-        if uuid is None:
-    	    data = subprocess.check_output(self.base_cmdline + \
-			    ["volume", "list"])
-        elif snapshot is None:
-            data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume", uuid])
-        else:
-            data = subprocess.check_output(self.base_cmdline + ["volume", "list",
-                "--volume", uuid,
-                "--snapshot", snapshot])
+    def list_volumes(self, volume = None):
+        cmd = ["volume", "list"]
+        if volume is not None:
+            cmd += ["--volume", volume]
+    	data = subprocess.check_output(self.base_cmdline + cmd)
 
         volumes = json.loads(data)
         return volumes["Volumes"]
@@ -96,6 +90,12 @@ class VolumeManager:
     def delete_snapshot(self, snapshot):
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
 	        "--snapshot", snapshot])
+
+    def inspect_snapshot(self, snapshot):
+        output = subprocess.check_output(self.base_cmdline + ["snapshot", "inspect",
+	        "--snapshot", snapshot])
+        snapshot = json.loads(output)
+        return snapshot
 
     def create_backup(self, snapshot_uuid, dest_url):
         data = subprocess.check_output(self.base_cmdline + ["backup", "create",

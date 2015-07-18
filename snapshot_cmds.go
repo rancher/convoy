@@ -42,12 +42,25 @@ var (
 		Action: cmdSnapshotDelete,
 	}
 
+	snapshotInspectCmd = cli.Command{
+		Name:  "inspect",
+		Usage: "inspect an snapshot",
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  KEY_SNAPSHOT,
+				Usage: "name or uuid of snapshot, must be used with volume uuid",
+			},
+		},
+		Action: cmdSnapshotInspect,
+	}
+
 	snapshotCmd = cli.Command{
 		Name:  "snapshot",
 		Usage: "snapshot related operations",
 		Subcommands: []cli.Command{
 			snapshotCreateCmd,
 			snapshotDeleteCmd,
+			snapshotInspectCmd,
 		},
 	}
 )
@@ -221,4 +234,61 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	}
 	delete(volume.Snapshots, snapshotUUID)
 	return s.saveVolume(volume)
+}
+
+func cmdSnapshotInspect(c *cli.Context) {
+	if err := doSnapshotInspect(c); err != nil {
+		panic(err)
+	}
+}
+
+func doSnapshotInspect(c *cli.Context) error {
+	var err error
+
+	uuid, err := getOrRequestUUID(c, KEY_SNAPSHOT, true)
+	if err != nil {
+		return err
+	}
+
+	request := "/snapshots/" + uuid + "/"
+	return sendRequestAndPrint("GET", request, nil)
+}
+
+func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	s.GlobalLock.RLock()
+	defer s.GlobalLock.RUnlock()
+
+	var err error
+
+	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, true, err)
+	if err != nil {
+		return err
+	}
+	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
+	if volumeUUID == "" {
+		return fmt.Errorf("cannot find volume for snapshot %v", snapshotUUID)
+	}
+
+	volume := s.loadVolume(volumeUUID)
+	if volume == nil {
+		return fmt.Errorf("cannot find volume %v", volumeUUID)
+	}
+	if _, exists := volume.Snapshots[snapshotUUID]; !exists {
+		return fmt.Errorf("cannot find snapshot %v of volume %v", snapshotUUID, volumeUUID)
+	}
+	resp := api.SnapshotResponse{
+		UUID:            snapshotUUID,
+		VolumeUUID:      volume.UUID,
+		VolumeName:      volume.Name,
+		Size:            volume.Size,
+		VolumeCreatedAt: volume.CreatedTime,
+		Name:            volume.Snapshots[snapshotUUID].Name,
+		CreatedTime:     volume.Snapshots[snapshotUUID].CreatedTime,
+	}
+	data, err := api.ResponseOutput(resp)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
 }

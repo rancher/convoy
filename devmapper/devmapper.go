@@ -468,7 +468,7 @@ func getVolumeInfo(uuid string, volume *Volume) *api.DeviceMapperVolume {
 	return &result
 }
 
-func (d *Driver) ListVolume(id, snapshotID string) ([]byte, error) {
+func (d *Driver) ListVolume(id string) ([]byte, error) {
 	volumes := api.DeviceMapperVolumes{
 		Volumes: make(map[string]api.DeviceMapperVolume),
 	}
@@ -479,12 +479,7 @@ func (d *Driver) ListVolume(id, snapshotID string) ([]byte, error) {
 				LOG_FIELD_VOLUME: id,
 			}, "volume doesn't exists")
 		}
-		if snapshotID != "" {
-			volumes.Volumes[id] = *getVolumeSnapshotInfo(id, volume, snapshotID)
-		} else {
-			volumes.Volumes[id] = *getVolumeInfo(id, volume)
-		}
-
+		volumes.Volumes[id] = *getVolumeInfo(id, volume)
 	} else {
 		volumeIDs, err := d.listVolumeIDs()
 		if err != nil {
