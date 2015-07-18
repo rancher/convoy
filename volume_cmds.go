@@ -29,10 +29,6 @@ var (
 				Usage: "size of volume, in bytes, or end in either G or M or K",
 			},
 			cli.StringFlag{
-				Name:  KEY_NAME,
-				Usage: "name of volume, if defined, must be locally unique. Must contains only lower case alphabets/numbers/period/underscore",
-			},
-			cli.StringFlag{
 				Name:  KEY_BACKUP_URL,
 				Usage: "create a volume of backup",
 			},
@@ -41,14 +37,8 @@ var (
 	}
 
 	volumeDeleteCmd = cli.Command{
-		Name:  "delete",
-		Usage: "delete a volume with ALL of it's snapshots LOCALLY. Objects in object store would remain intact",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "name or uuid of volume",
-			},
-		},
+		Name:   "delete",
+		Usage:  "delete a volume with ALL of it's snapshots LOCALLY. Objects in object store would remain intact",
 		Action: cmdVolumeDelete,
 	}
 
@@ -56,10 +46,6 @@ var (
 		Name:  "mount",
 		Usage: "mount a volume to an specific path",
 		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "name or uuid of volume",
-			},
 			cli.StringFlag{
 				Name:  "mountpoint",
 				Usage: "mountpoint of volume",
@@ -77,10 +63,6 @@ var (
 		Usage: "umount a volume",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "name or uuid of volume",
-			},
-			cli.StringFlag{
 				Name:  "switch-ns",
 				Usage: "switch to another mount namespace, need namespace file descriptor",
 			},
@@ -92,10 +74,6 @@ var (
 		Name:  "list",
 		Usage: "list all managed volumes",
 		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "name or uuid of volume",
-			},
 			cli.BoolFlag{
 				Name:  "driver",
 				Usage: "Ask for driver specific info of volumes and snapshots",
@@ -105,14 +83,8 @@ var (
 	}
 
 	volumeInspectCmd = cli.Command{
-		Name:  "inspect",
-		Usage: "inspect a certain volume",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  KEY_VOLUME,
-				Usage: "name or uuid of volume",
-			},
-		},
+		Name:   "inspect",
+		Usage:  "inspect a certain volume",
 		Action: cmdVolumeInspect,
 	}
 )
@@ -201,7 +173,7 @@ func getSize(c *cli.Context, err error) (int64, error) {
 func doVolumeCreate(c *cli.Context) error {
 	var err error
 
-	name, err := getName(c, KEY_NAME, false, err)
+	name := c.Args().First()
 	size, err := getSize(c, err)
 	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, false, err)
 	if err != nil {
@@ -337,9 +309,14 @@ func cmdVolumeDelete(c *cli.Context) {
 
 func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error) {
 	var err error
-	id, err := getLowerCaseFlag(c, key, required, err)
-	if err != nil {
-		return "", err
+	var id string
+	if key == "" {
+		id = c.Args().First()
+	} else {
+		id, err = getLowerCaseFlag(c, key, required, err)
+		if err != nil {
+			return "", err
+		}
 	}
 	if id == "" && !required {
 		return "", nil
@@ -377,7 +354,7 @@ func requestUUID(id string) (string, error) {
 func doVolumeDelete(c *cli.Context) error {
 	var err error
 
-	uuid, err := getOrRequestUUID(c, KEY_VOLUME, true)
+	uuid, err := getOrRequestUUID(c, "", true)
 	if err != nil {
 		return err
 	}
@@ -457,7 +434,7 @@ func cmdVolumeInspect(c *cli.Context) {
 func doVolumeInspect(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
+	volumeUUID, err := getOrRequestUUID(c, "", true)
 	if err != nil {
 		return err
 	}
@@ -566,7 +543,7 @@ func cmdVolumeMount(c *cli.Context) {
 func doVolumeMount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
+	volumeUUID, err := getOrRequestUUID(c, "", true)
 	mountPoint, err := getLowerCaseFlag(c, "mountpoint", false, err)
 	if err != nil {
 		return err
@@ -672,7 +649,7 @@ func cmdVolumeUmount(c *cli.Context) {
 func doVolumeUmount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, KEY_VOLUME, true)
+	volumeUUID, err := getOrRequestUUID(c, "", true)
 	if err != nil {
 		return err
 	}

@@ -7,7 +7,7 @@ import json
 EXT4_FS = "ext4"
 
 def _get_volume(volume):
-    return ["--volume", volume]
+        return ["--volume", volume]
 
 class VolumeManager:
     def __init__(self, binary, mount_root):
@@ -32,10 +32,10 @@ class VolumeManager:
 
     def create_volume(self, size = "", name = "", backup_url = ""):
         cmd = ["create"]
+        if name != "":
+            cmd = cmd + [name]
         if size != "":
             cmd = cmd + ["--size", size]
-        if name != "":
-            cmd = cmd + ["--name", name]
         if backup_url != "":
             cmd = cmd + ["--backup-url", backup_url]
         data = subprocess.check_output(self.base_cmdline + cmd)
@@ -45,30 +45,28 @@ class VolumeManager:
         return volume["UUID"]
 
     def delete_volume(self, volume):
-        subprocess.check_call(self.base_cmdline + ["delete",
-            ] + _get_volume(volume))
+        subprocess.check_call(self.base_cmdline + ["delete", volume])
 
     def mount_volume(self, volume):
         volume_mount_dir = os.path.join(self.mount_root, volume)
         if not os.path.exists(volume_mount_dir):
     	    os.makedirs(volume_mount_dir)
         assert os.path.exists(volume_mount_dir)
-        cmdline = self.base_cmdline + ["mount",
-    		"--mountpoint", volume_mount_dir] + _get_volume(volume)
+        cmdline = self.base_cmdline + ["mount", volume,
+    		"--mountpoint", volume_mount_dir]
 
 	subprocess.check_call(cmdline)
         return volume_mount_dir
 
     def mount_volume_auto(self, volume):
-        cmdline = self.base_cmdline + ["mount"] + _get_volume(volume)
+        cmdline = self.base_cmdline + ["mount", volume]
 
 	data = subprocess.check_output(cmdline)
         volume = json.loads(data)
         return volume["MountPoint"]
 
     def umount_volume(self, volume):
-        subprocess.check_call(self.base_cmdline + ["umount",
-            ] + _get_volume(volume))
+        subprocess.check_call(self.base_cmdline + ["umount", volume])
 
     def list_volumes(self):
     	data = subprocess.check_output(self.base_cmdline + ["list"])
@@ -76,7 +74,7 @@ class VolumeManager:
         return volumes["Volumes"]
 
     def inspect_volume(self, volume):
-        cmd = ["inspect", "--volume", volume]
+        cmd = ["inspect", volume]
     	data = subprocess.check_output(self.base_cmdline + cmd)
 
         return json.loads(data)
