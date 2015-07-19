@@ -289,7 +289,7 @@ func decodeBackupURL(backupURL string) (string, string, error) {
 	volumeUUID := v.Get("volume")
 	backupUUID := v.Get("backup")
 	if !util.ValidateUUID(volumeUUID) || !util.ValidateUUID(backupUUID) {
-		return "", "", fmt.Errorf("Invalid UUID parsed")
+		return "", "", fmt.Errorf("Invalid UUID parsed, got %v and %v", backupUUID, volumeUUID)
 	}
 	return backupUUID, volumeUUID, nil
 }
