@@ -14,11 +14,11 @@ import (
 var (
 	backupCreateCmd = cli.Command{
 		Name:  "create",
-		Usage: "create a backup in objectstore",
+		Usage: "create a backup in objectstore: create <snapshot>",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_DEST_URL,
-				Usage: "destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
+				Usage: "required. destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
 		},
 		Action: cmdBackupCreate,
@@ -26,13 +26,13 @@ var (
 
 	backupDeleteCmd = cli.Command{
 		Name:   "delete",
-		Usage:  "delete a backup in objectstore",
+		Usage:  "delete a backup in objectstore: delete <backup>",
 		Action: cmdBackupDelete,
 	}
 
 	backupListCmd = cli.Command{
 		Name:  "list",
-		Usage: "list volume in objectstore",
+		Usage: "list volume in objectstore: list <dest>",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_VOLUME_UUID,
@@ -44,7 +44,7 @@ var (
 
 	backupInspectCmd = cli.Command{
 		Name:   "inspect",
-		Usage:  "inspect a backup",
+		Usage:  "inspect a backup: inspect <backup>",
 		Action: cmdBackupInspect,
 	}
 

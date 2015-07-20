@@ -22,7 +22,7 @@ import (
 var (
 	volumeCreateCmd = cli.Command{
 		Name:  "create",
-		Usage: "create a new volume",
+		Usage: "create a new volume: create [volume_name] [options]",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "size",
@@ -38,17 +38,17 @@ var (
 
 	volumeDeleteCmd = cli.Command{
 		Name:   "delete",
-		Usage:  "delete a volume with ALL of it's snapshots LOCALLY. Objects in object store would remain intact",
+		Usage:  "delete a volume: delete <volume> [options]",
 		Action: cmdVolumeDelete,
 	}
 
 	volumeMountCmd = cli.Command{
 		Name:  "mount",
-		Usage: "mount a volume to an specific path",
+		Usage: "mount a volume to an specific path: mount <volume> [options]",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "mountpoint",
-				Usage: "mountpoint of volume",
+				Usage: "mountpoint of volume, if not specified, it would be automatic mounted to default mounts-dir",
 			},
 			cli.StringFlag{
 				Name:  "switch-ns",
@@ -60,7 +60,7 @@ var (
 
 	volumeUmountCmd = cli.Command{
 		Name:  "umount",
-		Usage: "umount a volume",
+		Usage: "umount a volume: umount <volume> [options]",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "switch-ns",
@@ -84,7 +84,7 @@ var (
 
 	volumeInspectCmd = cli.Command{
 		Name:   "inspect",
-		Usage:  "inspect a certain volume",
+		Usage:  "inspect a certain volume: inspect <volume>",
 		Action: cmdVolumeInspect,
 	}
 )

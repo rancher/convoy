@@ -16,7 +16,7 @@ import (
 var (
 	snapshotCreateCmd = cli.Command{
 		Name:  "create",
-		Usage: "create a snapshot for certain volume",
+		Usage: "create a snapshot for certain volume: snapshot create <volume>",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  KEY_NAME,
@@ -28,13 +28,13 @@ var (
 
 	snapshotDeleteCmd = cli.Command{
 		Name:   "delete",
-		Usage:  "delete a snapshot of certain volume",
+		Usage:  "delete a snapshot: snapshot delete <snapshot>",
 		Action: cmdSnapshotDelete,
 	}
 
 	snapshotInspectCmd = cli.Command{
 		Name:   "inspect",
-		Usage:  "inspect an snapshot",
+		Usage:  "inspect an snapshot: snapshot inspect <snapshot>",
 		Action: cmdSnapshotInspect,
 	}
 

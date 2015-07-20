@@ -105,7 +105,7 @@ func main() {
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:  "debug",
-				Usage: "Enable debug log.",
+				Usage: "Debug log, enabled by default",
 			},
 			cli.StringFlag{
 				Name:  "log",
