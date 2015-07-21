@@ -181,9 +181,7 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 
 	log.Debugf("Unmount volume: %v (name %v) at %v for docker", volume.UUID, volume.Name, volume.MountPoint)
 
-	mountConfig := &api.VolumeMountConfig{}
-
-	if err := s.processVolumeUmount(volume, mountConfig); err != nil {
+	if err := s.processVolumeUmount(volume); err != nil {
 		dockerResponse(w, "", err)
 		return
 	}

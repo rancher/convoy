@@ -35,8 +35,8 @@ var (
 )
 
 const (
-	RANCHER_MOUNT_BINARY      = "rancher-mount"
-	RANCHER_MOUNT_MIN_VERSION = "0.1"
+	MOUNT_BINARY  = "mount"
+	UMOUNT_BINARY = "umount"
 )
 
 func init() {
@@ -88,18 +88,12 @@ func Format(driver Driver, volumeUUID, fs string) error {
 	return nil
 }
 
-func Mount(driver Driver, volumeUUID, mountPoint, newNS string) error {
+func Mount(driver Driver, volumeUUID, mountPoint string) error {
 	dev, err := driver.GetVolumeDevice(volumeUUID)
 	if err != nil {
 		return err
 	}
-	fs := "ext4"
-
-	if newNS == "" {
-		newNS = "/proc/1/ns/mnt"
-	}
-	cmdline := []string{newNS, "-m", "-t", fs}
-	cmdline = append(cmdline, dev, mountPoint)
+	cmdline := []string{dev, mountPoint}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_START,
 		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
@@ -107,7 +101,7 @@ func Mount(driver Driver, volumeUUID, mountPoint, newNS string) error {
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 		LOG_FIELD_OPTION:     cmdline,
 	}).Debug()
-	_, err = util.Execute(RANCHER_MOUNT_BINARY, cmdline)
+	_, err = util.Execute(MOUNT_BINARY, cmdline)
 	if err != nil {
 		log.Error("Failed mount, ", err)
 		return err
@@ -115,18 +109,15 @@ func Mount(driver Driver, volumeUUID, mountPoint, newNS string) error {
 	return nil
 }
 
-func Unmount(driver Driver, mountPoint, newNS string) error {
-	if newNS == "" {
-		newNS = "/proc/1/ns/mnt"
-	}
-	cmdline := []string{newNS, "-u", mountPoint}
+func Unmount(driver Driver, mountPoint string) error {
+	cmdline := []string{mountPoint}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_START,
 		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 		LOG_FIELD_OPTION:     cmdline,
 	}).Debug()
-	_, err := util.Execute(RANCHER_MOUNT_BINARY, cmdline)
+	_, err := util.Execute(UMOUNT_BINARY, cmdline)
 	if err != nil {
 		log.Error("Failed umount, ", err)
 		return err
@@ -134,18 +125,7 @@ func Unmount(driver Driver, mountPoint, newNS string) error {
 	return nil
 }
 
-func checkRancherMountVersion() error {
-	cmdline := []string{"-V"}
-	if err := util.CheckBinaryVersion(RANCHER_MOUNT_BINARY, RANCHER_MOUNT_MIN_VERSION, cmdline); err != nil {
-		return err
-	}
-	return nil
-}
-
 func CheckEnvironment(driver Driver) error {
-	if err := checkRancherMountVersion(); err != nil {
-		return err
-	}
 	if err := driver.CheckEnvironment(); err != nil {
 		return err
 	}

@@ -2,7 +2,6 @@ package api
 
 type VolumeMountConfig struct {
 	MountPoint string
-	NameSpace  string
 }
 
 type VolumeCreateConfig struct {

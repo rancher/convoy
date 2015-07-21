@@ -50,23 +50,13 @@ var (
 				Name:  "mountpoint",
 				Usage: "mountpoint of volume, if not specified, it would be automatic mounted to default mounts-dir",
 			},
-			cli.StringFlag{
-				Name:  "switch-ns",
-				Usage: "switch to another mount namespace, need namespace file descriptor",
-			},
 		},
 		Action: cmdVolumeMount,
 	}
 
 	volumeUmountCmd = cli.Command{
-		Name:  "umount",
-		Usage: "umount a volume: umount <volume> [options]",
-		Flags: []cli.Flag{
-			cli.StringFlag{
-				Name:  "switch-ns",
-				Usage: "switch to another mount namespace, need namespace file descriptor",
-			},
-		},
+		Name:   "umount",
+		Usage:  "umount a volume: umount <volume> [options]",
 		Action: cmdVolumeUmount,
 	}
 
@@ -549,11 +539,8 @@ func doVolumeMount(c *cli.Context) error {
 		return err
 	}
 
-	newNS := c.String("switch-ns")
-
 	mountConfig := api.VolumeMountConfig{
 		MountPoint: mountPoint,
-		NameSpace:  newNS,
 	}
 
 	request := "/volumes/" + volumeUUID + "/mount"
@@ -621,9 +608,8 @@ func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMount
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
-		LOG_FIELD_NAMESPACE:  mountConfig.NameSpace,
 	}).Debug()
-	if err := drivers.Mount(s.StorageDriver, volume.UUID, mountConfig.MountPoint, mountConfig.NameSpace); err != nil {
+	if err := drivers.Mount(s.StorageDriver, volume.UUID, mountConfig.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -654,14 +640,8 @@ func doVolumeUmount(c *cli.Context) error {
 		return err
 	}
 
-	newNS := c.String("switch-ns")
-
-	mountConfig := api.VolumeMountConfig{
-		NameSpace: newNS,
-	}
-
 	request := "/volumes/" + volumeUUID + "/umount"
-	return sendRequestAndPrint("POST", request, mountConfig)
+	return sendRequestAndPrint("POST", request, nil)
 }
 
 func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -683,12 +663,7 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 		return fmt.Errorf("volume %v hasn't been mounted as record shows", volumeUUID)
 	}
 
-	config := &api.VolumeMountConfig{}
-	if err = decodeRequest(r, config); err != nil {
-		return err
-	}
-
-	return s.processVolumeUmount(volume, config)
+	return s.processVolumeUmount(volume)
 }
 
 func (s *Server) putVolumeMountPoint(mountPoint string) string {
@@ -701,16 +676,15 @@ func (s *Server) putVolumeMountPoint(mountPoint string) string {
 	return ""
 }
 
-func (s *Server) processVolumeUmount(volume *Volume, mountConfig *api.VolumeMountConfig) error {
+func (s *Server) processVolumeUmount(volume *Volume) error {
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
-		LOG_FIELD_NAMESPACE:  mountConfig.NameSpace,
 	}).Debug()
-	if err := drivers.Unmount(s.StorageDriver, volume.MountPoint, mountConfig.NameSpace); err != nil {
+	if err := drivers.Unmount(s.StorageDriver, volume.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
