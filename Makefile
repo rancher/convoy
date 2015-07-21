@@ -5,6 +5,13 @@ RANCHER-MOUNT_EXEC_FILE = ./bin/rancher-mount
 
 all: $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-MOUNT_EXEC_FILE)
 
+FLAGS = -tags "libdm_no_deferred_remove"
+ifeq ($(STATIC_LINK), 1)
+    FLAGS = -a -tags "netgo libdm_no_deferred_remove" \
+	    -ldflags "-linkmode external -extldflags -static" \
+	    --installsuffix netgo
+endif
+
 $(RANCHER-MOUNT_EXEC_FILE): ./tools/rancher_mount.c
 	gcc -o $(RANCHER-MOUNT_EXEC_FILE) ./tools/rancher_mount.c
 
@@ -20,7 +27,7 @@ $(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./volume_cmds.go ./snapshot_cmds.go ./objectstore_cmds.go \
 	./server.go ./client.go ./docker.go \
 	./commands.go ./main.go ./main_objectstore.go ./main_devmapper.go
-	go build -tags libdm_no_deferred_remove -o $(RANCHER-VOLUME_EXEC_FILE)
+	go build $(FLAGS) -o $(RANCHER-VOLUME_EXEC_FILE)
 
 clean:
 	rm -f $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-MOUNT_EXEC_FILE)

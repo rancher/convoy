@@ -21,4 +21,4 @@ fi
 
 echo export GOPATH=$GOPATH
 
-make
+make STATIC_LINK=1
