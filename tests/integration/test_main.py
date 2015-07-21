@@ -41,8 +41,8 @@ RANCHER_VOLUME_BINARY = os.path.abspath("../../bin/rancher-volume")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
-DATA_DEVICE_SIZE = 1073618944
-METADATA_DEVICE_SIZE = 40960000
+DATA_DEVICE_SIZE = 2147483648
+METADATA_DEVICE_SIZE = 52428800
 DM_DIR = "/dev/mapper"
 DM_BLOCK_SIZE = 2097152
 EMPTY_FILE_SIZE = 104857600
@@ -62,9 +62,7 @@ mount_cleanup_list = []
 dm_cleanup_list = []
 
 def create_empty_file(filepath, size):
-    subprocess.check_call(["dd", "if=/dev/zero", "of=" + filepath,
-            "bs=" + str(DD_BLOCK_SIZE), "count=" + str(size /
-            DD_BLOCK_SIZE)])
+    subprocess.check_call(["truncate", "-s", str(size), filepath])
     assert os.path.exists(filepath)
 
 def attach_loopback_dev(filepath):
