@@ -175,29 +175,29 @@ func (s *TestSuite) TestVolume(c *C) {
 	lastDevID := drv.LastDevID
 	volumeID := uuid.New()
 
-	err = driver.CreateVolume(volumeID, "", volumeSize)
+	err = driver.CreateVolume(volumeID, volumeSize)
 	c.Assert(err, IsNil)
 
 	c.Assert(drv.LastDevID, Equals, lastDevID+1)
 
-	err = driver.CreateVolume(volumeID, "", volumeSize)
+	err = driver.CreateVolume(volumeID, volumeSize)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Already has volume with specific uuid.*")
 
 	volumeID2 := uuid.New()
 
 	wrongVolumeSize := int64(13333333)
-	err = driver.CreateVolume(volumeID2, "", wrongVolumeSize)
+	err = driver.CreateVolume(volumeID2, wrongVolumeSize)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err.Error(), Equals, "Size must be multiple of block size")
 
-	err = driver.CreateVolume(volumeID2, "", volumeSize)
+	err = driver.CreateVolume(volumeID2, volumeSize)
 	c.Assert(err, IsNil)
 
-	_, err = driver.ListVolume("", "")
+	_, err = driver.ListVolume("")
 	c.Assert(err, IsNil)
 
-	_, err = driver.ListVolume(volumeID, "")
+	_, err = driver.ListVolume(volumeID)
 	c.Assert(err, IsNil)
 
 	err = driver.DeleteVolume("123")
@@ -216,7 +216,7 @@ func (s *TestSuite) TestSnapshot(c *C) {
 	driver := s.driver
 
 	volumeID := uuid.New()
-	err = driver.CreateVolume(volumeID, "", volumeSize)
+	err = driver.CreateVolume(volumeID, volumeSize)
 	c.Assert(err, IsNil)
 
 	snapshotID := uuid.New()
@@ -239,60 +239,5 @@ func (s *TestSuite) TestSnapshot(c *C) {
 	c.Assert(err, ErrorMatches, "cannot find snapshot.*")
 
 	err = driver.DeleteVolume(volumeID)
-	c.Assert(err, IsNil)
-}
-
-func (s *TestSuite) TestImage(c *C) {
-	var err error
-	driver := s.driver
-
-	imageID := uuid.New()
-	err = driver.ActivateImage(imageID, s.imageFile)
-	c.Assert(err, IsNil)
-
-	err = driver.DeactivateImage(imageID)
-	c.Assert(err, IsNil)
-
-	err = driver.ActivateImage(imageID, s.imageFile)
-	c.Assert(err, IsNil)
-
-	err = driver.ActivateImage(imageID, s.imageFile)
-	c.Assert(err, ErrorMatches, ".*already activated.*")
-
-	err = driver.DeactivateImage(imageID)
-	c.Assert(err, IsNil)
-
-	err = driver.DeactivateImage(imageID)
-	c.Assert(err, ErrorMatches, "Cannot find image.*")
-}
-
-func (s *TestSuite) TestCreateVolumeWithBaseImage(c *C) {
-	var err error
-	driver := s.driver
-
-	imageID := uuid.New()
-	err = driver.ActivateImage(imageID, s.imageFile)
-	c.Assert(err, IsNil)
-
-	volumeID := uuid.New()
-	err = driver.CreateVolume(volumeID, imageID, volumeSize)
-	c.Assert(err, IsNil)
-
-	volumeDev, err := driver.GetVolumeDevice(volumeID)
-	c.Assert(err, IsNil)
-
-	err = exec.Command("mount", volumeDev, devMount).Run()
-	c.Assert(err, IsNil)
-
-	_, err = os.Stat(filepath.Join(devMount, imageTestFile))
-	c.Assert(err, IsNil)
-
-	err = exec.Command("umount", devMount).Run()
-	c.Assert(err, IsNil)
-
-	err = driver.DeleteVolume(volumeID)
-	c.Assert(err, IsNil)
-
-	err = driver.DeactivateImage(imageID)
 	c.Assert(err, IsNil)
 }
