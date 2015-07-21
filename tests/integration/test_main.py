@@ -51,6 +51,7 @@ DEFAULT_VOLUME_SIZE = "1073741824"
 VOLUME_SIZE_500M_Bytes = "524288000"
 VOLUME_SIZE_500M = "500M"
 VOLUME_SIZE_100M = "104857600"
+VOLUME_SIZE_6M = "6M"
 
 RANDOM_VALID_UUID = "0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4"
 
@@ -594,16 +595,16 @@ def process_objectstore_test(dest):
     delete_volume(res_volume1_uuid)
     delete_volume(res_volume2_uuid)
 
-#def create_delete_volume_thread():
-#    uuid = v.create_volume()
-#    v.delete_volume(uuid)
-#
-#def test_create_volume_in_parallel():
-#    threads = []
-#    for i in range(TEST_THREAD_COUNT):
-#        threads.append(threading.Thread(target = create_delete_volume_thread))
-#        threads[i].start()
-#
-#    for i in range(TEST_THREAD_COUNT):
-#        threads[i].join()
+def create_delete_volume_thread():
+    uuid = v.create_volume(size = VOLUME_SIZE_6M)
+    v.delete_volume(uuid)
+
+def test_create_volume_in_parallel():
+    threads = []
+    for i in range(TEST_THREAD_COUNT):
+        threads.append(threading.Thread(target = create_delete_volume_thread))
+        threads[i].start()
+
+    for i in range(TEST_THREAD_COUNT):
+        threads[i].join()
 
