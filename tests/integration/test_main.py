@@ -20,6 +20,7 @@ LOG_FILE= os.path.join(TEST_ROOT, "rancher-volume.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
 TEST_THREAD_COUNT = 100
+TEST_LOOP_COUNT = 100
 
 OBJECTSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-objectstore")
 OBJECTSTORE_CFG = os.path.join(OBJECTSTORE_ROOT, "objectstore.cfg")
@@ -593,16 +594,22 @@ def process_objectstore_test(dest):
     delete_volume(res_volume1_uuid)
     delete_volume(res_volume2_uuid)
 
-def create_delete_volume_thread():
+def create_delete_volume():
     uuid = v.create_volume(size = VOLUME_SIZE_6M)
+    snap = v.create_snapshot(uuid)
+    v.delete_snapshot(snap)
     v.delete_volume(uuid)
 
 def test_create_volume_in_parallel():
     threads = []
     for i in range(TEST_THREAD_COUNT):
-        threads.append(threading.Thread(target = create_delete_volume_thread))
+        threads.append(threading.Thread(target = create_delete_volume))
         threads[i].start()
 
     for i in range(TEST_THREAD_COUNT):
         threads[i].join()
+
+def test_create_volume_in_sequence():
+    for i in range(TEST_LOOP_COUNT):
+	create_delete_volume()
 
