@@ -239,9 +239,10 @@ func Init(root, cfgName string, config map[string]string) (drivers.Driver, error
 	devicemapper.LogInitVerbose(1)
 	devicemapper.LogInit(&DMLogger{})
 
+	/* disable udev sync support for static link binary
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
 		return nil, fmt.Errorf("Udev sync is not supported. Cannot proceed.")
-	}
+	} */
 	if util.ConfigExists(root, cfgName) {
 		dev := Device{}
 		err := util.LoadConfig(root, cfgName, &dev)

@@ -20,7 +20,9 @@ $(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./volume_cmds.go ./snapshot_cmds.go ./objectstore_cmds.go \
 	./server.go ./client.go ./docker.go \
 	./commands.go ./main.go ./main_objectstore.go ./main_devmapper.go
-	go build -tags libdm_no_deferred_remove -o $(RANCHER-VOLUME_EXEC_FILE)
+	go build -a -tags "netgo libdm_no_deferred_remove" \
+	    -ldflags '-linkmode external -extldflags "-static"' \
+	    --installsuffix netgo -o $(RANCHER-VOLUME_EXEC_FILE)
 
 clean:
 	rm -f $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-MOUNT_EXEC_FILE)
