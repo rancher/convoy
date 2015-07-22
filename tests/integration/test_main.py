@@ -443,7 +443,7 @@ def get_s3_url(path = ""):
 
 @pytest.mark.s3
 def test_s3_objectstore():
-    #process_objectstore_test(get_s3_url())
+    process_objectstore_test(get_s3_url())
     process_objectstore_test(get_s3_url(S3_PATH))
 
 def process_objectstore_test(dest):
