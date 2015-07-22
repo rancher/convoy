@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/metadata"
-	"github.com/rancher/rancher-volume/util"
-
-	. "github.com/rancher/rancher-volume/logging"
 )
 
 type InitFunc func(root, cfgName string, config map[string]string) (Driver, error)
@@ -15,6 +12,8 @@ type Driver interface {
 	Name() string
 	CreateVolume(id string, size int64) error
 	DeleteVolume(id string) error
+	Mount(id, mountPoint string) error
+	Umount(id, mountPoint string) error
 	GetVolumeDevice(id string) (string, error)
 	ListVolume(id string) ([]byte, error)
 	CreateSnapshot(id, volumeID string) error
@@ -60,69 +59,6 @@ func GetDriver(name, root string, config map[string]string) (Driver, error) {
 		return nil, fmt.Errorf("Driver %v is not supported!", name)
 	}
 	return initializers[name](root, getCfgName(name), config)
-}
-
-func Format(driver Driver, volumeUUID, fs string) error {
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:  LOG_EVENT_FORMAT,
-		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: volumeUUID,
-	}).Debug()
-	dev, err := driver.GetVolumeDevice(volumeUUID)
-	if err != nil {
-		return err
-	}
-	if fs != "ext4" {
-		return fmt.Errorf("unsupported filesystem ", fs)
-	}
-	if _, err := util.Execute("mkfs", []string{"-t", fs, dev}); err != nil {
-		return err
-	}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:  LOG_EVENT_FORMAT,
-		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: volumeUUID,
-	}).Debug()
-	return nil
-}
-
-func Mount(driver Driver, volumeUUID, mountPoint string) error {
-	dev, err := driver.GetVolumeDevice(volumeUUID)
-	if err != nil {
-		return err
-	}
-	cmdline := []string{dev, mountPoint}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
-		LOG_FIELD_VOLUME:     volumeUUID,
-		LOG_FIELD_MOUNTPOINT: mountPoint,
-		LOG_FIELD_OPTION:     cmdline,
-	}).Debug()
-	_, err = util.Execute(MOUNT_BINARY, cmdline)
-	if err != nil {
-		log.Error("Failed mount, ", err)
-		return err
-	}
-	return nil
-}
-
-func Unmount(driver Driver, mountPoint string) error {
-	cmdline := []string{mountPoint}
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_START,
-		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
-		LOG_FIELD_MOUNTPOINT: mountPoint,
-		LOG_FIELD_OPTION:     cmdline,
-	}).Debug()
-	_, err := util.Execute(UMOUNT_BINARY, cmdline)
-	if err != nil {
-		log.Error("Failed umount, ", err)
-		return err
-	}
-	return nil
 }
 
 func CheckEnvironment(driver Driver) error {

@@ -7,7 +7,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/drivers"
 	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/util"
 	"net/http"
@@ -238,11 +237,6 @@ func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL st
 			LOG_FIELD_VOLUME:     uuid,
 			LOG_FIELD_BACKUP_URL: backupURL,
 		}).Debug()
-	} else {
-		if err := drivers.Format(s.StorageDriver, uuid, "ext4"); err != nil {
-			//TODO: Rollback
-			return nil, err
-		}
 	}
 
 	volume := &Volume{
@@ -609,7 +603,7 @@ func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMount
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
 	}).Debug()
-	if err := drivers.Mount(s.StorageDriver, volume.UUID, mountConfig.MountPoint); err != nil {
+	if err := s.StorageDriver.Mount(volume.UUID, mountConfig.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -684,7 +678,7 @@ func (s *Server) processVolumeUmount(volume *Volume) error {
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
 	}).Debug()
-	if err := drivers.Unmount(s.StorageDriver, volume.MountPoint); err != nil {
+	if err := s.StorageDriver.Umount(volume.UUID, volume.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

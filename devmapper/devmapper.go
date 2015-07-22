@@ -47,6 +47,9 @@ const (
 	DM_LOG_FIELD_VOLUME_DEVID   = "dm_volume_devid"
 	DM_LOG_FIELD_SNAPSHOT_DEVID = "dm_snapshot_devid"
 
+	MOUNT_BINARY  = "mount"
+	UMOUNT_BINARY = "umount"
+
 	DMLogLevel = devicemapper.LogLevelDebug
 )
 
@@ -398,6 +401,16 @@ func (d *Driver) CreateVolume(id string, size int64) error {
 	if err := d.saveVolume(volume); err != nil {
 		return err
 	}
+
+	// format the device
+	dev, err := d.GetVolumeDevice(id)
+	if err != nil {
+		return err
+	}
+	if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -772,6 +785,26 @@ func (d *Driver) deactivatePool() error {
 func (d *Driver) CheckEnvironment() error {
 	cmdline := []string{"thin_delta", "-V"}
 	if err := util.CheckBinaryVersion(THIN_PROVISION_TOOLS_BINARY, THIN_PROVISION_TOOLS_MIN_VERSION, cmdline); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Driver) Mount(id, mountPoint string) error {
+	dev, err := d.GetVolumeDevice(id)
+	if err != nil {
+		return err
+	}
+	_, err = util.Execute(MOUNT_BINARY, []string{dev, mountPoint})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Driver) Umount(id, mountPoint string) error {
+	_, err := util.Execute(UMOUNT_BINARY, []string{mountPoint})
+	if err != nil {
 		return err
 	}
 	return nil
