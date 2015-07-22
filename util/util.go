@@ -8,10 +8,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/codegangsta/cli"
 	"github.com/mcuadros/go-version"
 	"golang.org/x/sys/unix"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -347,4 +349,68 @@ func DecompressAndVerify(src io.Reader, checksum string) (io.Reader, error) {
 		return nil, fmt.Errorf("Checksum verification failed for block!")
 	}
 	return bytes.NewReader(block), nil
+}
+
+func GetUUID(v interface{}, key string, required bool, err error) (string, error) {
+	uuid, err := GetLowerCaseFlag(v, key, required, err)
+	if err != nil {
+		return uuid, err
+	}
+	if !required && uuid == "" {
+		return uuid, nil
+	}
+	if !ValidateUUID(uuid) {
+		return "", fmt.Errorf("Invalid UUID %v", uuid)
+	}
+	return uuid, nil
+}
+
+func GetName(v interface{}, key string, required bool, err error) (string, error) {
+	name, err := GetLowerCaseFlag(v, key, required, err)
+	if err != nil {
+		return name, err
+	}
+	if !required && name == "" {
+		return name, nil
+	}
+	if !ValidateName(name) {
+		return "", fmt.Errorf("Invalid name %v", name)
+	}
+	return name, nil
+}
+
+func RequiredMissingError(name string) error {
+	return fmt.Errorf("Cannot find valid required parameter:", name)
+}
+
+func GetLowerCaseFlag(v interface{}, key string, required bool, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	value := ""
+	switch v := v.(type) {
+	default:
+		return "", fmt.Errorf("Unexpected type for getLowerCaseFlag")
+	case *cli.Context:
+		if key == "" {
+			value = v.Args().First()
+		} else {
+			value = v.String(key)
+		}
+	case map[string]string:
+		value = v[key]
+	case *http.Request:
+		if err := v.ParseForm(); err != nil {
+			return "", err
+		}
+		value = v.FormValue(key)
+	}
+	result := strings.ToLower(value)
+	if required && result == "" {
+		err = RequiredMissingError(key)
+	}
+	// Deal with escape in url inputed from bash
+	result = strings.Replace(result, "\\u0026", "&", 1)
+	result = strings.Replace(result, "u0026", "&", 1)
+	return result, err
 }

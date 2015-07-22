@@ -69,7 +69,7 @@ func doSnapshotCreate(c *cli.Context) error {
 
 	v := url.Values{}
 	volumeUUID, err := getOrRequestUUID(c, "", true)
-	snapshotName, err := getName(c, KEY_NAME, false, err)
+	snapshotName, err := util.GetName(c, KEY_NAME, false, err)
 	if err != nil {
 		return err
 	}
@@ -88,8 +88,8 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	defer s.GlobalLock.Unlock()
 
 	var err error
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
-	snapshotName, err := getName(r, KEY_NAME, false, err)
+	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
+	snapshotName, err := util.GetName(r, KEY_NAME, false, err)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 
 	var err error
 
-	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, true, err)
+	snapshotUUID, err := util.GetUUID(objs, KEY_SNAPSHOT_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -244,7 +244,7 @@ func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 
 	var err error
 
-	snapshotUUID, err := getUUID(objs, KEY_SNAPSHOT_UUID, true, err)
+	snapshotUUID, err := util.GetUUID(objs, KEY_SNAPSHOT_UUID, true, err)
 	if err != nil {
 		return err
 	}

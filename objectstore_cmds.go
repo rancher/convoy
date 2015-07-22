@@ -6,6 +6,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/objectstore"
+	"github.com/rancher/rancher-volume/util"
 	"net/http"
 
 	. "github.com/rancher/rancher-volume/logging"
@@ -73,8 +74,8 @@ func cmdBackupList(c *cli.Context) {
 func doBackupList(c *cli.Context) error {
 	var err error
 
-	destURL, err := getLowerCaseFlag(c, "", true, err)
-	volumeUUID, err := getUUID(c, KEY_VOLUME_UUID, false, err)
+	destURL, err := util.GetLowerCaseFlag(c, "", true, err)
+	volumeUUID, err := util.GetUUID(c, KEY_VOLUME_UUID, false, err)
 	if err != nil {
 		return err
 	}
@@ -113,7 +114,7 @@ func cmdBackupInspect(c *cli.Context) {
 func doBackupInspect(c *cli.Context) error {
 	var err error
 
-	backupURL, err := getLowerCaseFlag(c, "", true, err)
+	backupURL, err := util.GetLowerCaseFlag(c, "", true, err)
 	if err != nil {
 		return err
 	}
@@ -151,7 +152,7 @@ func cmdBackupCreate(c *cli.Context) {
 func doBackupCreate(c *cli.Context) error {
 	var err error
 
-	destURL, err := getLowerCaseFlag(c, KEY_DEST_URL, true, err)
+	destURL, err := util.GetLowerCaseFlag(c, KEY_DEST_URL, true, err)
 	if err != nil {
 		return err
 	}
@@ -235,7 +236,7 @@ func cmdBackupDelete(c *cli.Context) {
 
 func doBackupDelete(c *cli.Context) error {
 	var err error
-	backupURL, err := getLowerCaseFlag(c, "", true, err)
+	backupURL, err := util.GetLowerCaseFlag(c, "", true, err)
 	if err != nil {
 		return err
 	}

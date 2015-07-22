@@ -149,7 +149,7 @@ func cmdVolumeCreate(c *cli.Context) {
 }
 
 func getSize(c *cli.Context, err error) (int64, error) {
-	size, err := getLowerCaseFlag(c, "size", false, err)
+	size, err := util.GetLowerCaseFlag(c, "size", false, err)
 	if err != nil {
 		return 0, err
 	}
@@ -164,7 +164,7 @@ func doVolumeCreate(c *cli.Context) error {
 
 	name := c.Args().First()
 	size, err := getSize(c, err)
-	backupURL, err := getLowerCaseFlag(c, KEY_BACKUP_URL, false, err)
+	backupURL, err := util.GetLowerCaseFlag(c, KEY_BACKUP_URL, false, err)
 	if err != nil {
 		return err
 	}
@@ -297,7 +297,7 @@ func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error)
 	if key == "" {
 		id = c.Args().First()
 	} else {
-		id, err = getLowerCaseFlag(c, key, required, err)
+		id, err = util.GetLowerCaseFlag(c, key, required, err)
 		if err != nil {
 			return "", err
 		}
@@ -354,7 +354,7 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 
 	var err error
 
-	uuid, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
+	uuid, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -472,7 +472,7 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	defer s.GlobalLock.RUnlock()
 
 	var err error
-	driverSpecific, err := getLowerCaseFlag(r, "driver", false, err)
+	driverSpecific, err := util.GetLowerCaseFlag(r, "driver", false, err)
 	if err != nil {
 		return err
 	}
@@ -505,7 +505,7 @@ func (s *Server) doVolumeInspect(version string, w http.ResponseWriter, r *http.
 
 	var err error
 
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
+	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -528,7 +528,7 @@ func doVolumeMount(c *cli.Context) error {
 	var err error
 
 	volumeUUID, err := getOrRequestUUID(c, "", true)
-	mountPoint, err := getLowerCaseFlag(c, "mountpoint", false, err)
+	mountPoint, err := util.GetLowerCaseFlag(c, "mountpoint", false, err)
 	if err != nil {
 		return err
 	}
@@ -558,7 +558,7 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 
 	var err error
 
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
+	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -644,7 +644,7 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 
 	var err error
 
-	volumeUUID, err := getUUID(objs, KEY_VOLUME_UUID, true, err)
+	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
 	if err != nil {
 		return err
 	}
@@ -695,7 +695,7 @@ func (s *Server) processVolumeUmount(volume *Volume) error {
 
 func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
-	key, err := getLowerCaseFlag(r, KEY_NAME, true, err)
+	key, err := util.GetLowerCaseFlag(r, KEY_NAME, true, err)
 	if err != nil {
 		return err
 	}

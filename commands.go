@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/util"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
-	"strings"
 )
 
 var (
@@ -26,70 +24,6 @@ func getConfigFileName(root string) string {
 
 func getCfgName() string {
 	return CONFIGFILE
-}
-
-func genRequiredMissingError(name string) error {
-	return fmt.Errorf("Cannot find valid required parameter:", name)
-}
-
-func getUUID(v interface{}, key string, required bool, err error) (string, error) {
-	uuid, err := getLowerCaseFlag(v, key, required, err)
-	if err != nil {
-		return uuid, err
-	}
-	if !required && uuid == "" {
-		return uuid, nil
-	}
-	if !util.ValidateUUID(uuid) {
-		return "", fmt.Errorf("Invalid UUID %v", uuid)
-	}
-	return uuid, nil
-}
-
-func getName(v interface{}, key string, required bool, err error) (string, error) {
-	name, err := getLowerCaseFlag(v, key, required, err)
-	if err != nil {
-		return name, err
-	}
-	if !required && name == "" {
-		return name, nil
-	}
-	if !util.ValidateName(name) {
-		return "", fmt.Errorf("Invalid name %v", name)
-	}
-	return name, nil
-}
-
-func getLowerCaseFlag(v interface{}, key string, required bool, err error) (string, error) {
-	if err != nil {
-		return "", err
-	}
-	value := ""
-	switch v := v.(type) {
-	default:
-		return "", fmt.Errorf("Unexpected type for getLowerCaseFlag")
-	case *cli.Context:
-		if key == "" {
-			value = v.Args().First()
-		} else {
-			value = v.String(key)
-		}
-	case map[string]string:
-		value = v[key]
-	case *http.Request:
-		if err := v.ParseForm(); err != nil {
-			return "", err
-		}
-		value = v.FormValue(key)
-	}
-	result := strings.ToLower(value)
-	if required && result == "" {
-		err = genRequiredMissingError(key)
-	}
-	// Deal with escape in url inputed from bash
-	result = strings.Replace(result, "\\u0026", "&", 1)
-	result = strings.Replace(result, "u0026", "&", 1)
-	return result, err
 }
 
 func decodeRequest(r *http.Request, v interface{}) error {
