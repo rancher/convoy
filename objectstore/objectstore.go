@@ -1,7 +1,6 @@
 package objectstore
 
 import (
-	"bytes"
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
@@ -235,8 +234,14 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 				log.Debugf("Found existed block match at %v", blkFile)
 				continue
 			}
+
+			rs, err := util.CompressData(block)
+			if err != nil {
+				return "", err
+			}
+
 			log.Debugf("Creating new block file at %v", blkFile)
-			if err := bsDriver.Write(blkFile, bytes.NewReader(block)); err != nil {
+			if err := bsDriver.Write(blkFile, rs); err != nil {
 				return "", err
 			}
 			log.Debugf("Created new block file at %v", blkFile)
@@ -379,15 +384,17 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver drivers.Driver) erro
 		if err != nil {
 			return err
 		}
-		if _, err := volDev.Seek(block.Offset, 0); err != nil {
-			rc.Close()
-			return err
-		}
-		if _, err := io.CopyN(volDev, rc, DEFAULT_BLOCK_SIZE); err != nil {
-			rc.Close()
-			return err
-		}
+		r, err := util.DecompressAndVerify(rc, block.BlockChecksum)
 		rc.Close()
+		if err != nil {
+			return err
+		}
+		if _, err := volDev.Seek(block.Offset, 0); err != nil {
+			return err
+		}
+		if _, err := io.CopyN(volDev, r, DEFAULT_BLOCK_SIZE); err != nil {
+			return err
+		}
 	}
 
 	return nil

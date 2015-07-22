@@ -3,12 +3,15 @@ package util
 import (
 	"bytes"
 	"code.google.com/p/go-uuid/uuid"
+	"compress/gzip"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/mcuadros/go-version"
 	"golang.org/x/sys/unix"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -318,4 +321,30 @@ func Execute(binary string, args []string) (string, error) {
 
 func Now() string {
 	return time.Now().Format(time.RubyDate)
+}
+
+func CompressData(data []byte) (io.ReadSeeker, error) {
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	if _, err := w.Write(data); err != nil {
+		w.Close()
+		return nil, err
+	}
+	w.Close()
+	return bytes.NewReader(b.Bytes()), nil
+}
+
+func DecompressAndVerify(src io.Reader, checksum string) (io.Reader, error) {
+	r, err := gzip.NewReader(src)
+	if err != nil {
+		return nil, err
+	}
+	block, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	if GetChecksum(block) != checksum {
+		return nil, fmt.Errorf("Checksum verification failed for block!")
+	}
+	return bytes.NewReader(block), nil
 }

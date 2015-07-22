@@ -299,3 +299,20 @@ func (s *TestSuite) TestIndex(c *C) {
 	err = index.Delete("key1")
 	c.Assert(err, IsNil)
 }
+
+func (s *TestSuite) TestCompress(c *C) {
+	var err error
+	data := []byte("Some random string")
+	checksum := GetChecksum(data)
+
+	compressed, err := CompressData(data)
+	c.Assert(err, IsNil)
+
+	decompressed, err := DecompressAndVerify(compressed, checksum)
+	c.Assert(err, IsNil)
+
+	result, err := ioutil.ReadAll(decompressed)
+	c.Assert(err, IsNil)
+
+	c.Assert(result, DeepEquals, data)
+}
