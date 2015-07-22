@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 
 	. "github.com/rancher/rancher-volume/logging"
@@ -790,14 +791,31 @@ func (d *Driver) CheckEnvironment() error {
 	return nil
 }
 
+func mounted(dev, mountPoint string) bool {
+	output, err := util.Execute("mount", []string{})
+	if err != nil {
+		return false
+	}
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, dev) && strings.Contains(line, mountPoint) {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *Driver) Mount(id, mountPoint string) error {
 	dev, err := d.GetVolumeDevice(id)
 	if err != nil {
 		return err
 	}
-	_, err = util.Execute(MOUNT_BINARY, []string{dev, mountPoint})
-	if err != nil {
-		return err
+	if !mounted(dev, mountPoint) {
+		log.Debugf("Volume %v is not mounted, mount it now to %v", id, mountPoint)
+		_, err = util.Execute(MOUNT_BINARY, []string{dev, mountPoint})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

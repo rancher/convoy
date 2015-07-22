@@ -235,13 +235,37 @@ func (s *Server) CheckEnvironment() error {
 	return nil
 }
 
-func (s *Server) finishInitialization() {
+func (s *Server) autoMount() error {
+	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
+	if err != nil {
+		return err
+	}
+	for _, uuid := range volumeUUIDs {
+		volume := s.loadVolume(uuid)
+		if volume == nil {
+			return fmt.Errorf("Volume list changed for volume %v", uuid)
+		}
+		if volume.MountPoint != "" {
+			if err := s.StorageDriver.Mount(volume.UUID, volume.MountPoint); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *Server) finishInitialization() error {
+	// mount can be gone after reboot
+	if err := s.autoMount(); err != nil {
+		return err
+	}
 	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
 	s.UUIDIndex = truncindex.NewTruncIndex([]string{})
 	s.GlobalLock = &sync.RWMutex{}
 
 	s.updateIndex()
+	return nil
 }
 
 func startServer(c *cli.Context) error {
@@ -264,12 +288,12 @@ func startServer(c *cli.Context) error {
 			return err
 		}
 	}
-	server.finishInitialization()
-	defer server.cleanup()
-
 	if err := server.CheckEnvironment(); err != nil {
 		return err
 	}
+
+	server.finishInitialization()
+	defer server.cleanup()
 
 	server.Router = createRouter(server)
 
@@ -359,8 +383,10 @@ func initServer(c *cli.Context) (*Server, error) {
 		Config:        config,
 		StorageDriver: driver,
 	}
-	err = util.SaveConfig(root, getCfgName(), &config)
-	return server, err
+	if err := util.SaveConfig(root, getCfgName(), &config); err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 func sendResponse(w http.ResponseWriter, v interface{}) error {
