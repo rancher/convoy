@@ -1,6 +1,6 @@
 // +build linux
 
-package main
+package server
 
 import (
 	_ "github.com/rancher/rancher-volume/devmapper"

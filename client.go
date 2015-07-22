@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
+	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/util"
 	"io"
 	"io/ioutil"
@@ -52,7 +53,7 @@ func (c *Client) clientRequest(method, path string, in io.Reader, headers map[st
 	if err != nil {
 		return nil, "", -1, err
 	}
-	req.Header.Set("User-Agent", "Rancher-Volume-Client/"+API_VERSION)
+	req.Header.Set("User-Agent", "Rancher-Volume-Client/"+api.API_VERSION)
 	req.URL.Host = c.addr
 	req.URL.Scheme = c.scheme
 

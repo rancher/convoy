@@ -11,7 +11,12 @@ ifeq ($(STATIC_LINK), 1)
 	    --installsuffix netgo
 endif
 
-$(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
+$(RANCHER-VOLUME_EXEC_FILE): ./main.go \
+	./api/devmapper.go ./api/response.go ./api/const.go \
+	./server/server.go ./server/common.go ./server/volume.go \
+	./server/snapshot.go ./server/objectstore.go \
+	./server/server_objectstore.go ./server/server_devmapper.go \
+	./server/docker.go \
 	./objectstore/objectstore.go ./objectstore/config.go \
 	./s3/s3.go ./s3/s3_service.go \
 	./vfs/vfs.go \
@@ -21,8 +26,7 @@ $(RANCHER-VOLUME_EXEC_FILE): ./api/devmapper.go ./api/response.go \
 	./util/util.go ./util/util_test.go ./util/index.go \
 	./logging/logging.go \
 	./volume_cmds.go ./snapshot_cmds.go ./objectstore_cmds.go \
-	./server.go ./client.go ./docker.go \
-	./commands.go ./main.go ./main_objectstore.go ./main_devmapper.go
+	./client.go ./commands.go
 	go build $(FLAGS) -o $(RANCHER-VOLUME_EXEC_FILE)
 
 clean:

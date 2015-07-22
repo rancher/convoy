@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"fmt"
@@ -19,6 +19,57 @@ import (
 	"syscall"
 
 	. "github.com/rancher/rancher-volume/logging"
+)
+
+type Volume struct {
+	UUID        string
+	Name        string
+	Size        int64
+	MountPoint  string
+	FileSystem  string
+	CreatedTime string
+	Snapshots   map[string]Snapshot
+}
+
+type Snapshot struct {
+	UUID        string
+	VolumeUUID  string
+	Name        string
+	CreatedTime string
+}
+
+type Server struct {
+	Router              *mux.Router
+	StorageDriver       drivers.Driver
+	GlobalLock          *sync.RWMutex
+	NameUUIDIndex       *util.Index
+	SnapshotVolumeIndex *util.Index
+	UUIDIndex           *truncindex.TruncIndex
+	Config
+}
+
+type Config struct {
+	Root              string
+	Driver            string
+	MountsDir         string
+	DefaultVolumeSize int64
+}
+
+const (
+	KEY_VOLUME_UUID   = "volume-uuid"
+	KEY_SNAPSHOT_UUID = "snapshot-uuid"
+
+	VOLUME_CFG_PREFIX = "volume_"
+	CFG_POSTFIX       = ".json"
+
+	LOCKFILE = "lock"
+)
+
+var (
+	lock    string
+	logFile *os.File
+
+	log = logrus.WithFields(logrus.Fields{"pkg": "server"})
 )
 
 func createRouter(s *Server) *mux.Router {
@@ -49,7 +100,7 @@ func createRouter(s *Server) *mux.Router {
 	for method, routes := range m {
 		for route, f := range routes {
 			log.Debugf("Registering %s, %s", method, route)
-			handler := makeHandlerFunc(method, route, API_VERSION, f)
+			handler := makeHandlerFunc(method, route, api.API_VERSION, f)
 			router.Path("/v{version:[0-9.]+}" + route).Methods(method).HandlerFunc(handler)
 			router.Path(route).Methods(method).HandlerFunc(handler)
 		}
@@ -222,12 +273,6 @@ func environmentCleanup() {
 	}
 }
 
-func cmdStartServer(c *cli.Context) {
-	if err := startServer(c); err != nil {
-		panic(err)
-	}
-}
-
 func (s *Server) CheckEnvironment() error {
 	if err := drivers.CheckEnvironment(s.StorageDriver); err != nil {
 		return err
@@ -268,8 +313,9 @@ func (s *Server) finishInitialization() error {
 	return nil
 }
 
-func startServer(c *cli.Context) error {
+func Start(sockFile string, c *cli.Context) error {
 	var err error
+
 	if err = serverEnvironmentSetup(c); err != nil {
 		return err
 	}

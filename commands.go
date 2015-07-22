@@ -1,13 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
-	"github.com/rancher/rancher-volume/api"
+	"github.com/rancher/rancher-volume/server"
 	"io/ioutil"
-	"net/http"
-	"path/filepath"
 )
 
 var (
@@ -17,18 +14,6 @@ var (
 		Action: cmdInfo,
 	}
 )
-
-func getConfigFileName(root string) string {
-	return filepath.Join(root, CONFIGFILE)
-}
-
-func getCfgName() string {
-	return CONFIGFILE
-}
-
-func decodeRequest(r *http.Request, v interface{}) error {
-	return json.NewDecoder(r.Body).Decode(v)
-}
 
 func cmdInfo(c *cli.Context) {
 	if err := doInfo(c); err != nil {
@@ -51,40 +36,12 @@ func doInfo(c *cli.Context) error {
 	return nil
 }
 
-func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
+func cmdStartServer(c *cli.Context) {
+	if err := startServer(c); err != nil {
+		panic(err)
+	}
+}
 
-	var err error
-	_, err = w.Write([]byte(fmt.Sprint("{\n\"General\" : ")))
-	if err != nil {
-		return err
-	}
-
-	data, err := api.ResponseOutput(&s.Config)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(data)
-	if err != nil {
-		return err
-	}
-	if _, err := w.Write([]byte(fmt.Sprint(",\n\"Driver\" : "))); err != nil {
-		return err
-	}
-
-	driver := s.StorageDriver
-	data, err = driver.Info()
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(data)
-	if err != nil {
-		return err
-	}
-	if _, err := w.Write([]byte(fmt.Sprint("\n}"))); err != nil {
-		return err
-	}
-
-	return nil
+func startServer(c *cli.Context) error {
+	return server.Start(sockFile, c)
 }
