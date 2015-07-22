@@ -3,17 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/drivers"
 	"github.com/rancher/rancher-volume/util"
-	"net"
-	"net/http"
 	"os"
 	"sync"
-	"time"
 )
 
 const (
@@ -72,14 +68,7 @@ var (
 	log     = logrus.WithFields(logrus.Fields{"pkg": "main"})
 
 	sockFile string = "/var/run/rancher/volume.sock"
-	client   Client
 )
-
-type Client struct {
-	addr      string
-	scheme    string
-	transport *http.Transport
-}
 
 func cleanup() {
 	if r := recover(); r != nil {
@@ -92,84 +81,12 @@ func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetOutput(os.Stderr)
 
-	app := cli.NewApp()
-	app.Name = "rancher-volume"
-	app.Version = VERSION
-	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
-	app.Usage = "A volume manager capable of snapshot and delta backup"
-	app.CommandNotFound = cmdNotFound
-
-	serverCmd := cli.Command{
-		Name:  "server",
-		Usage: "start rancher-volume server",
-		Flags: []cli.Flag{
-			cli.BoolFlag{
-				Name:  "debug",
-				Usage: "Debug log, enabled by default",
-			},
-			cli.StringFlag{
-				Name:  "log",
-				Usage: "specific output log file, otherwise output to stderr by default",
-			},
-			cli.StringFlag{
-				Name:  "root",
-				Value: "/var/lib/rancher-volume",
-				Usage: "specific root directory of rancher-volume, if configure file exists, daemon specific options would be ignored",
-			},
-			cli.StringFlag{
-				Name:  "driver",
-				Value: "devicemapper",
-				Usage: "Driver for volume manager, only support \"devicemapper\" currently",
-			},
-			cli.StringSliceFlag{
-				Name:  "driver-opts",
-				Value: &cli.StringSlice{},
-				Usage: "options for driver",
-			},
-			cli.StringFlag{
-				Name:  "mounts-dir",
-				Value: "/var/lib/rancher-volume/mounts",
-				Usage: "default directory for mounting volume",
-			},
-			cli.StringFlag{
-				Name:  "default-volume-size",
-				Value: "10G",
-				Usage: "default size for volume creation",
-			},
-		},
-		Action: cmdStartServer,
-	}
-
-	app.Commands = []cli.Command{
-		serverCmd,
-		infoCmd,
-		volumeCreateCmd,
-		volumeDeleteCmd,
-		volumeMountCmd,
-		volumeUmountCmd,
-		volumeListCmd,
-		volumeInspectCmd,
-		snapshotCmd,
-		backupCmd,
-	}
-
-	client.addr = sockFile
-	client.scheme = "http"
-	client.transport = &http.Transport{
-		DisableCompression: true,
-		Dial: func(_, _ string) (net.Conn, error) {
-			return net.DialTimeout("unix", sockFile, 10*time.Second)
-		},
-	}
-
+	InitClient(sockFile)
 	defer cleanup()
 
-	err := app.Run(os.Args)
+	cli := NewCli()
+	err := cli.Run(os.Args)
 	if err != nil {
 		panic(fmt.Errorf("Error when executing command", err.Error()))
 	}
-}
-
-func cmdNotFound(c *cli.Context, command string) {
-	panic(fmt.Errorf("Unrecognized command", command))
 }

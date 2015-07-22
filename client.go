@@ -2,10 +2,23 @@ package main
 
 import (
 	"fmt"
+	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/util"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"time"
+)
+
+type Client struct {
+	addr      string
+	scheme    string
+	transport *http.Transport
+}
+
+var (
+	client Client
 )
 
 func (c *Client) call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
@@ -89,4 +102,83 @@ func sendRequestAndPrint(method, request string, data interface{}) error {
 	}
 	fmt.Println(string(b))
 	return nil
+}
+
+func cmdNotFound(c *cli.Context, command string) {
+	panic(fmt.Errorf("Unrecognized command", command))
+}
+
+func NewCli() *cli.App {
+	app := cli.NewApp()
+	app.Name = "rancher-volume"
+	app.Version = VERSION
+	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
+	app.Usage = "A volume manager capable of snapshot and delta backup"
+	app.CommandNotFound = cmdNotFound
+
+	serverCmd := cli.Command{
+		Name:  "server",
+		Usage: "start rancher-volume server",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "debug",
+				Usage: "Debug log, enabled by default",
+			},
+			cli.StringFlag{
+				Name:  "log",
+				Usage: "specific output log file, otherwise output to stderr by default",
+			},
+			cli.StringFlag{
+				Name:  "root",
+				Value: "/var/lib/rancher-volume",
+				Usage: "specific root directory of rancher-volume, if configure file exists, daemon specific options would be ignored",
+			},
+			cli.StringFlag{
+				Name:  "driver",
+				Value: "devicemapper",
+				Usage: "Driver for volume manager, only support \"devicemapper\" currently",
+			},
+			cli.StringSliceFlag{
+				Name:  "driver-opts",
+				Value: &cli.StringSlice{},
+				Usage: "options for driver",
+			},
+			cli.StringFlag{
+				Name:  "mounts-dir",
+				Value: "/var/lib/rancher-volume/mounts",
+				Usage: "default directory for mounting volume",
+			},
+			cli.StringFlag{
+				Name:  "default-volume-size",
+				Value: "10G",
+				Usage: "default size for volume creation",
+			},
+		},
+		Action: cmdStartServer,
+	}
+
+	app.Commands = []cli.Command{
+		serverCmd,
+		infoCmd,
+		volumeCreateCmd,
+		volumeDeleteCmd,
+		volumeMountCmd,
+		volumeUmountCmd,
+		volumeListCmd,
+		volumeInspectCmd,
+		snapshotCmd,
+		backupCmd,
+	}
+	return app
+}
+
+func InitClient(sockFile string) {
+	client.addr = sockFile
+	client.scheme = "http"
+	client.transport = &http.Transport{
+		DisableCompression: true,
+		Dial: func(_, _ string) (net.Conn, error) {
+			return net.DialTimeout("unix", sockFile, 10*time.Second)
+		},
+	}
 }
