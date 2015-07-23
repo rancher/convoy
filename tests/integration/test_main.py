@@ -22,12 +22,6 @@ TEST_SNAPSHOT_FILE = "snapshot.test"
 TEST_THREAD_COUNT = 100
 TEST_LOOP_COUNT = 100
 
-OBJECTSTORE_ROOT = os.path.join(TEST_ROOT, "rancher-objectstore")
-OBJECTSTORE_CFG = os.path.join(OBJECTSTORE_ROOT, "objectstore.cfg")
-OBJECTSTORE_VOLUME_DIR = os.path.join(OBJECTSTORE_ROOT, "volumes")
-OBJECTSTORE_PER_VOLUME_CFG = "volume.cfg"
-OBJECTSTORE_SNAPSHOTS_DIR = "snapshots"
-
 VFS_URL = "vfs://" + TEST_ROOT
 
 ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
@@ -392,19 +386,6 @@ def test_snapshot_list():
 
     delete_volume(volume2_uuid)
     delete_volume(volume1_uuid)
-
-def get_volume_dir(uuid):
-    return os.path.join(OBJECTSTORE_VOLUME_DIR, uuid[:2], uuid[2:4], uuid)
-
-def get_volume_cfg(uuid):
-    return os.path.join(get_volume_dir(uuid), OBJECTSTORE_PER_VOLUME_CFG)
-
-def get_snapshot_dir(snapshot_uuid, volume_uuid):
-    return os.path.join(get_volume_dir(volume_uuid), OBJECTSTORE_SNAPSHOTS_DIR)
-
-def get_snapshot_cfg(snapshot_uuid, volume_uuid):
-    return  os.path.join(get_snapshot_dir(snapshot_uuid, volume_uuid),
-            "snapshot_" + snapshot_uuid +".cfg")
 
 def get_checksum(filename):
     output = subprocess.check_output(["sha512sum", filename]).decode()
