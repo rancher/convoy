@@ -4,17 +4,12 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
+	"github.com/rancher/rancher-volume/client"
 	"os"
 )
 
 const (
 	VERSION = "0.2-dev"
-)
-
-var (
-	log = logrus.WithFields(logrus.Fields{"pkg": "main"})
-
-	sockFile string = "/var/run/rancher/volume.sock"
 )
 
 func cleanup() {
@@ -28,10 +23,10 @@ func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetOutput(os.Stderr)
 
-	InitClient(sockFile)
+	client.InitClient()
 	defer cleanup()
 
-	cli := NewCli()
+	cli := client.NewCli(VERSION)
 	err := cli.Run(os.Args)
 	if err != nil {
 		panic(fmt.Errorf("Error when executing command", err.Error()))

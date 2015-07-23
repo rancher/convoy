@@ -17,6 +17,8 @@ $(RANCHER-VOLUME_EXEC_FILE): ./main.go \
 	./server/snapshot.go ./server/objectstore.go \
 	./server/server_objectstore.go ./server/server_devmapper.go \
 	./server/docker.go \
+	./client/volume.go ./client/snapshot.go ./client/objectstore.go \
+	./client/client.go ./client/server.go \
 	./objectstore/objectstore.go ./objectstore/config.go \
 	./s3/s3.go ./s3/s3_service.go \
 	./vfs/vfs.go \
@@ -24,9 +26,7 @@ $(RANCHER-VOLUME_EXEC_FILE): ./main.go \
  	./drivers/drivers.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
 	./util/util.go ./util/util_test.go ./util/index.go \
-	./logging/logging.go \
-	./volume_cmds.go ./snapshot_cmds.go ./objectstore_cmds.go \
-	./client.go ./commands.go
+	./logging/logging.go
 	go build $(FLAGS) -o $(RANCHER-VOLUME_EXEC_FILE)
 
 clean:

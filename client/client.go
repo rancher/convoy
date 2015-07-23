@@ -1,7 +1,8 @@
-package main
+package client
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/util"
@@ -19,6 +20,9 @@ type Client struct {
 }
 
 var (
+	log             = logrus.WithFields(logrus.Fields{"pkg": "client"})
+	sockFile string = "/var/run/rancher/volume.sock"
+
 	client Client
 )
 
@@ -109,10 +113,10 @@ func cmdNotFound(c *cli.Context, command string) {
 	panic(fmt.Errorf("Unrecognized command", command))
 }
 
-func NewCli() *cli.App {
+func NewCli(version string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "rancher-volume"
-	app.Version = VERSION
+	app.Version = version
 	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
 	app.Usage = "A volume manager capable of snapshot and delta backup"
 	app.CommandNotFound = cmdNotFound
@@ -173,7 +177,7 @@ func NewCli() *cli.App {
 	return app
 }
 
-func InitClient(sockFile string) {
+func InitClient() {
 	client.addr = sockFile
 	client.scheme = "http"
 	client.transport = &http.Transport{
