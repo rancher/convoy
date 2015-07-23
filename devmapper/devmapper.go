@@ -7,7 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/driver"
 	"github.com/rancher/rancher-volume/metadata"
 	"github.com/rancher/rancher-volume/util"
 	"os"
@@ -95,7 +95,7 @@ func generateError(fields logrus.Fields, format string, v ...interface{}) error 
 }
 
 func init() {
-	drivers.Register(DRIVER_NAME, Init)
+	driver.Register(DRIVER_NAME, Init)
 }
 
 func getVolumeCfgName(uuid string) (string, error) {
@@ -239,7 +239,7 @@ func (logger *DMLogger) DMLog(level int, file string, line int, dmError int, mes
 	}
 }
 
-func Init(root, cfgName string, config map[string]string) (drivers.Driver, error) {
+func Init(root, cfgName string, config map[string]string) (driver.Driver, error) {
 	devicemapper.LogInitVerbose(1)
 	devicemapper.LogInit(&DMLogger{})
 

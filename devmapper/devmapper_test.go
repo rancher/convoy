@@ -5,7 +5,7 @@ package devmapper
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/driver"
 	"github.com/rancher/rancher-volume/util"
 	"os"
 	"os/exec"
@@ -41,7 +41,7 @@ type TestSuite struct {
 	metadataDev  string
 	metadataFile string
 	imageFile    string
-	driver       drivers.Driver
+	driver       driver.Driver
 }
 
 var _ = Suite(&TestSuite{})

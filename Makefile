@@ -23,7 +23,7 @@ $(RANCHER-VOLUME_EXEC_FILE): ./main.go \
 	./s3/s3.go ./s3/s3_service.go \
 	./vfs/vfs.go \
 	./devmapper/devmapper.go \
- 	./drivers/drivers.go \
+	./driver/driver.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
 	./util/util.go ./util/util_test.go ./util/index.go \
 	./logging/logging.go

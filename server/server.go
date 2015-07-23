@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
 	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/driver"
 	"github.com/rancher/rancher-volume/util"
 	"net"
 	"net/http"
@@ -40,7 +40,7 @@ type Snapshot struct {
 
 type Server struct {
 	Router              *mux.Router
-	StorageDriver       drivers.Driver
+	StorageDriver       driver.Driver
 	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
@@ -164,7 +164,7 @@ func loadServerConfig(c *cli.Context) (*Server, error) {
 		return nil, fmt.Errorf("Failed to load config:", err.Error())
 	}
 
-	driver, err := drivers.GetDriver(config.Driver, config.Root, nil)
+	driver, err := driver.GetDriver(config.Driver, config.Root, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load driver:", err.Error())
 	}
@@ -256,7 +256,7 @@ func environmentCleanup() {
 }
 
 func (s *Server) CheckEnvironment() error {
-	if err := drivers.CheckEnvironment(s.StorageDriver); err != nil {
+	if err := driver.CheckEnvironment(s.StorageDriver); err != nil {
 		return err
 	}
 	return nil
@@ -388,7 +388,7 @@ func initServer(c *cli.Context) (*Server, error) {
 		"root":           root,
 		"driverOpts":     driverOpts,
 	}).Debug()
-	driver, err := drivers.GetDriver(driverName, root, driverOpts)
+	driver, err := driver.GetDriver(driverName, root, driverOpts)
 	if err != nil {
 		return nil, err
 	}

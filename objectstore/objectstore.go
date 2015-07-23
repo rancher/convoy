@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/drivers"
+	"github.com/rancher/rancher-volume/driver"
 	"github.com/rancher/rancher-volume/util"
 	"io"
 	"net/url"
@@ -133,7 +133,7 @@ func removeVolume(volumeUUID string, driver ObjectStoreDriver) error {
 	return nil
 }
 
-func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDriver drivers.Driver) (string, error) {
+func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDriver driver.Driver) (string, error) {
 	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return "", err
@@ -336,7 +336,7 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 	return backup
 }
 
-func RestoreBackup(backupURL, dstVolumeUUID string, sDriver drivers.Driver) error {
+func RestoreBackup(backupURL, dstVolumeUUID string, sDriver driver.Driver) error {
 	bsDriver, err := getObjectStoreDriver(backupURL)
 	if err != nil {
 		return err

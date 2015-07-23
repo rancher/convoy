@@ -1,4 +1,4 @@
-package drivers
+package driver
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ type Driver interface {
 
 var (
 	initializers map[string]InitFunc
-	log          = logrus.WithFields(logrus.Fields{"pkg": "drivers"})
+	log          = logrus.WithFields(logrus.Fields{"pkg": "driver"})
 )
 
 const (
