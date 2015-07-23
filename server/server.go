@@ -241,24 +241,6 @@ func serverEnvironmentSetup(c *cli.Context) error {
 	return nil
 }
 
-func writeResponseOutput(w http.ResponseWriter, v interface{}) error {
-	output, err := api.ResponseOutput(v)
-	if err != nil {
-		return err
-	}
-	log.Debugln("Response: ", string(output))
-	_, err = w.Write(output)
-	return err
-}
-
-func (s *Server) cleanup() {
-	/* cleanup doesn't works with mounted volume
-	if err := s.StorageDriver.Shutdown(); err != nil {
-		log.Error("fail to shutdown driver: ", err.Error())
-	}
-	*/
-}
-
 func environmentCleanup() {
 	log.Debug("Cleaning up environment...")
 	if lock != "" {
@@ -339,8 +321,6 @@ func Start(sockFile string, c *cli.Context) error {
 	}
 
 	server.finishInitialization()
-	defer server.cleanup()
-
 	server.Router = createRouter(server)
 
 	if err := util.MkdirIfNotExists(filepath.Dir(sockFile)); err != nil {
@@ -433,16 +413,4 @@ func initServer(c *cli.Context) (*Server, error) {
 		return nil, err
 	}
 	return server, nil
-}
-
-func sendResponse(w http.ResponseWriter, v interface{}) error {
-	resp, err := api.ResponseOutput(v)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(resp)
-	if err != nil {
-		return err
-	}
-	return nil
 }

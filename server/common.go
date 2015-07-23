@@ -24,6 +24,28 @@ func decodeRequest(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
+func sendResponse(w http.ResponseWriter, v interface{}) error {
+	resp, err := api.ResponseOutput(v)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(resp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeResponseOutput(w http.ResponseWriter, v interface{}) error {
+	output, err := api.ResponseOutput(v)
+	if err != nil {
+		return err
+	}
+	log.Debugln("Response: ", string(output))
+	_, err = w.Write(output)
+	return err
+}
+
 func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
