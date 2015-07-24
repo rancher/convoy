@@ -14,11 +14,11 @@ func (s *Server) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	config := &api.BackupListConfig{}
-	if err := decodeRequest(r, config); err != nil {
+	request := &api.BackupListRequest{}
+	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
-	data, err := objectstore.List(config.VolumeUUID, config.URL)
+	data, err := objectstore.List(request.VolumeUUID, request.URL)
 	if err != nil {
 		return err
 	}
@@ -31,11 +31,11 @@ func (s *Server) doBackupInspect(version string, w http.ResponseWriter, r *http.
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	config := &api.BackupListConfig{}
-	if err := decodeRequest(r, config); err != nil {
+	request := &api.BackupListRequest{}
+	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
-	data, err := objectstore.Inspect(config.URL)
+	data, err := objectstore.Inspect(request.URL)
 	if err != nil {
 		return err
 	}
@@ -45,11 +45,11 @@ func (s *Server) doBackupInspect(version string, w http.ResponseWriter, r *http.
 }
 
 func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	config := &api.BackupCreateConfig{}
-	if err := decodeRequest(r, config); err != nil {
+	request := &api.BackupCreateRequest{}
+	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
-	snapshotUUID := config.SnapshotUUID
+	snapshotUUID := request.SnapshotUUID
 	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
 	if volumeUUID == "" {
 		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotUUID)
@@ -80,9 +80,9 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
-		LOG_FIELD_DEST_URL: config.URL,
+		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
-	backupURL, err := objectstore.CreateBackup(objVolume, objSnapshot, config.URL, s.StorageDriver)
+	backupURL, err := objectstore.CreateBackup(objVolume, objSnapshot, request.URL, s.StorageDriver)
 	if err != nil {
 		return err
 	}
@@ -92,7 +92,7 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
-		LOG_FIELD_DEST_URL: config.URL,
+		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
 
 	backup := &api.BackupURLResponse{
@@ -105,8 +105,8 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	config := &api.BackupDeleteConfig{}
-	if err := decodeRequest(r, config); err != nil {
+	request := &api.BackupDeleteRequest{}
+	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
 
@@ -114,16 +114,16 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_DEST_URL: config.URL,
+		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
-	if err := objectstore.DeleteBackup(config.URL); err != nil {
+	if err := objectstore.DeleteBackup(request.URL); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_DEST_URL: config.URL,
+		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
 	return nil
 }

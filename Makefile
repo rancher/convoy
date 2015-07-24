@@ -11,7 +11,7 @@ ifeq ($(STATIC_LINK), 1)
 	    --installsuffix netgo
 endif
 
-$(RANCHER-VOLUME_EXEC_FILE): ./main.go \
+$(RANCHER-VOLUME_EXEC_FILE): ./main.go ./api/request.go \
 	./api/devmapper.go ./api/response.go ./api/const.go \
 	./server/server.go ./server/common.go ./server/volume.go \
 	./server/snapshot.go ./server/objectstore.go \

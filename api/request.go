@@ -1,26 +1,26 @@
 package api
 
-type VolumeMountConfig struct {
+type VolumeMountRequest struct {
 	MountPoint string
 }
 
-type VolumeCreateConfig struct {
+type VolumeCreateRequest struct {
 	Name      string
 	Size      int64
 	BackupURL string
 }
 
-type BackupListConfig struct {
+type BackupListRequest struct {
 	URL          string
 	VolumeUUID   string
 	SnapshotUUID string
 }
 
-type BackupCreateConfig struct {
+type BackupCreateRequest struct {
 	URL          string
 	SnapshotUUID string
 }
 
-type BackupDeleteConfig struct {
+type BackupDeleteRequest struct {
 	URL string
 }

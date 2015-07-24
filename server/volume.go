@@ -156,18 +156,18 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	config := &api.VolumeCreateConfig{}
-	if err := decodeRequest(r, config); err != nil {
+	request := &api.VolumeCreateRequest{}
+	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
 
-	size := config.Size
+	size := request.Size
 
 	if size == 0 {
 		size = s.DefaultVolumeSize
 	}
 
-	volume, err := s.processVolumeCreate(config.Name, size, config.BackupURL)
+	volume, err := s.processVolumeCreate(request.Name, size, request.BackupURL)
 	if err != nil {
 		return err
 	}
@@ -346,17 +346,17 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return fmt.Errorf("volume %v already mounted at %v as record shows", volumeUUID, volume.MountPoint)
 	}
 
-	config := &api.VolumeMountConfig{}
-	if err = decodeRequest(r, config); err != nil {
+	request := &api.VolumeMountRequest{}
+	if err = decodeRequest(r, request); err != nil {
 		return err
 	}
 
-	config.MountPoint, err = s.getVolumeMountPoint(volumeUUID, config.MountPoint)
+	request.MountPoint, err = s.getVolumeMountPoint(volumeUUID, request.MountPoint)
 	if err != nil {
 		return err
 	}
 
-	if err = s.processVolumeMount(volume, config); err != nil {
+	if err = s.processVolumeMount(volume, request); err != nil {
 		return err
 	}
 
@@ -366,9 +366,9 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 	})
 }
 
-func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMountConfig) error {
-	if st, err := os.Stat(mountConfig.MountPoint); os.IsNotExist(err) || !st.IsDir() {
-		return fmt.Errorf("Mount point %s doesn't exist", mountConfig.MountPoint)
+func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) error {
+	if st, err := os.Stat(request.MountPoint); os.IsNotExist(err) || !st.IsDir() {
+		return fmt.Errorf("Mount point %s doesn't exist", request.MountPoint)
 	}
 
 	log.WithFields(logrus.Fields{
@@ -376,9 +376,9 @@ func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMount
 		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volume.UUID,
-		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
+		LOG_FIELD_MOUNTPOINT: request.MountPoint,
 	}).Debug()
-	if err := s.StorageDriver.Mount(volume.UUID, mountConfig.MountPoint); err != nil {
+	if err := s.StorageDriver.Mount(volume.UUID, request.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -386,9 +386,9 @@ func (s *Server) processVolumeMount(volume *Volume, mountConfig *api.VolumeMount
 		LOG_FIELD_EVENT:      LOG_EVENT_LIST,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volume.UUID,
-		LOG_FIELD_MOUNTPOINT: mountConfig.MountPoint,
+		LOG_FIELD_MOUNTPOINT: request.MountPoint,
 	}).Debug()
-	volume.MountPoint = mountConfig.MountPoint
+	volume.MountPoint = request.MountPoint
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}

@@ -63,9 +63,9 @@ func doSnapshotCreate(c *cli.Context) error {
 		v.Set(api.KEY_NAME, snapshotName)
 	}
 
-	request := "/volumes/" + volumeUUID + "/snapshots/create?" + v.Encode()
+	url := "/volumes/" + volumeUUID + "/snapshots/create?" + v.Encode()
 
-	return sendRequestAndPrint("POST", request, nil)
+	return sendRequestAndPrint("POST", url, nil)
 }
 
 func cmdSnapshotDelete(c *cli.Context) {
@@ -81,8 +81,8 @@ func doSnapshotDelete(c *cli.Context) error {
 		return err
 	}
 
-	request := "/snapshots/" + uuid + "/"
-	return sendRequestAndPrint("DELETE", request, nil)
+	url := "/snapshots/" + uuid + "/"
+	return sendRequestAndPrint("DELETE", url, nil)
 }
 
 func cmdSnapshotInspect(c *cli.Context) {
@@ -99,6 +99,6 @@ func doSnapshotInspect(c *cli.Context) error {
 		return err
 	}
 
-	request := "/snapshots/" + uuid + "/"
-	return sendRequestAndPrint("GET", request, nil)
+	url := "/snapshots/" + uuid + "/"
+	return sendRequestAndPrint("GET", url, nil)
 }

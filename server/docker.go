@@ -144,22 +144,22 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mountConfig := &api.VolumeMountConfig{}
+	request := &api.VolumeMountRequest{}
 
-	mountConfig.MountPoint, err = s.getVolumeMountPoint(volume.UUID, "")
+	request.MountPoint, err = s.getVolumeMountPoint(volume.UUID, "")
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
-	log.Debugf("Mount volume: %v (name %v) to %v for docker", volume.UUID, volume.Name, mountConfig.MountPoint)
+	log.Debugf("Mount volume: %v (name %v) to %v for docker", volume.UUID, volume.Name, request.MountPoint)
 
-	if err := s.processVolumeMount(volume, mountConfig); err != nil {
+	if err := s.processVolumeMount(volume, request); err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
-	dockerResponse(w, mountConfig.MountPoint, nil)
+	dockerResponse(w, request.MountPoint, nil)
 }
 
 func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {

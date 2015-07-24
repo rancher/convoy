@@ -70,12 +70,12 @@ func doBackupList(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.BackupListConfig{
+	request := &api.BackupListRequest{
 		URL:        destURL,
 		VolumeUUID: volumeUUID,
 	}
-	request := "/backups/list"
-	return sendRequestAndPrint("GET", request, config)
+	url := "/backups/list"
+	return sendRequestAndPrint("GET", url, request)
 }
 
 func cmdBackupInspect(c *cli.Context) {
@@ -92,11 +92,11 @@ func doBackupInspect(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.BackupListConfig{
+	request := &api.BackupListRequest{
 		URL: backupURL,
 	}
-	request := "/backups/inspect"
-	return sendRequestAndPrint("GET", request, config)
+	url := "/backups/inspect"
+	return sendRequestAndPrint("GET", url, request)
 }
 
 func cmdBackupCreate(c *cli.Context) {
@@ -118,13 +118,13 @@ func doBackupCreate(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.BackupCreateConfig{
+	request := &api.BackupCreateRequest{
 		URL:          destURL,
 		SnapshotUUID: snapshotUUID,
 	}
 
-	request := "/backups/create"
-	return sendRequestAndPrint("POST", request, config)
+	url := "/backups/create"
+	return sendRequestAndPrint("POST", url, request)
 }
 
 func cmdBackupDelete(c *cli.Context) {
@@ -140,9 +140,9 @@ func doBackupDelete(c *cli.Context) error {
 		return err
 	}
 
-	config := &api.BackupDeleteConfig{
+	request := &api.BackupDeleteRequest{
 		URL: backupURL,
 	}
-	request := "/backups"
-	return sendRequestAndPrint("DELETE", request, config)
+	url := "/backups"
+	return sendRequestAndPrint("DELETE", url, request)
 }

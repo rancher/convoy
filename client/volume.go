@@ -100,15 +100,15 @@ func doVolumeCreate(c *cli.Context) error {
 		return fmt.Errorf("Cannot specify volume size with backup-url. It would be the same size of backup")
 	}
 
-	config := &api.VolumeCreateConfig{
+	request := &api.VolumeCreateRequest{
 		Name:      name,
 		Size:      size,
 		BackupURL: backupURL,
 	}
 
-	request := "/volumes/create"
+	url := "/volumes/create"
 
-	return sendRequestAndPrint("POST", request, config)
+	return sendRequestAndPrint("POST", url, request)
 }
 
 func cmdVolumeDelete(c *cli.Context) {
@@ -169,9 +169,9 @@ func doVolumeDelete(c *cli.Context) error {
 		return err
 	}
 
-	request := "/volumes/" + uuid + "/"
+	url := "/volumes/" + uuid + "/"
 
-	return sendRequestAndPrint("DELETE", request, nil)
+	return sendRequestAndPrint("DELETE", url, nil)
 }
 
 func cmdVolumeList(c *cli.Context) {
@@ -186,8 +186,8 @@ func doVolumeList(c *cli.Context) error {
 		v.Set("driver", "1")
 	}
 
-	request := "/volumes/list" + v.Encode()
-	return sendRequestAndPrint("GET", request, nil)
+	url := "/volumes/list" + v.Encode()
+	return sendRequestAndPrint("GET", url, nil)
 }
 
 func cmdVolumeInspect(c *cli.Context) {
@@ -204,8 +204,8 @@ func doVolumeInspect(c *cli.Context) error {
 		return err
 	}
 
-	request := "/volumes/" + volumeUUID + "/"
-	return sendRequestAndPrint("GET", request, nil)
+	url := "/volumes/" + volumeUUID + "/"
+	return sendRequestAndPrint("GET", url, nil)
 }
 
 func cmdVolumeMount(c *cli.Context) {
@@ -223,12 +223,12 @@ func doVolumeMount(c *cli.Context) error {
 		return err
 	}
 
-	mountConfig := api.VolumeMountConfig{
+	request := api.VolumeMountRequest{
 		MountPoint: mountPoint,
 	}
 
-	request := "/volumes/" + volumeUUID + "/mount"
-	return sendRequestAndPrint("POST", request, mountConfig)
+	url := "/volumes/" + volumeUUID + "/mount"
+	return sendRequestAndPrint("POST", url, request)
 }
 
 func cmdVolumeUmount(c *cli.Context) {
@@ -245,6 +245,6 @@ func doVolumeUmount(c *cli.Context) error {
 		return err
 	}
 
-	request := "/volumes/" + volumeUUID + "/umount"
-	return sendRequestAndPrint("POST", request, nil)
+	url := "/volumes/" + volumeUUID + "/umount"
+	return sendRequestAndPrint("POST", url, nil)
 }
