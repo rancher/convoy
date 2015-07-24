@@ -32,7 +32,7 @@ if [ ! $(command -v go) ]; then
     install_go
 fi
 if [ ! -d "/usr/local/lvm2" ]; then
-    echo "Going to try installing Go..."
+    echo "Going to build static libdevmapper..."
     build_devmapper
 fi
 
