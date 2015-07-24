@@ -186,7 +186,7 @@ func doVolumeList(c *cli.Context) error {
 		v.Set("driver", "1")
 	}
 
-	request := "/volumes/" + v.Encode()
+	request := "/volumes/list" + v.Encode()
 	return sendRequestAndPrint("GET", request, nil)
 }
 
