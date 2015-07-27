@@ -24,12 +24,19 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	var err error
-	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
-	snapshotName, err := util.GetName(r, api.KEY_NAME, false, err)
-	if err != nil {
+	request := &api.SnapshotCreateRequest{}
+	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
+	volumeUUID := request.VolumeUUID
+	if err := util.CheckUUID(volumeUUID); err != nil {
+		return err
+	}
+	snapshotName := request.Name
+	if err := util.CheckName(snapshotName); err != nil {
+		return err
+	}
+
 	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)

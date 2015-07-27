@@ -4,7 +4,6 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/util"
-	"net/url"
 )
 
 var (
@@ -52,20 +51,20 @@ func cmdSnapshotCreate(c *cli.Context) {
 func doSnapshotCreate(c *cli.Context) error {
 	var err error
 
-	v := url.Values{}
 	volumeUUID, err := getOrRequestUUID(c, "", true)
 	snapshotName, err := util.GetName(c, "name", false, err)
 	if err != nil {
 		return err
 	}
 
-	if snapshotName != "" {
-		v.Set(api.KEY_NAME, snapshotName)
+	request := &api.SnapshotCreateRequest{
+		Name:       snapshotName,
+		VolumeUUID: volumeUUID,
 	}
 
-	url := "/volumes/" + volumeUUID + "/snapshots/create?" + v.Encode()
+	url := "/snapshots/create"
 
-	return sendRequestAndPrint("POST", url, nil)
+	return sendRequestAndPrint("POST", url, request)
 }
 
 func cmdSnapshotDelete(c *cli.Context) {

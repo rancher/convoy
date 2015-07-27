@@ -270,6 +270,9 @@ func ValidateName(name string) bool {
 }
 
 func CheckName(name string) error {
+	if name == "" {
+		return nil
+	}
 	if !ValidateName(name) {
 		return fmt.Errorf("Invalid name %v", name)
 	}

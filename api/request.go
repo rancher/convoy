@@ -10,6 +10,11 @@ type VolumeCreateRequest struct {
 	BackupURL string
 }
 
+type SnapshotCreateRequest struct {
+	Name       string
+	VolumeUUID string
+}
+
 type BackupListRequest struct {
 	URL          string
 	VolumeUUID   string

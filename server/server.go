@@ -85,11 +85,11 @@ func createRouter(s *Server) *mux.Router {
 			"/backups/inspect":                        s.doBackupInspect,
 		},
 		"POST": {
-			"/volumes/create":                                     s.doVolumeCreate,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/mount":            s.doVolumeMount,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/umount":           s.doVolumeUmount,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/snapshots/create": s.doSnapshotCreate,
-			"/backups/create":                                     s.doBackupCreate,
+			"/volumes/create":                           s.doVolumeCreate,
+			"/volumes/{" + KEY_VOLUME_UUID + "}/mount":  s.doVolumeMount,
+			"/volumes/{" + KEY_VOLUME_UUID + "}/umount": s.doVolumeUmount,
+			"/snapshots/create":                         s.doSnapshotCreate,
+			"/backups/create":                           s.doBackupCreate,
 		},
 		"DELETE": {
 			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeDelete,
