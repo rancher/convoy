@@ -258,9 +258,22 @@ func ValidateUUID(s string) bool {
 	return uuid.Parse(s) != nil
 }
 
+func CheckUUID(uuid string) error {
+	if !ValidateUUID(uuid) {
+		return fmt.Errorf("Invalid UUID %v", uuid)
+	}
+	return nil
+}
 func ValidateName(name string) bool {
 	validName := regexp.MustCompile(`^[0-9a-z_.\-]+$`)
 	return validName.MatchString(name)
+}
+
+func CheckName(name string) error {
+	if !ValidateName(name) {
+		return fmt.Errorf("Invalid name %v", name)
+	}
+	return nil
 }
 
 func ParseSize(size string) (int64, error) {
@@ -359,8 +372,8 @@ func GetUUID(v interface{}, key string, required bool, err error) (string, error
 	if !required && uuid == "" {
 		return uuid, nil
 	}
-	if !ValidateUUID(uuid) {
-		return "", fmt.Errorf("Invalid UUID %v", uuid)
+	if err := CheckUUID(uuid); err != nil {
+		return "", err
 	}
 	return uuid, nil
 }
@@ -373,8 +386,8 @@ func GetName(v interface{}, key string, required bool, err error) (string, error
 	if !required && name == "" {
 		return name, nil
 	}
-	if !ValidateName(name) {
-		return "", fmt.Errorf("Invalid name %v", name)
+	if err := CheckName(name); err != nil {
+		return "", err
 	}
 	return name, nil
 }
