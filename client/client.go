@@ -157,7 +157,7 @@ func NewCli(version string) *cli.App {
 			},
 			cli.StringFlag{
 				Name:  "default-volume-size",
-				Value: "10G",
+				Value: "100G",
 				Usage: "default size for volume creation",
 			},
 		},
