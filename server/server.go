@@ -76,13 +76,13 @@ func createRouter(s *Server) *mux.Router {
 	router := mux.NewRouter()
 	m := map[string]map[string]RequestHandler{
 		"GET": {
-			"/info":                                   s.doInfo,
-			"/uuid":                                   s.doRequestUUID,
-			"/volumes/list":                           s.doVolumeList,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeInspect,
-			"/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotInspect,
-			"/backups/list":                           s.doBackupList,
-			"/backups/inspect":                        s.doBackupInspect,
+			"/info":                               s.doInfo,
+			"/uuid":                               s.doRequestUUID,
+			"/volumes/list":                       s.doVolumeList,
+			"/volumes/{" + KEY_VOLUME_UUID + "}/": s.doVolumeInspect,
+			"/snapshots/":                         s.doSnapshotInspect,
+			"/backups/list":                       s.doBackupList,
+			"/backups/inspect":                    s.doBackupInspect,
 		},
 		"POST": {
 			"/volumes/create":                           s.doVolumeCreate,
@@ -92,9 +92,9 @@ func createRouter(s *Server) *mux.Router {
 			"/backups/create":                           s.doBackupCreate,
 		},
 		"DELETE": {
-			"/volumes/{" + KEY_VOLUME_UUID + "}/":     s.doVolumeDelete,
-			"/snapshots/{" + KEY_SNAPSHOT_UUID + "}/": s.doSnapshotDelete,
-			"/backups": s.doBackupDelete,
+			"/volumes/{" + KEY_VOLUME_UUID + "}/": s.doVolumeDelete,
+			"/snapshots/":                         s.doSnapshotDelete,
+			"/backups":                            s.doBackupDelete,
 		},
 	}
 	for method, routes := range m {

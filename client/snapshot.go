@@ -80,8 +80,11 @@ func doSnapshotDelete(c *cli.Context) error {
 		return err
 	}
 
-	url := "/snapshots/" + uuid + "/"
-	return sendRequestAndPrint("DELETE", url, nil)
+	request := &api.SnapshotDeleteRequest{
+		SnapshotUUID: uuid,
+	}
+	url := "/snapshots/"
+	return sendRequestAndPrint("DELETE", url, request)
 }
 
 func cmdSnapshotInspect(c *cli.Context) {
@@ -98,6 +101,9 @@ func doSnapshotInspect(c *cli.Context) error {
 		return err
 	}
 
-	url := "/snapshots/" + uuid + "/"
-	return sendRequestAndPrint("GET", url, nil)
+	request := &api.SnapshotInspectRequest{
+		SnapshotUUID: uuid,
+	}
+	url := "/snapshots/"
+	return sendRequestAndPrint("GET", url, request)
 }

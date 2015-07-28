@@ -15,6 +15,14 @@ type SnapshotCreateRequest struct {
 	VolumeUUID string
 }
 
+type SnapshotDeleteRequest struct {
+	SnapshotUUID string
+}
+
+type SnapshotInspectRequest struct {
+	SnapshotUUID string
+}
+
 type BackupListRequest struct {
 	URL          string
 	VolumeUUID   string

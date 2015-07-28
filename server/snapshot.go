@@ -96,10 +96,12 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	var err error
-
-	snapshotUUID, err := util.GetUUID(objs, KEY_SNAPSHOT_UUID, true, err)
-	if err != nil {
+	request := &api.SnapshotDeleteRequest{}
+	if err := decodeRequest(r, request); err != nil {
+		return err
+	}
+	snapshotUUID := request.SnapshotUUID
+	if err := util.CheckUUID(snapshotUUID); err != nil {
 		return err
 	}
 	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
@@ -139,7 +141,7 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		return err
 	}
 	if snapshot.Name != "" {
-		if err = s.NameUUIDIndex.Delete(snapshot.Name); err != nil {
+		if err := s.NameUUIDIndex.Delete(snapshot.Name); err != nil {
 			return err
 		}
 	}
@@ -151,10 +153,12 @@ func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	var err error
-
-	snapshotUUID, err := util.GetUUID(objs, KEY_SNAPSHOT_UUID, true, err)
-	if err != nil {
+	request := &api.SnapshotInspectRequest{}
+	if err := decodeRequest(r, request); err != nil {
+		return err
+	}
+	snapshotUUID := request.SnapshotUUID
+	if err := util.CheckUUID(snapshotUUID); err != nil {
 		return err
 	}
 	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
