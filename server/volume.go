@@ -184,14 +184,17 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	var err error
-
-	uuid, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
-	if err != nil {
+	request := &api.VolumeDeleteRequest{}
+	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
 
-	return s.processVolumeDelete(uuid)
+	volumeUUID := request.VolumeUUID
+	if err := util.CheckUUID(volumeUUID); err != nil {
+		return err
+	}
+
+	return s.processVolumeDelete(volumeUUID)
 }
 
 func (s *Server) processVolumeDelete(uuid string) error {
@@ -301,10 +304,13 @@ func (s *Server) doVolumeInspect(version string, w http.ResponseWriter, r *http.
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	var err error
+	request := &api.VolumeInspectRequest{}
+	if err := decodeRequest(r, request); err != nil {
+		return err
+	}
 
-	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
-	if err != nil {
+	volumeUUID := request.VolumeUUID
+	if err := util.CheckUUID(volumeUUID); err != nil {
 		return err
 	}
 
@@ -320,6 +326,7 @@ func (s *Server) getVolumeMountPoint(volumeUUID, mountPoint string) (string, err
 	if mountPoint != "" {
 		return mountPoint, nil
 	}
+	// Automatic mount
 	dir := filepath.Join(s.MountsDir, volumeUUID)
 	if err := util.MkdirIfNotExists(dir); err != nil {
 		return "", err
@@ -333,8 +340,13 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 
 	var err error
 
-	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
-	if err != nil {
+	request := &api.VolumeMountRequest{}
+	if err := decodeRequest(r, request); err != nil {
+		return err
+	}
+
+	volumeUUID := request.VolumeUUID
+	if err := util.CheckUUID(volumeUUID); err != nil {
 		return err
 	}
 	volume := s.loadVolume(volumeUUID)
@@ -346,17 +358,12 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return fmt.Errorf("volume %v already mounted at %v as record shows", volumeUUID, volume.MountPoint)
 	}
 
-	request := &api.VolumeMountRequest{}
-	if err = decodeRequest(r, request); err != nil {
-		return err
-	}
-
 	request.MountPoint, err = s.getVolumeMountPoint(volumeUUID, request.MountPoint)
 	if err != nil {
 		return err
 	}
 
-	if err = s.processVolumeMount(volume, request); err != nil {
+	if err := s.processVolumeMount(volume, request); err != nil {
 		return err
 	}
 
@@ -399,10 +406,13 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	var err error
+	request := &api.VolumeUmountRequest{}
+	if err := decodeRequest(r, request); err != nil {
+		return err
+	}
 
-	volumeUUID, err := util.GetUUID(objs, KEY_VOLUME_UUID, true, err)
-	if err != nil {
+	volumeUUID := request.VolumeUUID
+	if err := util.CheckUUID(volumeUUID); err != nil {
 		return err
 	}
 	volume := s.loadVolume(volumeUUID)

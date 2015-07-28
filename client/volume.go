@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/rancher-volume/api"
@@ -117,50 +116,6 @@ func cmdVolumeDelete(c *cli.Context) {
 	}
 }
 
-func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error) {
-	var err error
-	var id string
-	if key == "" {
-		id = c.Args().First()
-	} else {
-		id, err = util.GetLowerCaseFlag(c, key, required, err)
-		if err != nil {
-			return "", err
-		}
-	}
-	if id == "" && !required {
-		return "", nil
-	}
-
-	if util.ValidateUUID(id) {
-		return id, nil
-	}
-
-	return requestUUID(id)
-}
-
-func requestUUID(id string) (string, error) {
-	// Identify by name
-	v := url.Values{}
-	v.Set(api.KEY_NAME, id)
-
-	request := "/uuid?" + v.Encode()
-	rc, err := sendRequest("GET", request, nil)
-	if err != nil {
-		return "", err
-	}
-	defer rc.Close()
-
-	resp := &api.UUIDResponse{}
-	if err := json.NewDecoder(rc).Decode(resp); err != nil {
-		return "", err
-	}
-	if resp.UUID == "" {
-		return "", fmt.Errorf("Cannot find volume with name or id %v", id)
-	}
-	return resp.UUID, nil
-}
-
 func doVolumeDelete(c *cli.Context) error {
 	var err error
 
@@ -169,9 +124,13 @@ func doVolumeDelete(c *cli.Context) error {
 		return err
 	}
 
-	url := "/volumes/" + uuid + "/"
+	request := &api.VolumeDeleteRequest{
+		VolumeUUID: uuid,
+	}
 
-	return sendRequestAndPrint("DELETE", url, nil)
+	url := "/volumes/"
+
+	return sendRequestAndPrint("DELETE", url, request)
 }
 
 func cmdVolumeList(c *cli.Context) {
@@ -204,8 +163,11 @@ func doVolumeInspect(c *cli.Context) error {
 		return err
 	}
 
-	url := "/volumes/" + volumeUUID + "/"
-	return sendRequestAndPrint("GET", url, nil)
+	request := &api.VolumeInspectRequest{
+		VolumeUUID: volumeUUID,
+	}
+	url := "/volumes/"
+	return sendRequestAndPrint("GET", url, request)
 }
 
 func cmdVolumeMount(c *cli.Context) {
@@ -223,11 +185,12 @@ func doVolumeMount(c *cli.Context) error {
 		return err
 	}
 
-	request := api.VolumeMountRequest{
+	request := &api.VolumeMountRequest{
+		VolumeUUID: volumeUUID,
 		MountPoint: mountPoint,
 	}
 
-	url := "/volumes/" + volumeUUID + "/mount"
+	url := "/volumes/mount"
 	return sendRequestAndPrint("POST", url, request)
 }
 
@@ -245,6 +208,9 @@ func doVolumeUmount(c *cli.Context) error {
 		return err
 	}
 
-	url := "/volumes/" + volumeUUID + "/umount"
-	return sendRequestAndPrint("POST", url, nil)
+	request := &api.VolumeUmountRequest{
+		VolumeUUID: volumeUUID,
+	}
+	url := "/volumes/umount"
+	return sendRequestAndPrint("POST", url, request)
 }

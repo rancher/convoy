@@ -76,25 +76,25 @@ func createRouter(s *Server) *mux.Router {
 	router := mux.NewRouter()
 	m := map[string]map[string]RequestHandler{
 		"GET": {
-			"/info":                               s.doInfo,
-			"/uuid":                               s.doRequestUUID,
-			"/volumes/list":                       s.doVolumeList,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/": s.doVolumeInspect,
-			"/snapshots/":                         s.doSnapshotInspect,
-			"/backups/list":                       s.doBackupList,
-			"/backups/inspect":                    s.doBackupInspect,
+			"/info":            s.doInfo,
+			"/uuid":            s.doRequestUUID,
+			"/volumes/list":    s.doVolumeList,
+			"/volumes/":        s.doVolumeInspect,
+			"/snapshots/":      s.doSnapshotInspect,
+			"/backups/list":    s.doBackupList,
+			"/backups/inspect": s.doBackupInspect,
 		},
 		"POST": {
-			"/volumes/create":                           s.doVolumeCreate,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/mount":  s.doVolumeMount,
-			"/volumes/{" + KEY_VOLUME_UUID + "}/umount": s.doVolumeUmount,
-			"/snapshots/create":                         s.doSnapshotCreate,
-			"/backups/create":                           s.doBackupCreate,
+			"/volumes/create":   s.doVolumeCreate,
+			"/volumes/mount":    s.doVolumeMount,
+			"/volumes/umount":   s.doVolumeUmount,
+			"/snapshots/create": s.doSnapshotCreate,
+			"/backups/create":   s.doBackupCreate,
 		},
 		"DELETE": {
-			"/volumes/{" + KEY_VOLUME_UUID + "}/": s.doVolumeDelete,
-			"/snapshots/":                         s.doSnapshotDelete,
-			"/backups":                            s.doBackupDelete,
+			"/volumes/":   s.doVolumeDelete,
+			"/snapshots/": s.doSnapshotDelete,
+			"/backups":    s.doBackupDelete,
 		},
 	}
 	for method, routes := range m {

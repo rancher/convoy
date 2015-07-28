@@ -1,13 +1,26 @@
 package api
 
 type VolumeMountRequest struct {
+	VolumeUUID string
 	MountPoint string
+}
+
+type VolumeUmountRequest struct {
+	VolumeUUID string
 }
 
 type VolumeCreateRequest struct {
 	Name      string
 	Size      int64
 	BackupURL string
+}
+
+type VolumeDeleteRequest struct {
+	VolumeUUID string
+}
+
+type VolumeInspectRequest struct {
+	VolumeUUID string
 }
 
 type SnapshotCreateRequest struct {
