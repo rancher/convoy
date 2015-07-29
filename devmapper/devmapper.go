@@ -739,10 +739,6 @@ func (d *Driver) HasSnapshot(id, volumeID string) bool {
 	return true
 }
 
-func (d *Driver) Shutdown() error {
-	return d.deactivatePool()
-}
-
 func removePool(poolName string) error {
 	err := devicemapper.RemoveDevice(poolName)
 	if err != nil {

@@ -24,7 +24,6 @@ type StorageDriver interface {
 	ReadSnapshot(id, volumeID string, start int64, data []byte) error
 	CloseSnapshot(id, volumeID string) error
 	Info() ([]byte, error)
-	Shutdown() error
 	CheckEnvironment() error
 }
 
