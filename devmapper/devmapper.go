@@ -55,7 +55,6 @@ const (
 )
 
 type Driver struct {
-	root       string
 	configName string
 	Mutex      *sync.Mutex
 	Device
@@ -258,7 +257,6 @@ func Init(root, cfgName string, config map[string]string) (storagedriver.Storage
 		}
 		d.Device = dev
 		d.configName = cfgName
-		d.root = root
 		if err := d.activatePool(); err != nil {
 			return d, err
 		}
@@ -301,7 +299,6 @@ func Init(root, cfgName string, config map[string]string) (storagedriver.Storage
 		return nil, err
 	}
 	d := &Driver{
-		root:       root,
 		configName: cfgName,
 		Device:     *dev,
 		Mutex:      &sync.Mutex{},
@@ -338,7 +335,7 @@ func (d *Driver) allocateDevID() (int, error) {
 
 	d.LastDevID++
 	log.Debug("Current devID ", d.LastDevID)
-	if err := util.SaveConfig(d.root, d.configName, d.Device); err != nil {
+	if err := util.SaveConfig(d.Device.Root, d.configName, d.Device); err != nil {
 		return 0, err
 	}
 	return d.LastDevID, nil
