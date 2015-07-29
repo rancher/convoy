@@ -263,6 +263,11 @@ func (s *Server) CheckEnvironment() error {
 }
 
 func (s *Server) autoMount() error {
+	volOps, err := s.StorageDriver.VolumeOps()
+	if err != nil {
+		return err
+	}
+
 	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
 	if err != nil {
 		return err
@@ -273,7 +278,7 @@ func (s *Server) autoMount() error {
 			return fmt.Errorf("Volume list changed for volume %v", uuid)
 		}
 		if volume.MountPoint != "" {
-			if err := s.StorageDriver.Mount(volume.UUID, volume.MountPoint); err != nil {
+			if err := volOps.Mount(volume.UUID, volume.MountPoint); err != nil {
 				return err
 			}
 		}

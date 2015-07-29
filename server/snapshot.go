@@ -24,6 +24,11 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
+	snapOps, err := s.StorageDriver.SnapshotOps()
+	if err != nil {
+		return err
+	}
+
 	request := &api.SnapshotCreateRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -51,7 +56,7 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_SNAPSHOT: uuid,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := s.StorageDriver.CreateSnapshot(uuid, volumeUUID); err != nil {
+	if err := snapOps.CreateSnapshot(uuid, volumeUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -96,6 +101,11 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
+	snapOps, err := s.StorageDriver.SnapshotOps()
+	if err != nil {
+		return err
+	}
+
 	request := &api.SnapshotDeleteRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -121,7 +131,7 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := s.StorageDriver.DeleteSnapshot(snapshotUUID, volumeUUID); err != nil {
+	if err := snapOps.DeleteSnapshot(snapshotUUID, volumeUUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

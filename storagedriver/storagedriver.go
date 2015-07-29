@@ -10,12 +10,23 @@ type InitFunc func(root, cfgName string, config map[string]string) (StorageDrive
 
 type StorageDriver interface {
 	Name() string
+	Info() ([]byte, error)
+	CheckEnvironment() error
+
+	VolumeOps() (VolumeOperations, error)
+	SnapshotOps() (SnapshotOperations, error)
+}
+
+type VolumeOperations interface {
 	CreateVolume(id string, size int64) error
 	DeleteVolume(id string) error
 	Mount(id, mountPoint string) error
 	Umount(id, mountPoint string) error
-	GetVolumeDevice(id string) (string, error)
 	ListVolume(id string) ([]byte, error)
+}
+
+type SnapshotOperations interface {
+	GetVolumeDevice(id string) (string, error)
 	CreateSnapshot(id, volumeID string) error
 	DeleteSnapshot(id, volumeID string) error
 	HasSnapshot(id, volumeID string) bool
@@ -23,8 +34,6 @@ type StorageDriver interface {
 	OpenSnapshot(id, volumeID string) error
 	ReadSnapshot(id, volumeID string, start int64, data []byte) error
 	CloseSnapshot(id, volumeID string) error
-	Info() ([]byte, error)
-	CheckEnvironment() error
 }
 
 var (

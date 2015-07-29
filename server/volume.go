@@ -80,6 +80,11 @@ func (s *Server) deleteVolume(volume *Volume) error {
 }
 
 func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL string) (*Volume, error) {
+	volOps, err := s.StorageDriver.VolumeOps()
+	if err != nil {
+		return nil, err
+	}
+
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
@@ -103,7 +108,7 @@ func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL st
 		LOG_FIELD_VOLUME_NAME: volumeName,
 		LOG_FIELD_SIZE:        size,
 	}).Debug()
-	if err := s.StorageDriver.CreateVolume(uuid, size); err != nil {
+	if err := volOps.CreateVolume(uuid, size); err != nil {
 		return nil, err
 	}
 	log.WithFields(logrus.Fields{
@@ -198,6 +203,11 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 }
 
 func (s *Server) processVolumeDelete(uuid string) error {
+	volOps, err := s.StorageDriver.VolumeOps()
+	if err != nil {
+		return err
+	}
+
 	volume := s.loadVolume(uuid)
 	if volume == nil {
 		return fmt.Errorf("Cannot find volume %s", uuid)
@@ -213,7 +223,7 @@ func (s *Server) processVolumeDelete(uuid string) error {
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug()
-	if err := s.StorageDriver.DeleteVolume(uuid); err != nil {
+	if err := volOps.DeleteVolume(uuid); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -272,7 +282,11 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	var err error
+	volOps, err := s.StorageDriver.VolumeOps()
+	if err != nil {
+		return err
+	}
+
 	driverSpecific, err := util.GetLowerCaseFlag(r, "driver", false, err)
 	if err != nil {
 		return err
@@ -280,7 +294,7 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 
 	var data []byte
 	if driverSpecific == "1" {
-		data, err = s.StorageDriver.ListVolume("")
+		data, err = volOps.ListVolume("")
 	} else {
 		data, err = s.listVolume()
 	}
@@ -374,6 +388,11 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) error {
+	volOps, err := s.StorageDriver.VolumeOps()
+	if err != nil {
+		return err
+	}
+
 	if st, err := os.Stat(request.MountPoint); os.IsNotExist(err) || !st.IsDir() {
 		return fmt.Errorf("Mount point %s doesn't exist", request.MountPoint)
 	}
@@ -385,7 +404,7 @@ func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: request.MountPoint,
 	}).Debug()
-	if err := s.StorageDriver.Mount(volume.UUID, request.MountPoint); err != nil {
+	if err := volOps.Mount(volume.UUID, request.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -438,6 +457,11 @@ func (s *Server) putVolumeMountPoint(mountPoint string) string {
 }
 
 func (s *Server) processVolumeUmount(volume *Volume) error {
+	volOps, err := s.StorageDriver.VolumeOps()
+	if err != nil {
+		return err
+	}
+
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
@@ -445,7 +469,7 @@ func (s *Server) processVolumeUmount(volume *Volume) error {
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
 	}).Debug()
-	if err := s.StorageDriver.Umount(volume.UUID, volume.MountPoint); err != nil {
+	if err := volOps.Umount(volume.UUID, volume.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

@@ -310,6 +310,14 @@ func Init(root, cfgName string, config map[string]string) (storagedriver.Storage
 	return d, nil
 }
 
+func (d *Driver) VolumeOps() (storagedriver.VolumeOperations, error) {
+	return d, nil
+}
+
+func (d *Driver) SnapshotOps() (storagedriver.SnapshotOperations, error) {
+	return d, nil
+}
+
 func createPool(poolName string, dataDev, metadataDev *os.File, blockSize uint32) error {
 	err := devicemapper.CreatePool(poolName, dataDev, metadataDev, blockSize)
 	if err != nil {

@@ -134,6 +134,11 @@ func removeVolume(volumeUUID string, driver ObjectStoreDriver) error {
 }
 
 func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDriver storagedriver.StorageDriver) (string, error) {
+	snapOps, err := sDriver.SnapshotOps()
+	if err != nil {
+		return "", err
+	}
+
 	bsDriver, err := getObjectStoreDriver(destURL)
 	if err != nil {
 		return "", err
@@ -163,7 +168,7 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 			//Generate full snapshot if the snapshot has been backed up last time
 			lastSnapshotUUID = ""
 			log.Debug("Would create full snapshot metadata")
-		} else if !sDriver.HasSnapshot(lastSnapshotUUID, volume.UUID) {
+		} else if !snapOps.HasSnapshot(lastSnapshotUUID, volume.UUID) {
 			// It's possible that the snapshot in objectstore doesn't exist
 			// in local storage
 			lastSnapshotUUID = ""
@@ -183,7 +188,7 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 		LOG_FIELD_SNAPSHOT:      snapshot.UUID,
 		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotUUID,
 	}).Debug("Generating snapshot changed blocks metadata")
-	delta, err := sDriver.CompareSnapshot(snapshot.UUID, lastSnapshotUUID, volume.UUID)
+	delta, err := snapOps.CompareSnapshot(snapshot.UUID, lastSnapshotUUID, volume.UUID)
 	if err != nil {
 		return "", err
 	}
@@ -211,15 +216,15 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 		SnapshotUUID: snapshot.UUID,
 		Blocks:       []BlockMapping{},
 	}
-	if err := sDriver.OpenSnapshot(snapshot.UUID, volume.UUID); err != nil {
+	if err := snapOps.OpenSnapshot(snapshot.UUID, volume.UUID); err != nil {
 		return "", err
 	}
-	defer sDriver.CloseSnapshot(snapshot.UUID, volume.UUID)
+	defer snapOps.CloseSnapshot(snapshot.UUID, volume.UUID)
 	for _, d := range delta.Mappings {
 		block := make([]byte, DEFAULT_BLOCK_SIZE)
 		for i := int64(0); i < d.Size/delta.BlockSize; i++ {
 			offset := d.Offset + i*delta.BlockSize
-			err := sDriver.ReadSnapshot(snapshot.UUID, volume.UUID, offset, block)
+			err := snapOps.ReadSnapshot(snapshot.UUID, volume.UUID, offset, block)
 			if err != nil {
 				return "", err
 			}
@@ -337,6 +342,11 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 }
 
 func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.StorageDriver) error {
+	snapOps, err := sDriver.SnapshotOps()
+	if err != nil {
+		return err
+	}
+
 	bsDriver, err := getObjectStoreDriver(backupURL)
 	if err != nil {
 		return err
@@ -354,7 +364,7 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.Storag
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
-	volDevName, err := sDriver.GetVolumeDevice(dstVolumeUUID)
+	volDevName, err := snapOps.GetVolumeDevice(dstVolumeUUID)
 	if err != nil {
 		return err
 	}
