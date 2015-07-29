@@ -386,7 +386,7 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.Storag
 		LOG_FIELD_SNAPSHOT:    srcBackupUUID,
 		LOG_FIELD_ORIN_VOLUME: srcVolumeUUID,
 		LOG_FIELD_VOLUME:      dstVolumeUUID,
-		//LOG_FIELD_OBJECTSTORE: objectstoreID,
+		LOG_FIELD_BACKUP_URL:  backupURL,
 	}).Debug()
 	for _, block := range backup.Blocks {
 		blkFile := getBlockFilePath(srcVolumeUUID, block.BlockChecksum)
