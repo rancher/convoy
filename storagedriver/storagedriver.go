@@ -1,4 +1,4 @@
-package driver
+package storagedriver
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"github.com/rancher/rancher-volume/metadata"
 )
 
-type InitFunc func(root, cfgName string, config map[string]string) (Driver, error)
+type InitFunc func(root, cfgName string, config map[string]string) (StorageDriver, error)
 
-type Driver interface {
+type StorageDriver interface {
 	Name() string
 	CreateVolume(id string, size int64) error
 	DeleteVolume(id string) error
@@ -54,14 +54,14 @@ func getCfgName(name string) string {
 	return "driver_" + name + ".cfg"
 }
 
-func GetDriver(name, root string, config map[string]string) (Driver, error) {
+func GetDriver(name, root string, config map[string]string) (StorageDriver, error) {
 	if _, exists := initializers[name]; !exists {
 		return nil, fmt.Errorf("Driver %v is not supported!", name)
 	}
 	return initializers[name](root, getCfgName(name), config)
 }
 
-func CheckEnvironment(driver Driver) error {
+func CheckEnvironment(driver StorageDriver) error {
 	if err := driver.CheckEnvironment(); err != nil {
 		return err
 	}
