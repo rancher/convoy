@@ -21,6 +21,7 @@ import (
 
 const (
 	DRIVER_NAME           = "devicemapper"
+	DRIVER_CONFIG_FILE    = "devicemapper.cfg"
 	DEFAULT_THINPOOL_NAME = "rancher-volume-pool"
 	DEFAULT_BLOCK_SIZE    = "4096"
 	DM_DIR                = "/dev/mapper/"
@@ -238,7 +239,7 @@ func (logger *DMLogger) DMLog(level int, file string, line int, dmError int, mes
 	}
 }
 
-func Init(root, cfgName string, config map[string]string) (storagedriver.StorageDriver, error) {
+func Init(root string, config map[string]string) (storagedriver.StorageDriver, error) {
 	devicemapper.LogInitVerbose(1)
 	devicemapper.LogInit(&DMLogger{})
 
@@ -246,6 +247,11 @@ func Init(root, cfgName string, config map[string]string) (storagedriver.Storage
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
 		return nil, fmt.Errorf("Udev sync is not supported. Cannot proceed.")
 	} */
+
+	if err := util.MkdirIfNotExists(root); err != nil {
+		return nil, err
+	}
+	cfgName := DRIVER_CONFIG_FILE
 	if util.ConfigExists(root, cfgName) {
 		dev := Device{}
 		err := util.LoadConfig(root, cfgName, &dev)

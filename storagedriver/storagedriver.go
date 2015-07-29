@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/metadata"
+	"path/filepath"
 )
 
-type InitFunc func(root, cfgName string, config map[string]string) (StorageDriver, error)
+type InitFunc func(root string, config map[string]string) (StorageDriver, error)
 
 type StorageDriver interface {
 	Name() string
@@ -58,15 +59,12 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-func getCfgName(name string) string {
-	return "driver_" + name + ".cfg"
-}
-
 func GetDriver(name, root string, config map[string]string) (StorageDriver, error) {
 	if _, exists := initializers[name]; !exists {
 		return nil, fmt.Errorf("Driver %v is not supported!", name)
 	}
-	return initializers[name](root, getCfgName(name), config)
+	drvRoot := filepath.Join(root, name)
+	return initializers[name](drvRoot, config)
 }
 
 func CheckEnvironment(driver StorageDriver) error {

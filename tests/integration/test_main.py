@@ -19,6 +19,8 @@ PID_FILE = os.path.join(TEST_ROOT, "rancher-volume.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "rancher-volume.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
+DEVMAPPER_ROOT = os.path.join(CFG_ROOT, "devicemapper")
+
 TEST_THREAD_COUNT = 100
 TEST_LOOP_COUNT = 100
 
@@ -163,7 +165,7 @@ def wait_for_daemon():
     assert info["General"]["Root"] == CFG_ROOT
     assert info["General"]["MountsDir"]== AUTO_MOUNTS_DIR
     assert info["Driver"]["Driver"] == "devicemapper"
-    assert info["Driver"]["Root"] == CFG_ROOT
+    assert info["Driver"]["Root"] == DEVMAPPER_ROOT
     assert info["Driver"]["DataDevice"] == data_dev
     assert info["Driver"]["MetadataDevice"] == metadata_dev
     assert info["Driver"]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME)
