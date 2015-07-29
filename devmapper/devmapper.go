@@ -812,7 +812,7 @@ func mounted(dev, mountPoint string) bool {
 	return false
 }
 
-func (d *Driver) Mount(id, mountPoint string) error {
+func (d *Driver) MountVolume(id, mountPoint string) error {
 	dev, err := d.GetVolumeDevice(id)
 	if err != nil {
 		return err
@@ -827,7 +827,7 @@ func (d *Driver) Mount(id, mountPoint string) error {
 	return nil
 }
 
-func (d *Driver) Umount(id, mountPoint string) error {
+func (d *Driver) UmountVolume(id, mountPoint string) error {
 	_, err := util.Execute(UMOUNT_BINARY, []string{mountPoint})
 	if err != nil {
 		return err

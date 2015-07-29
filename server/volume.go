@@ -404,7 +404,7 @@ func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: request.MountPoint,
 	}).Debug()
-	if err := volOps.Mount(volume.UUID, request.MountPoint); err != nil {
+	if err := volOps.MountVolume(volume.UUID, request.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -469,7 +469,7 @@ func (s *Server) processVolumeUmount(volume *Volume) error {
 		LOG_FIELD_VOLUME:     volume.UUID,
 		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
 	}).Debug()
-	if err := volOps.Umount(volume.UUID, volume.MountPoint); err != nil {
+	if err := volOps.UmountVolume(volume.UUID, volume.MountPoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

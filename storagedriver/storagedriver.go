@@ -21,8 +21,8 @@ type StorageDriver interface {
 type VolumeOperations interface {
 	CreateVolume(id string, size int64) error
 	DeleteVolume(id string) error
-	Mount(id, mountPoint string) error
-	Umount(id, mountPoint string) error
+	MountVolume(id, mountPoint string) error
+	UmountVolume(id, mountPoint string) error
 	ListVolume(id string) ([]byte, error)
 }
 
@@ -40,11 +40,6 @@ type SnapshotOperations interface {
 var (
 	initializers map[string]InitFunc
 	log          = logrus.WithFields(logrus.Fields{"pkg": "driver"})
-)
-
-const (
-	MOUNT_BINARY  = "mount"
-	UMOUNT_BINARY = "umount"
 )
 
 func init() {

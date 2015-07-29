@@ -278,7 +278,7 @@ func (s *Server) autoMount() error {
 			return fmt.Errorf("Volume list changed for volume %v", uuid)
 		}
 		if volume.MountPoint != "" {
-			if err := volOps.Mount(volume.UUID, volume.MountPoint); err != nil {
+			if err := volOps.MountVolume(volume.UUID, volume.MountPoint); err != nil {
 				return err
 			}
 		}
