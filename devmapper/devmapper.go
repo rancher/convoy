@@ -315,13 +315,11 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 	dev.ThinpoolSize = int64(thinpSize)
 	dev.LastDevID = 0
 
-	err = createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, uint32(dev.ThinpoolBlockSize))
-	if err != nil {
+	if err = createPool(filepath.Base(dev.ThinpoolDevice), dataDev, metadataDev, uint32(dev.ThinpoolBlockSize)); err != nil {
 		return nil, err
 	}
 
-	err = util.SaveConfig(root, cfgName, &dev)
-	if err != nil {
+	if err = util.SaveConfig(root, cfgName, &dev); err != nil {
 		return nil, err
 	}
 	d := &Driver{

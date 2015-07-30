@@ -21,7 +21,7 @@ $(RANCHER-VOLUME_EXEC_FILE): ./main.go ./api/request.go \
 	./client/client.go ./client/server.go \
 	./objectstore/objectstore.go ./objectstore/config.go \
 	./s3/s3.go ./s3/s3_service.go \
-	./vfs/vfs_objectstore.go \
+	./vfs/vfs_objectstore.go ./vfs/vfs_storage.go \
 	./storagedriver/storagedriver.go \
 	./devmapper/devmapper.go \
 	./metadata/devmapper.go ./metadata/metadata.go \

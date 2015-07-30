@@ -45,7 +45,7 @@ const (
 
 var (
 	initializers map[string]InitFunc
-	log          = logrus.WithFields(logrus.Fields{"pkg": "driver"})
+	log          = logrus.WithFields(logrus.Fields{"pkg": "storagedriver"})
 )
 
 func init() {

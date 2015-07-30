@@ -27,7 +27,7 @@ var (
 			},
 			cli.StringSliceFlag{
 				Name:  "drivers",
-				Value: &cli.StringSlice{"devicemapper"},
+				Value: &cli.StringSlice{},
 				Usage: "Drivers to be enabled, first driver in the list would be treated as default driver",
 			},
 			cli.StringSliceFlag{

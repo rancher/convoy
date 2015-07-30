@@ -537,5 +537,9 @@ func (s *Server) getVolumeSize(volumeUUID string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return util.ParseSize(infos[storagedriver.OPTS_SIZE])
+	size := infos[storagedriver.OPTS_SIZE]
+	if size == "" {
+		return 0, nil
+	}
+	return util.ParseSize(size)
 }
