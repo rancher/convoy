@@ -66,7 +66,10 @@ func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 		if create {
 			log.Debugf("Create a new volume %v for docker", name)
 
-			volume, err = s.processVolumeCreate(volumeName, "", s.DefaultVolumeSize, "")
+			request := &api.VolumeCreateRequest{
+				Name: volumeName,
+			}
+			volume, err = s.processVolumeCreate(request)
 			if err != nil {
 				return nil, err
 			}

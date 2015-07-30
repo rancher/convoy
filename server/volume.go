@@ -9,6 +9,7 @@ import (
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"net/http"
+	"strconv"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
@@ -77,7 +78,11 @@ func (s *Server) deleteVolume(volume *Volume) error {
 	return nil
 }
 
-func (s *Server) processVolumeCreate(volumeName, driverName string, size int64, backupURL string) (*Volume, error) {
+func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
+	volumeName := request.Name
+	driverName := request.DriverName
+	backupURL := request.BackupURL
+
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
@@ -90,7 +95,7 @@ func (s *Server) processVolumeCreate(volumeName, driverName string, size int64, 
 		if err != nil {
 			return nil, err
 		}
-		size = objVolume.Size
+		request.Size = objVolume.Size
 	}
 
 	if driverName == "" {
@@ -105,15 +110,18 @@ func (s *Server) processVolumeCreate(volumeName, driverName string, size int64, 
 		return nil, err
 	}
 
+	opts := map[string]string{
+		storagedriver.OPTS_SIZE: strconv.FormatInt(request.Size, 10),
+	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:       LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:      uuid,
 		LOG_FIELD_VOLUME_NAME: volumeName,
-		LOG_FIELD_SIZE:        size,
+		LOG_FIELD_OPTS:        opts,
 	}).Debug()
-	if err := volOps.CreateVolume(uuid, size); err != nil {
+	if err := volOps.CreateVolume(uuid, opts); err != nil {
 		return nil, err
 	}
 	log.WithFields(logrus.Fields{
@@ -148,7 +156,6 @@ func (s *Server) processVolumeCreate(volumeName, driverName string, size int64, 
 		UUID:        uuid,
 		Name:        volumeName,
 		DriverName:  driverName,
-		Size:        size,
 		FileSystem:  "ext4",
 		CreatedTime: util.Now(),
 		Snapshots:   make(map[string]Snapshot),
@@ -172,13 +179,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	size := request.Size
-
-	if size == 0 {
-		size = s.DefaultVolumeSize
-	}
-
-	volume, err := s.processVolumeCreate(request.Name, request.DriverName, size, request.BackupURL)
+	volume, err := s.processVolumeCreate(request)
 	if err != nil {
 		return err
 	}
@@ -187,7 +188,6 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 		UUID:        volume.UUID,
 		Driver:      volume.DriverName,
 		Name:        volume.Name,
-		Size:        volume.Size,
 		CreatedTime: volume.CreatedTime,
 	})
 }
@@ -241,7 +241,7 @@ func (s *Server) processVolumeDelete(uuid string) error {
 	return s.deleteVolume(volume)
 }
 
-func (s *Server) getVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
+func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return nil, err
@@ -251,10 +251,14 @@ func (s *Server) getVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+	size, err := s.getVolumeSize(volume.UUID)
+	if err != nil {
+		return nil, err
+	}
 	resp := &api.VolumeResponse{
 		UUID:        volume.UUID,
 		Name:        volume.Name,
-		Size:        volume.Size,
+		Size:        size,
 		MountPoint:  mountPoint,
 		CreatedTime: volume.CreatedTime,
 		Snapshots:   make(map[string]api.SnapshotResponse),
@@ -284,7 +288,7 @@ func (s *Server) listVolume() ([]byte, error) {
 		if volume == nil {
 			return nil, fmt.Errorf("Volume list changed for volume %v", uuid)
 		}
-		r, err := s.getVolumeInfo(volume)
+		r, err := s.listVolumeInfo(volume)
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +335,7 @@ func (s *Server) inspectVolume(volumeUUID string) ([]byte, error) {
 	if volume == nil {
 		return nil, fmt.Errorf("Cannot find volume %v", volumeUUID)
 	}
-	resp, err := s.getVolumeInfo(volume)
+	resp, err := s.listVolumeInfo(volume)
 	if err != nil {
 		return nil, err
 	}
@@ -405,6 +409,7 @@ func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 		LOG_FIELD_EVENT:  LOG_EVENT_MOUNT,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: volume.UUID,
+		LOG_FIELD_OPTS:   opts,
 	}).Debug()
 	mountPoint, err := volOps.MountVolume(volume.UUID, opts)
 	if err != nil {
@@ -517,4 +522,17 @@ func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Re
 		resp.UUID = uuid
 	}
 	return writeResponseOutput(w, resp)
+}
+
+func (s *Server) getVolumeSize(volumeUUID string) (int64, error) {
+	volume := s.loadVolume(volumeUUID)
+	volOps, err := s.getVolumeOpsForVolume(volume)
+	if err != nil {
+		return 0, err
+	}
+	infos, err := volOps.GetInfo(volumeUUID)
+	if err != nil {
+		return 0, err
+	}
+	return util.ParseSize(infos[storagedriver.OPTS_SIZE])
 }

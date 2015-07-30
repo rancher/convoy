@@ -60,10 +60,15 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	volume := s.loadVolume(volumeUUID)
+
+	size, err := s.getVolumeSize(volumeUUID)
+	if err != nil {
+		return err
+	}
 	objVolume := &objectstore.Volume{
 		UUID:        volume.UUID,
 		Name:        volume.Name,
-		Size:        volume.Size,
+		Size:        size,
 		FileSystem:  volume.FileSystem,
 		CreatedTime: volume.CreatedTime,
 	}

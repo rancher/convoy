@@ -183,11 +183,16 @@ func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	if _, exists := volume.Snapshots[snapshotUUID]; !exists {
 		return fmt.Errorf("cannot find snapshot %v of volume %v", snapshotUUID, volumeUUID)
 	}
+
+	size, err := s.getVolumeSize(volumeUUID)
+	if err != nil {
+		return err
+	}
 	resp := api.SnapshotResponse{
 		UUID:            snapshotUUID,
 		VolumeUUID:      volume.UUID,
 		VolumeName:      volume.Name,
-		Size:            volume.Size,
+		Size:            size,
 		VolumeCreatedAt: volume.CreatedTime,
 		Name:            volume.Snapshots[snapshotUUID].Name,
 		CreatedTime:     volume.Snapshots[snapshotUUID].CreatedTime,

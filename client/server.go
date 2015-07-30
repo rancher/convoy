@@ -40,11 +40,6 @@ var (
 				Value: "/var/lib/rancher-volume/mounts",
 				Usage: "default directory for mounting volume",
 			},
-			cli.StringFlag{
-				Name:  "default-volume-size",
-				Value: "100G",
-				Usage: "default size for volume creation",
-			},
 		},
 		Action: cmdStartServer,
 	}

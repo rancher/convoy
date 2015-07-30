@@ -25,6 +25,7 @@ const (
 	LOG_FIELD_KIND          = "kind"
 	LOG_FIELD_FILEPATH      = "filepath"
 	LOG_FIELD_CONTEXT       = "context"
+	LOG_FIELD_OPTS          = "opts"
 
 	LOG_FIELD_EVENT      = "event"
 	LOG_EVENT_INIT       = "init"

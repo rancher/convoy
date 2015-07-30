@@ -300,6 +300,7 @@ func ParseSize(size string) (int64, error) {
 	kb := int64(1024)
 	mb := 1024 * kb
 	gb := 1024 * mb
+	tb := 1024 * gb
 	switch unit {
 	case "k":
 		value *= kb
@@ -307,6 +308,8 @@ func ParseSize(size string) (int64, error) {
 		value *= mb
 	case "g":
 		value *= gb
+	case "t":
+		value *= tb
 	default:
 		return 0, fmt.Errorf("Unrecongized size value %v", size)
 	}

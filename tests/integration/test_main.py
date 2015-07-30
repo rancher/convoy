@@ -14,7 +14,6 @@ from rancher_volume import VolumeManager
 TEST_ROOT = "/tmp/rancher-volume_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "rancher-volume")
 MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
-AUTO_MOUNTS_DIR = os.path.join(TEST_ROOT, "auto_mounts")
 PID_FILE = os.path.join(TEST_ROOT, "rancher-volume.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "rancher-volume.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
@@ -44,7 +43,7 @@ DM_DIR = "/dev/mapper"
 DM_BLOCK_SIZE = 2097152
 EMPTY_FILE_SIZE = 104857600
 
-DEFAULT_VOLUME_SIZE = "1073741824"
+DEFAULT_VOLUME_SIZE = "107374182400"
 VOLUME_SIZE_500M_Bytes = "524288000"
 VOLUME_SIZE_500M = "500M"
 VOLUME_SIZE_100M = "104857600"
@@ -107,8 +106,6 @@ def setup_module():
     v.start_server(PID_FILE, ["server",
         "--root", CFG_ROOT,
         "--log", LOG_FILE,
-        "--mounts-dir", AUTO_MOUNTS_DIR,
-        "--default-volume-size", DEFAULT_VOLUME_SIZE,
         "--drivers=devicemapper",
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,

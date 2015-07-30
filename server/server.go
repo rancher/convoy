@@ -25,7 +25,6 @@ type Volume struct {
 	UUID        string
 	Name        string
 	DriverName  string
-	Size        int64
 	FileSystem  string
 	CreatedTime string
 	Snapshots   map[string]Snapshot
@@ -49,10 +48,9 @@ type Server struct {
 }
 
 type Config struct {
-	Root              string
-	DriverList        []string
-	DefaultDriver     string
-	DefaultVolumeSize int64
+	Root          string
+	DriverList    []string
+	DefaultDriver string
 }
 
 const (
@@ -332,14 +330,8 @@ func initServer(c *cli.Context) (*Server, error) {
 	root := c.String("root")
 	driverList := c.StringSlice("drivers")
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
-	defaultSize := c.String("default-volume-size")
-	if root == "" || len(driverList) == 0 || driverOpts == nil || defaultSize == "" {
+	if root == "" || len(driverList) == 0 || driverOpts == nil {
 		return nil, fmt.Errorf("Missing or invalid parameters")
-	}
-
-	size, err := util.ParseSize(defaultSize)
-	if err != nil {
-		return nil, err
 	}
 
 	log.Debug("Config root is ", root)
@@ -374,10 +366,9 @@ func initServer(c *cli.Context) (*Server, error) {
 		server.StorageDrivers[driverName] = driver
 	}
 	config := Config{
-		Root:              root,
-		DriverList:        driverList,
-		DefaultDriver:     driverList[0],
-		DefaultVolumeSize: size,
+		Root:          root,
+		DriverList:    driverList,
+		DefaultDriver: driverList[0],
 	}
 	server.Config = config
 	if err := util.SaveConfig(root, getCfgName(), &config); err != nil {

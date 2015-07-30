@@ -40,6 +40,8 @@ const (
 	BLOCK_SIZE_MAX        = 2097152
 	BLOCK_SIZE_MULTIPLIER = 128
 
+	DEFAULT_VOLUME_SIZE = "100G"
+
 	SECTOR_SIZE = 512
 
 	VOLUME_CFG_PREFIX    = "volume_"
@@ -369,8 +371,20 @@ func (d *Driver) allocateDevID() (int, error) {
 	return d.LastDevID, nil
 }
 
-func (d *Driver) CreateVolume(id string, size int64) error {
-	var err error
+func getSize(opts map[string]string) (int64, error) {
+	size := opts[storagedriver.OPTS_SIZE]
+	if size == "" || size == "0" {
+		size = DEFAULT_VOLUME_SIZE
+	}
+	return util.ParseSize(size)
+}
+
+func (d *Driver) CreateVolume(id string, opts map[string]string) error {
+	size, err := getSize(opts)
+	if err != nil {
+		return err
+	}
+
 	if size%(d.ThinpoolBlockSize*SECTOR_SIZE) != 0 {
 		return fmt.Errorf("Size must be multiple of block size")
 
@@ -925,4 +939,14 @@ func (d *Driver) MountPoint(id string) (string, error) {
 		return "", err
 	}
 	return volume.MountPoint, nil
+}
+
+func (d *Driver) GetInfo(id string) (map[string]string, error) {
+	result := map[string]string{}
+	volume, err := d.checkLoadVolume(id)
+	if err != nil {
+		return nil, err
+	}
+	result[storagedriver.OPTS_SIZE] = strconv.FormatInt(volume.Size, 10)
+	return result, nil
 }

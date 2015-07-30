@@ -18,11 +18,12 @@ type StorageDriver interface {
 }
 
 type VolumeOperations interface {
-	CreateVolume(id string, size int64) error
+	CreateVolume(id string, opts map[string]string) error
 	DeleteVolume(id string) error
 	MountVolume(id string, opts map[string]string) (string, error)
 	UmountVolume(id string) error
 	MountPoint(id string) (string, error)
+	GetInfo(id string) (map[string]string, error)
 	ListVolume(id string) ([]byte, error)
 }
 
@@ -39,6 +40,7 @@ type SnapshotOperations interface {
 
 const (
 	OPTS_MOUNT_POINT = "mountpoint"
+	OPTS_SIZE        = "size"
 )
 
 var (
