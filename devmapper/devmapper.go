@@ -59,8 +59,7 @@ const (
 )
 
 type Driver struct {
-	configName string
-	Mutex      *sync.Mutex
+	Mutex *sync.Mutex
 	Device
 }
 
@@ -275,20 +274,18 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 	cfgName := DRIVER_CONFIG_FILE
 	if util.ConfigExists(root, cfgName) {
 		dev := Device{}
-		err := util.LoadConfig(root, cfgName, &dev)
+		if err := util.LoadConfig(root, cfgName, &dev); err != nil {
+			return nil, err
+		}
 		d := &Driver{
-			Mutex: &sync.Mutex{},
+			Mutex:  &sync.Mutex{},
+			Device: dev,
 		}
-		if err != nil {
-			return d, err
-		}
-		d.Device = dev
-		d.configName = cfgName
 		if err := d.activatePool(); err != nil {
-			return d, err
+			return nil, err
 		}
 		if err := d.remountVolumes(); err != nil {
-			return d, err
+			return nil, err
 		}
 		return d, nil
 	}
@@ -329,9 +326,8 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 		return nil, err
 	}
 	d := &Driver{
-		configName: cfgName,
-		Device:     *dev,
-		Mutex:      &sync.Mutex{},
+		Device: *dev,
+		Mutex:  &sync.Mutex{},
 	}
 	log.Debug("Init done")
 	return d, nil
@@ -365,7 +361,7 @@ func (d *Driver) allocateDevID() (int, error) {
 
 	d.LastDevID++
 	log.Debug("Current devID ", d.LastDevID)
-	if err := util.SaveConfig(d.Root, d.configName, d.Device); err != nil {
+	if err := util.SaveConfig(d.Root, DRIVER_CONFIG_FILE, d.Device); err != nil {
 		return 0, err
 	}
 	return d.LastDevID, nil
