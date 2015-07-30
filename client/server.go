@@ -8,6 +8,47 @@ import (
 )
 
 var (
+	serverCmd = cli.Command{
+		Name:  "server",
+		Usage: "start rancher-volume server",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "debug",
+				Usage: "Debug log, enabled by default",
+			},
+			cli.StringFlag{
+				Name:  "log",
+				Usage: "specific output log file, otherwise output to stderr by default",
+			},
+			cli.StringFlag{
+				Name:  "root",
+				Value: "/var/lib/rancher-volume",
+				Usage: "specific root directory of rancher-volume, if configure file exists, daemon specific options would be ignored",
+			},
+			cli.StringFlag{
+				Name:  "driver",
+				Value: "devicemapper",
+				Usage: "Driver for volume manager, only support \"devicemapper\" currently",
+			},
+			cli.StringSliceFlag{
+				Name:  "driver-opts",
+				Value: &cli.StringSlice{},
+				Usage: "options for driver",
+			},
+			cli.StringFlag{
+				Name:  "mounts-dir",
+				Value: "/var/lib/rancher-volume/mounts",
+				Usage: "default directory for mounting volume",
+			},
+			cli.StringFlag{
+				Name:  "default-volume-size",
+				Value: "100G",
+				Usage: "default size for volume creation",
+			},
+		},
+		Action: cmdStartServer,
+	}
+
 	infoCmd = cli.Command{
 		Name:   "info",
 		Usage:  "information about rancher-volume",

@@ -122,48 +122,6 @@ func NewCli(version string) *cli.App {
 	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
 	app.Usage = "A volume manager capable of snapshot and delta backup"
 	app.CommandNotFound = cmdNotFound
-
-	serverCmd := cli.Command{
-		Name:  "server",
-		Usage: "start rancher-volume server",
-		Flags: []cli.Flag{
-			cli.BoolFlag{
-				Name:  "debug",
-				Usage: "Debug log, enabled by default",
-			},
-			cli.StringFlag{
-				Name:  "log",
-				Usage: "specific output log file, otherwise output to stderr by default",
-			},
-			cli.StringFlag{
-				Name:  "root",
-				Value: "/var/lib/rancher-volume",
-				Usage: "specific root directory of rancher-volume, if configure file exists, daemon specific options would be ignored",
-			},
-			cli.StringFlag{
-				Name:  "driver",
-				Value: "devicemapper",
-				Usage: "Driver for volume manager, only support \"devicemapper\" currently",
-			},
-			cli.StringSliceFlag{
-				Name:  "driver-opts",
-				Value: &cli.StringSlice{},
-				Usage: "options for driver",
-			},
-			cli.StringFlag{
-				Name:  "mounts-dir",
-				Value: "/var/lib/rancher-volume/mounts",
-				Usage: "default directory for mounting volume",
-			},
-			cli.StringFlag{
-				Name:  "default-volume-size",
-				Value: "100G",
-				Usage: "default size for volume creation",
-			},
-		},
-		Action: cmdStartServer,
-	}
-
 	app.Commands = []cli.Command{
 		serverCmd,
 		infoCmd,
