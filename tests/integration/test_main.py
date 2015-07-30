@@ -157,20 +157,29 @@ def wait_for_daemon():
                 print "Fail to communicate with daemon"
                 if v.check_server(PID_FILE) != 0:
                     print "Server failed to start"
+                    teardown_module()
                     sys.exit(1)
                 time.sleep(1)
 
     info = json.loads(data)
-    assert "devicemapper" in info["General"]["DriverList"]
-    assert info["General"]["Root"] == CFG_ROOT
-    assert info["General"]["MountsDir"]== AUTO_MOUNTS_DIR
-    assert info["Driver"]["Driver"] == "devicemapper"
-    assert info["Driver"]["Root"] == DEVMAPPER_ROOT
-    assert info["Driver"]["DataDevice"] == data_dev
-    assert info["Driver"]["MetadataDevice"] == metadata_dev
-    assert info["Driver"]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME)
-    assert info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE
-    assert info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE
+    success = True
+    try:
+        success = bool(success and "devicemapper" in info["General"]["DriverList"])
+        success = bool(success and info["General"]["Root"] == CFG_ROOT)
+        success = bool(success and info["General"]["MountsDir"]== AUTO_MOUNTS_DIR)
+        success = bool(success and info["Driver"]["Driver"] == "devicemapper")
+        success = bool(success and info["Driver"]["Root"] == DEVMAPPER_ROOT)
+        success = bool(success and info["Driver"]["DataDevice"] == data_dev)
+        success = bool(success and info["Driver"]["MetadataDevice"] == metadata_dev)
+        success = bool(success and info["Driver"]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME))
+        success = bool(success and info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE)
+        success = bool(success and info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE)
+    except:
+        success = False
+
+    if not success:
+        teardown_module()
+        sys.exit(1)
 
 @pytest.yield_fixture(autouse=True)
 def check_test():
