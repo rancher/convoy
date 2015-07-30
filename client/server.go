@@ -25,10 +25,10 @@ var (
 				Value: "/var/lib/rancher-volume",
 				Usage: "specific root directory of rancher-volume, if configure file exists, daemon specific options would be ignored",
 			},
-			cli.StringFlag{
-				Name:  "driver",
-				Value: "devicemapper",
-				Usage: "Driver for volume manager, only support \"devicemapper\" currently",
+			cli.StringSliceFlag{
+				Name:  "drivers",
+				Value: &cli.StringSlice{"devicemapper"},
+				Usage: "Drivers to be enabled, first driver in the list would be treated as default driver",
 			},
 			cli.StringSliceFlag{
 				Name:  "driver-opts",

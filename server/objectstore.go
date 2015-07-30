@@ -82,7 +82,7 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
-	backupURL, err := objectstore.CreateBackup(objVolume, objSnapshot, request.URL, s.StorageDriver)
+	backupURL, err := objectstore.CreateBackup(objVolume, objSnapshot, request.URL, s.StorageDrivers[volume.DriverName])
 	if err != nil {
 		return err
 	}

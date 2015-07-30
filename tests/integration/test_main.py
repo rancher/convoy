@@ -109,7 +109,7 @@ def setup_module():
         "--log", LOG_FILE,
         "--mounts-dir", AUTO_MOUNTS_DIR,
         "--default-volume-size", DEFAULT_VOLUME_SIZE,
-        "--driver=devicemapper",
+        "--drivers=devicemapper",
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
 	"--driver-opts", "dm.thinpoolname=" + POOL_NAME])
@@ -161,7 +161,7 @@ def wait_for_daemon():
                 time.sleep(1)
 
     info = json.loads(data)
-    assert info["General"]["Driver"] == "devicemapper"
+    assert "devicemapper" in info["General"]["DriverList"]
     assert info["General"]["Root"] == CFG_ROOT
     assert info["General"]["MountsDir"]== AUTO_MOUNTS_DIR
     assert info["Driver"]["Driver"] == "devicemapper"
@@ -179,8 +179,8 @@ def check_test():
     for filename in filenames:
         assert not filename.startswith('volume')
 
-def create_volume(size = "", name = "", backup = ""):
-    uuid = v.create_volume(size, name, backup)
+def create_volume(size = "", name = "", backup = "", driver = ""):
+    uuid = v.create_volume(size, name, backup, driver)
     dm_cleanup_list.append(uuid)
     return uuid
 
@@ -207,7 +207,7 @@ def umount_volume(uuid, mount_dir):
 
 def test_volume_crud():
     uuid1 = create_volume(VOLUME_SIZE_500M)
-    uuid2 = create_volume(VOLUME_SIZE_100M)
+    uuid2 = create_volume(VOLUME_SIZE_100M, driver="devicemapper")
     uuid3 = create_volume()
 
     delete_volume(uuid3, uuid3[:6])
@@ -224,6 +224,9 @@ def test_volume_name():
 
     with pytest.raises(subprocess.CalledProcessError):
         new_uuid = create_volume(name=vol_name1)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        new_uuid = create_volume(driver="randomdriver")
 
     delete_volume(vol_uuid, vol_name1)
     vols = v.list_volumes()

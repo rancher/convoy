@@ -24,6 +24,7 @@ import (
 type Volume struct {
 	UUID        string
 	Name        string
+	DriverName  string
 	Size        int64
 	MountPoint  string
 	FileSystem  string
@@ -40,7 +41,7 @@ type Snapshot struct {
 
 type Server struct {
 	Router              *mux.Router
-	StorageDriver       storagedriver.StorageDriver
+	StorageDrivers      map[string]storagedriver.StorageDriver
 	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
@@ -50,7 +51,8 @@ type Server struct {
 
 type Config struct {
 	Root              string
-	Driver            string
+	DriverList        []string
+	DefaultDriver     string
 	MountsDir         string
 	DefaultVolumeSize int64
 }
@@ -164,15 +166,18 @@ func loadServerConfig(c *cli.Context) (*Server, error) {
 		return nil, fmt.Errorf("Failed to load config:", err.Error())
 	}
 
-	driver, err := storagedriver.GetDriver(config.Driver, config.Root, nil)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to load driver:", err.Error())
+	server := &Server{
+		Config:         config,
+		StorageDrivers: make(map[string]storagedriver.StorageDriver),
+	}
+	for _, driverName := range config.DriverList {
+		driver, err := storagedriver.GetDriver(driverName, config.Root, nil)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to load driver:", err.Error())
+		}
+		server.StorageDrivers[driverName] = driver
 	}
 
-	server := &Server{
-		Config:        config,
-		StorageDriver: driver,
-	}
 	return server, nil
 }
 
@@ -256,11 +261,6 @@ func environmentCleanup() {
 }
 
 func (s *Server) autoMount() error {
-	volOps, err := s.StorageDriver.VolumeOps()
-	if err != nil {
-		return err
-	}
-
 	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
 	if err != nil {
 		return err
@@ -270,6 +270,11 @@ func (s *Server) autoMount() error {
 		if volume == nil {
 			return fmt.Errorf("Volume list changed for volume %v", uuid)
 		}
+		volOps, err := s.getVolumeOpsForVolume(volume)
+		if err != nil {
+			return err
+		}
+
 		if volume.MountPoint != "" {
 			if err := volOps.MountVolume(volume.UUID, volume.MountPoint); err != nil {
 				return err
@@ -315,7 +320,10 @@ func Start(sockFile string, c *cli.Context) error {
 		}
 	}
 
-	server.finishInitialization()
+	if err := server.finishInitialization(); err != nil {
+		return err
+	}
+
 	server.Router = createRouter(server)
 
 	if err := util.MkdirIfNotExists(filepath.Dir(sockFile)); err != nil {
@@ -352,11 +360,11 @@ func Start(sockFile string, c *cli.Context) error {
 
 func initServer(c *cli.Context) (*Server, error) {
 	root := c.String("root")
-	driverName := c.String("driver")
+	driverList := c.StringSlice("drivers")
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	mountsDir := c.String("mounts-dir")
 	defaultSize := c.String("default-volume-size")
-	if root == "" || driverName == "" || driverOpts == nil || mountsDir == "" || defaultSize == "" {
+	if root == "" || len(driverList) == 0 || driverOpts == nil || mountsDir == "" || defaultSize == "" {
 		return nil, fmt.Errorf("Missing or invalid parameters")
 	}
 
@@ -376,36 +384,65 @@ func initServer(c *cli.Context) (*Server, error) {
 	}
 	log.Debug("Default mounting directory would be ", mountsDir)
 
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:  LOG_EVENT_INIT,
-		LOG_FIELD_DRIVER: driverName,
-		"root":           root,
-		"driverOpts":     driverOpts,
-	}).Debug()
-	driver, err := storagedriver.GetDriver(driverName, root, driverOpts)
-	if err != nil {
-		return nil, err
+	server := &Server{
+		StorageDrivers: make(map[string]storagedriver.StorageDriver),
 	}
 
-	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:  LOG_EVENT_INIT,
-		LOG_FIELD_DRIVER: driverName,
-	}).Debug()
+	for _, driverName := range driverList {
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_REASON: LOG_REASON_PREPARE,
+			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
+			LOG_FIELD_DRIVER: driverName,
+			"root":           root,
+			"driver_opts":    driverOpts,
+		}).Debug()
 
+		driver, err := storagedriver.GetDriver(driverName, root, driverOpts)
+		if err != nil {
+			return nil, err
+		}
+
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
+			LOG_FIELD_DRIVER: driverName,
+		}).Debug()
+		server.StorageDrivers[driverName] = driver
+	}
 	config := Config{
 		Root:              root,
-		Driver:            driverName,
+		DriverList:        driverList,
+		DefaultDriver:     driverList[0],
 		MountsDir:         mountsDir,
 		DefaultVolumeSize: size,
 	}
-	server := &Server{
-		Config:        config,
-		StorageDriver: driver,
-	}
+	server.Config = config
 	if err := util.SaveConfig(root, getCfgName(), &config); err != nil {
 		return nil, err
 	}
 	return server, nil
+}
+
+func (s *Server) getDriver(driverName string) (storagedriver.StorageDriver, error) {
+	driver, exists := s.StorageDrivers[driverName]
+	if !exists {
+		return nil, fmt.Errorf("Cannot find driver %s", driverName)
+	}
+	return driver, nil
+}
+
+func (s *Server) getVolumeOpsForVolume(volume *Volume) (storagedriver.VolumeOperations, error) {
+	driver, err := s.getDriver(volume.DriverName)
+	if err != nil {
+		return nil, err
+	}
+	return driver.VolumeOps()
+}
+
+func (s *Server) getSnapshotOpsForVolume(volume *Volume) (storagedriver.SnapshotOperations, error) {
+	driver, err := s.getDriver(volume.DriverName)
+	if err != nil {
+		return nil, err
+	}
+	return driver.SnapshotOps()
 }

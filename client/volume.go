@@ -14,6 +14,10 @@ var (
 		Usage: "create a new volume: create [volume_name] [options]",
 		Flags: []cli.Flag{
 			cli.StringFlag{
+				Name:  "driver",
+				Usage: "specify using driver other than default",
+			},
+			cli.StringFlag{
 				Name:  "size",
 				Usage: "size of volume, in bytes, or end in either G or M or K",
 			},
@@ -90,6 +94,7 @@ func doVolumeCreate(c *cli.Context) error {
 
 	name := c.Args().First()
 	size, err := getSize(c, err)
+	driverName, err := util.GetLowerCaseFlag(c, "driver", false, err)
 	backupURL, err := util.GetLowerCaseFlag(c, "backup", false, err)
 	if err != nil {
 		return err
@@ -100,9 +105,10 @@ func doVolumeCreate(c *cli.Context) error {
 	}
 
 	request := &api.VolumeCreateRequest{
-		Name:      name,
-		Size:      size,
-		BackupURL: backupURL,
+		Name:       name,
+		DriverName: driverName,
+		Size:       size,
+		BackupURL:  backupURL,
 	}
 
 	url := "/volumes/create"
@@ -145,7 +151,7 @@ func doVolumeList(c *cli.Context) error {
 		v.Set("driver", "1")
 	}
 
-	url := "/volumes/list" + v.Encode()
+	url := "/volumes/list?" + v.Encode()
 	return sendRequestAndPrint("GET", url, nil)
 }
 

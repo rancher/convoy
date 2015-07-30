@@ -27,7 +27,7 @@ class VolumeManager:
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size = "", name = "", backup = ""):
+    def create_volume(self, size = "", name = "", backup = "", driver = ""):
         cmd = ["create"]
         if name != "":
             cmd = cmd + [name]
@@ -35,6 +35,8 @@ class VolumeManager:
             cmd = cmd + ["--size", size]
         if backup != "":
             cmd = cmd + ["--backup", backup]
+        if driver != "":
+            cmd = cmd + ["--driver", driver]
         data = subprocess.check_output(self.base_cmdline + cmd)
         volume = json.loads(data)
         if name != "":

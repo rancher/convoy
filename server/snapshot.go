@@ -24,11 +24,6 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	snapOps, err := s.StorageDriver.SnapshotOps()
-	if err != nil {
-		return err
-	}
-
 	request := &api.SnapshotCreateRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -45,6 +40,11 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+	}
+
+	snapOps, err := s.getSnapshotOpsForVolume(volume)
+	if err != nil {
+		return err
 	}
 
 	uuid := uuid.New()
@@ -101,11 +101,6 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
-	snapOps, err := s.StorageDriver.SnapshotOps()
-	if err != nil {
-		return err
-	}
-
 	request := &api.SnapshotDeleteRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -122,6 +117,11 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	volume := s.loadVolume(volumeUUID)
 	if !s.snapshotExists(volumeUUID, snapshotUUID) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
+	}
+
+	snapOps, err := s.getSnapshotOpsForVolume(volume)
+	if err != nil {
+		return err
 	}
 
 	log.WithFields(logrus.Fields{

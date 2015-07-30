@@ -23,6 +23,7 @@ type UUIDResponse struct {
 type VolumeResponse struct {
 	UUID        string
 	Name        string
+	Driver      string
 	Size        int64
 	MountPoint  string
 	CreatedTime string

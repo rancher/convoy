@@ -79,12 +79,7 @@ func (s *Server) deleteVolume(volume *Volume) error {
 	return nil
 }
 
-func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL string) (*Volume, error) {
-	volOps, err := s.StorageDriver.VolumeOps()
-	if err != nil {
-		return nil, err
-	}
-
+func (s *Server) processVolumeCreate(volumeName, driverName string, size int64, backupURL string) (*Volume, error) {
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
@@ -98,6 +93,18 @@ func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL st
 			return nil, err
 		}
 		size = objVolume.Size
+	}
+
+	if driverName == "" {
+		driverName = s.DefaultDriver
+	}
+	driver, err := s.getDriver(driverName)
+	if err != nil {
+		return nil, err
+	}
+	volOps, err := driver.VolumeOps()
+	if err != nil {
+		return nil, err
 	}
 
 	log.WithFields(logrus.Fields{
@@ -127,7 +134,7 @@ func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL st
 			LOG_FIELD_BACKUP_URL: backupURL,
 		}).Debug()
 		//TODO rollback
-		if err := objectstore.RestoreBackup(backupURL, uuid, s.StorageDriver); err != nil {
+		if err := objectstore.RestoreBackup(backupURL, uuid, driver); err != nil {
 			return nil, err
 		}
 		log.WithFields(logrus.Fields{
@@ -142,6 +149,7 @@ func (s *Server) processVolumeCreate(volumeName string, size int64, backupURL st
 	volume := &Volume{
 		UUID:        uuid,
 		Name:        volumeName,
+		DriverName:  driverName,
 		Size:        size,
 		FileSystem:  "ext4",
 		CreatedTime: util.Now(),
@@ -172,13 +180,14 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 		size = s.DefaultVolumeSize
 	}
 
-	volume, err := s.processVolumeCreate(request.Name, size, request.BackupURL)
+	volume, err := s.processVolumeCreate(request.Name, request.DriverName, size, request.BackupURL)
 	if err != nil {
 		return err
 	}
 
 	return writeResponseOutput(w, api.VolumeResponse{
 		UUID:        volume.UUID,
+		Driver:      volume.DriverName,
 		Name:        volume.Name,
 		Size:        volume.Size,
 		CreatedTime: volume.CreatedTime,
@@ -203,11 +212,6 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 }
 
 func (s *Server) processVolumeDelete(uuid string) error {
-	volOps, err := s.StorageDriver.VolumeOps()
-	if err != nil {
-		return err
-	}
-
 	volume := s.loadVolume(uuid)
 	if volume == nil {
 		return fmt.Errorf("Cannot find volume %s", uuid)
@@ -215,6 +219,11 @@ func (s *Server) processVolumeDelete(uuid string) error {
 
 	if volume.MountPoint != "" {
 		return fmt.Errorf("Cannot delete volume %s, it hasn't been umounted", uuid)
+	}
+
+	volOps, err := s.getVolumeOpsForVolume(volume)
+	if err != nil {
+		return err
 	}
 
 	log.WithFields(logrus.Fields{
@@ -282,19 +291,24 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	volOps, err := s.StorageDriver.VolumeOps()
-	if err != nil {
-		return err
-	}
-
-	driverSpecific, err := util.GetLowerCaseFlag(r, "driver", false, err)
+	driverSpecific, err := util.GetLowerCaseFlag(r, "driver", false, nil)
 	if err != nil {
 		return err
 	}
 
 	var data []byte
 	if driverSpecific == "1" {
-		data, err = volOps.ListVolume("")
+		for _, driver := range s.StorageDrivers {
+			volOps, err := driver.VolumeOps()
+			if err != nil {
+				break
+			}
+			driverData, err := volOps.ListVolume("")
+			if err != nil {
+				break
+			}
+			data = append(data, driverData...)
+		}
 	} else {
 		data, err = s.listVolume()
 	}
@@ -388,7 +402,7 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 }
 
 func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) error {
-	volOps, err := s.StorageDriver.VolumeOps()
+	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return err
 	}
@@ -457,7 +471,7 @@ func (s *Server) putVolumeMountPoint(mountPoint string) string {
 }
 
 func (s *Server) processVolumeUmount(volume *Volume) error {
-	volOps, err := s.StorageDriver.VolumeOps()
+	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return err
 	}

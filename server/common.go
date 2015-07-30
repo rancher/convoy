@@ -68,15 +68,17 @@ func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, 
 		return err
 	}
 
-	driver := s.StorageDriver
-	data, err = driver.Info()
-	if err != nil {
-		return err
+	for _, driver := range s.StorageDrivers {
+		data, err = driver.Info()
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(data)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = w.Write(data)
-	if err != nil {
-		return err
-	}
+
 	if _, err := w.Write([]byte(fmt.Sprint("\n}"))); err != nil {
 		return err
 	}

@@ -10,9 +10,10 @@ type VolumeUmountRequest struct {
 }
 
 type VolumeCreateRequest struct {
-	Name      string
-	Size      int64
-	BackupURL string
+	Name       string
+	DriverName string
+	Size       int64
+	BackupURL  string
 }
 
 type VolumeDeleteRequest struct {
