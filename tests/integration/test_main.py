@@ -154,7 +154,7 @@ def wait_for_daemon():
                 if v.check_server(PID_FILE) != 0:
                     print "Server failed to start"
                     teardown_module()
-                    sys.exit(1)
+                    assert False
                 time.sleep(1)
 
     info = json.loads(data)
@@ -162,7 +162,6 @@ def wait_for_daemon():
     try:
         success = bool(success and "devicemapper" in info["General"]["DriverList"])
         success = bool(success and info["General"]["Root"] == CFG_ROOT)
-        success = bool(success and info["General"]["MountsDir"]== AUTO_MOUNTS_DIR)
         success = bool(success and info["Driver"]["Driver"] == "devicemapper")
         success = bool(success and info["Driver"]["Root"] == DEVMAPPER_ROOT)
         success = bool(success and info["Driver"]["DataDevice"] == data_dev)
@@ -175,7 +174,7 @@ def wait_for_daemon():
 
     if not success:
         teardown_module()
-        sys.exit(1)
+        assert False
 
 @pytest.yield_fixture(autouse=True)
 def check_test():
@@ -273,14 +272,8 @@ def test_volume_mount():
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 
-    with pytest.raises(subprocess.CalledProcessError):
-        volume_mount_dir = mount_volume(uuid)
-
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
-
-    with pytest.raises(subprocess.CalledProcessError):
-        umount_volume(uuid, volume_mount_dir)
 
     # auto mount
     volume_mount_dir = mount_volume_auto(uuid)

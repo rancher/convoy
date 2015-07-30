@@ -34,6 +34,7 @@ const (
 	LOG_EVENT_LIST       = "list"
 	LOG_EVENT_MOUNT      = "mount"
 	LOG_EVENT_UMOUNT     = "umount"
+	LOG_EVENT_MOUNTPOINT = "mountpoint"
 	LOG_EVENT_ACTIVATE   = "activate"
 	LOG_EVENT_DEACTIVATE = "deactivate"
 	LOG_EVENT_REGISTER   = "register"

@@ -139,27 +139,15 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if volume.MountPoint != "" {
-		dockerResponse(w, "", fmt.Errorf("Volume %v (name %v) is already mounted at %v", volume.UUID, volume.Name, volume.MountPoint))
-		return
-	}
+	log.Debugf("Mount volume: %v (name %v) for docker", volume.UUID, volume.Name)
 
-	request := &api.VolumeMountRequest{}
-
-	request.MountPoint, err = s.getVolumeMountPoint(volume.UUID, "")
+	mountPoint, err := s.processVolumeMount(volume, &api.VolumeMountRequest{})
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
-	log.Debugf("Mount volume: %v (name %v) to %v for docker", volume.UUID, volume.Name, request.MountPoint)
-
-	if err := s.processVolumeMount(volume, request); err != nil {
-		dockerResponse(w, "", err)
-		return
-	}
-
-	dockerResponse(w, request.MountPoint, nil)
+	dockerResponse(w, mountPoint, nil)
 }
 
 func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
@@ -174,12 +162,7 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if volume.MountPoint == "" {
-		dockerResponse(w, "", fmt.Errorf("Volume %v (name %v) is not mounted", volume.UUID, volume.Name))
-		return
-	}
-
-	log.Debugf("Unmount volume: %v (name %v) at %v for docker", volume.UUID, volume.Name, volume.MountPoint)
+	log.Debugf("Unmount volume: %v (name %v) for docker", volume.UUID, volume.Name)
 
 	if err := s.processVolumeUmount(volume); err != nil {
 		dockerResponse(w, "", err)
@@ -201,7 +184,12 @@ func (s *Server) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Volume: %v (name %v) is mounted at %v for docker", volume.UUID, volume.Name, volume.MountPoint)
+	mountPoint, err := s.getVolumeMountPoint(volume)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+	log.Debugf("Volume: %v (name %v) is mounted at %v for docker", volume.UUID, volume.Name, mountPoint)
 
-	dockerResponse(w, volume.MountPoint, nil)
+	dockerResponse(w, mountPoint, nil)
 }

@@ -26,7 +26,6 @@ type Volume struct {
 	Name        string
 	DriverName  string
 	Size        int64
-	MountPoint  string
 	FileSystem  string
 	CreatedTime string
 	Snapshots   map[string]Snapshot
@@ -53,7 +52,6 @@ type Config struct {
 	Root              string
 	DriverList        []string
 	DefaultDriver     string
-	MountsDir         string
 	DefaultVolumeSize int64
 }
 
@@ -260,35 +258,7 @@ func environmentCleanup() {
 	}
 }
 
-func (s *Server) autoMount() error {
-	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
-	if err != nil {
-		return err
-	}
-	for _, uuid := range volumeUUIDs {
-		volume := s.loadVolume(uuid)
-		if volume == nil {
-			return fmt.Errorf("Volume list changed for volume %v", uuid)
-		}
-		volOps, err := s.getVolumeOpsForVolume(volume)
-		if err != nil {
-			return err
-		}
-
-		if volume.MountPoint != "" {
-			if err := volOps.MountVolume(volume.UUID, volume.MountPoint); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Server) finishInitialization() error {
-	// mount can be gone after reboot
-	if err := s.autoMount(); err != nil {
-		return err
-	}
+func (s *Server) finializeInitialization() error {
 	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
 	s.UUIDIndex = truncindex.NewTruncIndex([]string{})
@@ -320,7 +290,7 @@ func Start(sockFile string, c *cli.Context) error {
 		}
 	}
 
-	if err := server.finishInitialization(); err != nil {
+	if err := server.finializeInitialization(); err != nil {
 		return err
 	}
 
@@ -362,9 +332,8 @@ func initServer(c *cli.Context) (*Server, error) {
 	root := c.String("root")
 	driverList := c.StringSlice("drivers")
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
-	mountsDir := c.String("mounts-dir")
 	defaultSize := c.String("default-volume-size")
-	if root == "" || len(driverList) == 0 || driverOpts == nil || mountsDir == "" || defaultSize == "" {
+	if root == "" || len(driverList) == 0 || driverOpts == nil || defaultSize == "" {
 		return nil, fmt.Errorf("Missing or invalid parameters")
 	}
 
@@ -378,11 +347,6 @@ func initServer(c *cli.Context) (*Server, error) {
 	if util.ConfigExists(root, getCfgName()) {
 		return nil, fmt.Errorf("Configuration file already existed. Don't need to initialize.")
 	}
-
-	if err := util.MkdirIfNotExists(mountsDir); err != nil {
-		return nil, err
-	}
-	log.Debug("Default mounting directory would be ", mountsDir)
 
 	server := &Server{
 		StorageDrivers: make(map[string]storagedriver.StorageDriver),
@@ -413,7 +377,6 @@ func initServer(c *cli.Context) (*Server, error) {
 		Root:              root,
 		DriverList:        driverList,
 		DefaultDriver:     driverList[0],
-		MountsDir:         mountsDir,
 		DefaultVolumeSize: size,
 	}
 	server.Config = config

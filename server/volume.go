@@ -6,11 +6,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/objectstore"
+	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
@@ -217,10 +215,6 @@ func (s *Server) processVolumeDelete(uuid string) error {
 		return fmt.Errorf("Cannot find volume %s", uuid)
 	}
 
-	if volume.MountPoint != "" {
-		return fmt.Errorf("Cannot delete volume %s, it hasn't been umounted", uuid)
-	}
-
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return err
@@ -247,12 +241,21 @@ func (s *Server) processVolumeDelete(uuid string) error {
 	return s.deleteVolume(volume)
 }
 
-func getVolumeInfo(volume *Volume) *api.VolumeResponse {
+func (s *Server) getVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
+	volOps, err := s.getVolumeOpsForVolume(volume)
+	if err != nil {
+		return nil, err
+	}
+
+	mountPoint, err := volOps.MountPoint(volume.UUID)
+	if err != nil {
+		return nil, err
+	}
 	resp := &api.VolumeResponse{
 		UUID:        volume.UUID,
 		Name:        volume.Name,
 		Size:        volume.Size,
-		MountPoint:  volume.MountPoint,
+		MountPoint:  mountPoint,
 		CreatedTime: volume.CreatedTime,
 		Snapshots:   make(map[string]api.SnapshotResponse),
 	}
@@ -263,7 +266,7 @@ func getVolumeInfo(volume *Volume) *api.VolumeResponse {
 			CreatedTime: snapshot.CreatedTime,
 		}
 	}
-	return resp
+	return resp, nil
 }
 
 func (s *Server) listVolume() ([]byte, error) {
@@ -281,7 +284,11 @@ func (s *Server) listVolume() ([]byte, error) {
 		if volume == nil {
 			return nil, fmt.Errorf("Volume list changed for volume %v", uuid)
 		}
-		resp.Volumes[uuid] = *getVolumeInfo(volume)
+		r, err := s.getVolumeInfo(volume)
+		if err != nil {
+			return nil, err
+		}
+		resp.Volumes[uuid] = *r
 	}
 
 	return api.ResponseOutput(resp)
@@ -324,8 +331,11 @@ func (s *Server) inspectVolume(volumeUUID string) ([]byte, error) {
 	if volume == nil {
 		return nil, fmt.Errorf("Cannot find volume %v", volumeUUID)
 	}
-	resp := *getVolumeInfo(volume)
-	return api.ResponseOutput(resp)
+	resp, err := s.getVolumeInfo(volume)
+	if err != nil {
+		return nil, err
+	}
+	return api.ResponseOutput(*resp)
 }
 
 func (s *Server) doVolumeInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -350,18 +360,6 @@ func (s *Server) doVolumeInspect(version string, w http.ResponseWriter, r *http.
 	return err
 }
 
-func (s *Server) getVolumeMountPoint(volumeUUID, mountPoint string) (string, error) {
-	if mountPoint != "" {
-		return mountPoint, nil
-	}
-	// Automatic mount
-	dir := filepath.Join(s.MountsDir, volumeUUID)
-	if err := util.MkdirIfNotExists(dir); err != nil {
-		return "", err
-	}
-	return dir, nil
-}
-
 func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
@@ -382,57 +380,44 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
-	if volume.MountPoint != "" {
-		return fmt.Errorf("volume %v already mounted at %v as record shows", volumeUUID, volume.MountPoint)
-	}
-
-	request.MountPoint, err = s.getVolumeMountPoint(volumeUUID, request.MountPoint)
+	mountPoint, err := s.processVolumeMount(volume, request)
 	if err != nil {
-		return err
-	}
-
-	if err := s.processVolumeMount(volume, request); err != nil {
 		return err
 	}
 
 	return writeResponseOutput(w, api.VolumeResponse{
 		UUID:       volumeUUID,
-		MountPoint: volume.MountPoint,
+		MountPoint: mountPoint,
 	})
 }
 
-func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) error {
+func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) (string, error) {
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if st, err := os.Stat(request.MountPoint); os.IsNotExist(err) || !st.IsDir() {
-		return fmt.Errorf("Mount point %s doesn't exist", request.MountPoint)
+	opts := map[string]string{
+		storagedriver.OPTS_MOUNT_POINT: request.MountPoint,
 	}
-
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:      LOG_EVENT_MOUNT,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volume.UUID,
-		LOG_FIELD_MOUNTPOINT: request.MountPoint,
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_MOUNT,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: volume.UUID,
 	}).Debug()
-	if err := volOps.MountVolume(volume.UUID, request.MountPoint); err != nil {
-		return err
+	mountPoint, err := volOps.MountVolume(volume.UUID, opts)
+	if err != nil {
+		return "", err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:      LOG_EVENT_LIST,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME:     volume.UUID,
-		LOG_FIELD_MOUNTPOINT: request.MountPoint,
+		LOG_FIELD_MOUNTPOINT: mountPoint,
 	}).Debug()
-	volume.MountPoint = request.MountPoint
-	if err := s.saveVolume(volume); err != nil {
-		return err
-	}
-	return nil
+	return mountPoint, nil
 }
 
 func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -453,21 +438,7 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
 
-	if volume.MountPoint == "" {
-		return fmt.Errorf("volume %v hasn't been mounted as record shows", volumeUUID)
-	}
-
 	return s.processVolumeUmount(volume)
-}
-
-func (s *Server) putVolumeMountPoint(mountPoint string) string {
-	if strings.HasPrefix(mountPoint, s.MountsDir) {
-		err := os.Remove(mountPoint)
-		if err != nil {
-			log.Warnf("Cannot cleanup mount point directory %v\n", mountPoint)
-		}
-	}
-	return ""
 }
 
 func (s *Server) processVolumeUmount(volume *Volume) error {
@@ -477,25 +448,49 @@ func (s *Server) processVolumeUmount(volume *Volume) error {
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volume.UUID,
-		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_UMOUNT,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: volume.UUID,
 	}).Debug()
-	if err := volOps.UmountVolume(volume.UUID, volume.MountPoint); err != nil {
+	if err := volOps.UmountVolume(volume.UUID); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:      LOG_EVENT_UMOUNT,
-		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volume.UUID,
-		LOG_FIELD_MOUNTPOINT: volume.MountPoint,
+		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:  LOG_EVENT_UMOUNT,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: volume.UUID,
 	}).Debug()
 
-	volume.MountPoint = s.putVolumeMountPoint(volume.MountPoint)
-	return s.saveVolume(volume)
+	return nil
+}
+
+func (s *Server) getVolumeMountPoint(volume *Volume) (string, error) {
+	volOps, err := s.getVolumeOpsForVolume(volume)
+	if err != nil {
+		return "", err
+	}
+
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_MOUNTPOINT,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: volume.UUID,
+	}).Debug()
+	mountPoint, err := volOps.MountPoint(volume.UUID)
+	if err != nil {
+		return "", err
+	}
+	log.WithFields(logrus.Fields{
+		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:      LOG_EVENT_MOUNTPOINT,
+		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME:     volume.UUID,
+		LOG_FIELD_MOUNTPOINT: mountPoint,
+	}).Debug()
+
+	return mountPoint, nil
 }
 
 func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
