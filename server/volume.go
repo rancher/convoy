@@ -530,7 +530,7 @@ func (s *Server) getVolumeSize(volumeUUID string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	infos, err := volOps.GetInfo(volumeUUID)
+	infos, err := volOps.GetVolumeInfo(volumeUUID)
 	if err != nil {
 		return 0, err
 	}

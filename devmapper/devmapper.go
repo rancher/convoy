@@ -941,7 +941,7 @@ func (d *Driver) MountPoint(id string) (string, error) {
 	return volume.MountPoint, nil
 }
 
-func (d *Driver) GetInfo(id string) (map[string]string, error) {
+func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	result := map[string]string{}
 	volume, err := d.checkLoadVolume(id)
 	if err != nil {

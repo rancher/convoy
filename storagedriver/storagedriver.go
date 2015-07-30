@@ -23,7 +23,7 @@ type VolumeOperations interface {
 	MountVolume(id string, opts map[string]string) (string, error)
 	UmountVolume(id string) error
 	MountPoint(id string) (string, error)
-	GetInfo(id string) (map[string]string, error)
+	GetVolumeInfo(id string) (map[string]string, error)
 	ListVolume(id string) ([]byte, error)
 }
 
