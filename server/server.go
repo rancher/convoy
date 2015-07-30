@@ -255,13 +255,6 @@ func environmentCleanup() {
 	}
 }
 
-func (s *Server) CheckEnvironment() error {
-	if err := storagedriver.CheckEnvironment(s.StorageDriver); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *Server) autoMount() error {
 	volOps, err := s.StorageDriver.VolumeOps()
 	if err != nil {
@@ -320,9 +313,6 @@ func Start(sockFile string, c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-	}
-	if err := server.CheckEnvironment(); err != nil {
-		return err
 	}
 
 	server.finishInitialization()

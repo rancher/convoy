@@ -243,10 +243,9 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 	devicemapper.LogInitVerbose(1)
 	devicemapper.LogInit(&DMLogger{})
 
-	/* disable udev sync support for static link binary
-	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
-		return nil, fmt.Errorf("Udev sync is not supported. Cannot proceed.")
-	} */
+	if err := checkEnvironment(); err != nil {
+		return nil, err
+	}
 
 	if err := util.MkdirIfNotExists(root); err != nil {
 		return nil, err
@@ -790,7 +789,11 @@ func (d *Driver) deactivatePool() error {
 	return nil
 }
 
-func (d *Driver) CheckEnvironment() error {
+func checkEnvironment() error {
+	/* disable udev sync support for static link binary
+	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
+		return nil, fmt.Errorf("Udev sync is not supported. Cannot proceed.")
+	} */
 	cmdline := []string{"thin_delta", "-V"}
 	if err := util.CheckBinaryVersion(THIN_PROVISION_TOOLS_BINARY, THIN_PROVISION_TOOLS_MIN_VERSION, cmdline); err != nil {
 		return err

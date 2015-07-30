@@ -12,7 +12,6 @@ type InitFunc func(root string, config map[string]string) (StorageDriver, error)
 type StorageDriver interface {
 	Name() string
 	Info() ([]byte, error)
-	CheckEnvironment() error
 
 	VolumeOps() (VolumeOperations, error)
 	SnapshotOps() (SnapshotOperations, error)
@@ -60,11 +59,4 @@ func GetDriver(name, root string, config map[string]string) (StorageDriver, erro
 	}
 	drvRoot := filepath.Join(root, name)
 	return initializers[name](drvRoot, config)
-}
-
-func CheckEnvironment(driver StorageDriver) error {
-	if err := driver.CheckEnvironment(); err != nil {
-		return err
-	}
-	return nil
 }
