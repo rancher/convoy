@@ -20,21 +20,6 @@ type TestSuite struct {
 
 var _ = Suite(&TestSuite{})
 
-type Device struct {
-	Root              string
-	DataDevice        string
-	MetadataDevice    string
-	ThinpoolDevice    string
-	ThinpoolSize      uint64
-	ThinpoolBlockSize uint32
-	Volumes           map[string]Volume
-}
-
-type Volume struct {
-	DevID int
-	Size  uint64
-}
-
 const (
 	testRoot  = "/tmp/util"
 	testImage = "test.img"
@@ -53,38 +38,6 @@ func (s *TestSuite) SetUpSuite(c *C) {
 func (s *TestSuite) TearDownSuite(c *C) {
 	err := exec.Command("rm", "-rf", testRoot).Run()
 	c.Assert(err, IsNil)
-}
-
-func (s *TestSuite) TestSaveLoadConfig(c *C) {
-	dev := Device{
-		Root:              "/tmp/rancher-volume/devmapper",
-		DataDevice:        "/dev/loop0",
-		MetadataDevice:    "/dev/loop1",
-		ThinpoolDevice:    "/dev/mapper/rancher-volume-pool",
-		ThinpoolSize:      1024 * 1024 * 1024,
-		ThinpoolBlockSize: 4096,
-	}
-
-	dev.Volumes = make(map[string]Volume)
-	err := SaveConfig("/tmp/cfg", &dev)
-	c.Assert(err, IsNil)
-
-	dev.ThinpoolBlockSize = 2048
-
-	volume := Volume{
-		DevID: 1,
-		Size:  1000000,
-	}
-	dev.Volumes["123"] = volume
-
-	err = SaveConfig("/tmp/cfg", &dev)
-	c.Assert(err, IsNil)
-
-	devNew := Device{}
-	err = LoadConfig("/tmp/cfg", &devNew)
-	c.Assert(err, IsNil)
-
-	c.Assert(dev, DeepEquals, devNew)
 }
 
 func (s *TestSuite) TestExtractUUIDs(c *C) {

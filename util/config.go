@@ -2,7 +2,9 @@ package util
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"reflect"
 	"strings"
 )
 
@@ -87,4 +89,79 @@ func ListConfigIDs(path, prefix, suffix string) ([]string, error) {
 	}
 	fileResult := strings.Split(strings.TrimSpace(string(out)), " ")
 	return ExtractUUIDs(fileResult, prefix, suffix)
+}
+
+type ObjectOperations interface {
+	IdField() string
+	ConfigFile(id string) (string, error)
+}
+
+func getObjectOpts(obj interface{}) (ObjectOperations, string, error) {
+	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
+		return nil, "", fmt.Errorf("BUG: Non-pointer was passed in")
+	}
+	t := reflect.TypeOf(obj).Elem()
+	ops, ok := obj.(ObjectOperations)
+	if !ok {
+		return nil, "", fmt.Errorf("BUG: %v doesn't implement necessary methods for accessing object", t)
+	}
+	id := ""
+	if ops.IdField() != "" {
+		field := reflect.ValueOf(obj).Elem().FieldByName(ops.IdField())
+		if !field.IsValid() {
+			return nil, "", fmt.Errorf("BUG: %v indicate ID field is %v, but it doesn't exist", t, ops.IdField())
+		}
+		id = field.String()
+	}
+	return ops, id, nil
+}
+
+func ObjectConfig(obj interface{}) (string, error) {
+	ops, id, err := getObjectOpts(obj)
+	if err != nil {
+		return "", err
+	}
+	config, err := ops.ConfigFile(id)
+	if err != nil {
+		return "", err
+	}
+	return config, nil
+}
+
+func ObjectLoad(obj interface{}) error {
+	config, err := ObjectConfig(obj)
+	if err != nil {
+		return err
+	}
+	if !ConfigExists(config) {
+		return fmt.Errorf("Cannot find object config %v", config)
+	}
+	if err := LoadConfig(config, obj); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ObjectExists(obj interface{}) (bool, error) {
+	config, err := ObjectConfig(obj)
+	if err != nil {
+		return false, err
+	}
+	return ConfigExists(config), nil
+}
+
+func ObjectSave(obj interface{}) error {
+	config, err := ObjectConfig(obj)
+	if err != nil {
+		return err
+	}
+	return SaveConfig(config, obj)
+}
+
+func ObjectDelete(obj interface{}) error {
+	config, err := ObjectConfig(obj)
+	if err != nil {
+		return err
+	}
+	return RemoveConfig(config)
 }
