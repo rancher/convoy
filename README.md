@@ -62,7 +62,7 @@ sudo rancher-volume server --drivers devicemapper --driver-opts dm.datadev=/dev/
 ## Use cases
 ##### Create a volume:
 ```
-sudo docker run -it -v vol1:/vol1 --volume-driver rancher ubuntu /bin/bash
+sudo docker run -it -v vol1:/vol1 --volume-driver=rancher ubuntu /bin/bash
 ```
 or
 ```
