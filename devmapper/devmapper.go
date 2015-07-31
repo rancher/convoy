@@ -897,9 +897,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		return nil, err
 	}
 	result := map[string]string{
-		"UUID":                         volume.UUID,
-		"DevID":                        strconv.Itoa(volume.DevID),
-		"Driver":                       DRIVER_NAME,
+		"DevID": strconv.Itoa(volume.DevID),
 		storagedriver.OPTS_MOUNT_POINT: volume.MountPoint,
 		storagedriver.OPTS_SIZE:        strconv.FormatInt(volume.Size, 10),
 	}

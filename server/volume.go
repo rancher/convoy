@@ -319,6 +319,7 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 				break
 			}
 			for k, v := range volumes {
+				v["Driver"] = driver.Name()
 				result[k] = v
 			}
 		}
