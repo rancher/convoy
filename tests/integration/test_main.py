@@ -159,13 +159,13 @@ def wait_for_daemon():
     try:
         success = bool(success and "devicemapper" in info["General"]["DriverList"])
         success = bool(success and info["General"]["Root"] == CFG_ROOT)
-        success = bool(success and info["Driver"]["Driver"] == "devicemapper")
-        success = bool(success and info["Driver"]["Root"] == DEVMAPPER_ROOT)
-        success = bool(success and info["Driver"]["DataDevice"] == data_dev)
-        success = bool(success and info["Driver"]["MetadataDevice"] == metadata_dev)
-        success = bool(success and info["Driver"]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME))
-        success = bool(success and info["Driver"]["ThinpoolSize"] == DATA_DEVICE_SIZE)
-        success = bool(success and info["Driver"]["ThinpoolBlockSize"] == DM_BLOCK_SIZE)
+        success = bool(success and info["devicemapper"]["Driver"] == "devicemapper")
+        success = bool(success and info["devicemapper"]["Root"] == DEVMAPPER_ROOT)
+        success = bool(success and info["devicemapper"]["DataDevice"] == data_dev)
+        success = bool(success and info["devicemapper"]["MetadataDevice"] == metadata_dev)
+        success = bool(success and info["devicemapper"]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME))
+        success = bool(success and info["devicemapper"]["ThinpoolSize"] == str(DATA_DEVICE_SIZE))
+        success = bool(success and info["devicemapper"]["ThinpoolBlockSize"] == str(DM_BLOCK_SIZE))
     except:
         success = False
 

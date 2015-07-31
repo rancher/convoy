@@ -51,7 +51,7 @@ func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, 
 	defer s.GlobalLock.RUnlock()
 
 	var err error
-	_, err = w.Write([]byte(fmt.Sprint("{\n\"General\" : ")))
+	_, err = w.Write([]byte(fmt.Sprint("{\n\"General\": ")))
 	if err != nil {
 		return err
 	}
@@ -64,12 +64,16 @@ func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte(fmt.Sprint(",\n\"Driver\" : "))); err != nil {
-		return err
-	}
-
 	for _, driver := range s.StorageDrivers {
-		data, err = driver.Info()
+		if _, err := w.Write([]byte(fmt.Sprintf(",\n\"%v\": ", driver.Name()))); err != nil {
+			return err
+		}
+
+		info, err := driver.Info()
+		if err != nil {
+			return err
+		}
+		data, err = api.ResponseOutput(info)
 		if err != nil {
 			return err
 		}

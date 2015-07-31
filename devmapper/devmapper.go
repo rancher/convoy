@@ -657,26 +657,21 @@ func (d *Driver) CompareSnapshot(id, compareID, volumeID string) (*metadata.Mapp
 	return mapping, err
 }
 
-func (d *Driver) Info() ([]byte, error) {
+func (d *Driver) Info() (map[string]string, error) {
 	// from sector count to byte
 	blockSize := d.ThinpoolBlockSize * 512
 
-	dmInfo := api.DeviceMapperInfo{
-		Driver:            d.Name(),
-		Root:              d.Root,
-		DataDevice:        d.DataDevice,
-		MetadataDevice:    d.MetadataDevice,
-		ThinpoolDevice:    d.ThinpoolDevice,
-		ThinpoolSize:      d.ThinpoolSize,
-		ThinpoolBlockSize: blockSize,
+	info := map[string]string{
+		"Driver":            d.Name(),
+		"Root":              d.Root,
+		"DataDevice":        d.DataDevice,
+		"MetadataDevice":    d.MetadataDevice,
+		"ThinpoolDevice":    d.ThinpoolDevice,
+		"ThinpoolSize":      strconv.FormatInt(d.ThinpoolSize, 10),
+		"ThinpoolBlockSize": strconv.FormatInt(blockSize, 10),
 	}
 
-	data, err := api.ResponseOutput(dmInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return info, nil
 }
 
 func (d *Driver) checkLoadVolume(volumeID string) (*Volume, error) {

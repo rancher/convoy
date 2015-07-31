@@ -11,7 +11,7 @@ type InitFunc func(root string, config map[string]string) (StorageDriver, error)
 
 type StorageDriver interface {
 	Name() string
-	Info() ([]byte, error)
+	Info() (map[string]string, error)
 
 	VolumeOps() (VolumeOperations, error)
 	SnapshotOps() (SnapshotOperations, error)
