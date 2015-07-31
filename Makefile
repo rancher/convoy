@@ -12,7 +12,7 @@ ifeq ($(STATIC_LINK), 1)
 endif
 
 $(RANCHER-VOLUME_EXEC_FILE): ./main.go ./api/request.go \
-	./api/devmapper.go ./api/response.go ./api/const.go \
+	./api/response.go ./api/const.go \
 	./server/server.go ./server/common.go ./server/volume.go \
 	./server/snapshot.go ./server/objectstore.go \
 	./server/import_objectstore.go ./server/import_devmapper.go \

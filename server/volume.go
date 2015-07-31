@@ -258,6 +258,7 @@ func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	resp := &api.VolumeResponse{
 		UUID:        volume.UUID,
 		Name:        volume.Name,
+		Driver:      volume.DriverName,
 		Size:        size,
 		MountPoint:  mountPoint,
 		CreatedTime: volume.CreatedTime,
@@ -274,9 +275,7 @@ func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 }
 
 func (s *Server) listVolume() ([]byte, error) {
-	resp := api.VolumesResponse{
-		Volumes: make(map[string]api.VolumeResponse),
-	}
+	resp := make(map[string]api.VolumeResponse)
 
 	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
 	if err != nil {
@@ -292,7 +291,7 @@ func (s *Server) listVolume() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		resp.Volumes[uuid] = *r
+		resp[uuid] = *r
 	}
 
 	return api.ResponseOutput(resp)
@@ -314,11 +313,15 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 			if err != nil {
 				break
 			}
-			driverData, err := volOps.ListVolume("")
+			driverData, err := volOps.ListVolume(map[string]string{})
 			if err != nil {
 				break
 			}
-			data = append(data, driverData...)
+			output, err := api.ResponseOutput(&driverData)
+			if err != nil {
+				break
+			}
+			data = append(data, output...)
 		}
 	} else {
 		data, err = s.listVolume()

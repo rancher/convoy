@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/metadata"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
@@ -501,57 +500,19 @@ func (d *Driver) DeleteVolume(id string) error {
 	return nil
 }
 
-func getVolumeSnapshotInfo(uuid string, volume *Volume, snapshotID string) *api.DeviceMapperVolume {
-	result := api.DeviceMapperVolume{
-		DevID:     volume.DevID,
-		Snapshots: make(map[string]api.DeviceMapperSnapshot),
+func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]string, error) {
+	volumes := make(map[string]map[string]string)
+	volumeIDs, err := d.listVolumeIDs()
+	if err != nil {
+		return nil, err
 	}
-	if s, exists := volume.Snapshots[snapshotID]; exists {
-		result.Snapshots[snapshotID] = api.DeviceMapperSnapshot{
-			DevID: s.DevID,
-		}
-	}
-	return &result
-}
-
-func getVolumeInfo(uuid string, volume *Volume) *api.DeviceMapperVolume {
-	result := api.DeviceMapperVolume{
-		DevID:     volume.DevID,
-		Snapshots: make(map[string]api.DeviceMapperSnapshot),
-	}
-	for uuid, snapshot := range volume.Snapshots {
-		s := api.DeviceMapperSnapshot{
-			DevID: snapshot.DevID,
-		}
-		result.Snapshots[uuid] = s
-	}
-	return &result
-}
-
-func (d *Driver) ListVolume(id string) ([]byte, error) {
-	volumes := api.DeviceMapperVolumes{
-		Volumes: make(map[string]api.DeviceMapperVolume),
-	}
-	if id != "" {
-		volume, err := d.checkLoadVolume(id)
+	for _, uuid := range volumeIDs {
+		volumes[uuid], err = d.GetVolumeInfo(uuid)
 		if err != nil {
 			return nil, err
 		}
-		volumes.Volumes[id] = *getVolumeInfo(id, volume)
-	} else {
-		volumeIDs, err := d.listVolumeIDs()
-		if err != nil {
-			return nil, err
-		}
-		for _, uuid := range volumeIDs {
-			volume, err := d.checkLoadVolume(uuid)
-			if err != nil {
-				return nil, err
-			}
-			volumes.Volumes[uuid] = *getVolumeInfo(uuid, volume)
-		}
 	}
-	return api.ResponseOutput(volumes)
+	return volumes, nil
 }
 
 func (d *Driver) CreateSnapshot(id, volumeID string) error {
@@ -933,11 +894,16 @@ func (d *Driver) MountPoint(id string) (string, error) {
 }
 
 func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
-	result := map[string]string{}
 	volume, err := d.checkLoadVolume(id)
 	if err != nil {
 		return nil, err
 	}
-	result[storagedriver.OPTS_SIZE] = strconv.FormatInt(volume.Size, 10)
+	result := map[string]string{
+		"UUID":                         volume.UUID,
+		"DevID":                        strconv.Itoa(volume.DevID),
+		"Driver":                       DRIVER_NAME,
+		storagedriver.OPTS_MOUNT_POINT: volume.MountPoint,
+		storagedriver.OPTS_SIZE:        strconv.FormatInt(volume.Size, 10),
+	}
 	return result, nil
 }

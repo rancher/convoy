@@ -221,6 +221,7 @@ def test_volume_name():
     vol_uuid = create_volume(name=vol_name1)
     vols = v.list_volumes()
     assert vols[vol_uuid]["Name"] == vol_name1
+    assert vols[vol_uuid]["Driver"] == "devicemapper"
     assert vols[vol_uuid]["CreatedTime"] != ""
 
     with pytest.raises(subprocess.CalledProcessError):

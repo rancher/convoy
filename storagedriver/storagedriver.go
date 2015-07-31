@@ -24,7 +24,7 @@ type VolumeOperations interface {
 	UmountVolume(id string) error
 	MountPoint(id string) (string, error)
 	GetVolumeInfo(id string) (map[string]string, error)
-	ListVolume(id string) ([]byte, error)
+	ListVolume(opts map[string]string) (map[string]map[string]string, error)
 }
 
 type SnapshotOperations interface {
@@ -39,8 +39,8 @@ type SnapshotOperations interface {
 }
 
 const (
-	OPTS_MOUNT_POINT = "mountpoint"
-	OPTS_SIZE        = "size"
+	OPTS_MOUNT_POINT = "MountPoint"
+	OPTS_SIZE        = "Size"
 )
 
 var (

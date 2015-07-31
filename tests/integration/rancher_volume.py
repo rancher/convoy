@@ -70,7 +70,7 @@ class VolumeManager:
     def list_volumes(self):
     	data = subprocess.check_output(self.base_cmdline + ["list"])
         volumes = json.loads(data)
-        return volumes["Volumes"]
+        return volumes
 
     def inspect_volume(self, volume):
         cmd = ["inspect", volume]

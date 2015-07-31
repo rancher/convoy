@@ -12,10 +12,6 @@ type ErrorResponse struct {
 	Error string
 }
 
-type VolumesResponse struct {
-	Volumes map[string]VolumeResponse
-}
-
 type UUIDResponse struct {
 	UUID string
 }
