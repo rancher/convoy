@@ -25,7 +25,8 @@ $(RANCHER-VOLUME_EXEC_FILE): ./main.go ./api/request.go \
 	./storagedriver/storagedriver.go \
 	./devmapper/devmapper.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
-	./util/util.go ./util/util_test.go ./util/index.go \
+	./util/util.go ./util/config.go \
+	./util/util_test.go ./util/index.go \
 	./logging/logging.go
 	go build $(FLAGS) -o $(RANCHER-VOLUME_EXEC_FILE)
 
