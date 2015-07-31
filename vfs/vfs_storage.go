@@ -41,24 +41,24 @@ func (d *Driver) Name() string {
 	return DRIVER_NAME
 }
 
-func getVolumeCfgName(uuid string) (string, error) {
+func (device *Device) getVolumeConfig(uuid string) (string, error) {
 	if uuid == "" {
 		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
 	}
-	return VFS_CFG_PREFIX + VOLUME_CFG_PREFIX + uuid + CFG_POSTFIX, nil
+	return filepath.Join(device.Root, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
 }
 
 func (device *Device) loadVolume(uuid string) *Volume {
-	cfgName, err := getVolumeCfgName(uuid)
+	config, err := device.getVolumeConfig(uuid)
 	if err != nil {
 		return nil
 	}
-	if !util.ConfigExists(device.Root, cfgName) {
+	if !util.ConfigExists(config) {
 		return nil
 	}
 	volume := &Volume{}
-	if err := util.LoadConfig(device.Root, cfgName, volume); err != nil {
-		log.Error("Failed to load volume json ", cfgName)
+	if err := util.LoadConfig(config, volume); err != nil {
+		log.Error("Failed to load volume json ", config)
 		return nil
 	}
 	return volume
@@ -73,20 +73,19 @@ func (device *Device) checkLoadVolume(uuid string) (*Volume, error) {
 }
 
 func (device *Device) saveVolume(volume *Volume) error {
-	uuid := volume.UUID
-	cfgName, err := getVolumeCfgName(uuid)
+	config, err := device.getVolumeConfig(volume.UUID)
 	if err != nil {
 		return err
 	}
-	return util.SaveConfig(device.Root, cfgName, volume)
+	return util.SaveConfig(config, volume)
 }
 
 func (device *Device) deleteVolume(uuid string) error {
-	cfgName, err := getVolumeCfgName(uuid)
+	config, err := device.getVolumeConfig(uuid)
 	if err != nil {
 		return err
 	}
-	return util.RemoveConfig(device.Root, cfgName)
+	return util.RemoveConfig(config)
 }
 
 func (device *Device) listVolumeIDs() ([]string, error) {
@@ -95,9 +94,9 @@ func (device *Device) listVolumeIDs() ([]string, error) {
 
 func Init(root string, config map[string]string) (storagedriver.StorageDriver, error) {
 	cfg := DRIVER_CONFIG_FILE
-	if util.ConfigExists(root, cfg) {
+	if util.ConfigExists(filepath.Join(root, cfg)) {
 		dev := Device{}
-		if err := util.LoadConfig(root, cfg, &dev); err != nil {
+		if err := util.LoadConfig(filepath.Join(root, cfg), &dev); err != nil {
 			return nil, err
 		}
 		d := &Driver{
@@ -122,7 +121,7 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 		Root: root,
 		Path: path,
 	}
-	if err := util.SaveConfig(root, cfg, &dev); err != nil {
+	if err := util.SaveConfig(filepath.Join(root, cfg), &dev); err != nil {
 		return nil, err
 	}
 	d := &Driver{

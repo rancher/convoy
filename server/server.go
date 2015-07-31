@@ -157,7 +157,7 @@ func loadServerConfig(c *cli.Context) (*Server, error) {
 		return nil, util.RequiredMissingError("root")
 	}
 	log.Debug("Ignore command line opts, loading server config from ", root)
-	err := util.LoadConfig(root, getCfgName(), &config)
+	err := util.LoadConfig(getCfgName(root), &config)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to load config:", err.Error())
 	}
@@ -276,7 +276,7 @@ func Start(sockFile string, c *cli.Context) error {
 
 	root := c.String("root")
 	var server *Server
-	if !util.ConfigExists(root, getCfgName()) {
+	if !util.ConfigExists(getCfgName(root)) {
 		server, err = initServer(c)
 		if err != nil {
 			return err
@@ -336,7 +336,7 @@ func initServer(c *cli.Context) (*Server, error) {
 
 	log.Debug("Config root is ", root)
 
-	if util.ConfigExists(root, getCfgName()) {
+	if util.ConfigExists(getCfgName(root)) {
 		return nil, fmt.Errorf("Configuration file already existed. Don't need to initialize.")
 	}
 
@@ -371,7 +371,7 @@ func initServer(c *cli.Context) (*Server, error) {
 		DefaultDriver: driverList[0],
 	}
 	server.Config = config
-	if err := util.SaveConfig(root, getCfgName(), &config); err != nil {
+	if err := util.SaveConfig(getCfgName(root), &config); err != nil {
 		return nil, err
 	}
 	return server, nil

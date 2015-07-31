@@ -12,12 +12,8 @@ const (
 	CONFIGFILE = "rancher-volume.cfg"
 )
 
-func getConfigFileName(root string) string {
-	return filepath.Join(root, CONFIGFILE)
-}
-
-func getCfgName() string {
-	return CONFIGFILE
+func getCfgName(path string) string {
+	return filepath.Join(path, CONFIGFILE)
 }
 
 func decodeRequest(r *http.Request, v interface{}) error {

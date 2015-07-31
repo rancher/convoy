@@ -3,12 +3,10 @@ package util
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
-func LoadConfig(path, name string, v interface{}) error {
-	fileName := filepath.Join(path, name)
+func LoadConfig(fileName string, v interface{}) error {
 	st, err := os.Stat(fileName)
 	if err != nil {
 		return err
@@ -32,14 +30,13 @@ func LoadConfig(path, name string, v interface{}) error {
 	return nil
 }
 
-func SaveConfig(path, name string, v interface{}) error {
-	fileName := filepath.Join(path, name)
+func SaveConfig(fileName string, v interface{}) error {
 	j, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
 
-	tmpFileName := filepath.Join(path, name+".tmp")
+	tmpFileName := fileName + ".tmp"
 
 	f, err := os.Create(tmpFileName)
 	if err != nil {
@@ -65,14 +62,12 @@ func SaveConfig(path, name string, v interface{}) error {
 	return nil
 }
 
-func ConfigExists(path, name string) bool {
-	fileName := filepath.Join(path, name)
+func ConfigExists(fileName string) bool {
 	_, err := os.Stat(fileName)
 	return err == nil
 }
 
-func RemoveConfig(path, name string) error {
-	fileName := filepath.Join(path, name)
+func RemoveConfig(fileName string) error {
 	if _, err := Execute("rm", []string{"-f", fileName}); err != nil {
 		return err
 	}

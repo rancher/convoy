@@ -9,33 +9,11 @@ import (
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
-
-func getVolumeCfgName(uuid string) (string, error) {
-	if uuid == "" {
-		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
-	}
-	return VOLUME_CFG_PREFIX + uuid + CFG_POSTFIX, nil
-}
-
-func (config *Config) loadVolume(uuid string) *Volume {
-	cfgName, err := getVolumeCfgName(uuid)
-	if err != nil {
-		return nil
-	}
-	if !util.ConfigExists(config.Root, cfgName) {
-		return nil
-	}
-	volume := &Volume{}
-	if err := util.LoadConfig(config.Root, cfgName, volume); err != nil {
-		log.Error("Failed to load volume json ", cfgName)
-		return nil
-	}
-	return volume
-}
 
 func (s *Server) loadVolumeByName(name string) *Volume {
 	uuid := s.NameUUIDIndex.Get(name)
@@ -45,13 +23,36 @@ func (s *Server) loadVolumeByName(name string) *Volume {
 	return s.loadVolume(uuid)
 }
 
+func (config *Config) getVolumeCfgName(uuid string) (string, error) {
+	if uuid == "" {
+		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
+	}
+	return filepath.Join(config.Root, VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
+}
+
+func (config *Config) loadVolume(uuid string) *Volume {
+	cfgName, err := config.getVolumeCfgName(uuid)
+	if err != nil {
+		return nil
+	}
+	if !util.ConfigExists(cfgName) {
+		return nil
+	}
+	volume := &Volume{}
+	if err := util.LoadConfig(cfgName, volume); err != nil {
+		log.Error("Failed to load volume json ", cfgName)
+		return nil
+	}
+	return volume
+}
+
 func (s *Server) saveVolume(volume *Volume) error {
 	uuid := volume.UUID
-	cfgName, err := getVolumeCfgName(uuid)
+	cfgName, err := s.getVolumeCfgName(uuid)
 	if err != nil {
 		return err
 	}
-	if err := util.SaveConfig(s.Root, cfgName, volume); err != nil {
+	if err := util.SaveConfig(cfgName, volume); err != nil {
 		return err
 	}
 	if volume.Name != "" {
@@ -63,11 +64,11 @@ func (s *Server) saveVolume(volume *Volume) error {
 }
 
 func (s *Server) deleteVolume(volume *Volume) error {
-	cfgName, err := getVolumeCfgName(volume.UUID)
+	cfgName, err := s.getVolumeCfgName(volume.UUID)
 	if err != nil {
 		return err
 	}
-	if err := util.RemoveConfig(s.Root, cfgName); err != nil {
+	if err := util.RemoveConfig(cfgName); err != nil {
 		return err
 	}
 	if volume.Name != "" {

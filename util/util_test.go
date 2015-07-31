@@ -66,7 +66,7 @@ func (s *TestSuite) TestSaveLoadConfig(c *C) {
 	}
 
 	dev.Volumes = make(map[string]Volume)
-	err := SaveConfig("/tmp", "cfg", &dev)
+	err := SaveConfig("/tmp/cfg", &dev)
 	c.Assert(err, IsNil)
 
 	dev.ThinpoolBlockSize = 2048
@@ -77,11 +77,11 @@ func (s *TestSuite) TestSaveLoadConfig(c *C) {
 	}
 	dev.Volumes["123"] = volume
 
-	err = SaveConfig("/tmp", "cfg", &dev)
+	err = SaveConfig("/tmp/cfg", &dev)
 	c.Assert(err, IsNil)
 
 	devNew := Device{}
-	err = LoadConfig("/tmp", "cfg", &devNew)
+	err = LoadConfig("/tmp/cfg", &devNew)
 	c.Assert(err, IsNil)
 
 	c.Assert(dev, DeepEquals, devNew)
