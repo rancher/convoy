@@ -18,12 +18,17 @@ PID_FILE = os.path.join(TEST_ROOT, "rancher-volume.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "rancher-volume.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
-DEVMAPPER_ROOT = os.path.join(CFG_ROOT, "devicemapper")
+DM = "devicemapper"
+DM_ROOT = os.path.join(CFG_ROOT, DM)
 
 TEST_THREAD_COUNT = 100
 TEST_LOOP_COUNT = 100
 
 VFS_URL = "vfs://" + TEST_ROOT
+
+VFS = "vfs"
+VFS_ROOT = os.path.join(CFG_ROOT, VFS)
+VFS_VOLUME_PATH = os.path.join(TEST_ROOT, "vfs-volumes")
 
 ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
 ENV_TEST_AWS_SECRET_KEY = "RANCHER_TEST_AWS_SECRET_ACCESS_KEY"
@@ -106,10 +111,12 @@ def setup_module():
     v.start_server(PID_FILE, ["server",
         "--root", CFG_ROOT,
         "--log", LOG_FILE,
-        "--drivers=devicemapper",
+        "--drivers=" + DM,
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
-	"--driver-opts", "dm.thinpoolname=" + POOL_NAME])
+	"--driver-opts", "dm.thinpoolname=" + POOL_NAME,
+        "--drivers=" + VFS,
+        "--driver-opts", "vfs.path=" + VFS_VOLUME_PATH])
     dm_cleanup_list.append(POOL_NAME)
     wait_for_daemon()
 
@@ -157,15 +164,19 @@ def wait_for_daemon():
     info = json.loads(data)
     success = True
     try:
-        success = bool(success and "devicemapper" in info["General"]["DriverList"])
+        success = bool(success and DM in info["General"]["DriverList"])
+        success = bool(success and VFS in info["General"]["DriverList"])
         success = bool(success and info["General"]["Root"] == CFG_ROOT)
-        success = bool(success and info["devicemapper"]["Driver"] == "devicemapper")
-        success = bool(success and info["devicemapper"]["Root"] == DEVMAPPER_ROOT)
-        success = bool(success and info["devicemapper"]["DataDevice"] == data_dev)
-        success = bool(success and info["devicemapper"]["MetadataDevice"] == metadata_dev)
-        success = bool(success and info["devicemapper"]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME))
-        success = bool(success and info["devicemapper"]["ThinpoolSize"] == str(DATA_DEVICE_SIZE))
-        success = bool(success and info["devicemapper"]["ThinpoolBlockSize"] == str(DM_BLOCK_SIZE))
+        success = bool(success and info["General"]["DefaultDriver"] == DM)
+        success = bool(success and info[DM]["Driver"] == "devicemapper")
+        success = bool(success and info[DM]["Root"] == DM_ROOT)
+        success = bool(success and info[DM]["DataDevice"] == data_dev)
+        success = bool(success and info[DM]["MetadataDevice"] == metadata_dev)
+        success = bool(success and info[DM]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME))
+        success = bool(success and info[DM]["ThinpoolSize"] == str(DATA_DEVICE_SIZE))
+        success = bool(success and info[DM]["ThinpoolBlockSize"] == str(DM_BLOCK_SIZE))
+        success = bool(success and info[VFS]["Root"] == VFS_ROOT)
+        success = bool(success and info[VFS]["Path"] == VFS_VOLUME_PATH)
     except:
         success = False
 
@@ -207,25 +218,37 @@ def umount_volume(uuid, mount_dir):
     mount_cleanup_list.remove(mount_dir)
 
 def test_volume_crud():
-    uuid1 = create_volume(VOLUME_SIZE_500M)
-    uuid2 = create_volume(VOLUME_SIZE_100M, driver="devicemapper")
-    uuid3 = create_volume()
+    volume_crud_test(DM)
+    volume_crud_test(VFS, False)
 
-    delete_volume(uuid3, uuid3[:6])
-    delete_volume(uuid2)
+def volume_crud_test(drv, sizeTest = True):
+    uuid1 = create_volume(driver=drv)
+    uuid2 = create_volume(driver=drv)
+
+    if sizeTest:
+        uuid3 = create_volume(VOLUME_SIZE_500M, driver=drv)
+        uuid4 = create_volume(VOLUME_SIZE_100M, driver=drv)
+        delete_volume(uuid4)
+        delete_volume(uuid3)
+
+    delete_volume(uuid2, uuid2[:6])
     delete_volume(uuid1)
 
 def test_volume_name():
+    volume_name_test(DM)
+    volume_name_test(VFS)
+
+def volume_name_test(drv):
     vol_name1 = "vol1"
     vol_name2 = "vol2"
-    vol_uuid = create_volume(name=vol_name1)
+    vol_uuid = create_volume(name=vol_name1, driver=drv)
     vols = v.list_volumes()
     assert vols[vol_uuid]["Name"] == vol_name1
-    assert vols[vol_uuid]["Driver"] == "devicemapper"
+    assert vols[vol_uuid]["Driver"] == drv
     assert vols[vol_uuid]["CreatedTime"] != ""
 
     with pytest.raises(subprocess.CalledProcessError):
-        new_uuid = create_volume(name=vol_name1)
+        new_uuid = create_volume(name=vol_name1, driver=drv)
 
     with pytest.raises(subprocess.CalledProcessError):
         new_uuid = create_volume(driver="randomdriver")
@@ -234,8 +257,8 @@ def test_volume_name():
     vols = v.list_volumes()
     assert vol_uuid not in vols
 
-    vol_uuid1 = create_volume(name=vol_name1)
-    vol_uuid2 = create_volume(name=vol_name2)
+    vol_uuid1 = create_volume(name=vol_name1, driver=drv)
+    vol_uuid2 = create_volume(name=vol_name2, driver=drv)
     assert vol_uuid1 != vol_uuid
 
     vols = v.list_volumes()
@@ -259,7 +282,12 @@ def mount_volume_and_create_file(uuid, filename):
     assert not os.path.exists(test_file)
 
 def test_volume_mount():
-    uuid = create_volume()
+    volume_mount_test(DM)
+    # skip the vfs mount test because we only pass the original volume path as
+    # mount path, not really done any mount work now
+
+def volume_mount_test(drv):
+    uuid = create_volume(driver=drv)
 
     # with format
     filename = "test"
@@ -284,23 +312,38 @@ def test_volume_mount():
     delete_volume(uuid)
 
 def test_volume_list():
+    volume_list_driver_test(DM)
+    volume_list_driver_test(VFS, False)
+
+def volume_list_driver_test(drv, sizeTest = True):
     volumes = v.list_volumes()
     assert len(volumes) == 0
 
-    uuid1 = create_volume(VOLUME_SIZE_500M)
-    uuid2 = create_volume(VOLUME_SIZE_100M)
-    uuid3 = create_volume()
+    uuid1 = create_volume(driver=drv)
+    uuid2 = create_volume(driver=drv)
+    if sizeTest:
+	uuid3 = create_volume(VOLUME_SIZE_500M, driver=drv)
+	uuid4 = create_volume(VOLUME_SIZE_100M, driver=drv)
 
-    volume = v.inspect_volume(uuid3)
-    assert volume["UUID"] == uuid3
-    assert volume["Size"] == int(DEFAULT_VOLUME_SIZE)
+    volume = v.inspect_volume(uuid1)
+    assert volume["UUID"] == uuid1
+    if sizeTest:
+	assert volume["Size"] == int(DEFAULT_VOLUME_SIZE)
+    volume = v.inspect_volume(uuid2)
+    assert volume["UUID"] == uuid2
+    if sizeTest:
+	assert volume["Size"] == int(DEFAULT_VOLUME_SIZE)
 
-    volumes = v.list_volumes()
-    assert volumes[uuid1]["Size"] == int(VOLUME_SIZE_500M_Bytes)
-    assert volumes[uuid2]["Size"] == int(VOLUME_SIZE_100M)
-    assert volumes[uuid3]["Size"] == int(DEFAULT_VOLUME_SIZE)
+    if sizeTest:
+        volumes = v.list_volumes()
+        assert volumes[uuid1]["Size"] == int(DEFAULT_VOLUME_SIZE)
+        assert volumes[uuid2]["Size"] == int(DEFAULT_VOLUME_SIZE)
+        assert volumes[uuid3]["Size"] == int(VOLUME_SIZE_500M_Bytes)
+        assert volumes[uuid4]["Size"] == int(VOLUME_SIZE_100M)
 
-    delete_volume(uuid3)
+	delete_volume(uuid4)
+	delete_volume(uuid3)
+
     delete_volume(uuid2)
     delete_volume(uuid1)
 
