@@ -52,7 +52,7 @@ echo "unix:///var/run/rancher/volume.sock” > /usr/share/docker/plugins/rancher
 
 ##### Setup server
 ```
-sudo rancher-volume server --driver-opts dm.datadev=/dev/loop0 --driver-opts dm.metadatadev=/dev/loop1
+sudo rancher-volume server --drivers devicemapper --driver-opts dm.datadev=/dev/loop0 --driver-opts dm.metadatadev=/dev/loop1
 ```
 * As long as rancher-volume has been initialized once, next time "rancher-volume server" would be enough to start it
 * The server configuration file would be at /var/lib/rancher-volume by default.
