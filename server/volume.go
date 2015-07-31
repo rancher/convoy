@@ -308,21 +308,21 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 
 	var data []byte
 	if driverSpecific == "1" {
+		result := make(map[string]map[string]string)
 		for _, driver := range s.StorageDrivers {
 			volOps, err := driver.VolumeOps()
 			if err != nil {
 				break
 			}
-			driverData, err := volOps.ListVolume(map[string]string{})
+			volumes, err := volOps.ListVolume(map[string]string{})
 			if err != nil {
 				break
 			}
-			output, err := api.ResponseOutput(&driverData)
-			if err != nil {
-				break
+			for k, v := range volumes {
+				result[k] = v
 			}
-			data = append(data, output...)
 		}
+		data, err = api.ResponseOutput(&result)
 	} else {
 		data, err = s.listVolume()
 	}
