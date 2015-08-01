@@ -69,11 +69,27 @@ type Volume struct {
 	Base       string
 	MountPoint string
 	Snapshots  map[string]Snapshot
+
+	configPath string
 }
 
 type Snapshot struct {
 	DevID     int
 	Activated bool
+}
+
+func (v *Volume) ConfigFile(uuid string) (string, error) {
+	if uuid == "" {
+		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
+	}
+	if v.configPath == "" {
+		return "", fmt.Errorf("Invalid volume config path: %v", v.configPath)
+	}
+	return filepath.Join(v.configPath, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
+}
+
+func (v *Volume) IdField() string {
+	return "UUID"
 }
 
 type Device struct {
@@ -84,6 +100,20 @@ type Device struct {
 	ThinpoolSize      int64
 	ThinpoolBlockSize int64
 	LastDevID         int
+}
+
+func (dev *Device) ConfigFile(uuid string) (string, error) {
+	if uuid != "" {
+		return "", fmt.Errorf("Invalid non-empty UUID specified: %v", uuid)
+	}
+	if dev.Root == "" {
+		return "", fmt.Errorf("Invalid device config path: %v", dev.Root)
+	}
+	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
+}
+
+func (dev *Device) IdField() string {
+	return ""
 }
 
 var (
@@ -100,48 +130,15 @@ func init() {
 	storagedriver.Register(DRIVER_NAME, Init)
 }
 
-func (device *Device) getVolumeConfig(uuid string) (string, error) {
-	if uuid == "" {
-		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
-	}
-	return filepath.Join(device.Root, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
-}
-
-func (device *Device) loadVolume(uuid string) *Volume {
-	config, err := device.getVolumeConfig(uuid)
-	if err != nil {
-		return nil
-	}
-	if !util.ConfigExists(config) {
-		return nil
-	}
-	volume := &Volume{}
-	if err := util.LoadConfig(config, volume); err != nil {
-		log.Error("Failed to load volume json ", config)
-		return nil
-	}
-	return volume
-}
-
-func (device *Device) saveVolume(volume *Volume) error {
-	uuid := volume.UUID
-	config, err := device.getVolumeConfig(uuid)
-	if err != nil {
-		return err
-	}
-	return util.SaveConfig(config, volume)
-}
-
-func (device *Device) deleteVolume(uuid string) error {
-	config, err := device.getVolumeConfig(uuid)
-	if err != nil {
-		return err
-	}
-	return util.RemoveConfig(config)
-}
-
 func (device *Device) listVolumeIDs() ([]string, error) {
 	return util.ListConfigIDs(device.Root, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
+}
+
+func (d *Driver) blankVolume(id string) *Volume {
+	return &Volume{
+		configPath: d.Root,
+		UUID:       id,
+	}
 }
 
 func verifyConfig(config map[string]string) (*Device, error) {
@@ -207,8 +204,8 @@ func (d *Driver) activatePool() error {
 		return err
 	}
 	for _, id := range volumeIDs {
-		volume, err := d.checkLoadVolume(id)
-		if err != nil {
+		volume := d.blankVolume(id)
+		if err := util.ObjectLoad(volume); err != nil {
 			return err
 		}
 		if err := devicemapper.ActivateDevice(dev.ThinpoolDevice, id, volume.DevID, uint64(volume.Size)); err != nil {
@@ -245,8 +242,8 @@ func (d *Driver) remountVolumes() error {
 		return err
 	}
 	for _, uuid := range volumeIDs {
-		volume, err := d.checkLoadVolume(uuid)
-		if err != nil {
+		volume := d.blankVolume(uuid)
+		if err := util.ObjectLoad(volume); err != nil {
 			return err
 		}
 		if volume.MountPoint == "" {
@@ -270,15 +267,20 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 	if err := util.MkdirIfNotExists(root); err != nil {
 		return nil, err
 	}
-	cfgName := DRIVER_CONFIG_FILE
-	if util.ConfigExists(filepath.Join(root, cfgName)) {
-		dev := Device{}
-		if err := util.LoadConfig(filepath.Join(root, cfgName), &dev); err != nil {
+	dev := &Device{
+		Root: root,
+	}
+	exists, err := util.ObjectExists(dev)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		if err := util.ObjectLoad(dev); err != nil {
 			return nil, err
 		}
 		d := &Driver{
 			Mutex:  &sync.Mutex{},
-			Device: dev,
+			Device: *dev,
 		}
 		if err := d.activatePool(); err != nil {
 			return nil, err
@@ -289,7 +291,7 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 		return d, nil
 	}
 
-	dev, err := verifyConfig(config)
+	dev, err = verifyConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -319,14 +321,13 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 		return nil, err
 	}
 
-	if err = util.SaveConfig(filepath.Join(root, cfgName), &dev); err != nil {
+	if err = util.ObjectSave(dev); err != nil {
 		return nil, err
 	}
 	d := &Driver{
-		Device: *dev,
 		Mutex:  &sync.Mutex{},
+		Device: *dev,
 	}
-	log.Debug("Init done")
 	return d, nil
 }
 
@@ -358,7 +359,7 @@ func (d *Driver) allocateDevID() (int, error) {
 
 	d.LastDevID++
 	log.Debug("Current devID ", d.LastDevID)
-	if err := util.SaveConfig(filepath.Join(d.Root, DRIVER_CONFIG_FILE), d.Device); err != nil {
+	if err := util.ObjectSave(&d.Device); err != nil {
 		return 0, err
 	}
 	return d.LastDevID, nil
@@ -382,8 +383,12 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		return fmt.Errorf("Size must be multiple of block size")
 
 	}
-	volume := d.loadVolume(id)
-	if volume != nil {
+	volume := d.blankVolume(id)
+	exists, err := util.ObjectExists(volume)
+	if err != nil {
+		return err
+	}
+	if exists {
 		return generateError(logrus.Fields{
 			LOG_FIELD_VOLUME: id,
 		}, "Already has volume with specific uuid")
@@ -433,13 +438,10 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		return err
 	}
 
-	volume = &Volume{
-		UUID:      id,
-		DevID:     devID,
-		Size:      size,
-		Snapshots: make(map[string]Snapshot),
-	}
-	if err := d.saveVolume(volume); err != nil {
+	volume.DevID = devID
+	volume.Size = size
+	volume.Snapshots = make(map[string]Snapshot)
+	if err := util.ObjectSave(volume); err != nil {
 		return err
 	}
 
@@ -457,8 +459,8 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 func (d *Driver) DeleteVolume(id string) error {
 	var err error
-	volume, err := d.checkLoadVolume(id)
-	if err != nil {
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
 
@@ -492,7 +494,7 @@ func (d *Driver) DeleteVolume(id string) error {
 		return err
 	}
 
-	if err := d.deleteVolume(id); err != nil {
+	if err := util.ObjectDelete(volume); err != nil {
 		return err
 	}
 	return nil
@@ -516,8 +518,8 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	var err error
 
-	volume, err := d.checkLoadVolume(volumeID)
-	if err != nil {
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
 	devID, err := d.allocateDevID()
@@ -554,7 +556,7 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	}
 	volume.Snapshots[id] = snapshot
 
-	if err := d.saveVolume(volume); err != nil {
+	if err := util.ObjectSave(volume); err != nil {
 		return err
 	}
 	return nil
@@ -580,7 +582,7 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	log.Debug("Deleted snapshot device")
 	delete(volume.Snapshots, id)
 
-	if err = d.saveVolume(volume); err != nil {
+	if err = util.ObjectSave(volume); err != nil {
 		return err
 	}
 	return nil
@@ -633,22 +635,10 @@ func (d *Driver) Info() (map[string]string, error) {
 	return info, nil
 }
 
-func (d *Driver) checkLoadVolume(volumeID string) (*Volume, error) {
-	volume := d.loadVolume(volumeID)
-	if volume == nil {
-		return nil, generateError(logrus.Fields{
-			LOG_FIELD_VOLUME: volumeID,
-		}, "Cannot find volume")
-	}
-	return volume, nil
-}
-
 func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *Volume, error) {
-	volume := d.loadVolume(volumeID)
-	if volume == nil {
-		return nil, nil, generateError(logrus.Fields{
-			LOG_FIELD_VOLUME: volumeID,
-		}, "cannot find volume")
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return nil, nil, err
 	}
 	snap, exists := volume.Snapshots[snapshotID]
 	if !exists {
@@ -680,7 +670,7 @@ func (d *Driver) OpenSnapshot(id, volumeID string) error {
 	}
 	snapshot.Activated = true
 
-	return d.saveVolume(volume)
+	return util.ObjectSave(volume)
 }
 
 func (d *Driver) CloseSnapshot(id, volumeID string) error {
@@ -700,7 +690,7 @@ func (d *Driver) CloseSnapshot(id, volumeID string) error {
 	}
 	snapshot.Activated = false
 
-	return d.saveVolume(volume)
+	return util.ObjectSave(volume)
 }
 
 func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) error {
@@ -724,11 +714,9 @@ func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) er
 }
 
 func (d *Driver) GetVolumeDevice(id string) (string, error) {
-	volume := d.loadVolume(id)
-	if volume == nil {
-		return "", generateError(logrus.Fields{
-			LOG_FIELD_VOLUME: id,
-		}, "Volume doesn't exist")
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
 	}
 
 	return filepath.Join(DM_DIR, id), nil
@@ -760,11 +748,9 @@ func (d *Driver) deactivatePool() error {
 		return err
 	}
 	for _, id := range volumeIDs {
-		volume := dev.loadVolume(id)
-		if volume == nil {
-			return generateError(logrus.Fields{
-				LOG_FIELD_VOLUME: id,
-			}, "Cannot find volume")
+		volume := d.blankVolume(id)
+		if err := util.ObjectLoad(volume); err != nil {
+			return err
 		}
 		if err := devicemapper.RemoveDevice(id); err != nil {
 			return err
@@ -822,8 +808,8 @@ func (d *Driver) getVolumeMountPoint(volumeUUID, specifiedPoint string) (string,
 }
 
 func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
-	volume, err := d.checkLoadVolume(id)
-	if err != nil {
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
 	dev, err := d.GetVolumeDevice(id)
@@ -846,7 +832,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		}
 	}
 	volume.MountPoint = mountPoint
-	if err := d.saveVolume(volume); err != nil {
+	if err := util.ObjectSave(volume); err != nil {
 		return "", err
 	}
 
@@ -862,8 +848,8 @@ func (d *Driver) putVolumeMountPoint(mountPoint string) {
 }
 
 func (d *Driver) UmountVolume(id string) error {
-	volume, err := d.checkLoadVolume(id)
-	if err != nil {
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
 	if volume.MountPoint == "" {
@@ -876,7 +862,7 @@ func (d *Driver) UmountVolume(id string) error {
 	d.putVolumeMountPoint(volume.MountPoint)
 
 	volume.MountPoint = ""
-	if err := d.saveVolume(volume); err != nil {
+	if err := util.ObjectSave(volume); err != nil {
 		return err
 	}
 
@@ -884,16 +870,16 @@ func (d *Driver) UmountVolume(id string) error {
 }
 
 func (d *Driver) MountPoint(id string) (string, error) {
-	volume, err := d.checkLoadVolume(id)
-	if err != nil {
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
 	return volume.MountPoint, nil
 }
 
 func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
-	volume, err := d.checkLoadVolume(id)
-	if err != nil {
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
 		return nil, err
 	}
 	result := map[string]string{
