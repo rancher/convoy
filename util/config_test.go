@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"path/filepath"
 
 	. "gopkg.in/check.v1"
@@ -36,7 +35,7 @@ func (r *RandomStruct2) ConfigFile(id string) (string, error) {
 	return "", nil
 }
 
-func (r *RandomStruct2) IdField() string {
+func (r *RandomStruct2) IDField() string {
 	return "ID"
 }
 
@@ -73,24 +72,18 @@ func (s *TestSuite) TestSaveLoadConfig(c *C) {
 }
 
 func (d *Device) ConfigFile(id string) (string, error) {
-	if id != "" {
-		return "", fmt.Errorf("Invalid ID %v specified for Device config", id)
-	}
 	return filepath.Join(testRoot, "device.cfg"), nil
 }
 
-func (d *Device) IdField() string {
+func (d *Device) IDField() string {
 	return ""
 }
 
 func (v *Volume) ConfigFile(id string) (string, error) {
-	if id == "" {
-		return "", fmt.Errorf("Invalid empty ID specified for Volume config")
-	}
 	return filepath.Join(testRoot, "volume-"+id+".cfg"), nil
 }
 
-func (v *Volume) IdField() string {
+func (v *Volume) IDField() string {
 	return "ID"
 }
 
@@ -175,7 +168,11 @@ func (s *TestSuite) TestSaveLoadObject(c *C) {
 
 	// test with ID
 	exists, err = ObjectExists(&Volume{})
-	c.Assert(err, ErrorMatches, "Invalid empty ID.*")
+	c.Assert(err, ErrorMatches, "BUG: util.Volume's ID field ID is empty")
+
+	vol := &Volume{}
+	err = ObjectLoad(vol)
+	c.Assert(err, ErrorMatches, "BUG: util.Volume's ID field ID is empty")
 
 	exists, err = ObjectExists(vol1)
 	c.Assert(err, IsNil)
@@ -198,10 +195,6 @@ func (s *TestSuite) TestSaveLoadObject(c *C) {
 	exists, err = ObjectExists(vol2)
 	c.Assert(err, IsNil)
 	c.Assert(exists, Equals, true)
-
-	vol := &Volume{}
-	err = ObjectLoad(vol)
-	c.Assert(err, ErrorMatches, "Invalid empty ID.*")
 
 	vol.ID = "123"
 	err = ObjectLoad(vol)

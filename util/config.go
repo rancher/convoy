@@ -92,7 +92,7 @@ func ListConfigIDs(path, prefix, suffix string) ([]string, error) {
 }
 
 type ObjectOperations interface {
-	IdField() string
+	IDField() string
 	ConfigFile(id string) (string, error)
 }
 
@@ -106,12 +106,15 @@ func getObjectOpts(obj interface{}) (ObjectOperations, string, error) {
 		return nil, "", fmt.Errorf("BUG: %v doesn't implement necessary methods for accessing object", t)
 	}
 	id := ""
-	if ops.IdField() != "" {
-		field := reflect.ValueOf(obj).Elem().FieldByName(ops.IdField())
+	if ops.IDField() != "" {
+		field := reflect.ValueOf(obj).Elem().FieldByName(ops.IDField())
 		if !field.IsValid() {
-			return nil, "", fmt.Errorf("BUG: %v indicate ID field is %v, but it doesn't exist", t, ops.IdField())
+			return nil, "", fmt.Errorf("BUG: %v indicate ID field is %v, but it doesn't exist", t, ops.IDField())
 		}
 		id = field.String()
+		if id == "" {
+			return nil, "", fmt.Errorf("BUG: %v's ID field %v is empty", t, ops.IDField())
+		}
 	}
 	return ops, id, nil
 }

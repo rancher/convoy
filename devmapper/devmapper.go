@@ -79,16 +79,13 @@ type Snapshot struct {
 }
 
 func (v *Volume) ConfigFile(uuid string) (string, error) {
-	if uuid == "" {
-		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
-	}
 	if v.configPath == "" {
 		return "", fmt.Errorf("Invalid volume config path: %v", v.configPath)
 	}
 	return filepath.Join(v.configPath, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
 }
 
-func (v *Volume) IdField() string {
+func (v *Volume) IDField() string {
 	return "UUID"
 }
 
@@ -103,16 +100,13 @@ type Device struct {
 }
 
 func (dev *Device) ConfigFile(uuid string) (string, error) {
-	if uuid != "" {
-		return "", fmt.Errorf("Invalid non-empty UUID specified: %v", uuid)
-	}
 	if dev.Root == "" {
 		return "", fmt.Errorf("Invalid device config path: %v", dev.Root)
 	}
 	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
 }
 
-func (dev *Device) IdField() string {
+func (dev *Device) IDField() string {
 	return ""
 }
 
