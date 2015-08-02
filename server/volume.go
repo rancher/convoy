@@ -22,6 +22,8 @@ type Volume struct {
 	FileSystem  string
 	CreatedTime string
 	Snapshots   map[string]Snapshot
+
+	configPath string
 }
 
 type Snapshot struct {
@@ -31,68 +33,45 @@ type Snapshot struct {
 	CreatedTime string
 }
 
-func (s *Server) loadVolumeByName(name string) *Volume {
-	uuid := s.NameUUIDIndex.Get(name)
-	if uuid == "" {
-		return nil
+func (v *Volume) ConfigFile(uuid string) (string, error) {
+	if v.configPath == "" {
+		return "", fmt.Errorf("Invalid empty volume config path")
 	}
-	return s.loadVolume(uuid)
+	return filepath.Join(v.configPath, VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
 }
 
-func (config *Config) getVolumeCfgName(uuid string) (string, error) {
-	if uuid == "" {
-		return "", fmt.Errorf("Invalid volume UUID specified: %v", uuid)
-	}
-	return filepath.Join(config.Root, VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
+func (v *Volume) IDField() string {
+	return "UUID"
 }
 
-func (config *Config) loadVolume(uuid string) *Volume {
-	cfgName, err := config.getVolumeCfgName(uuid)
-	if err != nil {
-		return nil
+func (s *Server) loadVolume(uuid string) *Volume {
+	volume := &Volume{
+		UUID:       uuid,
+		configPath: s.Root,
 	}
-	if !util.ConfigExists(cfgName) {
-		return nil
-	}
-	volume := &Volume{}
-	if err := util.LoadConfig(cfgName, volume); err != nil {
-		log.Error("Failed to load volume json ", cfgName)
+	if err := util.ObjectLoad(volume); err != nil {
+		log.Errorf("Fail to load volume! %v", err)
 		return nil
 	}
 	return volume
 }
 
 func (s *Server) saveVolume(volume *Volume) error {
-	uuid := volume.UUID
-	cfgName, err := s.getVolumeCfgName(uuid)
-	if err != nil {
-		return err
-	}
-	if err := util.SaveConfig(cfgName, volume); err != nil {
-		return err
-	}
-	if volume.Name != "" {
-		if err := s.NameUUIDIndex.Add(volume.Name, volume.UUID); err != nil {
-			return err
-		}
-	}
-	return nil
+	volume.configPath = s.Root
+	return util.ObjectSave(volume)
 }
 
 func (s *Server) deleteVolume(volume *Volume) error {
-	cfgName, err := s.getVolumeCfgName(volume.UUID)
-	if err != nil {
-		return err
+	volume.configPath = s.Root
+	return util.ObjectDelete(volume)
+}
+
+func (s *Server) loadVolumeByName(name string) *Volume {
+	uuid := s.NameUUIDIndex.Get(name)
+	if uuid == "" {
+		return nil
 	}
-	if err := util.RemoveConfig(cfgName); err != nil {
-		return err
-	}
-	if volume.Name != "" {
-		if err := s.NameUUIDIndex.Delete(volume.Name); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.loadVolume(uuid)
 }
 
 func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
@@ -183,7 +162,11 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	if err := s.UUIDIndex.Add(volume.UUID); err != nil {
 		return nil, err
 	}
-
+	if volume.Name != "" {
+		if err := s.NameUUIDIndex.Add(volume.Name, volume.UUID); err != nil {
+			return nil, err
+		}
+	}
 	return volume, nil
 }
 
@@ -254,6 +237,11 @@ func (s *Server) processVolumeDelete(uuid string) error {
 	}).Debug()
 	if err := s.UUIDIndex.Delete(volume.UUID); err != nil {
 		return err
+	}
+	if volume.Name != "" {
+		if err := s.NameUUIDIndex.Delete(volume.Name); err != nil {
+			return err
+		}
 	}
 	return s.deleteVolume(volume)
 }

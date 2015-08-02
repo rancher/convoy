@@ -11,8 +11,8 @@ import (
 	. "github.com/rancher/rancher-volume/logging"
 )
 
-func (config *Config) snapshotExists(volumeUUID, snapshotUUID string) bool {
-	volume := config.loadVolume(volumeUUID)
+func (s *Server) snapshotExists(volumeUUID, snapshotUUID string) bool {
+	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return false
 	}
