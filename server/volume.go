@@ -15,6 +15,22 @@ import (
 	. "github.com/rancher/rancher-volume/logging"
 )
 
+type Volume struct {
+	UUID        string
+	Name        string
+	DriverName  string
+	FileSystem  string
+	CreatedTime string
+	Snapshots   map[string]Snapshot
+}
+
+type Snapshot struct {
+	UUID        string
+	VolumeUUID  string
+	Name        string
+	CreatedTime string
+}
+
 func (s *Server) loadVolumeByName(name string) *Volume {
 	uuid := s.NameUUIDIndex.Get(name)
 	if uuid == "" {

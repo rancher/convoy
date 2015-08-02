@@ -101,7 +101,7 @@ type Device struct {
 
 func (dev *Device) ConfigFile(uuid string) (string, error) {
 	if dev.Root == "" {
-		return "", fmt.Errorf("Invalid device config path: %v", dev.Root)
+		return "", fmt.Errorf("Invalid empty device config path")
 	}
 	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
 }

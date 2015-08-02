@@ -21,22 +21,6 @@ import (
 	. "github.com/rancher/rancher-volume/logging"
 )
 
-type Volume struct {
-	UUID        string
-	Name        string
-	DriverName  string
-	FileSystem  string
-	CreatedTime string
-	Snapshots   map[string]Snapshot
-}
-
-type Snapshot struct {
-	UUID        string
-	VolumeUUID  string
-	Name        string
-	CreatedTime string
-}
-
 type Server struct {
 	Router              *mux.Router
 	StorageDrivers      map[string]storagedriver.StorageDriver
@@ -47,12 +31,6 @@ type Server struct {
 	Config
 }
 
-type Config struct {
-	Root          string
-	DriverList    []string
-	DefaultDriver string
-}
-
 const (
 	KEY_VOLUME_UUID   = "volume-uuid"
 	KEY_SNAPSHOT_UUID = "snapshot-uuid"
@@ -60,7 +38,8 @@ const (
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
 
-	LOCKFILE = "lock"
+	CONFIGFILE = "rancher-volume.cfg"
+	LOCKFILE   = "lock"
 )
 
 var (
@@ -69,6 +48,23 @@ var (
 
 	log = logrus.WithFields(logrus.Fields{"pkg": "server"})
 )
+
+type Config struct {
+	Root          string
+	DriverList    []string
+	DefaultDriver string
+}
+
+func (c *Config) ConfigFile(id string) (string, error) {
+	if c.Root == "" {
+		return "", fmt.Errorf("Invalid empty server config path")
+	}
+	return filepath.Join(c.Root, CONFIGFILE), nil
+}
+
+func (c *Config) IDField() string {
+	return ""
+}
 
 func createRouter(s *Server) *mux.Router {
 	router := mux.NewRouter()
@@ -148,33 +144,6 @@ func makeHandlerFunc(method string, route string, version string, f RequestHandl
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 	}
-}
-
-func loadServerConfig(c *cli.Context) (*Server, error) {
-	config := Config{}
-	root := c.String("root")
-	if root == "" {
-		return nil, util.RequiredMissingError("root")
-	}
-	log.Debug("Ignore command line opts, loading server config from ", root)
-	err := util.LoadConfig(getCfgName(root), &config)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to load config:", err.Error())
-	}
-
-	server := &Server{
-		Config:         config,
-		StorageDrivers: make(map[string]storagedriver.StorageDriver),
-	}
-	for _, driverName := range config.DriverList {
-		driver, err := storagedriver.GetDriver(driverName, config.Root, nil)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to load driver:", err.Error())
-		}
-		server.StorageDrivers[driverName] = driver
-	}
-
-	return server, nil
 }
 
 func (s *Server) updateIndex() error {
@@ -266,6 +235,31 @@ func (s *Server) finializeInitialization() error {
 	return nil
 }
 
+func (s *Server) initDrivers(driverOpts map[string]string) error {
+	for _, driverName := range s.DriverList {
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_REASON: LOG_REASON_PREPARE,
+			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
+			LOG_FIELD_DRIVER: driverName,
+			"root":           s.Root,
+			"driver_opts":    driverOpts,
+		}).Debug()
+
+		driver, err := storagedriver.GetDriver(driverName, s.Root, driverOpts)
+		if err != nil {
+			return err
+		}
+
+		log.WithFields(logrus.Fields{
+			LOG_FIELD_REASON: LOG_REASON_COMPLETE,
+			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
+			LOG_FIELD_DRIVER: driverName,
+		}).Debug()
+		s.StorageDrivers[driverName] = driver
+	}
+	return nil
+}
+
 func Start(sockFile string, c *cli.Context) error {
 	var err error
 
@@ -275,20 +269,41 @@ func Start(sockFile string, c *cli.Context) error {
 	defer environmentCleanup()
 
 	root := c.String("root")
-	var server *Server
-	if !util.ConfigExists(getCfgName(root)) {
-		server, err = initServer(c)
-		if err != nil {
+	server := &Server{
+		StorageDrivers: make(map[string]storagedriver.StorageDriver),
+	}
+	config := &Config{
+		Root: root,
+	}
+	exists, err := util.ObjectExists(config)
+	if err != nil {
+		return err
+	}
+	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
+	if exists {
+		log.Debug("Found existing config. Ignoring command line opts, loading config from ", root)
+		if err := util.ObjectLoad(config); err != nil {
 			return err
 		}
 	} else {
-		server, err = loadServerConfig(c)
-		if err != nil {
-			return err
+		driverList := c.StringSlice("drivers")
+		if len(driverList) == 0 || driverOpts == nil {
+			return fmt.Errorf("Missing or invalid parameters")
 		}
-	}
+		log.Debug("Creating config at ", root)
 
+		config.DriverList = driverList
+		config.DefaultDriver = driverList[0]
+	}
+	server.Config = *config
+
+	if err := server.initDrivers(driverOpts); err != nil {
+		return err
+	}
 	if err := server.finializeInitialization(); err != nil {
+		return err
+	}
+	if err := util.ObjectSave(config); err != nil {
 		return err
 	}
 
@@ -324,57 +339,6 @@ func Start(sockFile string, c *cli.Context) error {
 
 	<-done
 	return nil
-}
-
-func initServer(c *cli.Context) (*Server, error) {
-	root := c.String("root")
-	driverList := c.StringSlice("drivers")
-	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
-	if root == "" || len(driverList) == 0 || driverOpts == nil {
-		return nil, fmt.Errorf("Missing or invalid parameters")
-	}
-
-	log.Debug("Config root is ", root)
-
-	if util.ConfigExists(getCfgName(root)) {
-		return nil, fmt.Errorf("Configuration file already existed. Don't need to initialize.")
-	}
-
-	server := &Server{
-		StorageDrivers: make(map[string]storagedriver.StorageDriver),
-	}
-
-	for _, driverName := range driverList {
-		log.WithFields(logrus.Fields{
-			LOG_FIELD_REASON: LOG_REASON_PREPARE,
-			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
-			LOG_FIELD_DRIVER: driverName,
-			"root":           root,
-			"driver_opts":    driverOpts,
-		}).Debug()
-
-		driver, err := storagedriver.GetDriver(driverName, root, driverOpts)
-		if err != nil {
-			return nil, err
-		}
-
-		log.WithFields(logrus.Fields{
-			LOG_FIELD_REASON: LOG_REASON_COMPLETE,
-			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
-			LOG_FIELD_DRIVER: driverName,
-		}).Debug()
-		server.StorageDrivers[driverName] = driver
-	}
-	config := Config{
-		Root:          root,
-		DriverList:    driverList,
-		DefaultDriver: driverList[0],
-	}
-	server.Config = config
-	if err := util.SaveConfig(getCfgName(root), &config); err != nil {
-		return nil, err
-	}
-	return server, nil
 }
 
 func (s *Server) getDriver(driverName string) (storagedriver.StorageDriver, error) {

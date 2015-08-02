@@ -5,16 +5,7 @@ import (
 	"fmt"
 	"github.com/rancher/rancher-volume/api"
 	"net/http"
-	"path/filepath"
 )
-
-const (
-	CONFIGFILE = "rancher-volume.cfg"
-)
-
-func getCfgName(path string) string {
-	return filepath.Join(path, CONFIGFILE)
-}
 
 func decodeRequest(r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
