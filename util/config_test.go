@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"path/filepath"
 
 	. "gopkg.in/check.v1"
@@ -23,20 +24,8 @@ type Volume struct {
 	Size  uint64
 }
 
-type RandomStruct1 struct {
+type RandomStruct struct {
 	Field string
-}
-
-type RandomStruct2 struct {
-	Field string
-}
-
-func (r *RandomStruct2) ConfigFile(id string) (string, error) {
-	return "", nil
-}
-
-func (r *RandomStruct2) IDField() string {
-	return "ID"
 }
 
 func (s *TestSuite) TestSaveLoadConfig(c *C) {
@@ -71,20 +60,15 @@ func (s *TestSuite) TestSaveLoadConfig(c *C) {
 	c.Assert(dev, DeepEquals, devNew)
 }
 
-func (d *Device) ConfigFile(id string) (string, error) {
+func (d *Device) ConfigFile() (string, error) {
 	return filepath.Join(testRoot, "device.cfg"), nil
 }
 
-func (d *Device) IDField() string {
-	return ""
-}
-
-func (v *Volume) ConfigFile(id string) (string, error) {
-	return filepath.Join(testRoot, "volume-"+id+".cfg"), nil
-}
-
-func (v *Volume) IDField() string {
-	return "ID"
+func (v *Volume) ConfigFile() (string, error) {
+	if v.ID == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume ID")
+	}
+	return filepath.Join(testRoot, "volume-"+v.ID+".cfg"), nil
 }
 
 func (s *TestSuite) TestSaveLoadObject(c *C) {
@@ -113,31 +97,16 @@ func (s *TestSuite) TestSaveLoadObject(c *C) {
 	dev.Volumes[vol2.ID] = *vol2
 
 	// Sanity test
-	ops, id, err := getObjectOpts(dev)
+	ops, err := getObjectOps(dev)
 	c.Assert(err, IsNil)
 	c.Assert(ops, DeepEquals, dev)
-	c.Assert(id, Equals, "")
 
-	ops, id, err = getObjectOpts(vol1)
-	c.Assert(err, IsNil)
-	c.Assert(ops, DeepEquals, vol1)
-	c.Assert(id, Equals, "123")
-
-	ops, id, err = getObjectOpts(vol2)
-	c.Assert(err, IsNil)
-	c.Assert(ops, DeepEquals, vol2)
-	c.Assert(id, Equals, "456")
-
-	r1 := &RandomStruct1{}
-	ops, id, err = getObjectOpts(*r1)
+	r := &RandomStruct{}
+	ops, err = getObjectOps(*r)
 	c.Assert(err, ErrorMatches, "BUG: Non-pointer was passed in")
 
-	ops, id, err = getObjectOpts(r1)
-	c.Assert(err, ErrorMatches, "BUG: util.RandomStruct1 doesn't implement.*")
-
-	r2 := &RandomStruct2{}
-	ops, id, err = getObjectOpts(r2)
-	c.Assert(err, ErrorMatches, "BUG: util.RandomStruct2 indicate ID field is ID.*")
+	ops, err = getObjectOps(r)
+	c.Assert(err, ErrorMatches, "BUG: util.RandomStruct doesn't implement.*")
 
 	// test without ID
 	exists, err := ObjectExists(&Device{})
@@ -168,11 +137,11 @@ func (s *TestSuite) TestSaveLoadObject(c *C) {
 
 	// test with ID
 	exists, err = ObjectExists(&Volume{})
-	c.Assert(err, ErrorMatches, "BUG: util.Volume's ID field ID is empty")
+	c.Assert(err, ErrorMatches, "BUG: Invalid empty volume ID")
 
 	vol := &Volume{}
 	err = ObjectLoad(vol)
-	c.Assert(err, ErrorMatches, "BUG: util.Volume's ID field ID is empty")
+	c.Assert(err, ErrorMatches, "BUG: Invalid empty volume ID")
 
 	exists, err = ObjectExists(vol1)
 	c.Assert(err, IsNil)

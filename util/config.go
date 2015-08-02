@@ -92,39 +92,27 @@ func ListConfigIDs(path, prefix, suffix string) ([]string, error) {
 }
 
 type ObjectOperations interface {
-	IDField() string
-	ConfigFile(id string) (string, error)
+	ConfigFile() (string, error)
 }
 
-func getObjectOpts(obj interface{}) (ObjectOperations, string, error) {
+func getObjectOps(obj interface{}) (ObjectOperations, error) {
 	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
-		return nil, "", fmt.Errorf("BUG: Non-pointer was passed in")
+		return nil, fmt.Errorf("BUG: Non-pointer was passed in")
 	}
 	t := reflect.TypeOf(obj).Elem()
 	ops, ok := obj.(ObjectOperations)
 	if !ok {
-		return nil, "", fmt.Errorf("BUG: %v doesn't implement necessary methods for accessing object", t)
+		return nil, fmt.Errorf("BUG: %v doesn't implement necessary methods for accessing object", t)
 	}
-	id := ""
-	if ops.IDField() != "" {
-		field := reflect.ValueOf(obj).Elem().FieldByName(ops.IDField())
-		if !field.IsValid() {
-			return nil, "", fmt.Errorf("BUG: %v indicate ID field is %v, but it doesn't exist", t, ops.IDField())
-		}
-		id = field.String()
-		if id == "" {
-			return nil, "", fmt.Errorf("BUG: %v's ID field %v is empty", t, ops.IDField())
-		}
-	}
-	return ops, id, nil
+	return ops, nil
 }
 
 func ObjectConfig(obj interface{}) (string, error) {
-	ops, id, err := getObjectOpts(obj)
+	ops, err := getObjectOps(obj)
 	if err != nil {
 		return "", err
 	}
-	config, err := ops.ConfigFile(id)
+	config, err := ops.ConfigFile()
 	if err != nil {
 		return "", err
 	}

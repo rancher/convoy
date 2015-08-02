@@ -35,15 +35,11 @@ type Device struct {
 	Path string
 }
 
-func (dev *Device) ConfigFile(uuid string) (string, error) {
+func (dev *Device) ConfigFile() (string, error) {
 	if dev.Root == "" {
-		return "", fmt.Errorf("Invalid device config path: %v", dev.Root)
+		return "", fmt.Errorf("BUG: Invalid empty device config path")
 	}
 	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
-}
-
-func (dev *Device) IDField() string {
-	return ""
 }
 
 type Volume struct {
@@ -54,15 +50,14 @@ type Volume struct {
 	configPath string
 }
 
-func (v *Volume) ConfigFile(uuid string) (string, error) {
-	if v.configPath == "" {
-		return "", fmt.Errorf("Invalid volume config path: %v", v.configPath)
+func (v *Volume) ConfigFile() (string, error) {
+	if v.UUID == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
 	}
-	return filepath.Join(v.configPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
-}
-
-func (v *Volume) IDField() string {
-	return "UUID"
+	if v.configPath == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume config path")
+	}
+	return filepath.Join(v.configPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
 }
 
 func (device *Device) listVolumeIDs() ([]string, error) {

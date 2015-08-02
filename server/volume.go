@@ -33,15 +33,14 @@ type Snapshot struct {
 	CreatedTime string
 }
 
-func (v *Volume) ConfigFile(uuid string) (string, error) {
-	if v.configPath == "" {
-		return "", fmt.Errorf("Invalid empty volume config path")
+func (v *Volume) ConfigFile() (string, error) {
+	if v.UUID == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
 	}
-	return filepath.Join(v.configPath, VOLUME_CFG_PREFIX+uuid+CFG_POSTFIX), nil
-}
-
-func (v *Volume) IDField() string {
-	return "UUID"
+	if v.configPath == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume config path")
+	}
+	return filepath.Join(v.configPath, VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
 }
 
 func (s *Server) loadVolume(uuid string) *Volume {

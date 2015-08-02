@@ -55,15 +55,11 @@ type Config struct {
 	DefaultDriver string
 }
 
-func (c *Config) ConfigFile(id string) (string, error) {
+func (c *Config) ConfigFile() (string, error) {
 	if c.Root == "" {
-		return "", fmt.Errorf("Invalid empty server config path")
+		return "", fmt.Errorf("BUG: Invalid empty server config path")
 	}
 	return filepath.Join(c.Root, CONFIGFILE), nil
-}
-
-func (c *Config) IDField() string {
-	return ""
 }
 
 func createRouter(s *Server) *mux.Router {
