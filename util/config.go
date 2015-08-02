@@ -9,8 +9,7 @@ import (
 )
 
 func LoadConfig(fileName string, v interface{}) error {
-	st, err := os.Stat(fileName)
-	if err != nil {
+	if _, err := os.Stat(fileName); err != nil {
 		return err
 	}
 
@@ -21,38 +20,28 @@ func LoadConfig(fileName string, v interface{}) error {
 
 	defer file.Close()
 
-	data := make([]byte, st.Size())
-	_, err = file.Read(data)
-	if err != nil {
-		return err
-	}
-	if err = json.Unmarshal(data, v); err != nil {
+	if err = json.NewDecoder(file).Decode(v); err != nil {
 		return err
 	}
 	return nil
 }
 
 func SaveConfig(fileName string, v interface{}) error {
-	j, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
 	tmpFileName := fileName + ".tmp"
 
 	f, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	if _, err = f.Write(j); err != nil {
+	if err := json.NewEncoder(f).Encode(v); err != nil {
+		f.Close()
 		return err
 	}
+	f.Close()
 
 	if _, err = os.Stat(fileName); err == nil {
-		err = os.Remove(fileName)
-		if err != nil {
+		if err = os.Remove(fileName); err != nil {
 			return err
 		}
 	}
