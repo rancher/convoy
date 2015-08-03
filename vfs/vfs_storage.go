@@ -174,7 +174,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		return "", err
 	}
 
-	specifiedPoint := opts[storagedriver.OPTS_MOUNT_POINT]
+	specifiedPoint := opts[storagedriver.OPT_MOUNT_POINT]
 	if specifiedPoint != "" {
 		return "", fmt.Errorf("VFS doesn't support specified mount point")
 	}
@@ -231,7 +231,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 
 	return map[string]string{
 		"Path": volume.Path,
-		storagedriver.OPTS_MOUNT_POINT: volume.MountPoint,
+		storagedriver.OPT_MOUNT_POINT: volume.MountPoint,
 	}, nil
 }
 

@@ -355,7 +355,7 @@ func (d *Driver) allocateDevID() (int, error) {
 }
 
 func getSize(opts map[string]string) (int64, error) {
-	size := opts[storagedriver.OPTS_SIZE]
+	size := opts[storagedriver.OPT_SIZE]
 	if size == "" || size == "0" {
 		size = DEFAULT_VOLUME_SIZE
 	}
@@ -805,7 +805,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	specifiedPoint := opts[storagedriver.OPTS_MOUNT_POINT]
+	specifiedPoint := opts[storagedriver.OPT_MOUNT_POINT]
 	mountPoint, err := d.getVolumeMountPoint(id, specifiedPoint)
 	if err != nil {
 		return "", err
@@ -873,8 +873,8 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}
 	result := map[string]string{
 		"DevID": strconv.Itoa(volume.DevID),
-		storagedriver.OPTS_MOUNT_POINT: volume.MountPoint,
-		storagedriver.OPTS_SIZE:        strconv.FormatInt(volume.Size, 10),
+		storagedriver.OPT_MOUNT_POINT: volume.MountPoint,
+		storagedriver.OPT_SIZE:        strconv.FormatInt(volume.Size, 10),
 	}
 	return result, nil
 }

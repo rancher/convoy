@@ -106,7 +106,7 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	opts := map[string]string{
-		storagedriver.OPTS_SIZE: strconv.FormatInt(request.Size, 10),
+		storagedriver.OPT_SIZE: strconv.FormatInt(request.Size, 10),
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
@@ -410,7 +410,7 @@ func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 	}
 
 	opts := map[string]string{
-		storagedriver.OPTS_MOUNT_POINT: request.MountPoint,
+		storagedriver.OPT_MOUNT_POINT: request.MountPoint,
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
@@ -542,7 +542,7 @@ func (s *Server) getVolumeSize(volumeUUID string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	size := infos[storagedriver.OPTS_SIZE]
+	size := infos[storagedriver.OPT_SIZE]
 	if size == "" {
 		return 0, nil
 	}

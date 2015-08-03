@@ -39,8 +39,8 @@ type SnapshotOperations interface {
 }
 
 const (
-	OPTS_MOUNT_POINT = "MountPoint"
-	OPTS_SIZE        = "Size"
+	OPT_MOUNT_POINT = "MountPoint"
+	OPT_SIZE        = "Size"
 )
 
 var (
