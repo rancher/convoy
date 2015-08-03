@@ -83,9 +83,6 @@ func getSize(c *cli.Context, err error) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if size == "" {
-		return 0, nil
-	}
 	return util.ParseSize(size)
 }
 
