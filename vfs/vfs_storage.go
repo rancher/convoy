@@ -119,6 +119,10 @@ func (d *Driver) SnapshotOps() (storagedriver.SnapshotOperations, error) {
 	return nil, fmt.Errorf("VFS driver doesn't support snapshot operations")
 }
 
+func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {
+	return nil, fmt.Errorf("VFS driver doesn't support backup operations")
+}
+
 func (d *Driver) blankVolume(id string) *Volume {
 	return &Volume{
 		configPath: d.Root,

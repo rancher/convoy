@@ -14,6 +14,7 @@ type StorageDriver interface {
 
 	VolumeOps() (VolumeOperations, error)
 	SnapshotOps() (SnapshotOperations, error)
+	BackupOps() (BackupOperations, error)
 }
 
 type VolumeOperations interface {
@@ -33,6 +34,14 @@ type SnapshotOperations interface {
 	DeleteSnapshot(id, volumeID string) error
 	GetSnapshotInfo(id, volumeID string) (map[string]string, error)
 	ListSnapshot(opts map[string]string) (map[string]map[string]string, error)
+}
+
+type BackupOperations interface {
+	Name() string
+	//	CreateBackup(snapshotID, volumeID, dest string) error
+	//	DeleteBackup(backupURL string) error
+	//	GetBackupInfo(backupURL string) (map[string]string, error)
+	//	ListBackup(opts map[string]string) (map[string]map[string]string, error)
 }
 
 const (
