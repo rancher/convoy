@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
+	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"net/http"
 
@@ -89,12 +90,30 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	if err := s.saveVolume(volume); err != nil {
 		return err
 	}
+	driverInfo, err := s.getSnapshotDriverInfo(snapshot.UUID, volume)
+	if err != nil {
+		return err
+	}
 	return writeResponseOutput(w, api.SnapshotResponse{
 		UUID:        snapshot.UUID,
 		VolumeUUID:  snapshot.VolumeUUID,
 		Name:        snapshot.Name,
 		CreatedTime: snapshot.CreatedTime,
+		DriverInfo:  driverInfo,
 	})
+}
+
+func (s *Server) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map[string]string, error) {
+	snapOps, err := s.getSnapshotOpsForVolume(volume)
+	if err != nil {
+		return nil, err
+	}
+	driverInfo, err := snapOps.GetSnapshotInfo(snapshotUUID, volume.UUID)
+	if err != nil {
+		return nil, err
+	}
+	driverInfo["Driver"] = snapOps.Name()
+	return driverInfo, nil
 }
 
 func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -184,10 +203,15 @@ func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 		return fmt.Errorf("cannot find snapshot %v of volume %v", snapshotUUID, volumeUUID)
 	}
 
-	size, err := s.getVolumeSize(volumeUUID)
+	driverInfo, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
 	if err != nil {
 		return err
 	}
+	size, err := util.ParseSize(driverInfo[storagedriver.OPT_SIZE])
+	if err != nil {
+		return err
+	}
+
 	resp := api.SnapshotResponse{
 		UUID:            snapshotUUID,
 		VolumeUUID:      volume.UUID,
@@ -196,6 +220,7 @@ func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 		VolumeCreatedAt: volume.CreatedTime,
 		Name:            volume.Snapshots[snapshotUUID].Name,
 		CreatedTime:     volume.Snapshots[snapshotUUID].CreatedTime,
+		DriverInfo:      driverInfo,
 	}
 	data, err := api.ResponseOutput(resp)
 	if err != nil {

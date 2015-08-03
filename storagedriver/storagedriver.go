@@ -18,6 +18,7 @@ type StorageDriver interface {
 }
 
 type VolumeOperations interface {
+	Name() string
 	CreateVolume(id string, opts map[string]string) error
 	DeleteVolume(id string) error
 	MountVolume(id string, opts map[string]string) (string, error)
@@ -28,9 +29,13 @@ type VolumeOperations interface {
 }
 
 type SnapshotOperations interface {
-	GetVolumeDevice(id string) (string, error)
+	Name() string
 	CreateSnapshot(id, volumeID string) error
 	DeleteSnapshot(id, volumeID string) error
+	GetSnapshotInfo(id, volumeID string) (map[string]string, error)
+	ListSnapshot(opts map[string]string) (map[string]map[string]string, error)
+
+	GetVolumeDevice(id string) (string, error)
 	HasSnapshot(id, volumeID string) bool
 	CompareSnapshot(id, compareID, volumeID string) (*metadata.Mappings, error)
 	OpenSnapshot(id, volumeID string) error

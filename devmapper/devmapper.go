@@ -878,3 +878,50 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}
 	return result, nil
 }
+
+func (d *Driver) GetSnapshotInfo(id, volumeID string) (map[string]string, error) {
+	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]string{
+		"UUID":       id,
+		"VolumeUUID": volumeID,
+		"DevID":      strconv.Itoa(snapshot.DevID),
+		"Size":       strconv.FormatInt(volume.Size, 10),
+	}
+	log.Debug("Output result %v", result)
+	return result, nil
+}
+
+func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]string, error) {
+	var (
+		volumeIDs []string
+		err       error
+	)
+	snapshots := make(map[string]map[string]string)
+	specifiedVolumeID := opts["VolumeID"]
+	if specifiedVolumeID != "" {
+		volumeIDs = []string{
+			specifiedVolumeID,
+		}
+	} else {
+		volumeIDs, err = d.listVolumeIDs()
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, volumeID := range volumeIDs {
+		volume := d.blankVolume(volumeID)
+		if err := util.ObjectLoad(volume); err != nil {
+			return nil, err
+		}
+		for snapshotID := range volume.Snapshots {
+			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, volumeID)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return snapshots, nil
+}

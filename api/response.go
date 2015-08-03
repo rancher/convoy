@@ -23,6 +23,7 @@ type VolumeResponse struct {
 	Size        int64
 	MountPoint  string
 	CreatedTime string
+	DriverInfo  map[string]string
 	Snapshots   map[string]SnapshotResponse
 }
 
@@ -34,6 +35,7 @@ type SnapshotResponse struct {
 	VolumeCreatedAt string `json:",omitempty"`
 	Name            string
 	CreatedTime     string
+	DriverInfo      map[string]string
 }
 
 type BackupsResponse struct {

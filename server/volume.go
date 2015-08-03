@@ -183,11 +183,22 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		return err
+	}
+	size, err := util.ParseSize(driverInfo[storagedriver.OPT_SIZE])
+	if err != nil {
+		return err
+	}
 	return writeResponseOutput(w, api.VolumeResponse{
 		UUID:        volume.UUID,
-		Driver:      volume.DriverName,
 		Name:        volume.Name,
+		Driver:      volume.DriverName,
+		Size:        size,
 		CreatedTime: volume.CreatedTime,
+		DriverInfo:  driverInfo,
+		Snapshots:   map[string]api.SnapshotResponse{},
 	})
 }
 
@@ -255,7 +266,11 @@ func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	size, err := s.getVolumeSize(volume.UUID)
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		return nil, err
+	}
+	size, err := util.ParseSize(driverInfo[storagedriver.OPT_SIZE])
 	if err != nil {
 		return nil, err
 	}
@@ -266,13 +281,19 @@ func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		Size:        size,
 		MountPoint:  mountPoint,
 		CreatedTime: volume.CreatedTime,
+		DriverInfo:  driverInfo,
 		Snapshots:   make(map[string]api.SnapshotResponse),
 	}
 	for uuid, snapshot := range volume.Snapshots {
+		driverInfo, err := s.getSnapshotDriverInfo(uuid, volume)
+		if err != nil {
+			return nil, err
+		}
 		resp.Snapshots[uuid] = api.SnapshotResponse{
 			UUID:        uuid,
 			Name:        snapshot.Name,
 			CreatedTime: snapshot.CreatedTime,
+			DriverInfo:  driverInfo,
 		}
 	}
 	return resp, nil
@@ -299,6 +320,19 @@ func (s *Server) listVolume() ([]byte, error) {
 	}
 
 	return api.ResponseOutput(resp)
+}
+
+func (s *Server) getVolumeDriverInfo(volume *Volume) (map[string]string, error) {
+	volOps, err := s.getVolumeOpsForVolume(volume)
+	if err != nil {
+		return nil, err
+	}
+	driverInfo, err := volOps.GetVolumeInfo(volume.UUID)
+	if err != nil {
+		return nil, err
+	}
+	driverInfo["Driver"] = volOps.Name()
+	return driverInfo, nil
 }
 
 func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
