@@ -4,6 +4,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/rancher/rancher-volume/metadata"
+	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"os"
@@ -15,6 +16,15 @@ import (
 
 func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {
 	return d, nil
+}
+
+func (d *Driver) GetVolumeDevice(id string) (string, error) {
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(DM_DIR, id), nil
 }
 
 func (d *Driver) HasSnapshot(id, volumeID string) bool {
@@ -116,4 +126,26 @@ func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) er
 	}
 
 	return nil
+}
+
+func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error) {
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
+	}
+
+	objVolume := &objectstore.Volume{
+		UUID:        volumeID,
+		Name:        opts[storagedriver.OPT_VOLUME_NAME],
+		Driver:      d.Name(),
+		Size:        volume.Size,
+		FileSystem:  opts[storagedriver.OPT_FILESYSTEM],
+		CreatedTime: opts[storagedriver.OPT_VOLUME_CREATED_TIME],
+	}
+	objSnapshot := &objectstore.Snapshot{
+		UUID:        snapshotID,
+		Name:        opts[storagedriver.OPT_SNAPSHOT_NAME],
+		CreatedTime: opts[storagedriver.OPT_SNAPSHOT_CREATED_TIME],
+	}
+	return objectstore.CreateBackup(objVolume, objSnapshot, destURL, d)
 }

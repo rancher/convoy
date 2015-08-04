@@ -360,3 +360,11 @@ func (s *Server) getSnapshotOpsForVolume(volume *Volume) (storagedriver.Snapshot
 	}
 	return driver.SnapshotOps()
 }
+
+func (s *Server) getBackupOpsForVolume(volume *Volume) (storagedriver.BackupOperations, error) {
+	driver, err := s.getDriver(volume.DriverName)
+	if err != nil {
+		return nil, err
+	}
+	return driver.BackupOps()
+}

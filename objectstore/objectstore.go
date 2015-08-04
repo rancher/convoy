@@ -22,6 +22,7 @@ const (
 type Volume struct {
 	UUID           string
 	Name           string
+	Driver         string
 	Size           int64
 	FileSystem     string
 	CreatedTime    string
@@ -30,7 +31,6 @@ type Volume struct {
 
 type Snapshot struct {
 	UUID        string
-	VolumeUUID  string
 	Name        string
 	CreatedTime string
 }
@@ -42,6 +42,7 @@ type BlockMapping struct {
 
 type Backup struct {
 	UUID              string
+	Driver            string
 	VolumeUUID        string
 	SnapshotUUID      string
 	SnapshotName      string
@@ -518,6 +519,7 @@ func List(volumeUUID, destURL string) ([]byte, error) {
 func fillBackupResponse(resp *api.BackupsResponse, backup *Backup, volume *Volume, destURL string) {
 	backupResp := api.BackupResponse{
 		BackupUUID:        backup.UUID,
+		DriverName:        volume.Driver,
 		VolumeUUID:        backup.VolumeUUID,
 		VolumeName:        volume.Name,
 		VolumeSize:        volume.Size,

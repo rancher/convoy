@@ -608,23 +608,6 @@ func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *
 	return &snap, volume, nil
 }
 
-func (d *Driver) GetVolumeDevice(id string) (string, error) {
-	volume := d.blankVolume(id)
-	if err := util.ObjectLoad(volume); err != nil {
-		return "", err
-	}
-
-	return filepath.Join(DM_DIR, id), nil
-}
-
-func (d *Driver) HasSnapshot(id, volumeID string) bool {
-	_, _, err := d.getSnapshotAndVolume(id, volumeID)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
 func removePool(poolName string) error {
 	err := devicemapper.RemoveDevice(poolName)
 	if err != nil {

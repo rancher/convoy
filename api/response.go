@@ -44,6 +44,7 @@ type BackupsResponse struct {
 
 type BackupResponse struct {
 	BackupUUID        string
+	DriverName        string
 	VolumeUUID        string
 	VolumeName        string
 	VolumeSize        int64

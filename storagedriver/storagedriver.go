@@ -38,15 +38,20 @@ type SnapshotOperations interface {
 
 type BackupOperations interface {
 	Name() string
-	//	CreateBackup(snapshotID, volumeID, dest string) error
+	CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error)
 	//	DeleteBackup(backupURL string) error
 	//	GetBackupInfo(backupURL string) (map[string]string, error)
 	//	ListBackup(opts map[string]string) (map[string]map[string]string, error)
 }
 
 const (
-	OPT_MOUNT_POINT = "MountPoint"
-	OPT_SIZE        = "Size"
+	OPT_MOUNT_POINT           = "MountPoint"
+	OPT_SIZE                  = "Size"
+	OPT_VOLUME_NAME           = "VolumeName"
+	OPT_VOLUME_CREATED_TIME   = "VolumeCreatedAt"
+	OPT_SNAPSHOT_NAME         = "SnapshotName"
+	OPT_SNAPSHOT_CREATED_TIME = "SnapshotCreatedAt"
+	OPT_FILESYSTEM            = "FileSystem"
 )
 
 var (

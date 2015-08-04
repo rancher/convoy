@@ -5,6 +5,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/objectstore"
+	"github.com/rancher/rancher-volume/storagedriver"
 	"net/http"
 
 	. "github.com/rancher/rancher-volume/logging"
@@ -60,23 +61,17 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	volume := s.loadVolume(volumeUUID)
-
-	size, err := s.getVolumeSize(volumeUUID)
+	backupOps, err := s.getBackupOpsForVolume(volume)
 	if err != nil {
 		return err
 	}
-	objVolume := &objectstore.Volume{
-		UUID:        volume.UUID,
-		Name:        volume.Name,
-		Size:        size,
-		FileSystem:  volume.FileSystem,
-		CreatedTime: volume.CreatedTime,
-	}
-	objSnapshot := &objectstore.Snapshot{
-		UUID:        snapshotUUID,
-		VolumeUUID:  volumeUUID,
-		Name:        volume.Snapshots[snapshotUUID].Name,
-		CreatedTime: volume.Snapshots[snapshotUUID].CreatedTime,
+
+	opts := map[string]string{
+		storagedriver.OPT_VOLUME_NAME:           volume.Name,
+		storagedriver.OPT_FILESYSTEM:            volume.FileSystem,
+		storagedriver.OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
+		storagedriver.OPT_SNAPSHOT_NAME:         volume.Snapshots[snapshotUUID].Name,
+		storagedriver.OPT_SNAPSHOT_CREATED_TIME: volume.Snapshots[snapshotUUID].CreatedTime,
 	}
 
 	log.WithFields(logrus.Fields{
@@ -87,7 +82,7 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
-	backupURL, err := objectstore.CreateBackup(objVolume, objSnapshot, request.URL, s.StorageDrivers[volume.DriverName])
+	backupURL, err := backupOps.CreateBackup(snapshotUUID, volumeUUID, request.URL, opts)
 	if err != nil {
 		return err
 	}

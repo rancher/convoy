@@ -492,6 +492,7 @@ def process_objectstore_test(dest):
     backups = v.list_backup(dest, volume1_uuid)
     assert len(backups) == 1
     backup = backups[snap1_vol1_bak]
+    assert backup["DriverName"] == DM
     assert backup["VolumeUUID"] == volume1["UUID"]
     assert backup["VolumeName"] == volume1["Name"]
     assert backup["VolumeSize"] == volume1["Size"]
@@ -504,6 +505,7 @@ def process_objectstore_test(dest):
     backups = v.inspect_backup(snap1_vol1_bak)
     assert len(backups) == 1
     backup = backups[snap1_vol1_bak]
+    assert backup["DriverName"] == DM
     assert backup["VolumeUUID"] == volume1["UUID"]
     assert backup["VolumeName"] == volume1["Name"]
     assert backup["VolumeSize"] == volume1["Size"]
@@ -537,12 +539,16 @@ def process_objectstore_test(dest):
     #list snapshots again
     backups = v.list_backup(dest)
     assert len(backups) == 4
+    assert backups[snap1_vol1_bak]["DriverName"] == DM
     assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
     assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[snap2_vol1_bak]["DriverName"] == DM
     assert backups[snap2_vol1_bak]["VolumeUUID"] == volume1_uuid
     assert backups[snap2_vol1_bak]["SnapshotUUID"] == snap2_vol1_uuid
+    assert backups[snap1_vol2_bak]["DriverName"] == DM
     assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
     assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
+    assert backups[snap2_vol2_bak]["DriverName"] == DM
     assert backups[snap2_vol2_bak]["VolumeUUID"] == volume2_uuid
     assert backups[snap2_vol2_bak]["SnapshotUUID"] == snap2_vol2_uuid
 
@@ -578,30 +584,36 @@ def process_objectstore_test(dest):
     #list snapshots again
     backups = v.list_backup(dest)
     assert len(backups) == 2
+    assert backups[snap1_vol1_bak]["DriverName"] == DM
     assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
     assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[snap1_vol2_bak]["DriverName"] == DM
     assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
     assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
 
     backups = v.list_backup(dest, volume1_uuid)
     assert len(backups) == 1
     backup = backups[snap1_vol1_bak]
+    assert backup["DriverName"] == DM
     assert backup["VolumeUUID"] == volume1_uuid
     assert backup["SnapshotUUID"] == snap1_vol1_uuid
 
     backups = v.inspect_backup(snap1_vol1_bak)
     backup = backups[snap1_vol1_bak]
+    assert backup["DriverName"] == DM
     assert backup["VolumeUUID"] == volume1_uuid
     assert backup["SnapshotUUID"] == snap1_vol1_uuid
 
     backups = v.list_backup(dest, volume2_uuid)
     assert len(backups) == 1
     backup = backups[snap1_vol2_bak]
+    assert backup["DriverName"] == DM
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
     backups = v.inspect_backup(snap1_vol2_bak)
     backup = backups[snap1_vol2_bak]
+    assert backup["DriverName"] == DM
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
