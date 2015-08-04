@@ -48,7 +48,7 @@ func RegisterDriver(kind string, initFunc InitFunc) error {
 	return nil
 }
 
-func getObjectStoreDriver(destURL string) (ObjectStoreDriver, error) {
+func GetObjectStoreDriver(destURL string) (ObjectStoreDriver, error) {
 	u, err := url.Parse(destURL)
 	if err != nil {
 		return nil, err

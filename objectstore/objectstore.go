@@ -89,7 +89,7 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 		return "", err
 	}
 
-	bsDriver, err := getObjectStoreDriver(destURL)
+	bsDriver, err := GetObjectStoreDriver(destURL)
 	if err != nil {
 		return "", err
 	}
@@ -297,7 +297,7 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.Storag
 		return err
 	}
 
-	bsDriver, err := getObjectStoreDriver(backupURL)
+	bsDriver, err := GetObjectStoreDriver(backupURL)
 	if err != nil {
 		return err
 	}
@@ -361,7 +361,7 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.Storag
 }
 
 func DeleteBackup(backupURL string) error {
-	bsDriver, err := getObjectStoreDriver(backupURL)
+	bsDriver, err := GetObjectStoreDriver(backupURL)
 	if err != nil {
 		return err
 	}
@@ -503,7 +503,7 @@ func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
 }
 
 func List(volumeUUID, destURL string) ([]byte, error) {
-	bsDriver, err := getObjectStoreDriver(destURL)
+	bsDriver, err := GetObjectStoreDriver(destURL)
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +550,7 @@ func inspect(backupURL string, driver ObjectStoreDriver) ([]byte, error) {
 }
 
 func Inspect(backupURL string) ([]byte, error) {
-	bsDriver, err := getObjectStoreDriver(backupURL)
+	bsDriver, err := GetObjectStoreDriver(backupURL)
 	if err != nil {
 		return nil, err
 	}
@@ -562,7 +562,7 @@ func LoadVolume(backupURL string) (*Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	driver, err := getObjectStoreDriver(backupURL)
+	driver, err := GetObjectStoreDriver(backupURL)
 	if err != nil {
 		return nil, err
 	}
