@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
+	"github.com/rancher/rancher-volume/metadata"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"io"
@@ -49,6 +50,15 @@ type Backup struct {
 	Blocks            []BlockMapping
 }
 
+type DeltaBlockBackupOperations interface {
+	GetVolumeDevice(id string) (string, error)
+	HasSnapshot(id, volumeID string) bool
+	CompareSnapshot(id, compareID, volumeID string) (*metadata.Mappings, error)
+	OpenSnapshot(id, volumeID string) error
+	ReadSnapshot(id, volumeID string, start int64, data []byte) error
+	CloseSnapshot(id, volumeID string) error
+}
+
 func addVolume(volume *Volume, driver ObjectStoreDriver) error {
 	if volumeExists(volume.UUID, driver) {
 		return nil
@@ -79,9 +89,9 @@ func removeVolume(volumeUUID string, driver ObjectStoreDriver) error {
 }
 
 func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDriver storagedriver.StorageDriver) (string, error) {
-	snapOps, err := sDriver.SnapshotOps()
-	if err != nil {
-		return "", err
+	deltaOps, ok := sDriver.(DeltaBlockBackupOperations)
+	if !ok {
+		return "", fmt.Errorf("Driver %s doesn't implemented DeltaBlockBackupOperations interface", sDriver.Name())
 	}
 
 	bsDriver, err := GetObjectStoreDriver(destURL)
@@ -113,7 +123,7 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 			//Generate full snapshot if the snapshot has been backed up last time
 			lastSnapshotUUID = ""
 			log.Debug("Would create full snapshot metadata")
-		} else if !snapOps.HasSnapshot(lastSnapshotUUID, volume.UUID) {
+		} else if !deltaOps.HasSnapshot(lastSnapshotUUID, volume.UUID) {
 			// It's possible that the snapshot in objectstore doesn't exist
 			// in local storage
 			lastSnapshotUUID = ""
@@ -133,7 +143,7 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 		LOG_FIELD_SNAPSHOT:      snapshot.UUID,
 		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotUUID,
 	}).Debug("Generating snapshot changed blocks metadata")
-	delta, err := snapOps.CompareSnapshot(snapshot.UUID, lastSnapshotUUID, volume.UUID)
+	delta, err := deltaOps.CompareSnapshot(snapshot.UUID, lastSnapshotUUID, volume.UUID)
 	if err != nil {
 		return "", err
 	}
@@ -161,15 +171,15 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 		SnapshotUUID: snapshot.UUID,
 		Blocks:       []BlockMapping{},
 	}
-	if err := snapOps.OpenSnapshot(snapshot.UUID, volume.UUID); err != nil {
+	if err := deltaOps.OpenSnapshot(snapshot.UUID, volume.UUID); err != nil {
 		return "", err
 	}
-	defer snapOps.CloseSnapshot(snapshot.UUID, volume.UUID)
+	defer deltaOps.CloseSnapshot(snapshot.UUID, volume.UUID)
 	for _, d := range delta.Mappings {
 		block := make([]byte, DEFAULT_BLOCK_SIZE)
 		for i := int64(0); i < d.Size/delta.BlockSize; i++ {
 			offset := d.Offset + i*delta.BlockSize
-			err := snapOps.ReadSnapshot(snapshot.UUID, volume.UUID, offset, block)
+			err := deltaOps.ReadSnapshot(snapshot.UUID, volume.UUID, offset, block)
 			if err != nil {
 				return "", err
 			}
@@ -287,9 +297,9 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 }
 
 func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.StorageDriver) error {
-	snapOps, err := sDriver.SnapshotOps()
-	if err != nil {
-		return err
+	deltaOps, ok := sDriver.(DeltaBlockBackupOperations)
+	if !ok {
+		return fmt.Errorf("Driver %s doesn't implemented DeltaBlockBackupOperations interface", sDriver.Name())
 	}
 
 	bsDriver, err := GetObjectStoreDriver(backupURL)
@@ -309,7 +319,7 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.Storag
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
-	volDevName, err := snapOps.GetVolumeDevice(dstVolumeUUID)
+	volDevName, err := deltaOps.GetVolumeDevice(dstVolumeUUID)
 	if err != nil {
 		return err
 	}
