@@ -168,7 +168,7 @@ func CreateBackup(volumeDesc *Volume, snapshot *Snapshot, destURL string, sDrive
 			//Generate full snapshot if the snapshot has been backed up last time
 			lastSnapshotUUID = ""
 			log.Debug("Would create full snapshot metadata")
-		} else if _, err := snapOps.GetSnapshotInfo(lastSnapshotUUID, volume.UUID); err != nil {
+		} else if !snapOps.HasSnapshot(lastSnapshotUUID, volume.UUID) {
 			// It's possible that the snapshot in objectstore doesn't exist
 			// in local storage
 			lastSnapshotUUID = ""
