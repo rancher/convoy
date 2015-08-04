@@ -34,11 +34,6 @@ type Snapshot struct {
 	CreatedTime string
 }
 
-type ObjectStore struct {
-	UUID string
-	Kind string
-}
-
 type BlockMapping struct {
 	Offset        int64
 	BlockChecksum string
