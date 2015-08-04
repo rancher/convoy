@@ -19,6 +19,7 @@ func (s *Server) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
+
 	data, err := objectstore.List(request.VolumeUUID, request.URL)
 	if err != nil {
 		return err
@@ -36,15 +37,7 @@ func (s *Server) doBackupInspect(version string, w http.ResponseWriter, r *http.
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
-	objVolume, err := objectstore.LoadVolume(request.URL)
-	if err != nil {
-		return err
-	}
-	driver := s.StorageDrivers[objVolume.Driver]
-	if driver == nil {
-		return fmt.Errorf("Cannot find driver %v for restoring", objVolume.Driver)
-	}
-	backupOps, err := driver.BackupOps()
+	backupOps, err := s.getBackupOpsForBackup(request.URL)
 	if err != nil {
 		return err
 	}
@@ -129,15 +122,7 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	objVolume, err := objectstore.LoadVolume(request.URL)
-	if err != nil {
-		return err
-	}
-	driver := s.StorageDrivers[objVolume.Driver]
-	if driver == nil {
-		return fmt.Errorf("Cannot find driver %v for restoring", objVolume.Driver)
-	}
-	backupOps, err := driver.BackupOps()
+	backupOps, err := s.getBackupOpsForBackup(request.URL)
 	if err != nil {
 		return err
 	}
@@ -160,4 +145,16 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_DRIVER:   backupOps.Name(),
 	}).Debug()
 	return nil
+}
+
+func (s *Server) getBackupOpsForBackup(requestURL string) (storagedriver.BackupOperations, error) {
+	objVolume, err := objectstore.LoadVolume(request.URL)
+	if err != nil {
+		return err
+	}
+	driver := s.StorageDrivers[objVolume.Driver]
+	if driver == nil {
+		return fmt.Errorf("Cannot find driver %v for restoring", objVolume.Driver)
+	}
+	return driver.BackupOps()
 }
