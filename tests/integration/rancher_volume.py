@@ -112,10 +112,10 @@ class VolumeManager:
 		cmd += ["--volume-uuid", volume_uuid]
 	data = subprocess.check_output(self.base_cmdline + cmd)
         backups = json.loads(data)
-        return backups["Backups"]
+        return backups
 
     def inspect_backup(self, backup):
 	data = subprocess.check_output(self.base_cmdline + ["backup",
                 "inspect", backup])
         backups = json.loads(data)
-        return backups["Backups"]
+        return backups

@@ -36,11 +36,28 @@ func (s *Server) doBackupInspect(version string, w http.ResponseWriter, r *http.
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
-	data, err := objectstore.Inspect(request.URL)
+	objVolume, err := objectstore.LoadVolume(request.URL)
+	if err != nil {
+		return err
+	}
+	driver := s.StorageDrivers[objVolume.Driver]
+	if driver == nil {
+		return fmt.Errorf("Cannot find driver %v for restoring", objVolume.Driver)
+	}
+	backupOps, err := driver.BackupOps()
 	if err != nil {
 		return err
 	}
 
+	info, err := backupOps.GetBackupInfo(request.URL)
+	if err != nil {
+		return err
+	}
+
+	data, err := api.ResponseOutput(info)
+	if err != nil {
+		return err
+	}
 	_, err = w.Write(data)
 	return err
 }

@@ -40,8 +40,8 @@ type BackupOperations interface {
 	Name() string
 	CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error)
 	DeleteBackup(backupURL string) error
-	//	GetBackupInfo(backupURL string) (map[string]string, error)
-	//	ListBackup(opts map[string]string) (map[string]map[string]string, error)
+	GetBackupInfo(backupURL string) (map[string]string, error)
+	//ListBackup(opts map[string]string) (map[string]map[string]string, error)
 }
 
 const (

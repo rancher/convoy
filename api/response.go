@@ -38,23 +38,6 @@ type SnapshotResponse struct {
 	DriverInfo      map[string]string
 }
 
-type BackupsResponse struct {
-	Backups map[string]BackupResponse
-}
-
-type BackupResponse struct {
-	BackupUUID        string
-	DriverName        string
-	VolumeUUID        string
-	VolumeName        string
-	VolumeSize        int64
-	VolumeCreatedAt   string
-	SnapshotUUID      string
-	SnapshotName      string
-	SnapshotCreatedAt string
-	CreatedTime       string
-}
-
 type BackupURLResponse struct {
 	URL string
 }

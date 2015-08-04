@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"strconv"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
@@ -451,43 +452,40 @@ func DeleteBackup(backupURL string) error {
 	return nil
 }
 
-func listVolume(volumeUUID string, driver ObjectStoreDriver) (*api.BackupsResponse, error) {
-	resp := &api.BackupsResponse{
-		Backups: make(map[string]api.BackupResponse),
-	}
-
+func addListVolume(resp map[string]map[string]string, volumeUUID string, driver ObjectStoreDriver) error {
 	if volumeUUID == "" {
-		return nil, fmt.Errorf("Invalid empty volume UUID")
+		return fmt.Errorf("Invalid empty volume UUID")
 	}
 
 	backupUUIDs, err := getBackupUUIDsForVolume(volumeUUID, driver)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	volume, err := loadVolume(volumeUUID, driver)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, backupUUID := range backupUUIDs {
 		backup, err := loadBackup(backupUUID, volumeUUID, driver)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		fillBackupResponse(resp, backup, volume, driver.GetURL())
+		r := fillBackupInfo(backup, volume, driver.GetURL())
+		resp[r["BackupURL"]] = r
 	}
-	return resp, nil
+	return nil
 }
 
-func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
-	var err error
-	resp := &api.BackupsResponse{
-		Backups: make(map[string]api.BackupResponse),
+func List(volumeUUID, destURL string) ([]byte, error) {
+	driver, err := GetObjectStoreDriver(destURL)
+	if err != nil {
+		return nil, err
 	}
+	resp := make(map[string]map[string]string)
 	if volumeUUID != "" {
-		resp, err = listVolume(volumeUUID, driver)
-		if err != nil {
+		if err = addListVolume(resp, volumeUUID, driver); err != nil {
 			return nil, err
 		}
 	} else {
@@ -496,48 +494,35 @@ func list(volumeUUID string, driver ObjectStoreDriver) ([]byte, error) {
 			return nil, err
 		}
 		for _, volumeUUID := range volumeUUIDs {
-			respVol, err := listVolume(volumeUUID, driver)
-			if err != nil {
+			if err := addListVolume(resp, volumeUUID, driver); err != nil {
 				return nil, err
-			}
-			for k, v := range respVol.Backups {
-				resp.Backups[k] = v
 			}
 		}
 	}
 	return api.ResponseOutput(resp)
 }
 
-func List(volumeUUID, destURL string) ([]byte, error) {
-	bsDriver, err := GetObjectStoreDriver(destURL)
+func fillBackupInfo(backup *Backup, volume *Volume, destURL string) map[string]string {
+	return map[string]string{
+		"BackupUUID":        backup.UUID,
+		"BackupURL":         encodeBackupURL(backup.UUID, backup.VolumeUUID, destURL),
+		"DriverName":        volume.Driver,
+		"VolumeUUID":        backup.VolumeUUID,
+		"VolumeName":        volume.Name,
+		"VolumeSize":        strconv.FormatInt(volume.Size, 10),
+		"VolumeCreatedAt":   volume.CreatedTime,
+		"SnapshotUUID":      backup.SnapshotUUID,
+		"SnapshotName":      backup.SnapshotName,
+		"SnapshotCreatedAt": backup.SnapshotCreatedAt,
+		"CreatedTime":       backup.CreatedTime,
+	}
+}
+
+func GetBackupInfo(backupURL string) (map[string]string, error) {
+	driver, err := GetObjectStoreDriver(backupURL)
 	if err != nil {
 		return nil, err
 	}
-	return list(volumeUUID, bsDriver)
-}
-
-func fillBackupResponse(resp *api.BackupsResponse, backup *Backup, volume *Volume, destURL string) {
-	backupResp := api.BackupResponse{
-		BackupUUID:        backup.UUID,
-		DriverName:        volume.Driver,
-		VolumeUUID:        backup.VolumeUUID,
-		VolumeName:        volume.Name,
-		VolumeSize:        volume.Size,
-		VolumeCreatedAt:   volume.CreatedTime,
-		SnapshotUUID:      backup.SnapshotUUID,
-		SnapshotName:      backup.SnapshotName,
-		SnapshotCreatedAt: backup.SnapshotCreatedAt,
-		CreatedTime:       backup.CreatedTime,
-	}
-	u := encodeBackupURL(backup.UUID, backup.VolumeUUID, destURL)
-	resp.Backups[u] = backupResp
-}
-
-func inspect(backupURL string, driver ObjectStoreDriver) ([]byte, error) {
-	resp := api.BackupsResponse{
-		Backups: make(map[string]api.BackupResponse),
-	}
-
 	backupUUID, volumeUUID, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return nil, err
@@ -552,16 +537,7 @@ func inspect(backupURL string, driver ObjectStoreDriver) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	fillBackupResponse(&resp, backup, volume, driver.GetURL())
-	return api.ResponseOutput(resp)
-}
-
-func Inspect(backupURL string) ([]byte, error) {
-	bsDriver, err := GetObjectStoreDriver(backupURL)
-	if err != nil {
-		return nil, err
-	}
-	return inspect(backupURL, bsDriver)
+	return fillBackupInfo(backup, volume, driver.GetURL()), nil
 }
 
 func LoadVolume(backupURL string) (*Volume, error) {

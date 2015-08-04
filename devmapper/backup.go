@@ -161,3 +161,14 @@ func (d *Driver) DeleteBackup(backupURL string) error {
 	}
 	return objectstore.DeleteBackup(backupURL)
 }
+
+func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
+	objVolume, err := objectstore.LoadVolume(backupURL)
+	if err != nil {
+		return nil, err
+	}
+	if objVolume.Driver != d.Name() {
+		return nil, fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
+	}
+	return objectstore.GetBackupInfo(backupURL)
+}
