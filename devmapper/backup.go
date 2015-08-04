@@ -1,6 +1,7 @@
 package devmapper
 
 import (
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/rancher/rancher-volume/metadata"
@@ -148,4 +149,15 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 		CreatedTime: opts[storagedriver.OPT_SNAPSHOT_CREATED_TIME],
 	}
 	return objectstore.CreateBackup(objVolume, objSnapshot, destURL, d)
+}
+
+func (d *Driver) DeleteBackup(backupURL string) error {
+	objVolume, err := objectstore.LoadVolume(backupURL)
+	if err != nil {
+		return err
+	}
+	if objVolume.Driver != d.Name() {
+		return fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
+	}
+	return objectstore.DeleteBackup(backupURL)
 }

@@ -80,6 +80,7 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
 	backupURL, err := backupOps.CreateBackup(snapshotUUID, volumeUUID, request.URL, opts)
@@ -92,6 +93,7 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
 
@@ -110,13 +112,27 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
+	objVolume, err := objectstore.LoadVolume(request.URL)
+	if err != nil {
+		return err
+	}
+	driver := s.StorageDrivers[objVolume.Driver]
+	if driver == nil {
+		return fmt.Errorf("Cannot find driver %v for restoring", objVolume.Driver)
+	}
+	backupOps, err := driver.BackupOps()
+	if err != nil {
+		return err
+	}
+
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_DEST_URL: request.URL,
+		LOG_FIELD_DRIVER:   backupOps.Name(),
 	}).Debug()
-	if err := objectstore.DeleteBackup(request.URL); err != nil {
+	if err := backupOps.DeleteBackup(request.URL); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -124,6 +140,7 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_DEST_URL: request.URL,
+		LOG_FIELD_DRIVER:   backupOps.Name(),
 	}).Debug()
 	return nil
 }
