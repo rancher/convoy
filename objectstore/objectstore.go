@@ -4,7 +4,6 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/api"
 	"github.com/rancher/rancher-volume/metadata"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
@@ -452,7 +451,7 @@ func DeleteBackup(backupURL string) error {
 	return nil
 }
 
-func addListVolume(resp map[string]map[string]string, volumeUUID string, driver ObjectStoreDriver) error {
+func addListVolume(resp map[string]map[string]string, volumeUUID string, driver ObjectStoreDriver, storageDriverName string) error {
 	if volumeUUID == "" {
 		return fmt.Errorf("Invalid empty volume UUID")
 	}
@@ -466,6 +465,10 @@ func addListVolume(resp map[string]map[string]string, volumeUUID string, driver 
 	if err != nil {
 		return err
 	}
+	//Skip any volumes not owned by specified storage driver
+	if volume.Driver != storageDriverName {
+		return nil
+	}
 
 	for _, backupUUID := range backupUUIDs {
 		backup, err := loadBackup(backupUUID, volumeUUID, driver)
@@ -478,14 +481,14 @@ func addListVolume(resp map[string]map[string]string, volumeUUID string, driver 
 	return nil
 }
 
-func List(volumeUUID, destURL string) ([]byte, error) {
+func List(volumeUUID, destURL, storageDriverName string) (map[string]map[string]string, error) {
 	driver, err := GetObjectStoreDriver(destURL)
 	if err != nil {
 		return nil, err
 	}
 	resp := make(map[string]map[string]string)
 	if volumeUUID != "" {
-		if err = addListVolume(resp, volumeUUID, driver); err != nil {
+		if err = addListVolume(resp, volumeUUID, driver, storageDriverName); err != nil {
 			return nil, err
 		}
 	} else {
@@ -494,12 +497,12 @@ func List(volumeUUID, destURL string) ([]byte, error) {
 			return nil, err
 		}
 		for _, volumeUUID := range volumeUUIDs {
-			if err := addListVolume(resp, volumeUUID, driver); err != nil {
+			if err := addListVolume(resp, volumeUUID, driver, storageDriverName); err != nil {
 				return nil, err
 			}
 		}
 	}
-	return api.ResponseOutput(resp)
+	return resp, nil
 }
 
 func fillBackupInfo(backup *Backup, volume *Volume, destURL string) map[string]string {

@@ -172,3 +172,7 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 	}
 	return objectstore.GetBackupInfo(backupURL)
 }
+
+func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
+	return objectstore.List(opts[storagedriver.OPT_VOLUME_UUID], destURL, d.Name())
+}
