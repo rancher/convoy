@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
+	"os"
 	"path/filepath"
 	"sync"
 )
@@ -15,6 +16,8 @@ const (
 	VOLUME_CFG_PREFIX = "volume_"
 	VFS_CFG_PREFIX    = DRIVER_NAME + "_"
 	CFG_POSTFIX       = ".json"
+
+	SNAPSHOT_PATH = "snapshots"
 )
 
 type Driver struct {
@@ -42,10 +45,17 @@ func (dev *Device) ConfigFile() (string, error) {
 	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
 }
 
+type Snapshot struct {
+	UUID       string
+	VolumeUUID string
+	FilePath   string
+}
+
 type Volume struct {
 	UUID       string
 	Path       string
 	MountPoint string
+	Snapshots  map[string]Snapshot
 
 	configPath string
 }
@@ -115,14 +125,6 @@ func (d *Driver) VolumeOps() (storagedriver.VolumeOperations, error) {
 	return d, nil
 }
 
-func (d *Driver) SnapshotOps() (storagedriver.SnapshotOperations, error) {
-	return nil, fmt.Errorf("VFS driver doesn't support snapshot operations")
-}
-
-func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {
-	return nil, fmt.Errorf("VFS driver doesn't support backup operations")
-}
-
 func (d *Driver) blankVolume(id string) *Volume {
 	return &Volume{
 		configPath: d.Root,
@@ -148,6 +150,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		return err
 	}
 	volume.Path = volumePath
+	volume.Snapshots = make(map[string]Snapshot)
 	return util.ObjectSave(volume)
 }
 
@@ -248,4 +251,115 @@ func (d *Driver) MountPoint(id string) (string, error) {
 		return "", err
 	}
 	return volume.MountPoint, nil
+}
+
+func (d *Driver) SnapshotOps() (storagedriver.SnapshotOperations, error) {
+	return d, nil
+}
+
+func (d *Driver) getSnapshotFilePath(snapshotID, volumeID string) string {
+	return filepath.Join(d.Root, SNAPSHOT_PATH, volumeID+"_"+snapshotID+".tar.gz")
+}
+
+func (d *Driver) CreateSnapshot(id, volumeID string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return err
+	}
+	if _, exists := volume.Snapshots[id]; exists {
+		return fmt.Errorf("Snapshot %v already exists for volume %v", id, volumeID)
+	}
+	snapFile := d.getSnapshotFilePath(id, volumeID)
+	if err := util.MkdirIfNotExists(filepath.Dir(snapFile)); err != nil {
+		return err
+	}
+	if err := util.CompressDir(volume.Path, snapFile); err != nil {
+		return err
+	}
+	volume.Snapshots[id] = Snapshot{
+		UUID:       id,
+		VolumeUUID: volumeID,
+		FilePath:   snapFile,
+	}
+	return util.ObjectSave(volume)
+}
+
+func (d *Driver) DeleteSnapshot(id, volumeID string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return err
+	}
+	snapshot, exists := volume.Snapshots[id]
+	if !exists {
+		return fmt.Errorf("Snapshot %v doesn't exists for volume %v", id, volumeID)
+	}
+	if err := os.Remove(snapshot.FilePath); err != nil {
+		return err
+	}
+	delete(volume.Snapshots, id)
+	return util.ObjectSave(volume)
+}
+
+func (d *Driver) GetSnapshotInfo(id, volumeID string) (map[string]string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return nil, err
+	}
+	snapshot, exists := volume.Snapshots[id]
+	if !exists {
+		return nil, fmt.Errorf("Snapshot %v doesn't exists for volume %v", id, volumeID)
+	}
+	return map[string]string{
+		"UUID":       snapshot.UUID,
+		"VolumeUUID": snapshot.VolumeUUID,
+		"FilePath":   snapshot.FilePath,
+	}, nil
+}
+
+func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	var (
+		volumeIDs []string
+		err       error
+	)
+	snapshots := make(map[string]map[string]string)
+	specifiedVolumeID := opts["VolumeID"]
+	if specifiedVolumeID != "" {
+		volumeIDs = []string{
+			specifiedVolumeID,
+		}
+	} else {
+		volumeIDs, err = d.listVolumeIDs()
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, volumeID := range volumeIDs {
+		volume := d.blankVolume(volumeID)
+		if err := util.ObjectLoad(volume); err != nil {
+			return nil, err
+		}
+		for snapshotID := range volume.Snapshots {
+			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, volumeID)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return snapshots, nil
+}
+
+func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {
+	return nil, fmt.Errorf("VFS driver doesn't support backup operations")
 }
