@@ -8,6 +8,7 @@ import (
 const (
 	LOG_FIELD_DRIVER        = "driver"
 	LOG_FIELD_VOLUME        = "volume"
+	LOG_FIELD_VOLUME_DEV    = "volume_dev"
 	LOG_FIELD_VOLUME_NAME   = "volume_name"
 	LOG_FIELD_ORIN_VOLUME   = "original_volume"
 	LOG_FIELD_SNAPSHOT      = "snapshot"

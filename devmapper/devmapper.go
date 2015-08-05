@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"os"
@@ -362,9 +363,22 @@ func getSize(opts map[string]string) (int64, error) {
 }
 
 func (d *Driver) CreateVolume(id string, opts map[string]string) error {
-	size, err := getSize(opts)
-	if err != nil {
-		return err
+	var (
+		size int64
+		err  error
+	)
+	backupURL := opts[storagedriver.OPT_BACKUP_URL]
+	if backupURL != "" {
+		objVolume, err := objectstore.LoadVolume(backupURL)
+		if err != nil {
+			return err
+		}
+		size = objVolume.Size
+	} else {
+		size, err = getSize(opts)
+		if err != nil {
+			return err
+		}
 	}
 
 	if size%(d.ThinpoolBlockSize*SECTOR_SIZE) != 0 {
@@ -433,13 +447,19 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		return err
 	}
 
-	// format the device
 	dev, err := d.GetVolumeDevice(id)
 	if err != nil {
 		return err
 	}
-	if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
-		return err
+	if backupURL == "" {
+		// format the device
+		if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
+			return err
+		}
+	} else {
+		if err := objectstore.RestoreBackup(backupURL, dev); err != nil {
+			return err
+		}
 	}
 
 	return nil

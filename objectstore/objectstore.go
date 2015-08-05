@@ -297,12 +297,7 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 	return backup
 }
 
-func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.StorageDriver) error {
-	deltaOps, ok := sDriver.(DeltaBlockBackupOperations)
-	if !ok {
-		return fmt.Errorf("Driver %s doesn't implemented DeltaBlockBackupOperations interface", sDriver.Name())
-	}
-
+func RestoreBackup(backupURL, volDevName string) error {
 	bsDriver, err := GetObjectStoreDriver(backupURL)
 	if err != nil {
 		return err
@@ -320,10 +315,6 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.Storag
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
-	volDevName, err := deltaOps.GetVolumeDevice(dstVolumeUUID)
-	if err != nil {
-		return err
-	}
 	volDev, err := os.Create(volDevName)
 	if err != nil {
 		return err
@@ -341,7 +332,7 @@ func RestoreBackup(backupURL, dstVolumeUUID string, sDriver storagedriver.Storag
 		LOG_FIELD_OBJECT:      LOG_FIELD_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT:    srcBackupUUID,
 		LOG_FIELD_ORIN_VOLUME: srcVolumeUUID,
-		LOG_FIELD_VOLUME:      dstVolumeUUID,
+		LOG_FIELD_VOLUME_DEV:  volDevName,
 		LOG_FIELD_BACKUP_URL:  backupURL,
 	}).Debug()
 	for _, block := range backup.Blocks {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"net/http"
@@ -76,7 +75,6 @@ func (s *Server) loadVolumeByName(name string) *Volume {
 func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
 	volumeName := request.Name
 	driverName := request.DriverName
-	backupURL := request.BackupURL
 
 	existedVolume := s.loadVolumeByName(volumeName)
 	if existedVolume != nil {
@@ -84,14 +82,6 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	uuid := uuid.New()
-
-	if backupURL != "" {
-		objVolume, err := objectstore.LoadVolume(backupURL)
-		if err != nil {
-			return nil, err
-		}
-		request.Size = objVolume.Size
-	}
 
 	if driverName == "" {
 		driverName = s.DefaultDriver
@@ -106,7 +96,8 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	opts := map[string]string{
-		storagedriver.OPT_SIZE: strconv.FormatInt(request.Size, 10),
+		storagedriver.OPT_SIZE:       strconv.FormatInt(request.Size, 10),
+		storagedriver.OPT_BACKUP_URL: request.BackupURL,
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
@@ -125,27 +116,6 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug("Created volume")
-
-	if backupURL != "" {
-		log.WithFields(logrus.Fields{
-			LOG_FIELD_REASON:     LOG_REASON_PREPARE,
-			LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
-			LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
-			LOG_FIELD_VOLUME:     uuid,
-			LOG_FIELD_BACKUP_URL: backupURL,
-		}).Debug()
-		//TODO rollback
-		if err := objectstore.RestoreBackup(backupURL, uuid, driver); err != nil {
-			return nil, err
-		}
-		log.WithFields(logrus.Fields{
-			LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
-			LOG_FIELD_EVENT:      LOG_EVENT_BACKUP,
-			LOG_FIELD_OBJECT:     LOG_OBJECT_SNAPSHOT,
-			LOG_FIELD_VOLUME:     uuid,
-			LOG_FIELD_BACKUP_URL: backupURL,
-		}).Debug()
-	}
 
 	volume := &Volume{
 		UUID:        uuid,
