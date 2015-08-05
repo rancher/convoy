@@ -129,6 +129,41 @@ func DecompressFile(filePath string) error {
 	return nil
 }
 
+func CompressDir(sourceDir, targetFile string) error {
+	tmpFile := targetFile + ".tmp"
+	if _, err := Execute("tar", []string{"cf", tmpFile, "-C", sourceDir, "."}); err != nil {
+		return err
+	}
+	if _, err := Execute("gzip", []string{tmpFile}); err != nil {
+		return err
+	}
+	if _, err := Execute("mv", []string{"-f", tmpFile + ".gz", targetFile}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func DecompressDir(sourceFile, targetDir string) error {
+	tmpDir := targetDir + ".tmp"
+	if _, err := Execute("rm", []string{"-rf", tmpDir}); err != nil {
+		return err
+	}
+	if err := os.Mkdir(tmpDir, os.ModeDir|0700); err != nil {
+		return err
+	}
+	if _, err := Execute("tar", []string{"xf", sourceFile, "-C", tmpDir}); err != nil {
+		return err
+	}
+
+	if _, err := Execute("rm", []string{"-rf", targetDir}); err != nil {
+		return err
+	}
+	if _, err := Execute("mv", []string{"-f", tmpDir, targetDir}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func Copy(src, dst string) error {
 	if _, err := Execute("cp", []string{src, dst}); err != nil {
 		return err

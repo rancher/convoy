@@ -269,3 +269,57 @@ func (s *TestSuite) TestCompress(c *C) {
 
 	c.Assert(result, DeepEquals, data)
 }
+
+func (s *TestSuite) TestCompressDir(c *C) {
+	var err error
+
+	tmpdir, err := ioutil.TempDir("/tmp", "rancher-volume")
+	c.Assert(err, IsNil)
+	defer os.RemoveAll(tmpdir)
+
+	path := filepath.Join(tmpdir, "path")
+	err = os.Mkdir(path, os.ModeDir|0700)
+	c.Assert(err, IsNil)
+
+	filename1 := filepath.Join(path, "file1")
+	data1 := []byte("Some random string for file1")
+	file1, err := os.Create(filename1)
+	c.Assert(err, IsNil)
+	_, err = file1.Write(data1)
+	c.Assert(err, IsNil)
+	err = file1.Close()
+	c.Assert(err, IsNil)
+
+	filename2 := filepath.Join(path, "file1")
+	data2 := []byte("Some random string for file1")
+	file2, err := os.Create(filename2)
+	c.Assert(err, IsNil)
+	_, err = file2.Write(data2)
+	c.Assert(err, IsNil)
+	err = file2.Close()
+	c.Assert(err, IsNil)
+
+	tarFile := filepath.Join(tmpdir, "test.tar.gz")
+	err = CompressDir(path, tarFile)
+	c.Assert(err, IsNil)
+	err = os.RemoveAll(path)
+	c.Assert(err, IsNil)
+	err = DecompressDir(tarFile, path)
+	c.Assert(err, IsNil)
+
+	file1, err = os.Open(filename1)
+	c.Assert(err, IsNil)
+	data, err := ioutil.ReadAll(file1)
+	c.Assert(err, IsNil)
+	c.Assert(data, DeepEquals, data1)
+	err = file1.Close()
+	c.Assert(err, IsNil)
+
+	file2, err = os.Open(filename2)
+	c.Assert(err, IsNil)
+	data, err = ioutil.ReadAll(file2)
+	c.Assert(err, IsNil)
+	c.Assert(data, DeepEquals, data2)
+	err = file2.Close()
+	c.Assert(err, IsNil)
+}
