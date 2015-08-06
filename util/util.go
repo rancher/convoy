@@ -122,7 +122,7 @@ func CompressFile(filePath string) error {
 	return nil
 }
 
-func UncompressFile(filePath string) error {
+func DecompressFile(filePath string) error {
 	if _, err := Execute("gunzip", []string{filePath}); err != nil {
 		return err
 	}
