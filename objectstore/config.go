@@ -15,9 +15,6 @@ const (
 	OBJECTSTORE_BASE       = "rancher-objectstore"
 	VOLUME_SEPARATE_LAYER1 = 2
 	VOLUME_SEPARATE_LAYER2 = 4
-	BLOCKS_DIRECTORY       = "blocks"
-	BLOCK_SEPARATE_LAYER1  = 2
-	BLOCK_SEPARATE_LAYER2  = 4
 
 	VOLUME_DIRECTORY     = "volumes"
 	VOLUME_CONFIG_FILE   = "volume.cfg"
@@ -142,19 +139,6 @@ func saveVolume(v *Volume, driver ObjectStoreDriver) error {
 		return err
 	}
 	return nil
-}
-
-func getBlockPath(volumeUUID string) string {
-	return filepath.Join(getVolumePath(volumeUUID), BLOCKS_DIRECTORY) + "/"
-}
-
-func getBlockFilePath(volumeUUID, checksum string) string {
-	blockSubDirLayer1 := checksum[0:BLOCK_SEPARATE_LAYER1]
-	blockSubDirLayer2 := checksum[BLOCK_SEPARATE_LAYER1:BLOCK_SEPARATE_LAYER2]
-	path := filepath.Join(getBlockPath(volumeUUID), blockSubDirLayer1, blockSubDirLayer2)
-	fileName := checksum + ".blk"
-
-	return filepath.Join(path, fileName)
 }
 
 func getBackupUUIDsForVolume(volumeUUID string, driver ObjectStoreDriver) ([]string, error) {

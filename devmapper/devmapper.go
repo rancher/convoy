@@ -457,7 +457,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 			return err
 		}
 	} else {
-		if err := objectstore.RestoreBackup(backupURL, dev); err != nil {
+		if err := objectstore.RestoreDeltaBlockBackup(backupURL, dev); err != nil {
 			return err
 		}
 	}

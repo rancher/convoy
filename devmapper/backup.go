@@ -148,7 +148,7 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 		Name:        opts[storagedriver.OPT_SNAPSHOT_NAME],
 		CreatedTime: opts[storagedriver.OPT_SNAPSHOT_CREATED_TIME],
 	}
-	return objectstore.CreateBackup(objVolume, objSnapshot, destURL, d)
+	return objectstore.CreateDeltaBlockBackup(objVolume, objSnapshot, destURL, d)
 }
 
 func (d *Driver) DeleteBackup(backupURL string) error {
@@ -159,7 +159,7 @@ func (d *Driver) DeleteBackup(backupURL string) error {
 	if objVolume.Driver != d.Name() {
 		return fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
 	}
-	return objectstore.DeleteBackup(backupURL)
+	return objectstore.DeleteDeltaBlockBackup(backupURL)
 }
 
 func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
