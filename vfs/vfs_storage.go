@@ -2,6 +2,7 @@ package vfs
 
 import (
 	"fmt"
+	"github.com/rancher/rancher-volume/objectstore"
 	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"os"
@@ -136,6 +137,8 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
+	backupURL := opts[storagedriver.OPT_BACKUP_URL]
+
 	volume := d.blankVolume(id)
 	exists, err := util.ObjectExists(volume)
 	if err != nil {
@@ -151,6 +154,17 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 	volume.Path = volumePath
 	volume.Snapshots = make(map[string]Snapshot)
+
+	if backupURL != "" {
+		file, err := objectstore.RestoreSingleFileBackup(backupURL, volumePath)
+		if err != nil {
+			return err
+		}
+		// file would be removed after this because it's under volumePath
+		if err := util.DecompressDir(file, volumePath); err != nil {
+			return err
+		}
+	}
 	return util.ObjectSave(volume)
 }
 
@@ -361,5 +375,55 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 }
 
 func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {
-	return nil, fmt.Errorf("VFS driver doesn't support backup operations")
+	return d, nil
+}
+
+func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error) {
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
+	}
+	snapshot, exists := volume.Snapshots[snapshotID]
+	if !exists {
+		return "", fmt.Errorf("Cannot find snapshot %v for volume %v", snapshotID, volumeID)
+	}
+	objVolume := &objectstore.Volume{
+		UUID:        volumeID,
+		Name:        opts[storagedriver.OPT_VOLUME_NAME],
+		Driver:      d.Name(),
+		FileSystem:  opts[storagedriver.OPT_FILESYSTEM],
+		CreatedTime: opts[storagedriver.OPT_VOLUME_CREATED_TIME],
+	}
+	objSnapshot := &objectstore.Snapshot{
+		UUID:        snapshotID,
+		Name:        opts[storagedriver.OPT_SNAPSHOT_NAME],
+		CreatedTime: opts[storagedriver.OPT_SNAPSHOT_CREATED_TIME],
+	}
+	return objectstore.CreateSingleFileBackup(objVolume, objSnapshot, snapshot.FilePath, destURL)
+}
+
+func (d *Driver) DeleteBackup(backupURL string) error {
+	objVolume, err := objectstore.LoadVolume(backupURL)
+	if err != nil {
+		return err
+	}
+	if objVolume.Driver != d.Name() {
+		return fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
+	}
+	return objectstore.DeleteSingleFileBackup(backupURL)
+}
+
+func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
+	objVolume, err := objectstore.LoadVolume(backupURL)
+	if err != nil {
+		return nil, err
+	}
+	if objVolume.Driver != d.Name() {
+		return nil, fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
+	}
+	return objectstore.GetBackupInfo(backupURL)
+}
+
+func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
+	return objectstore.List(opts[storagedriver.OPT_VOLUME_UUID], destURL, d.Name())
 }

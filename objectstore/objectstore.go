@@ -31,7 +31,9 @@ type Backup struct {
 	SnapshotName      string
 	SnapshotCreatedAt string
 	CreatedTime       string
-	Blocks            []BlockMapping `json:",omitempty"`
+
+	Blocks     []BlockMapping `json:",omitempty"`
+	SingleFile BackupFile     `json:",omitempty"`
 }
 
 func addVolume(volume *Volume, driver ObjectStoreDriver) error {
