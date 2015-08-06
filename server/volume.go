@@ -223,6 +223,16 @@ func (s *Server) processVolumeDelete(uuid string) error {
 			return err
 		}
 	}
+	for _, snapshot := range volume.Snapshots {
+		if err := s.UUIDIndex.Delete(snapshot.UUID); err != nil {
+			return err
+		}
+		if snapshot.Name != "" {
+			if err := s.NameUUIDIndex.Delete(snapshot.Name); err != nil {
+				return err
+			}
+		}
+	}
 	return s.deleteVolume(volume)
 }
 
