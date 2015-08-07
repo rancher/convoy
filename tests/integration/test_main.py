@@ -271,7 +271,7 @@ def volume_name_test(drv):
 
 def mount_volume_and_create_file(uuid, filename):
     # with format
-    volume_mount_dir = mount_volume(uuid)
+    volume_mount_dir = mount_volume_auto(uuid)
 
     test_file = os.path.join(volume_mount_dir,filename)
     with open(test_file, "w") as f:
