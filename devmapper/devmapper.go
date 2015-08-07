@@ -373,6 +373,9 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		if err != nil {
 			return err
 		}
+		if objVolume.Driver != d.Name() {
+			return fmt.Errorf("Cannot restore backup of %v to %v", objVolume.Driver, d.Name())
+		}
 		size = objVolume.Size
 	} else {
 		size, err = getSize(opts)

@@ -24,7 +24,7 @@ DM_ROOT = os.path.join(CFG_ROOT, DM)
 TEST_THREAD_COUNT = 100
 TEST_LOOP_COUNT = 100
 
-VFS_URL = "vfs://" + TEST_ROOT
+VFS_DEST = "vfs://" + TEST_ROOT
 
 VFS = "vfs"
 VFS_ROOT = os.path.join(CFG_ROOT, VFS)
@@ -446,7 +446,7 @@ def get_checksum(filename):
     return output.split(" ")[0]
 
 def test_vfs_create_restore_only():
-    process_restore_with_original_removed(VFS_URL)
+    process_restore_with_original_removed(VFS_DEST)
 
 def process_restore_with_original_removed(dest):
     volume1_uuid = create_volume(VOLUME_SIZE_500M)
@@ -472,9 +472,9 @@ def test_vfs_objectstore():
     vfs_objectstore_test(DM)
 
 def vfs_objectstore_test(driver):
-    process_objectstore_test(VFS_URL, driver)
+    process_objectstore_test(VFS_DEST, driver)
 
-def get_s3_url(path = ""):
+def get_s3_dest(path = ""):
     region = os.environ[ENV_TEST_AWS_REGION]
     bucket = os.environ[ENV_TEST_AWS_BUCKET]
 
@@ -486,8 +486,8 @@ def test_s3_objectstore():
     s3_objectstore_test(DM)
 
 def s3_objectstore_test(driver):
-    process_objectstore_test(get_s3_url(), driver)
-    process_objectstore_test(get_s3_url(S3_PATH), driver)
+    process_objectstore_test(get_s3_dest(), driver)
+    process_objectstore_test(get_s3_dest(S3_PATH), driver)
 
 def process_objectstore_test(dest, driver):
     #make sure objectstore is empty
@@ -666,3 +666,25 @@ def test_create_volume_in_sequence():
     for i in range(TEST_LOOP_COUNT):
 	create_delete_volume()
 
+def test_cross_restore_error_checking():
+    vfs_vol_uuid = create_volume(driver=VFS)
+    vfs_snap_uuid = v.create_snapshot(vfs_vol_uuid)
+    vfs_backup = v.create_backup(vfs_snap_uuid, VFS_DEST)
+
+    dm_vol_uuid = create_volume(size = VOLUME_SIZE_100M, driver=DM)
+    dm_snap_uuid = v.create_snapshot(dm_vol_uuid)
+    dm_backup = v.create_backup(dm_snap_uuid, VFS_DEST)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        create_volume(driver=VFS, backup=dm_backup)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        create_volume(driver=DM, backup=vfs_backup)
+
+    vfs_res = create_volume(driver=VFS, backup=vfs_backup)
+    dm_res = create_volume(driver=DM, backup=dm_backup)
+
+    delete_volume(vfs_vol_uuid)
+    delete_volume(vfs_res)
+    delete_volume(dm_vol_uuid)
+    delete_volume(dm_res)

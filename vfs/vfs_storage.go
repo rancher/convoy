@@ -138,6 +138,15 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	defer d.mutex.Unlock()
 
 	backupURL := opts[storagedriver.OPT_BACKUP_URL]
+	if backupURL != "" {
+		objVolume, err := objectstore.LoadVolume(backupURL)
+		if err != nil {
+			return err
+		}
+		if objVolume.Driver != d.Name() {
+			return fmt.Errorf("Cannot restore backup of %v to %v", objVolume.Driver, d.Name())
+		}
+	}
 
 	volume := d.blankVolume(id)
 	exists, err := util.ObjectExists(volume)
