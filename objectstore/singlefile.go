@@ -18,8 +18,9 @@ type BackupFile struct {
 	FilePath string
 }
 
-func getSingleFileBackupFilePath(sfBackup *Backup, fileName string) string {
-	return filepath.Join(getVolumePath(sfBackup.VolumeUUID), BACKUP_FILES_DIRECTORY, fileName)
+func getSingleFileBackupFilePath(sfBackup *Backup) string {
+	backupFileName := sfBackup.UUID + ".bak"
+	return filepath.Join(getVolumePath(sfBackup.VolumeUUID), BACKUP_FILES_DIRECTORY, backupFileName)
 }
 
 func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destURL string) (string, error) {
@@ -52,7 +53,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		SnapshotName:      snapshot.Name,
 		SnapshotCreatedAt: snapshot.CreatedTime,
 	}
-	backup.SingleFile.FilePath = getSingleFileBackupFilePath(backup, filepath.Base(filePath))
+	backup.SingleFile.FilePath = getSingleFileBackupFilePath(backup)
 
 	if err := driver.Upload(filePath, backup.SingleFile.FilePath); err != nil {
 		return "", err
@@ -68,7 +69,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: snapshot.UUID,
-	}).Debug("Backup created")
+	}).Debug("Created backup")
 
 	return encodeBackupURL(backup.UUID, volume.UUID, destURL), nil
 }

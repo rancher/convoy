@@ -468,7 +468,7 @@ def check_restore(origin_vol, restored_vol, driver):
     restore_checksum = get_volume_checksum(restored_vol, driver)
     assert volume_checksum == restore_checksum
 
-def test_vfs_create_restore_only():
+def test_backup_create_restore_only():
     process_restore_with_original_removed(VFS_DEST, VFS)
     process_restore_with_original_removed(VFS_DEST, DM)
 
@@ -493,6 +493,34 @@ def process_restore_with_original_removed(dest, driver):
     delete_volume(res_volume1_uuid)
 
     v.delete_backup(bak)
+
+def test_duplicate_backup():
+    process_duplicate_backup_test(VFS_DEST, VFS)
+    process_duplicate_backup_test(VFS_DEST, DM)
+
+def process_duplicate_backup_test(dest, driver):
+    volume_uuid = create_volume(size = VOLUME_SIZE_500M, driver = driver)
+    mount_volume_and_create_file(volume_uuid, "volume_snap_test")
+    snap_uuid = v.create_snapshot(volume_uuid)
+    volume_checksum = get_volume_checksum(volume_uuid, driver)
+
+    bak1 = v.create_backup(snap_uuid, dest)
+    bak2 = v.create_backup(snap_uuid, dest)
+
+    res2 = create_volume(backup = bak2, driver = driver)
+    res2_checksum = get_volume_checksum(res2, driver = driver)
+    assert res2_checksum == volume_checksum
+
+    v.delete_backup(bak2)
+
+    res1 = create_volume(backup = bak1, driver = driver)
+    res1_checksum = get_volume_checksum(res1, driver = driver)
+    assert res1_checksum == volume_checksum
+
+    v.delete_backup(bak1)
+    delete_volume(res2)
+    delete_volume(res1)
+    delete_volume(volume_uuid)
 
 def test_vfs_objectstore():
     vfs_objectstore_test(VFS)
