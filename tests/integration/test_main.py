@@ -203,13 +203,13 @@ def delete_volume(uuid, name = ""):
         v.delete_volume(name)
     dm_cleanup_list.remove(uuid)
 
-def mount_volume(uuid):
-    mount_dir = v.mount_volume(uuid)
+def mount_volume_with_path(uuid):
+    mount_dir = v.mount_volume_with_path(uuid)
     mount_cleanup_list.append(mount_dir)
     return mount_dir
 
-def mount_volume_auto(uuid):
-    mount_dir = v.mount_volume_auto(uuid)
+def mount_volume(uuid):
+    mount_dir = v.mount_volume(uuid)
     mount_cleanup_list.append(mount_dir)
     return mount_dir
 
@@ -271,7 +271,7 @@ def volume_name_test(drv):
 
 def mount_volume_and_create_file(uuid, filename):
     # with format
-    volume_mount_dir = mount_volume_auto(uuid)
+    volume_mount_dir = mount_volume(uuid)
 
     test_file = os.path.join(volume_mount_dir,filename)
     with open(test_file, "w") as f:
@@ -295,7 +295,7 @@ def volume_mount_test(drv):
     mount_volume_and_create_file(uuid, filename)
 
     # without format
-    volume_mount_dir = mount_volume(uuid)
+    volume_mount_dir = mount_volume_with_path(uuid)
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 
@@ -303,7 +303,7 @@ def volume_mount_test(drv):
     assert not os.path.exists(test_file)
 
     # auto mount
-    volume_mount_dir = mount_volume_auto(uuid)
+    volume_mount_dir = mount_volume(uuid)
     test_file = os.path.join(volume_mount_dir, filename)
     assert os.path.exists(test_file)
 

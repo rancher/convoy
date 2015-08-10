@@ -46,7 +46,7 @@ class VolumeManager:
     def delete_volume(self, volume):
         subprocess.check_call(self.base_cmdline + ["delete", volume])
 
-    def mount_volume(self, volume):
+    def mount_volume_with_path(self, volume):
         volume_mount_dir = os.path.join(self.mount_root, volume)
         if not os.path.exists(volume_mount_dir):
     	    os.makedirs(volume_mount_dir)
@@ -57,7 +57,7 @@ class VolumeManager:
 	subprocess.check_call(cmdline)
         return volume_mount_dir
 
-    def mount_volume_auto(self, volume):
+    def mount_volume(self, volume):
         cmdline = self.base_cmdline + ["mount", volume]
 
 	data = subprocess.check_output(cmdline)
