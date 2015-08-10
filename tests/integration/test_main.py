@@ -8,6 +8,7 @@ import uuid
 import time
 import sys
 import threading
+import shutil
 
 from rancher_volume import VolumeManager
 
@@ -441,27 +442,53 @@ def snapshot_list_test(driver, check_size = True):
     delete_volume(volume2_uuid)
     delete_volume(volume1_uuid)
 
-def get_checksum(filename):
-    output = subprocess.check_output(["sha512sum", filename]).decode()
+def compress_volume(volume_uuid):
+    mountpoint = mount_volume(volume_uuid)
+    zipfile = os.path.join(TEST_ROOT, volume_uuid)
+    shutil.make_archive(zipfile, "zip", mountpoint)
+    umount_volume(volume_uuid, mountpoint)
+    return zipfile + ".zip"
+
+def get_volume_checksum(volume_uuid, driver):
+    f = ""
+    if driver == DM:
+        f = os.path.join(DM_DIR, volume_uuid)
+    elif driver == VFS:
+        f = compress_volume(volume_uuid)
+    else:
+        assert "Shouldn't reach here" == ""
+    output = subprocess.check_output(["sha512sum", f]).decode()
+
+    if driver == "VFS" and f != "":
+        os.remove(f)
     return output.split(" ")[0]
 
-def test_vfs_create_restore_only():
-    process_restore_with_original_removed(VFS_DEST)
+def check_restore(origin_vol, restored_vol, driver):
+    volume_checksum = get_volume_checksum(origin_vol, driver)
+    restore_checksum = get_volume_checksum(restored_vol, driver)
+    assert volume_checksum == restore_checksum
 
-def process_restore_with_original_removed(dest):
-    volume1_uuid = create_volume(VOLUME_SIZE_500M)
+def test_vfs_create_restore_only():
+    process_restore_with_original_removed(VFS_DEST, VFS)
+    process_restore_with_original_removed(VFS_DEST, DM)
+
+def process_restore_with_original_removed(dest, driver):
+    volume1_uuid = create_volume(size = VOLUME_SIZE_500M, driver = driver)
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     bak = v.create_backup(snap1_vol1_uuid, dest)
-    volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
+    volume1_checksum = get_volume_checksum(volume1_uuid, driver)
     delete_volume(volume1_uuid)
 
-    #cannot specify size with backup
-    with pytest.raises(subprocess.CalledProcessError):
-	res_volume1_uuid = create_volume(VOLUME_SIZE_500M, "res-vol1", bak)
+    if driver == DM:
+        #cannot specify size with backup
+        with pytest.raises(subprocess.CalledProcessError):
+	    res_volume1_uuid = create_volume(VOLUME_SIZE_500M, "res-vol1", bak,
+                    driver = driver)
 
-    res_volume1_uuid = create_volume(name = "res-vol1", backup = bak)
-    res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
+    res_volume1_uuid = create_volume(name = "res-vol1", backup = bak, driver =
+            driver)
+    res_volume1_checksum = get_volume_checksum(res_volume1_uuid, driver)
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
 
@@ -584,16 +611,10 @@ def process_objectstore_test(dest, driver):
     #restore snapshot
     res_volume1_uuid = create_volume(name = "res-vol1", backup = snap2_vol1_bak,
             driver=driver)
-    if driver == "DM":
-        res_volume1_checksum = get_checksum(os.path.join(DM_DIR, res_volume1_uuid))
-        volume1_checksum = get_checksum(os.path.join(DM_DIR, volume1_uuid))
-        assert res_volume1_checksum == volume1_checksum
+    check_restore(volume1_uuid, res_volume1_uuid, driver)
 
     res_volume2_uuid = create_volume(backup = snap2_vol2_bak, driver=driver)
-    if driver == "DM":
-        res_volume2_checksum = get_checksum(os.path.join(DM_DIR, res_volume2_uuid))
-        volume2_checksum = get_checksum(os.path.join(DM_DIR, volume2_uuid))
-        assert res_volume2_checksum == volume2_checksum
+    check_restore(volume2_uuid, res_volume2_uuid, driver)
 
     #remove snapshots from objectstore
     v.delete_backup(snap2_vol1_bak)
