@@ -45,9 +45,16 @@ sudo losetup -f metadata.vol
 ```
 The devices would be called /dev/loop0 and /dev/loop1 respectively below.
 
-##### Place hook to Docker(apply to Docker v1.7.x experimental)
+##### Place hook to Docker
+
+######Docker v1.7.x experimental
 ```
 echo "unix:///var/run/rancher/volume.sock” > /usr/share/docker/plugins/rancher.spec
+```
+
+######Docker v1.8+
+```
+echo "unix:///var/run/rancher/volume.sock” > /etc/docker/plugins/rancher.spec
 ```
 
 ##### Setup server
