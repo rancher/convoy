@@ -36,14 +36,22 @@ at bin/ directory.
 rancher-volume can work with any type of block devices, we show cases a loopback
 based device here for tutorial.
 
-##### Create two loopback devices for device mapper storage pool:
+##### Create two block devices using LVM2 for device mapper storage pool:
+Assuming the volume group "rancher-vg" already exists, and you want to create a 100G pool out of it. Please refer to http://tldp.org/HOWTO/LVM-HOWTO/createlv.html for more details on creating logical volume using LVM2.
+```
+sudo lvcreate -L 100000 -n rancher-volume-data rancher-vg
+sudo lvcreate -L 1000 -n rancher-volume-metadata rancher-vg
+```
+The devices would be called "datadev"(/dev/rancher-vg/rancher-volume-data) and "metadatadev" (/dev/rancher-vg/rancher-volume-metadata) respectively below.
+
+##### (Alternative) Create two loopback devices for device mapper storage pool:
 ```
 truncate -s 100G data.vol
 truncate -s 1G metadata.vol
 sudo losetup -f data.vol
 sudo losetup -f metadata.vol
 ```
-The devices would be called /dev/loop0 and /dev/loop1 respectively below.
+The devices would be called "datadev"(e.g. /dev/loop0) and "metadatadev" (e.g. /dev/loop1) respectively below.
 
 ##### Place hook to Docker
 
@@ -59,7 +67,7 @@ echo "unix:///var/run/rancher/volume.sock” > /etc/docker/plugins/rancher.spec
 
 ##### Setup server
 ```
-sudo rancher-volume server --drivers devicemapper --driver-opts dm.datadev=/dev/loop0 --driver-opts dm.metadatadev=/dev/loop1
+sudo rancher-volume server --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
 ```
 * As long as rancher-volume has been initialized once, next time "rancher-volume server" would be enough to start it
 * The server configuration file would be at /var/lib/rancher-volume by default.
