@@ -5,10 +5,8 @@ Rancher-volume is a storage driver platform can be integrated with Docker,
 managing docker volumes.
 
 # Features
-Main feature of rancher-volume:
 1. Integration with Docker.
-2. Implements device mapper storage driver, make it possible to use device
-   mapper with docker volumes.
+2. Implements device mapper storage driver, make it possible to use device mapper with docker volumes.
 3. Take snapshot of volume, back it up to S3 or local disk/nfs.
 
 # Usage
@@ -33,8 +31,7 @@ at bin/ directory.
 
 ## Setup
 
-rancher-volume can work with any type of block devices, we show cases a loopback
-based device here for tutorial.
+rancher-volume can work with any type of block devices, we show cases two kinds of setup here: new LVM logical volumes, or loopbacks. You can use or create your own block devices in your preferred way as well.
 
 ##### Create two block devices using LVM2 for device mapper storage pool:
 Assuming the volume group "rancher-vg" already exists, and you want to create a 100G pool out of it. Please refer to http://tldp.org/HOWTO/LVM-HOWTO/createlv.html for more details on creating logical volume using LVM2.
