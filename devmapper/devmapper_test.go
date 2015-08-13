@@ -5,7 +5,7 @@ package devmapper
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/driver"
+	"github.com/rancher/rancher-volume/storagedriver"
 	"github.com/rancher/rancher-volume/util"
 	"os"
 	"os/exec"
@@ -26,7 +26,6 @@ const (
 	devDataRoot   = "/tmp/devmapper/data"
 	devCfgRoot    = "/tmp/devmapper/cfg"
 	devMount      = "/tmp/devmapper/mount"
-	devCfg        = "driver_devicemapper.cfg"
 	volumeSize    = 1 << 26
 	dataSize      = 1 << 30
 	metadataSize  = 1 << 28
@@ -41,7 +40,7 @@ type TestSuite struct {
 	metadataDev  string
 	metadataFile string
 	imageFile    string
-	driver       driver.Driver
+	driver       storagedriver.StorageDriver
 }
 
 var _ = Suite(&TestSuite{})
@@ -133,23 +132,23 @@ func (s *TestSuite) TearDownSuite(c *C) {
 func (s *TestSuite) initDriver(c *C) {
 	config := make(map[string]string)
 
-	_, err := Init(devCfgRoot, devCfg, config)
+	_, err := Init(devCfgRoot, config)
 	c.Assert(err, ErrorMatches, "data device or metadata device unspecified")
 
 	config[DM_DATA_DEV] = s.dataDev
 	config[DM_METADATA_DEV] = s.metadataDev
 	config[DM_THINPOOL_BLOCK_SIZE] = "100"
-	_, err = Init(devCfgRoot, devCfg, config)
+	_, err = Init(devCfgRoot, config)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Block size must.*")
 
 	config[DM_THINPOOL_NAME] = "test_pool"
 	delete(config, DM_THINPOOL_BLOCK_SIZE)
 
-	driver, err := Init(devCfgRoot, devCfg, config)
+	driver, err := Init(devCfgRoot, config)
 	c.Assert(err, IsNil)
 
-	newDriver, err := Init(devCfgRoot, devCfg, config)
+	newDriver, err := Init(devCfgRoot, config)
 	c.Assert(err, IsNil)
 
 	drv1, ok := driver.(*Driver)
@@ -158,8 +157,6 @@ func (s *TestSuite) initDriver(c *C) {
 	c.Assert(ok, Equals, true)
 
 	c.Assert(*drv1, DeepEquals, *drv2)
-
-	c.Assert(drv1.configName, Equals, devCfg)
 
 	c.Assert(drv1.DataDevice, Equals, s.dataDev)
 	c.Assert(drv1.MetadataDevice, Equals, s.metadataDev)
@@ -175,39 +172,50 @@ func (s *TestSuite) TestVolume(c *C) {
 	lastDevID := drv.LastDevID
 	volumeID := uuid.New()
 
-	err = driver.CreateVolume(volumeID, volumeSize)
+	volOps, err := driver.VolumeOps()
+	c.Assert(err, IsNil)
+
+	opts := map[string]string{
+		storagedriver.OPT_SIZE: strconv.FormatInt(volumeSize, 10),
+	}
+	err = volOps.CreateVolume(volumeID, opts)
 	c.Assert(err, IsNil)
 
 	c.Assert(drv.LastDevID, Equals, lastDevID+1)
 
-	err = driver.CreateVolume(volumeID, volumeSize)
+	err = volOps.CreateVolume(volumeID, opts)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Already has volume with specific uuid.*")
 
 	volumeID2 := uuid.New()
 
-	wrongVolumeSize := int64(13333333)
-	err = driver.CreateVolume(volumeID2, wrongVolumeSize)
+	wrongOpts := map[string]string{
+		storagedriver.OPT_SIZE: "1333333",
+	}
+	err = volOps.CreateVolume(volumeID2, wrongOpts)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err.Error(), Equals, "Size must be multiple of block size")
 
-	err = driver.CreateVolume(volumeID2, volumeSize)
+	err = volOps.CreateVolume(volumeID2, opts)
 	c.Assert(err, IsNil)
 
-	_, err = driver.ListVolume("")
+	listOpts := map[string]string{
+		storagedriver.OPT_VOLUME_UUID: volumeID,
+	}
+	_, err = volOps.ListVolume(map[string]string{})
 	c.Assert(err, IsNil)
 
-	_, err = driver.ListVolume(volumeID)
+	_, err = volOps.ListVolume(listOpts)
 	c.Assert(err, IsNil)
 
-	err = driver.DeleteVolume("123")
+	err = volOps.DeleteVolume("123")
 	c.Assert(err, Not(IsNil))
-	c.Assert(err, ErrorMatches, "cannot find volume.*")
+	c.Assert(err, ErrorMatches, "Cannot find object .*")
 
-	err = driver.DeleteVolume(volumeID2)
+	err = volOps.DeleteVolume(volumeID2)
 	c.Assert(err, IsNil)
 
-	err = driver.DeleteVolume(volumeID)
+	err = volOps.DeleteVolume(volumeID)
 	c.Assert(err, IsNil)
 }
 
@@ -215,29 +223,37 @@ func (s *TestSuite) TestSnapshot(c *C) {
 	var err error
 	driver := s.driver
 
+	volOps, err := driver.VolumeOps()
+	c.Assert(err, IsNil)
+	snapOps, err := driver.SnapshotOps()
+	c.Assert(err, IsNil)
+
 	volumeID := uuid.New()
-	err = driver.CreateVolume(volumeID, volumeSize)
+	opts := map[string]string{
+		storagedriver.OPT_SIZE: strconv.FormatInt(volumeSize, 10),
+	}
+	err = volOps.CreateVolume(volumeID, opts)
 	c.Assert(err, IsNil)
 
 	snapshotID := uuid.New()
-	err = driver.CreateSnapshot(snapshotID, volumeID)
+	err = snapOps.CreateSnapshot(snapshotID, volumeID)
 	c.Assert(err, IsNil)
 
-	err = driver.CreateSnapshot(snapshotID, volumeID)
+	err = snapOps.CreateSnapshot(snapshotID, volumeID)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Already has snapshot with uuid.*")
 
 	snapshotID2 := uuid.New()
-	err = driver.CreateSnapshot(snapshotID2, volumeID)
+	err = snapOps.CreateSnapshot(snapshotID2, volumeID)
 	c.Assert(err, IsNil)
 
-	err = driver.DeleteSnapshot(snapshotID, volumeID)
+	err = snapOps.DeleteSnapshot(snapshotID, volumeID)
 	c.Assert(err, IsNil)
 
-	err = driver.DeleteSnapshot(snapshotID, volumeID)
+	err = snapOps.DeleteSnapshot(snapshotID, volumeID)
 	c.Assert(err, Not(IsNil))
-	c.Assert(err, ErrorMatches, "cannot find snapshot.*")
+	c.Assert(err, ErrorMatches, "cannot find snapshot .*")
 
-	err = driver.DeleteVolume(volumeID)
+	err = volOps.DeleteVolume(volumeID)
 	c.Assert(err, IsNil)
 }
