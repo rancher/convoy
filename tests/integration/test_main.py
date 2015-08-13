@@ -442,6 +442,25 @@ def snapshot_list_test(driver, check_size = True):
     delete_volume(volume2_uuid)
     delete_volume(volume1_uuid)
 
+def create_delete_volume():
+    uuid = v.create_volume(size = VOLUME_SIZE_6M)
+    snap = v.create_snapshot(uuid)
+    v.delete_snapshot(snap)
+    v.delete_volume(uuid)
+
+def test_create_volume_in_parallel():
+    threads = []
+    for i in range(TEST_THREAD_COUNT):
+        threads.append(threading.Thread(target = create_delete_volume))
+        threads[i].start()
+
+    for i in range(TEST_THREAD_COUNT):
+        threads[i].join()
+
+def test_create_volume_in_sequence():
+    for i in range(TEST_LOOP_COUNT):
+	create_delete_volume()
+
 def compress_volume(volume_uuid):
     mountpoint = mount_volume(volume_uuid)
     zipfile = os.path.join(TEST_ROOT, volume_uuid)
@@ -695,25 +714,6 @@ def process_objectstore_test(dest, driver):
     delete_volume(volume2_uuid)
     delete_volume(res_volume1_uuid)
     delete_volume(res_volume2_uuid)
-
-def create_delete_volume():
-    uuid = v.create_volume(size = VOLUME_SIZE_6M)
-    snap = v.create_snapshot(uuid)
-    v.delete_snapshot(snap)
-    v.delete_volume(uuid)
-
-def test_create_volume_in_parallel():
-    threads = []
-    for i in range(TEST_THREAD_COUNT):
-        threads.append(threading.Thread(target = create_delete_volume))
-        threads[i].start()
-
-    for i in range(TEST_THREAD_COUNT):
-        threads[i].join()
-
-def test_create_volume_in_sequence():
-    for i in range(TEST_LOOP_COUNT):
-	create_delete_volume()
 
 def test_cross_restore_error_checking():
     vfs_vol_uuid = create_volume(driver=VFS)
