@@ -17,4 +17,7 @@ done
 
 [ -n "$result" ] && exit 1
 
+cd tests/integration
+py.test -x
+
 echo OK
