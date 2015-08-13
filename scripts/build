@@ -22,3 +22,4 @@ fi
 echo export GOPATH=$GOPATH
 
 make STATIC_LINK=1
+make install

@@ -25,15 +25,43 @@ build_devmapper()
 	&& make install_device-mapper
 }
 
+install_pytest()
+{
+    if [ ! $(command -v pip) ]; then
+        echo "Installing pip..."
+        wget https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
+        python /tmp/get-pip.py
+    fi
+    pip install pytest
+}
+
+install_pdata_tools()
+{
+   wget https://github.com/rancher/thin-provisioning-tools/releases/download/rancher-v0.2/pdata_tools \
+        -O /usr/local/bin/pdata_tools
+   chmod a+x /usr/local/bin/pdata_tools
+}
+
 mkdir -p ./build
 
 if [ ! $(command -v go) ]; then
     echo "Going to try installing Go..."
     install_go
 fi
+
 if [ ! -d "/usr/local/lvm2" ]; then
     echo "Going to build static libdevmapper..."
     build_devmapper
+fi
+
+if [ ! $(command -v py.test) ]; then
+    echo "Installing py.test..."
+    install_pytest
+fi
+
+if [ ! $(command -v pdata_tools) ]; then
+    echo "Installing pdata_tools..."
+    install_pdata_tools
 fi
 
 apt-get update
