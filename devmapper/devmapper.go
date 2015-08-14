@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	. "github.com/rancher/rancher-volume/logging"
 )
@@ -468,6 +469,23 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	return nil
 }
 
+func (d *Driver) removeDevice(name string) error {
+	for i := 0; i < 200; i++ {
+		err := devicemapper.RemoveDevice(name)
+		if err == nil {
+			break
+		}
+		if err != devicemapper.ErrBusy {
+			return err
+		}
+
+		// If we see EBUSY it may be a transient error,
+		// sleep a bit a retry a few times.
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil
+}
+
 func (d *Driver) DeleteVolume(id string) error {
 	var err error
 	volume := d.blankVolume(id)
@@ -489,7 +507,7 @@ func (d *Driver) DeleteVolume(id string) error {
 		}
 	}
 
-	if err = devicemapper.RemoveDevice(id); err != nil {
+	if err = d.removeDevice(id); err != nil {
 		return err
 	}
 
@@ -653,7 +671,7 @@ func (d *Driver) deactivatePool() error {
 		if err := util.ObjectLoad(volume); err != nil {
 			return err
 		}
-		if err := devicemapper.RemoveDevice(id); err != nil {
+		if err := d.removeDevice(id); err != nil {
 			return err
 		}
 		log.WithFields(logrus.Fields{

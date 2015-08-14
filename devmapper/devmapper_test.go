@@ -111,7 +111,7 @@ func (s *TestSuite) SetUpTest(c *C) {
 func (s *TestSuite) TearDownTest(c *C) {
 	var err error
 
-	err = exec.Command("dmsetup", "remove", poolName).Run()
+	err = exec.Command("dmsetup", "remove", "--retry", poolName).Run()
 	c.Check(err, IsNil)
 
 	err = exec.Command("losetup", "-d", s.dataDev, s.metadataDev).Run()

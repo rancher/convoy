@@ -139,7 +139,7 @@ def teardown_module():
             print "Something wrong when tearing down, continuing with code", code
 
     while dm_cleanup_list:
-	code = subprocess.call(["dmsetup", "remove", dm_cleanup_list.pop()])
+	code = subprocess.call(["dmsetup", "remove", "--retry", dm_cleanup_list.pop()])
         if code != 0:
             print "Something wrong when tearing down, continuing with code ", code
 
