@@ -31,15 +31,12 @@ VFS = "vfs"
 VFS_ROOT = os.path.join(CFG_ROOT, VFS)
 VFS_VOLUME_PATH = os.path.join(TEST_ROOT, "vfs-volumes")
 
-ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
-ENV_TEST_AWS_SECRET_KEY = "RANCHER_TEST_AWS_SECRET_ACCESS_KEY"
 ENV_TEST_AWS_REGION     = "RANCHER_TEST_AWS_REGION"
 ENV_TEST_AWS_BUCKET     = "RANCHER_TEST_AWS_BUCKET"
 S3_PATH = "test/volume/"
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "rancher_volume_test_pool"
-RANCHER_VOLUME_BINARY = os.path.abspath("../../bin/rancher-volume")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
@@ -56,6 +53,10 @@ VOLUME_SIZE_100M = "104857600"
 VOLUME_SIZE_6M = "6M"
 
 RANDOM_VALID_UUID = "0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4"
+
+CONTAINER_NAME = "rancher-volume-test"
+CONTAINER = "yasker/rancher-volume"
+RANCHER_VOLUME_CMD = ["docker", "exec", CONTAINER_NAME, "rancher-volume"]
 
 data_dev = ""
 metadata_dev = ""
@@ -75,9 +76,6 @@ def attach_loopback_dev(filepath):
 
 def detach_loopback_dev(dev):
     subprocess.check_output(["losetup", "-d", dev])
-
-def format_dev(dev):
-    subprocess.check_call(["mkfs", "-t", "ext4", dev])
 
 def mount_dev(dev, mountpoint):
     subprocess.check_call(["mount", dev, mountpoint])
@@ -108,8 +106,9 @@ def setup_module():
     metadata_dev = attach_loopback_dev(metadata_file)
 
     global v
-    v = VolumeManager(RANCHER_VOLUME_BINARY, TEST_ROOT)
-    v.start_server(PID_FILE, ["server",
+    v = VolumeManager(RANCHER_VOLUME_CMD, TEST_ROOT)
+    v.start_server(CONTAINER_NAME, CFG_ROOT, TEST_ROOT, CONTAINER,[
+	"rancher-volume-start",
         "--root", CFG_ROOT,
         "--log", LOG_FILE,
         "--drivers=" + DM,
@@ -129,7 +128,7 @@ def detach_all_lodev(keyword):
             detach_loopback_dev(line.split(":")[0].strip())
 
 def teardown_module():
-    code = v.stop_server(PID_FILE)
+    code = v.stop_server(CONTAINER_NAME)
     if code != 0:
         print "Something wrong when tearing down, continuing with code ", code
 
@@ -156,7 +155,7 @@ def wait_for_daemon():
                 break
         except subprocess.CalledProcessError:
                 print "Fail to communicate with daemon"
-                if v.check_server(PID_FILE) != 0:
+                if v.check_server(CONTAINER_NAME) != 0:
                     print "Server failed to start"
                     teardown_module()
                     assert False

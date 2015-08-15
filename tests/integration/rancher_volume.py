@@ -7,22 +7,31 @@ import json
 EXT4_FS = "ext4"
 
 class VolumeManager:
-    def __init__(self, binary, mount_root):
-        self.base_cmdline = [binary]
+    def __init__(self, base_cmdline, mount_root):
+        self.base_cmdline = base_cmdline
 	self.mount_root = mount_root
 
-    def start_server(self, pidfile, cmdline):
-        start_cmdline = ["start-stop-daemon", "-S", "-b", "-m", "-p", pidfile,
-			"--exec"] + self.base_cmdline + ["--"] + cmdline
+    def start_server(self, name, cfg_root, file_root, container, cmdline):
+        start_cmdline = ["docker", "run", "--privileged",
+                        "--name", name, "-d",
+                        "-v", "/etc/ssl/certs:/etc/ssl/certs",
+                        "-v", os.path.expanduser("~") + "/.aws:/root/.aws",
+                        "-v", "/dev:/host/dev",
+                        "-v", "/proc:/host/proc",
+                        "-v", cfg_root + ":" + cfg_root,
+                        "-v", file_root + ":" + file_root,
+			container,
+                        ] + cmdline
         subprocess.check_call(start_cmdline)
 
-    def stop_server(self, pidfile):
-        stop_cmdline = ["start-stop-daemon", "-K", "-p", pidfile, "-x"] + self.base_cmdline
+    def stop_server(self, name):
+        stop_cmdline = ["docker", "rm", "-fv", name]
         return subprocess.call(stop_cmdline)
 
-    def check_server(self, pidfile):
-        check_cmdline = ["start-stop-daemon", "-T", "-p", pidfile]
-        return subprocess.call(check_cmdline)
+    def check_server(self, name):
+        check_cmdline = ["docker", "inspect", "-f", "{{.State.Running}}", name]
+        output = subprocess.check_output(check_cmdline)
+        return output.startswith("true")
 
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
