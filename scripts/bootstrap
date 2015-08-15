@@ -19,9 +19,8 @@ build_devmapper()
     # see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
 
     # Compile and install lvm2
-    export DM_DISABLE_UDEV=1
     cd /usr/local/lvm2 \
-        && ./configure \
+	&& ./configure --enable-static_link \
 	&& make device-mapper \
 	&& make install_device-mapper
 }
