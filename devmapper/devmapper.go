@@ -470,6 +470,9 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 }
 
 func (d *Driver) removeDevice(name string) error {
+	if err := devicemapper.BlockDeviceDiscard(name); err != nil {
+		log.Debugf("Error %s when discarding %v, ignored", err, name)
+	}
 	for i := 0; i < 200; i++ {
 		err := devicemapper.RemoveDevice(name)
 		if err == nil {
