@@ -54,7 +54,7 @@ rancher-volume supports different drivers, and can be easily extended. Currently
 
 #### VFS driver
 ##### Choose a directory as root to store the volumes
-It can be NFS mounted. We would refer the directory as "vfs_path" below.
+It can be NFS mounted. We would refer the directory as ```<vfs_path>``` below.
 ##### Start server
 
 ###### Container way:
@@ -82,12 +82,12 @@ sudo rancher-volume server --drivers vfs --driver-opts vfs.path=<vfs_path>
 rancher-volume can work with any type of block devices, we show cases two kinds of setup here: new LVM logical volumes, or loopbacks. You can use or create your own block devices in your preferred way as well.
 ##### Prepare two block devices for device mapper storage pool
 ###### Create two block devices using LVM2 for device mapper storage pool:
-Assuming the volume group "rancher-vg" already exists, and you want to create a 100G pool out of it. Please refer to http://tldp.org/HOWTO/LVM-HOWTO/createlv.html for more details on creating logical volume using LVM2.
+Assuming the volume group ```rancher-vg``` already exists, and you want to create a 100G pool out of it. Please refer to http://tldp.org/HOWTO/LVM-HOWTO/createlv.html for more details on creating logical volume using LVM2.
 ```
-sudo lvcreate -L 100000 -n rancher-volume-data rancher-vg
-sudo lvcreate -L 1000 -n rancher-volume-metadata rancher-vg
+sudo lvcreate -L 100000 -n volume-data rancher-vg
+sudo lvcreate -L 1000 -n volume-metadata rancher-vg
 ```
-The devices would be called "datadev"(/dev/rancher-vg/rancher-volume-data) and "metadatadev" (/dev/rancher-vg/rancher-volume-metadata) respectively below.
+The devices would be called ```<datadev>```(``/dev/rancher-vg/volume-data```) and ```<metadatadev>``` (```/dev/rancher-vg/volume-metadata```) respectively below.
 
 ###### (Alternative) Create two loopback devices for device mapper storage pool:
 ```
@@ -96,7 +96,7 @@ truncate -s 1G metadata.vol
 sudo losetup -f data.vol
 sudo losetup -f metadata.vol
 ```
-The devices would be called "datadev"(e.g. /dev/loop0) and "metadatadev" (e.g. /dev/loop1) respectively below.
+The devices would be called ```<datadev>```(e.g. ```/dev/loop0```) and ```<metadatadev>``` (e.g. ```/dev/loop1```) respectively below.
 
 ##### Start server
 
@@ -149,6 +149,7 @@ sudo docker exec rancher-volume-container rancher-volume create vol1 --size 10G 
 ```
 sudo rancher-volume create vol1 --driver vfs
 ```
+* ```--size``` option has no effect on vfs.
 
 ##### List/inspect volumes:
 ###### Container way
@@ -218,7 +219,7 @@ sudo docker run -it -v res1:/res1 --volume-driver rancher ubuntu /bin/bash
 ```
 
 ## Tips
-1. "--help" would be helpful most of time.
+1. ```--help``` would be helpful most of time.
 2. Volume/Snapshot can be referred by either name, full UUID or partial(shorthand) UUID
 3. Name is not mandatory now. If left empty, you can refer to it by UUID or partial UUID.
-4. AWS credentials are provided through normal way, e.g. ~/.aws/credentials. We didn't store credentials.
+4. AWS credentials are provided through normal way, e.g. ```~/.aws/credentials```. We didn't store credentials.
