@@ -23,7 +23,7 @@ type Client struct {
 
 var (
 	log             = logrus.WithFields(logrus.Fields{"pkg": "client"})
-	sockFile string = "/var/run/rancher/volume.sock"
+	sockFile string = "/var/run/rancher-volume/rancher-volume.sock"
 
 	client Client
 )
