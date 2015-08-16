@@ -11,7 +11,15 @@ managing docker volumes.
 
 # Usage
 
+You can use our prepared container, or build and install it by yourself on the host.
+
+## Container
+
+Container is at yasker/rancher-volume at this moment.
+
 ## Build
+
+If you prefer build:
 
 1. Environment: Require Go environment, mercurial and libdevmapper-dev package.
 2. Install [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools.git). It's a Rancher Labs maintained version of thin-provisioning-tools, ensure the compatibility of rancher-volume.
@@ -32,20 +40,40 @@ at bin/ directory.
 
 ######Docker v1.7.x experimental
 ```
-echo "unix:///var/run/rancher/volume.sock” > /usr/share/docker/plugins/rancher.spec
+echo "unix:///var/run/rancher-volume/rancher-volume.sock” > /usr/share/docker/plugins/rancher.spec
 ```
 
 ######Docker v1.8+
 ```
-echo "unix:///var/run/rancher/volume.sock” > /etc/docker/plugins/rancher.spec
+echo "unix:///var/run/rancher-volume/rancher-volume.sock” > /etc/docker/plugins/rancher.spec
 ```
 
-### Drivers
+### Start server
+
 rancher-volume supports different drivers, and can be easily extended. Currently it contains two implementations of driver: VFS, or device mapper.
+
 #### VFS driver
 ##### Choose a directory as root to store the volumes
 It can be NFS mounted. We would refer the directory as "vfs_path" below.
-##### Setup server
+##### Start server
+
+###### Container way:
+
+```
+sudo docker run --privileged \
+  --name rancher-volume-container \
+	-v /etc/ssl/certs:/etc/ssl/certs \
+	-v ~/.aws:/root/.aws \
+	-v /dev:/host/dev \
+	-v /proc:/host/proc \
+	-v /var/run/rancher-volume:/var/run/rancher-volume \
+	-v /var/lib/rancher-volume:/var/lib/rancher-volume \
+	-v <vfs_path>:<vfs_path> \
+	yasker/rancher-volume \
+  rancher-volume-start --drivers vfs --driver-opts vfs.path=<vfs_path>
+```
+
+###### Binary way:
 ```
 sudo rancher-volume server --drivers vfs --driver-opts vfs.path=<vfs_path>
 ```
@@ -70,7 +98,23 @@ sudo losetup -f metadata.vol
 ```
 The devices would be called "datadev"(e.g. /dev/loop0) and "metadatadev" (e.g. /dev/loop1) respectively below.
 
-##### Setup server
+##### Start server
+
+###### Container way:
+```
+sudo docker run --privileged \
+  --name rancher-volume-container \
+	-v /etc/ssl/certs:/etc/ssl/certs \
+	-v ~/.aws:/root/.aws \
+	-v /dev:/host/dev \
+	-v /proc:/host/proc \
+	-v /var/run/rancher-volume:/var/run/rancher-volume \
+	-v /var/lib/rancher-volume:/var/lib/rancher-volume \
+	yasker/rancher-volume \
+  rancher-volume-start --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
+```
+
+###### Binary way:
 ```
 sudo rancher-volume server --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
 ```
@@ -86,31 +130,60 @@ sudo rancher-volume server --drivers devicemapper --driver-opts dm.datadev=<data
 sudo docker run -it -v vol1:/vol1 --volume-driver=rancher ubuntu /bin/bash
 ```
 or
+
+###### Container way
+```
+sudo docker exec rancher-volume-container rancher-volume create vol1 --size 10G
+```
+###### Binary way
 ```
 sudo rancher-volume create vol1 --size 10G
 ```
 
 ##### Create volume using different drivers:
+###### Container way
 ```
-sudo rancher-volume create vol1 --size 10G --driver devicemapper
+sudo docker exec rancher-volume-container rancher-volume create vol1 --size 10G --driver devicemapper
 ```
-or
+###### Binary way
 ```
-sudo rancher-volume create vol1 --size 10G --driver vfs
+sudo rancher-volume create vol1 --driver vfs
 ```
 
 ##### List/inspect volumes:
+###### Container way
+```
+sudo docker exec rancher-volume-container rancher-volume list
+sudo docker exec rancher-volume-container rancher-volume inspect vol1
+```
+###### Binary way
 ```
 sudo rancher-volume list
 sudo rancher-volume inspect vol1
 ```
 
 ##### Take snapshot of volume:
+###### Container way
+```
+sudo docker exec rancher-volume-container rancher-volume snapshot create vol1 --name snap1vol1
+```
+###### Binary way
 ```
 sudo rancher-volume snapshot create vol1 --name snap1vol1
 ```
 
 ##### Backup the snapshot to S3 or local filesystem(can be nfs mounted):
+###### Container way
+1. For using s3, make sure you've included ```-v /etc/ssl/certs:/etc/ssl/certs -v ~/.aws:/root/.aws``` when creating container
+2. For using VFS, make sure you've included ```-v <vfs_path>:<vfs_path>``` when creating container
+```
+sudo docker exec rancher-volume-container rancher-volume backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
+```
+or
+```
+sudo docker exec rancher-volume-container rancher-volume backup create snap1vol1 --dest vfs:///opt/backup/
+```
+###### Binary way
 ```
 sudo rancher-volume backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
 ```
@@ -118,7 +191,8 @@ or
 ```
 sudo rancher-volume backup create snap1vol1 --dest vfs:///opt/backup/
 ```
-It would return a url like 
+
+It would return a url like  
 ```
 s3://backup-bucket@us-west-2/?backup=f98f9ea1-dd6e-4490-8212-6d50df1982ea\u0026volume=e0d386c5-6a24-446c-8111-1077d10356b0
 ```
@@ -126,8 +200,14 @@ or
 ```
 vfs:///opt/backup?backup=f98f9ea1-dd6e-4490-8212-6d50df1982ea\u0026volume=e0d386c5-6a24-446c-8111-1077d10356b0
 ```
+We would refer it as <url> below.
 
 ##### Create a new volume using the backup
+###### Container way
+```
+sudo docker exec rancher-volume-container rancher-volume create res1 --backup <url>
+```
+###### Binary way
 ```
 sudo rancher-volume create res1 --backup <url>
 ```
