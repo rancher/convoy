@@ -22,8 +22,9 @@ type Client struct {
 }
 
 var (
-	log             = logrus.WithFields(logrus.Fields{"pkg": "client"})
-	sockFile string = "/var/run/rancher-volume/rancher-volume.sock"
+	log                    = logrus.WithFields(logrus.Fields{"pkg": "client"})
+	SOCKET_FLAG            = "socket"
+	SOCKET_FLAG_WITH_ALIAS = "socket, s"
 
 	client Client
 )
@@ -121,7 +122,15 @@ func NewCli(version string) *cli.App {
 	app.Version = version
 	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
 	app.Usage = "A volume manager capable of snapshot and delta backup"
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  SOCKET_FLAG_WITH_ALIAS,
+			Value: "/var/run/rancher-volume/rancher-volume.sock",
+			Usage: "Specify unix domain socket for communication between server and client",
+		},
+	}
 	app.CommandNotFound = cmdNotFound
+	app.Before = initClient
 	app.Commands = []cli.Command{
 		serverCmd,
 		infoCmd,
@@ -137,7 +146,11 @@ func NewCli(version string) *cli.App {
 	return app
 }
 
-func InitClient() {
+func initClient(c *cli.Context) error {
+	sockFile := c.GlobalString(SOCKET_FLAG)
+	if sockFile == "" {
+		return fmt.Errorf("Require unix domain socket location")
+	}
 	client.addr = sockFile
 	client.scheme = "http"
 	client.transport = &http.Transport{
@@ -146,6 +159,7 @@ func InitClient() {
 			return net.DialTimeout("unix", sockFile, 10*time.Second)
 		},
 	}
+	return nil
 }
 
 func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error) {

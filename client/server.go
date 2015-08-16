@@ -79,5 +79,5 @@ func cmdStartServer(c *cli.Context) {
 }
 
 func startServer(c *cli.Context) error {
-	return server.Start(sockFile, c)
+	return server.Start(client.addr, c)
 }

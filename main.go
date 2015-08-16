@@ -22,8 +22,6 @@ func cleanup() {
 func main() {
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetOutput(os.Stderr)
-
-	client.InitClient()
 	defer cleanup()
 
 	cli := client.NewCli(VERSION)
