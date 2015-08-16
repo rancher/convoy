@@ -8,7 +8,7 @@ ADD https://github.com/rancher/thin-provisioning-tools/releases/download/${PDATA
         /usr/local/bin/pdata_tools
 RUN chmod +x /usr/local/bin/pdata_tools
 
-ENV RANCHER_VOLUME_VERSION v0.2-rc2
+ENV RANCHER_VOLUME_VERSION v0.2-rc3
 ADD https://github.com/rancher/rancher-volume/releases/download/${RANCHER_VOLUME_VERSION}/rancher-volume \
 	/usr/local/bin/rancher-volume
 RUN chmod +x /usr/local/bin/rancher-volume
