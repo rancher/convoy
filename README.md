@@ -23,7 +23,7 @@ If you prefer build:
 
 1. Environment: Require Go environment, mercurial and libdevmapper-dev package.
 2. Install [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools.git). It's a Rancher Labs maintained version of thin-provisioning-tools, ensure the compatibility of rancher-volume.
-3. Use [docker v1.7.x expermential binary](https://blog.docker.com/2015/06/experimental-binary/), or docker v1.8+, which supports volume plugins.
+3. Use docker v1.8+, which supports volume plugins in stable version.
 4. Build and install:
 ```
 go get github.com/rancher/rancher-volume
@@ -37,11 +37,6 @@ at bin/ directory.
 ## Setup
 
 ### Install plugin to Docker
-
-######Docker v1.7.x experimental
-```
-echo "unix:///var/run/rancher-volume/rancher-volume.sock” > /usr/share/docker/plugins/rancher.spec
-```
 
 ######Docker v1.8+
 ```
