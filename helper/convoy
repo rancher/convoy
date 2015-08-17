@@ -1,0 +1,31 @@
+#!/bin/bash
+set -x
+
+BIND_DRIVER_VFS_PATH=""
+for i in "$@"
+do
+case $i in
+        vfs.path=*)
+                vfs_path="${i#*=}"
+                BIND_DRIVER_VFS_PATH="-v $vfs_path:$vfs_path"
+                ;;
+esac
+done
+
+if [ "$1" == "server" ]
+then
+        shift
+        docker run --rm --privileged \
+                --name convoy-instance \
+                -v /etc/ssl/certs:/etc/ssl/certs `#AWS`  \
+                -v ~/.aws:/root/.aws    `#AWS` \
+                -v /dev:/host/dev       `#device mapper` \
+                -v /proc:/host/proc     `#mount` \
+                -v /var/run/rancher-volume:/var/run/rancher-volume/ `#unix socket` \
+                -v /var/lib/rancher-volume:/var/lib/rancher-volume/ `#config` \
+                $BIND_DRIVER_VFS_PATH `#bind VFS directory` \
+                yasker/rancher-volume \
+                rancher-volume-start $@
+else
+        docker exec convoy-instance rancher-volume $@
+fi
