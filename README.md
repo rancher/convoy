@@ -36,7 +36,8 @@ at bin/ directory.
 
 ### Install plugin to Docker (apply to v1.8+)
 ```
-echo "unix:///var/run/convoy/convoy.sock” > /etc/docker/plugins/convoy.spec
+sudo mkdir -p /etc/docker/plugins/
+sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec'
 ```
 
 ### Start server
