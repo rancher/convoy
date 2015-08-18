@@ -11,15 +11,17 @@ managing docker volumes.
 
 # Usage
 
-You can download our prepared static-linked binary and use it right away!
+You can download our prepared static-linked binary and use it right away.
+1. Download latest version of [convoy](https://github.com/rancher/convoy/releases/latest) binary and put it in your $PATH(e.g. /usr/local/bin).
+2. Download latest version of [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/latest) and put it in your $PATH(e.g. /usr/local/bin) as well. It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver.
 
 ## Build
 
 If you prefer build:
 
 1. Environment: Require Go environment, mercurial and libdevmapper-dev package.
-2. Install [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools.git). It's a Rancher Labs maintained version of thin-provisioning-tools, ensure the compatibility of convoy.
-3. Use docker v1.8+, which supports volume plugins in stable version.
+2. Use docker v1.8+, which supports volume plugins in stable version.
+3. Install thin-provisioning-tools according to the instruction above.
 4. Build and install:
 ```
 go get github.com/rancher/convoy
@@ -27,20 +29,19 @@ cd $GOPATH/src/github.com/rancher/convoy
 make
 sudo make install
 ```
-This would install convoy to /usr/local/bin/, otherwise executables are
+The last line would install convoy to /usr/local/bin/, otherwise executables are
 at bin/ directory.
 
 ## Setup
 
-### Install plugin to Docker (only apply to v1.8+)
-
+### Install plugin to Docker (apply to v1.8+)
 ```
 echo "unix:///var/run/convoy/convoy.sock” > /etc/docker/plugins/convoy.spec
 ```
 
 ### Start server
 
-convoy supports different drivers, and can be easily extended. Currently it contains two implementations of driver: VFS, or device mapper.
+Convoy supports different drivers, and can be easily extended. Currently it contains two implementations of driver: VFS, or device mapper.
 
 #### VFS driver
 ##### Choose a directory as root to store the volumes
