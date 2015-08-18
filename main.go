@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/client"
 	"os"
@@ -20,8 +19,6 @@ func cleanup() {
 }
 
 func main() {
-	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetOutput(os.Stderr)
 	defer cleanup()
 
 	cli := client.NewCli(VERSION)

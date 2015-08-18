@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 )
 
@@ -25,6 +26,8 @@ var (
 	log                    = logrus.WithFields(logrus.Fields{"pkg": "client"})
 	SOCKET_FLAG            = "socket"
 	SOCKET_FLAG_WITH_ALIAS = "socket, s"
+	DEBUG_FLAG             = "debug"
+	DEBUG_FLAG_WITH_ALIAS  = "debug, d"
 
 	client Client
 )
@@ -128,6 +131,10 @@ func NewCli(version string) *cli.App {
 			Value: "/var/run/convoy/convoy.sock",
 			Usage: "Specify unix domain socket for communication between server and client",
 		},
+		cli.BoolFlag{
+			Name:  DEBUG_FLAG_WITH_ALIAS,
+			Usage: "Enable debug level log with client or not",
+		},
 	}
 	app.CommandNotFound = cmdNotFound
 	app.Before = initClient
@@ -150,6 +157,11 @@ func initClient(c *cli.Context) error {
 	sockFile := c.GlobalString(SOCKET_FLAG)
 	if sockFile == "" {
 		return fmt.Errorf("Require unix domain socket location")
+	}
+	logrus.SetOutput(os.Stderr)
+	debug := c.GlobalBool(DEBUG_FLAG)
+	if debug {
+		logrus.SetLevel(logrus.DebugLevel)
 	}
 	client.addr = sockFile
 	client.scheme = "http"

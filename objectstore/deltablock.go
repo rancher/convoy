@@ -149,7 +149,6 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 				return "", err
 			}
 
-			log.Debugf("Creating new block file at %v", blkFile)
 			if err := bsDriver.Write(blkFile, rs); err != nil {
 				return "", err
 			}
@@ -262,7 +261,9 @@ func RestoreDeltaBlockBackup(backupURL, volDevName string) error {
 		LOG_FIELD_VOLUME_DEV:  volDevName,
 		LOG_FIELD_BACKUP_URL:  backupURL,
 	}).Debug()
-	for _, block := range backup.Blocks {
+	blkCounts := len(backup.Blocks)
+	for i, block := range backup.Blocks {
+		log.Debugf("Restore for %v: block %v, %v/%v", volDevName, block.BlockChecksum, i+1, blkCounts)
 		blkFile := getBlockFilePath(srcVolumeUUID, block.BlockChecksum)
 		rc, err := bsDriver.Read(blkFile)
 		if err != nil {

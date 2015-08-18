@@ -192,6 +192,7 @@ func serverEnvironmentSetup(c *cli.Context) error {
 		return fmt.Errorf("Failed to lock the file", err.Error())
 	}
 
+	logrus.SetLevel(logrus.DebugLevel)
 	logName := c.String("log")
 	if logName != "" {
 		logFile, err := os.OpenFile(logName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
