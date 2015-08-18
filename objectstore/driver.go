@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/url"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 type InitFunc func(destURL string) (ObjectStoreDriver, error)

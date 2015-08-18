@@ -30,10 +30,10 @@ type RandomStruct struct {
 
 func (s *TestSuite) TestSaveLoadConfig(c *C) {
 	dev := Device{
-		Root:              "/tmp/rancher-volume/devmapper",
+		Root:              "/tmp/convoy/devmapper",
 		DataDevice:        "/dev/loop0",
 		MetadataDevice:    "/dev/loop1",
-		ThinpoolDevice:    "/dev/mapper/rancher-volume-pool",
+		ThinpoolDevice:    "/dev/mapper/convoy-pool",
 		ThinpoolSize:      1024 * 1024 * 1024,
 		ThinpoolBlockSize: 4096,
 	}
@@ -74,10 +74,10 @@ func (v *Volume) ConfigFile() (string, error) {
 func (s *TestSuite) TestSaveLoadObject(c *C) {
 	var err error
 	dev := &Device{
-		Root:              "/tmp/rancher-volume/devmapper",
+		Root:              "/tmp/convoy/devmapper",
 		DataDevice:        "/dev/loop0",
 		MetadataDevice:    "/dev/loop1",
-		ThinpoolDevice:    "/dev/mapper/rancher-volume-pool",
+		ThinpoolDevice:    "/dev/mapper/convoy-pool",
 		ThinpoolSize:      1024 * 1024 * 1024,
 		ThinpoolBlockSize: 4096,
 	}

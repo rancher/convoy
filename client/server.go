@@ -3,14 +3,14 @@ package client
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
-	"github.com/rancher/rancher-volume/server"
+	"github.com/rancher/convoy/server"
 	"io/ioutil"
 )
 
 var (
 	serverCmd = cli.Command{
 		Name:  "server",
-		Usage: "start rancher-volume server",
+		Usage: "start convoy server",
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:  "debug",
@@ -22,8 +22,8 @@ var (
 			},
 			cli.StringFlag{
 				Name:  "root",
-				Value: "/var/lib/rancher-volume",
-				Usage: "specific root directory of rancher-volume, if configure file exists, daemon specific options would be ignored",
+				Value: "/var/lib/convoy",
+				Usage: "specific root directory of convoy, if configure file exists, daemon specific options would be ignored",
 			},
 			cli.StringSliceFlag{
 				Name:  "drivers",
@@ -37,7 +37,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  "mounts-dir",
-				Value: "/var/lib/rancher-volume/mounts",
+				Value: "/var/lib/convoy/mounts",
 				Usage: "default directory for mounting volume",
 			},
 		},
@@ -46,7 +46,7 @@ var (
 
 	infoCmd = cli.Command{
 		Name:   "info",
-		Usage:  "information about rancher-volume",
+		Usage:  "information about convoy",
 		Action: cmdInfo,
 	}
 )

@@ -6,9 +6,9 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
-	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/storagedriver"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/util"
 	"net"
 	"net/http"
 	"os"
@@ -18,7 +18,7 @@ import (
 	"sync"
 	"syscall"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 type Server struct {
@@ -38,7 +38,7 @@ const (
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
 
-	CONFIGFILE = "rancher-volume.cfg"
+	CONFIGFILE = "convoy.cfg"
 	LOCKFILE   = "lock"
 )
 
@@ -128,7 +128,7 @@ func makeHandlerFunc(method string, route string, version string, f RequestHandl
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("Calling: %v, %v, request: %v, %v", method, route, r.Method, r.RequestURI)
 
-		if strings.Contains(r.Header.Get("User-Agent"), "Rancher-Volume-Client/") {
+		if strings.Contains(r.Header.Get("User-Agent"), "Convoy-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 			if len(userAgent) == 2 && userAgent[1] != version {
 				http.Error(w, fmt.Errorf("client version %v doesn't match with server %v", userAgent[1], version).Error(), http.StatusNotFound)

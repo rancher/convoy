@@ -21,8 +21,8 @@ type TestSuite struct {
 var _ = Suite(&TestSuite{})
 
 const (
-	ENV_TEST_AWS_REGION = "RANCHER_TEST_AWS_REGION"
-	ENV_TEST_AWS_BUCKET = "RANCHER_TEST_AWS_BUCKET"
+	ENV_TEST_AWS_REGION = "CONVOY_TEST_AWS_REGION"
+	ENV_TEST_AWS_BUCKET = "CONVOY_TEST_AWS_BUCKET"
 )
 
 func (s *TestSuite) SetUpSuite(c *C) {

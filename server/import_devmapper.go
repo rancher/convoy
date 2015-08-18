@@ -3,5 +3,5 @@
 package server
 
 import (
-	_ "github.com/rancher/rancher-volume/devmapper"
+	_ "github.com/rancher/convoy/devmapper"
 )

@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/rancher/rancher-volume/metadata"
-	"github.com/rancher/rancher-volume/objectstore"
-	"github.com/rancher/rancher-volume/storagedriver"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/metadata"
+	"github.com/rancher/convoy/objectstore"
+	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/util"
 	"os"
 	"path/filepath"
 	"strconv"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {

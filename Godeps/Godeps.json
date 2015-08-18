@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.com/rancher/rancher-volume",
+	"ImportPath": "github.com/rancher/convoy",
 	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."

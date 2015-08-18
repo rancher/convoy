@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/util"
 	"io"
 	"io/ioutil"
 	"net"
@@ -60,7 +60,7 @@ func (c *Client) clientRequest(method, path string, in io.Reader, headers map[st
 	if err != nil {
 		return nil, "", -1, err
 	}
-	req.Header.Set("User-Agent", "Rancher-Volume-Client/"+api.API_VERSION)
+	req.Header.Set("User-Agent", "Convoy-Client/"+api.API_VERSION)
 	req.URL.Host = c.addr
 	req.URL.Scheme = c.scheme
 
@@ -118,14 +118,14 @@ func cmdNotFound(c *cli.Context, command string) {
 
 func NewCli(version string) *cli.App {
 	app := cli.NewApp()
-	app.Name = "rancher-volume"
+	app.Name = "convoy"
 	app.Version = version
 	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
 	app.Usage = "A volume manager capable of snapshot and delta backup"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  SOCKET_FLAG_WITH_ALIAS,
-			Value: "/var/run/rancher-volume/rancher-volume.sock",
+			Value: "/var/run/convoy/convoy.sock",
 			Usage: "Specify unix domain socket for communication between server and client",
 		},
 	}

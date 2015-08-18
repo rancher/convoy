@@ -10,13 +10,13 @@ import sys
 import threading
 import shutil
 
-from rancher_volume import VolumeManager
+from convoy import VolumeManager
 
-TEST_ROOT = "/tmp/rancher-volume_test/"
-CFG_ROOT = os.path.join(TEST_ROOT, "rancher-volume")
+TEST_ROOT = "/tmp/convoy_test/"
+CFG_ROOT = os.path.join(TEST_ROOT, "convoy")
 MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
-PID_FILE = os.path.join(TEST_ROOT, "rancher-volume.pid")
-LOG_FILE= os.path.join(TEST_ROOT, "rancher-volume.log")
+PID_FILE = os.path.join(TEST_ROOT, "convoy.pid")
+LOG_FILE= os.path.join(TEST_ROOT, "convoy.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
 DM = "devicemapper"
@@ -31,15 +31,15 @@ VFS = "vfs"
 VFS_ROOT = os.path.join(CFG_ROOT, VFS)
 VFS_VOLUME_PATH = os.path.join(TEST_ROOT, "vfs-volumes")
 
-ENV_TEST_AWS_ACCESS_KEY = "RANCHER_TEST_AWS_ACCESS_KEY_ID"
-ENV_TEST_AWS_SECRET_KEY = "RANCHER_TEST_AWS_SECRET_ACCESS_KEY"
-ENV_TEST_AWS_REGION     = "RANCHER_TEST_AWS_REGION"
-ENV_TEST_AWS_BUCKET     = "RANCHER_TEST_AWS_BUCKET"
+ENV_TEST_AWS_ACCESS_KEY = "CONVOY_TEST_AWS_ACCESS_KEY_ID"
+ENV_TEST_AWS_SECRET_KEY = "CONVOY_TEST_AWS_SECRET_ACCESS_KEY"
+ENV_TEST_AWS_REGION     = "CONVOY_TEST_AWS_REGION"
+ENV_TEST_AWS_BUCKET     = "CONVOY_TEST_AWS_BUCKET"
 S3_PATH = "test/volume/"
 
 DD_BLOCK_SIZE = 4096
-POOL_NAME = "rancher_volume_test_pool"
-RANCHER_VOLUME_BINARY = os.path.abspath("../../bin/rancher-volume")
+POOL_NAME = "convoy_test_pool"
+CONVOY_BINARY = os.path.abspath("../../bin/convoy")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
@@ -108,7 +108,7 @@ def setup_module():
     metadata_dev = attach_loopback_dev(metadata_file)
 
     global v
-    v = VolumeManager(RANCHER_VOLUME_BINARY, TEST_ROOT)
+    v = VolumeManager(CONVOY_BINARY, TEST_ROOT)
     v.start_server(PID_FILE, ["server",
         "--root", CFG_ROOT,
         "--log", LOG_FILE,

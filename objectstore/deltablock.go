@@ -4,14 +4,14 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/metadata"
-	"github.com/rancher/rancher-volume/storagedriver"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/metadata"
+	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/util"
 	"io"
 	"os"
 	"path/filepath"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 type BlockMapping struct {

@@ -68,7 +68,7 @@ func (s *TestSuite) TestExtractUUIDs(c *C) {
 }
 
 func (s *TestSuite) TestListConfigIDs(c *C) {
-	tmpdir, err := ioutil.TempDir("/tmp", "rancher-volume")
+	tmpdir, err := ioutil.TempDir("/tmp", "convoy")
 	c.Assert(err, IsNil)
 	defer os.RemoveAll(tmpdir)
 
@@ -273,7 +273,7 @@ func (s *TestSuite) TestCompress(c *C) {
 func (s *TestSuite) TestCompressDir(c *C) {
 	var err error
 
-	tmpdir, err := ioutil.TempDir("/tmp", "rancher-volume")
+	tmpdir, err := ioutil.TempDir("/tmp", "convoy")
 	c.Assert(err, IsNil)
 	defer os.RemoveAll(tmpdir)
 

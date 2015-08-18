@@ -2,7 +2,7 @@ package objectstore
 
 import (
 	"fmt"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/util"
 	"net/url"
 	"strconv"
 )

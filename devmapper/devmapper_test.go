@@ -5,8 +5,8 @@ package devmapper
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/storagedriver"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/util"
 	"os"
 	"os/exec"
 	"path/filepath"

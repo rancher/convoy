@@ -4,12 +4,12 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/storagedriver"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/util"
 	"net/http"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 func (s *Server) snapshotExists(volumeUUID, snapshotUUID string) bool {

@@ -8,6 +8,6 @@ cd $(dirname $0)
 
 mkdir -p ${CATTLE_HOME}/bin
 
-cp bin/rancher-volume ${CATTLE_HOME}/bin
+cp bin/convoy ${CATTLE_HOME}/bin
 
-chmod +x ${CATTLE_HOME}/bin/rancher-volume
+chmod +x ${CATTLE_HOME}/bin/convoy

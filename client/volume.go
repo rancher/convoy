@@ -3,8 +3,8 @@ package client
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
-	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/util"
 	"net/url"
 )
 

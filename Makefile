@@ -1,8 +1,8 @@
-RANCHER-VOLUME_EXEC_FILE = ./bin/rancher-volume
+CONVOY_EXEC_FILE = ./bin/convoy
 
 .PHONY: all clean
 
-all: $(RANCHER-VOLUME_EXEC_FILE)
+all: $(CONVOY_EXEC_FILE)
 
 FLAGS = -tags "libdm_no_deferred_remove"
 ifeq ($(STATIC_LINK), 1)
@@ -11,7 +11,7 @@ ifeq ($(STATIC_LINK), 1)
 	    --installsuffix netgo
 endif
 
-$(RANCHER-VOLUME_EXEC_FILE): ./main.go ./api/request.go \
+$(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./api/response.go ./api/const.go \
 	./server/server.go ./server/common.go ./server/volume.go \
 	./server/snapshot.go ./server/objectstore.go \
@@ -30,10 +30,10 @@ $(RANCHER-VOLUME_EXEC_FILE): ./main.go ./api/request.go \
 	./util/util.go ./util/config.go \
 	./util/util_test.go ./util/index.go \
 	./logging/logging.go
-	go build $(FLAGS) -o $(RANCHER-VOLUME_EXEC_FILE)
+	go build $(FLAGS) -o $(CONVOY_EXEC_FILE)
 
 clean:
-	rm -f $(RANCHER-VOLUME_EXEC_FILE)
+	rm -f $(CONVOY_EXEC_FILE)
 
 install:
-	cp $(RANCHER-VOLUME_EXEC_FILE) /usr/local/bin/
+	cp $(CONVOY_EXEC_FILE) /usr/local/bin/

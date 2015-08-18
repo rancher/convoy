@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/util"
 	"path/filepath"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 const (
-	OBJECTSTORE_BASE       = "rancher-objectstore"
+	OBJECTSTORE_BASE       = "convoy-objectstore"
 	VOLUME_SEPARATE_LAYER1 = 2
 	VOLUME_SEPARATE_LAYER2 = 4
 

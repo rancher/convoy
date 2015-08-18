@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/client"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/client"
 	"os"
 )
 

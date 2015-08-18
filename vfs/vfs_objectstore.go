@@ -3,8 +3,8 @@ package vfs
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/objectstore"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/objectstore"
+	"github.com/rancher/convoy/util"
 	"io"
 	"net/url"
 	"os"

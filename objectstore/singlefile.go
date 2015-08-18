@@ -4,10 +4,10 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/util"
+	"github.com/rancher/convoy/util"
 	"path/filepath"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 const (

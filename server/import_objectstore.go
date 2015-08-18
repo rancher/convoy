@@ -1,6 +1,6 @@
 package server
 
 import (
-	_ "github.com/rancher/rancher-volume/s3"
-	_ "github.com/rancher/rancher-volume/vfs"
+	_ "github.com/rancher/convoy/s3"
+	_ "github.com/rancher/convoy/vfs"
 )

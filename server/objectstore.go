@@ -3,12 +3,12 @@ package server
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/rancher-volume/api"
-	"github.com/rancher/rancher-volume/objectstore"
-	"github.com/rancher/rancher-volume/storagedriver"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/objectstore"
+	"github.com/rancher/convoy/storagedriver"
 	"net/http"
 
-	. "github.com/rancher/rancher-volume/logging"
+	. "github.com/rancher/convoy/logging"
 )
 
 func (s *Server) doBackupList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
