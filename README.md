@@ -11,11 +11,7 @@ managing docker volumes.
 
 # Usage
 
-You can use our prepared container, or build and install it by yourself on the host.
-
-## Container
-
-Container is at ```yasker/convoy``` at this moment.
+You can download our prepared static-linked binary and use it right away!
 
 ## Build
 
@@ -36,9 +32,8 @@ at bin/ directory.
 
 ## Setup
 
-### Install plugin to Docker
+### Install plugin to Docker (only apply to v1.8+)
 
-######Docker v1.8+
 ```
 echo "unix:///var/run/convoy/convoy.sock” > /etc/docker/plugins/convoy.spec
 ```
@@ -51,24 +46,6 @@ convoy supports different drivers, and can be easily extended. Currently it cont
 ##### Choose a directory as root to store the volumes
 It can be NFS mounted. We would refer the directory as ```<vfs_path>``` below.
 ##### Start server
-
-###### Container way:
-
-```
-sudo docker run --privileged \
-  --name convoy-container \
-	-v /etc/ssl/certs:/etc/ssl/certs \
-	-v ~/.aws:/root/.aws \
-	-v /dev:/host/dev \
-	-v /proc:/host/proc \
-	-v /var/run/convoy:/var/run/convoy \
-	-v /var/lib/convoy:/var/lib/convoy \
-	-v <vfs_path>:<vfs_path> \
-	yasker/convoy \
-  convoy-start --drivers vfs --driver-opts vfs.path=<vfs_path>
-```
-
-###### Binary way:
 ```
 sudo convoy server --drivers vfs --driver-opts vfs.path=<vfs_path>
 ```
@@ -94,22 +71,6 @@ sudo losetup -f metadata.vol
 The devices would be called ```<datadev>```(e.g. ```/dev/loop0```) and ```<metadatadev>``` (e.g. ```/dev/loop1```) respectively below.
 
 ##### Start server
-
-###### Container way:
-```
-sudo docker run --privileged \
-  --name convoy-container \
-	-v /etc/ssl/certs:/etc/ssl/certs \
-	-v ~/.aws:/root/.aws \
-	-v /dev:/host/dev \
-	-v /proc:/host/proc \
-	-v /var/run/convoy:/var/run/convoy \
-	-v /var/lib/convoy:/var/lib/convoy \
-	yasker/convoy \
-  convoy-start --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
-```
-
-###### Binary way:
 ```
 sudo convoy server --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
 ```
@@ -125,61 +86,28 @@ sudo convoy server --drivers devicemapper --driver-opts dm.datadev=<datadev> --d
 sudo docker run -it -v vol1:/vol1 --volume-driver=convoy ubuntu /bin/bash
 ```
 or
-
-###### Container way
-```
-sudo docker exec convoy-container convoy create vol1 --size 10G
-```
-###### Binary way
 ```
 sudo convoy create vol1 --size 10G
 ```
 
 ##### Create volume using different drivers:
-###### Container way
-```
-sudo docker exec convoy-container convoy create vol1 --size 10G --driver devicemapper
-```
-###### Binary way
 ```
 sudo convoy create vol1 --driver vfs
 ```
 * ```--size``` option has no effect on vfs.
 
 ##### List/inspect volumes:
-###### Container way
-```
-sudo docker exec convoy-container convoy list
-sudo docker exec convoy-container convoy inspect vol1
-```
-###### Binary way
 ```
 sudo convoy list
 sudo convoy inspect vol1
 ```
 
 ##### Take snapshot of volume:
-###### Container way
-```
-sudo docker exec convoy-container convoy snapshot create vol1 --name snap1vol1
-```
-###### Binary way
 ```
 sudo convoy snapshot create vol1 --name snap1vol1
 ```
 
 ##### Backup the snapshot to S3 or local filesystem(can be nfs mounted):
-###### Container way
-1. For using s3, make sure you've included ```-v /etc/ssl/certs:/etc/ssl/certs -v ~/.aws:/root/.aws``` when creating container
-2. For using VFS, make sure you've included ```-v <vfs_path>:<vfs_path>``` when creating container
-```
-sudo docker exec convoy-container convoy backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
-```
-or
-```
-sudo docker exec convoy-container convoy backup create snap1vol1 --dest vfs:///opt/backup/
-```
-###### Binary way
 ```
 sudo convoy backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
 ```
@@ -199,11 +127,6 @@ vfs:///opt/backup?backup=f98f9ea1-dd6e-4490-8212-6d50df1982ea\u0026volume=e0d386
 We would refer it as <url> below.
 
 ##### Create a new volume using the backup
-###### Container way
-```
-sudo docker exec convoy-container convoy create res1 --backup <url>
-```
-###### Binary way
 ```
 sudo convoy create res1 --backup <url>
 ```
