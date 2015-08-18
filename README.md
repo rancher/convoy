@@ -1,4 +1,4 @@
-# convoy [![BuildStatus](http://ci.rancher.io/api/badge/github.com/rancher/convoy/status.svg?branch=master)](http://ci.rancher.io/github.com/rancher/convoy)
+# Convoy [![BuildStatus](http://ci.rancher.io/api/badge/github.com/rancher/convoy/status.svg?branch=master)](http://ci.rancher.io/github.com/rancher/convoy)
 
 # Overview
 Convoy is a storage driver platform can be integrated with Docker,
