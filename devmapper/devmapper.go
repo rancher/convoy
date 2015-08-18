@@ -52,9 +52,8 @@ const (
 	DM_LOG_FIELD_VOLUME_DEVID   = "dm_volume_devid"
 	DM_LOG_FIELD_SNAPSHOT_DEVID = "dm_snapshot_devid"
 
-	MOUNT_BINARY            = "rancher-mount"
-	DEFAULT_MOUNT_NAMESPACE = "/proc/1/ns/mnt"
-	HOST_MOUNT_NAMESPACE    = "/host/proc/1/ns/mnt"
+	MOUNT_BINARY         = "rancher-mount"
+	HOST_MOUNT_NAMESPACE = "/proc/1/ns/mnt"
 
 	DMLogLevel = devicemapper.LogLevelDebug
 )
@@ -707,20 +706,18 @@ func checkEnvironment() error {
 }
 
 func mountInHostNamespace(cmdline []string) (string, error) {
-	ns := DEFAULT_MOUNT_NAMESPACE
-	if _, err := os.Stat(HOST_MOUNT_NAMESPACE); err == nil {
-		ns = HOST_MOUNT_NAMESPACE
-	}
-	cmdline = append([]string{ns, "-m"}, cmdline...)
+	cmdline = append([]string{
+		HOST_MOUNT_NAMESPACE,
+		"-m",
+	}, cmdline...)
 	return util.Execute(MOUNT_BINARY, cmdline)
 }
 
 func umountInHostNamespace(cmdline []string) (string, error) {
-	ns := DEFAULT_MOUNT_NAMESPACE
-	if _, err := os.Stat(HOST_MOUNT_NAMESPACE); err == nil {
-		ns = HOST_MOUNT_NAMESPACE
-	}
-	cmdline = append([]string{ns, "-u"}, cmdline...)
+	cmdline = append([]string{
+		HOST_MOUNT_NAMESPACE,
+		"-u",
+	}, cmdline...)
 	return util.Execute(MOUNT_BINARY, cmdline)
 }
 
