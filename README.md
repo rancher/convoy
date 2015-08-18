@@ -12,8 +12,8 @@ managing docker volumes.
 # Usage
 
 ## Install
-1. Download latest version of [convoy](https://github.com/rancher/convoy/releases/latest) binary and put it in your $PATH(e.g. /usr/local/bin).
-2. Download latest version of [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/latest) binary and put it in your $PATH(e.g. /usr/local/bin) as well. It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver.
+1. Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.2-rc4/convoy) binary and put it in your $PATH(e.g. /usr/local/bin).
+2. Download latest version of [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2/pdata_tools) binary and put it in your $PATH(e.g. /usr/local/bin) as well. It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver.
 
 ## Build
 
