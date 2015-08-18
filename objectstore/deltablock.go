@@ -4,8 +4,8 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/metadata"
-	"github.com/rancher/convoy/storagedriver"
 	"github.com/rancher/convoy/util"
 	"io"
 	"os"
@@ -36,7 +36,7 @@ const (
 	BLOCK_SEPARATE_LAYER2 = 4
 )
 
-func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, sDriver storagedriver.StorageDriver) (string, error) {
+func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, sDriver convoydriver.ConvoyDriver) (string, error) {
 	deltaOps, ok := sDriver.(DeltaBlockBackupOperations)
 	if !ok {
 		return "", fmt.Errorf("Driver %s doesn't implemented DeltaBlockBackupOperations interface", sDriver.Name())

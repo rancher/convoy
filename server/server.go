@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net"
 	"net/http"
@@ -23,7 +23,7 @@ import (
 
 type Server struct {
 	Router              *mux.Router
-	StorageDrivers      map[string]storagedriver.StorageDriver
+	ConvoyDrivers       map[string]convoydriver.ConvoyDriver
 	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
@@ -241,7 +241,7 @@ func (s *Server) initDrivers(driverOpts map[string]string) error {
 			"driver_opts":    driverOpts,
 		}).Debug()
 
-		driver, err := storagedriver.GetDriver(driverName, s.Root, driverOpts)
+		driver, err := convoydriver.GetDriver(driverName, s.Root, driverOpts)
 		if err != nil {
 			return err
 		}
@@ -251,7 +251,7 @@ func (s *Server) initDrivers(driverOpts map[string]string) error {
 			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
 			LOG_FIELD_DRIVER: driverName,
 		}).Debug()
-		s.StorageDrivers[driverName] = driver
+		s.ConvoyDrivers[driverName] = driver
 	}
 	return nil
 }
@@ -266,7 +266,7 @@ func Start(sockFile string, c *cli.Context) error {
 
 	root := c.String("root")
 	server := &Server{
-		StorageDrivers: make(map[string]storagedriver.StorageDriver),
+		ConvoyDrivers: make(map[string]convoydriver.ConvoyDriver),
 	}
 	config := &Config{
 		Root: root,
@@ -337,15 +337,15 @@ func Start(sockFile string, c *cli.Context) error {
 	return nil
 }
 
-func (s *Server) getDriver(driverName string) (storagedriver.StorageDriver, error) {
-	driver, exists := s.StorageDrivers[driverName]
+func (s *Server) getDriver(driverName string) (convoydriver.ConvoyDriver, error) {
+	driver, exists := s.ConvoyDrivers[driverName]
 	if !exists {
 		return nil, fmt.Errorf("Cannot find driver %s", driverName)
 	}
 	return driver, nil
 }
 
-func (s *Server) getVolumeOpsForVolume(volume *Volume) (storagedriver.VolumeOperations, error) {
+func (s *Server) getVolumeOpsForVolume(volume *Volume) (convoydriver.VolumeOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err
@@ -353,7 +353,7 @@ func (s *Server) getVolumeOpsForVolume(volume *Volume) (storagedriver.VolumeOper
 	return driver.VolumeOps()
 }
 
-func (s *Server) getSnapshotOpsForVolume(volume *Volume) (storagedriver.SnapshotOperations, error) {
+func (s *Server) getSnapshotOpsForVolume(volume *Volume) (convoydriver.SnapshotOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err
@@ -361,7 +361,7 @@ func (s *Server) getSnapshotOpsForVolume(volume *Volume) (storagedriver.Snapshot
 	return driver.SnapshotOps()
 }
 
-func (s *Server) getBackupOpsForVolume(volume *Volume) (storagedriver.BackupOperations, error) {
+func (s *Server) getBackupOpsForVolume(volume *Volume) (convoydriver.BackupOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err

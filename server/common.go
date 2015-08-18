@@ -51,7 +51,7 @@ func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, 
 	if err != nil {
 		return err
 	}
-	for _, driver := range s.StorageDrivers {
+	for _, driver := range s.ConvoyDrivers {
 		if _, err := w.Write([]byte(fmt.Sprintf(",\n\"%v\": ", driver.Name()))); err != nil {
 			return err
 		}

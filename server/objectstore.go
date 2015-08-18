@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/objectstore"
-	"github.com/rancher/convoy/storagedriver"
 	"net/http"
 
 	. "github.com/rancher/convoy/logging"
@@ -21,10 +21,10 @@ func (s *Server) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	}
 
 	opts := map[string]string{
-		storagedriver.OPT_VOLUME_UUID: request.VolumeUUID,
+		convoydriver.OPT_VOLUME_UUID: request.VolumeUUID,
 	}
 	result := make(map[string]map[string]string)
-	for _, driver := range s.StorageDrivers {
+	for _, driver := range s.ConvoyDrivers {
 		backupOps, err := driver.BackupOps()
 		if err != nil {
 			// Not support backup ops
@@ -95,11 +95,11 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	opts := map[string]string{
-		storagedriver.OPT_VOLUME_NAME:           volume.Name,
-		storagedriver.OPT_FILESYSTEM:            volume.FileSystem,
-		storagedriver.OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
-		storagedriver.OPT_SNAPSHOT_NAME:         volume.Snapshots[snapshotUUID].Name,
-		storagedriver.OPT_SNAPSHOT_CREATED_TIME: volume.Snapshots[snapshotUUID].CreatedTime,
+		convoydriver.OPT_VOLUME_NAME:           volume.Name,
+		convoydriver.OPT_FILESYSTEM:            volume.FileSystem,
+		convoydriver.OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
+		convoydriver.OPT_SNAPSHOT_NAME:         volume.Snapshots[snapshotUUID].Name,
+		convoydriver.OPT_SNAPSHOT_CREATED_TIME: volume.Snapshots[snapshotUUID].CreatedTime,
 	}
 
 	log.WithFields(logrus.Fields{
@@ -165,12 +165,12 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-func (s *Server) getBackupOpsForBackup(requestURL string) (storagedriver.BackupOperations, error) {
+func (s *Server) getBackupOpsForBackup(requestURL string) (convoydriver.BackupOperations, error) {
 	objVolume, err := objectstore.LoadVolume(requestURL)
 	if err != nil {
 		return nil, err
 	}
-	driver := s.StorageDrivers[objVolume.Driver]
+	driver := s.ConvoyDrivers[objVolume.Driver]
 	if driver == nil {
 		return nil, fmt.Errorf("Cannot find driver %v for restoring", objVolume.Driver)
 	}

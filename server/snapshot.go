@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net/http"
 
@@ -207,7 +207,7 @@ func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	if err != nil {
 		return err
 	}
-	size, err := util.ParseSize(driverInfo[storagedriver.OPT_SIZE])
+	size, err := util.ParseSize(driverInfo[convoydriver.OPT_SIZE])
 	if err != nil {
 		return err
 	}

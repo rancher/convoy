@@ -2,8 +2,8 @@ package vfs
 
 import (
 	"fmt"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/objectstore"
-	"github.com/rancher/convoy/storagedriver"
 	"github.com/rancher/convoy/util"
 	"os"
 	"path/filepath"
@@ -27,7 +27,7 @@ type Driver struct {
 }
 
 func init() {
-	storagedriver.Register(DRIVER_NAME, Init)
+	convoydriver.Register(DRIVER_NAME, Init)
 }
 
 func (d *Driver) Name() string {
@@ -75,7 +75,7 @@ func (device *Device) listVolumeIDs() ([]string, error) {
 	return util.ListConfigIDs(device.Root, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
-func Init(root string, config map[string]string) (storagedriver.StorageDriver, error) {
+func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
 	dev := &Device{
 		Root: root,
 	}
@@ -122,7 +122,7 @@ func (d *Driver) Info() (map[string]string, error) {
 	}, nil
 }
 
-func (d *Driver) VolumeOps() (storagedriver.VolumeOperations, error) {
+func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
 	return d, nil
 }
 
@@ -137,7 +137,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	backupURL := opts[storagedriver.OPT_BACKUP_URL]
+	backupURL := opts[convoydriver.OPT_BACKUP_URL]
 	if backupURL != "" {
 		objVolume, err := objectstore.LoadVolume(backupURL)
 		if err != nil {
@@ -204,7 +204,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		return "", err
 	}
 
-	specifiedPoint := opts[storagedriver.OPT_MOUNT_POINT]
+	specifiedPoint := opts[convoydriver.OPT_MOUNT_POINT]
 	if specifiedPoint != "" {
 		return "", fmt.Errorf("VFS doesn't support specified mount point")
 	}
@@ -261,7 +261,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 
 	return map[string]string{
 		"Path": volume.Path,
-		storagedriver.OPT_MOUNT_POINT: volume.MountPoint,
+		convoydriver.OPT_MOUNT_POINT: volume.MountPoint,
 	}, nil
 }
 
@@ -276,7 +276,7 @@ func (d *Driver) MountPoint(id string) (string, error) {
 	return volume.MountPoint, nil
 }
 
-func (d *Driver) SnapshotOps() (storagedriver.SnapshotOperations, error) {
+func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
 	return d, nil
 }
 
@@ -383,7 +383,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 	return snapshots, nil
 }
 
-func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {
+func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
 	return d, nil
 }
 
@@ -398,15 +398,15 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 	}
 	objVolume := &objectstore.Volume{
 		UUID:        volumeID,
-		Name:        opts[storagedriver.OPT_VOLUME_NAME],
+		Name:        opts[convoydriver.OPT_VOLUME_NAME],
 		Driver:      d.Name(),
-		FileSystem:  opts[storagedriver.OPT_FILESYSTEM],
-		CreatedTime: opts[storagedriver.OPT_VOLUME_CREATED_TIME],
+		FileSystem:  opts[convoydriver.OPT_FILESYSTEM],
+		CreatedTime: opts[convoydriver.OPT_VOLUME_CREATED_TIME],
 	}
 	objSnapshot := &objectstore.Snapshot{
 		UUID:        snapshotID,
-		Name:        opts[storagedriver.OPT_SNAPSHOT_NAME],
-		CreatedTime: opts[storagedriver.OPT_SNAPSHOT_CREATED_TIME],
+		Name:        opts[convoydriver.OPT_SNAPSHOT_NAME],
+		CreatedTime: opts[convoydriver.OPT_SNAPSHOT_CREATED_TIME],
 	}
 	return objectstore.CreateSingleFileBackup(objVolume, objSnapshot, snapshot.FilePath, destURL)
 }
@@ -434,5 +434,5 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 }
 
 func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
-	return objectstore.List(opts[storagedriver.OPT_VOLUME_UUID], destURL, d.Name())
+	return objectstore.List(opts[convoydriver.OPT_VOLUME_UUID], destURL, d.Name())
 }

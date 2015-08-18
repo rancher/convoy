@@ -5,7 +5,7 @@ package devmapper
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"os"
 	"os/exec"
@@ -40,7 +40,7 @@ type TestSuite struct {
 	metadataDev  string
 	metadataFile string
 	imageFile    string
-	driver       storagedriver.StorageDriver
+	driver       convoydriver.ConvoyDriver
 }
 
 var _ = Suite(&TestSuite{})
@@ -176,7 +176,7 @@ func (s *TestSuite) TestVolume(c *C) {
 	c.Assert(err, IsNil)
 
 	opts := map[string]string{
-		storagedriver.OPT_SIZE: strconv.FormatInt(volumeSize, 10),
+		convoydriver.OPT_SIZE: strconv.FormatInt(volumeSize, 10),
 	}
 	err = volOps.CreateVolume(volumeID, opts)
 	c.Assert(err, IsNil)
@@ -190,7 +190,7 @@ func (s *TestSuite) TestVolume(c *C) {
 	volumeID2 := uuid.New()
 
 	wrongOpts := map[string]string{
-		storagedriver.OPT_SIZE: "1333333",
+		convoydriver.OPT_SIZE: "1333333",
 	}
 	err = volOps.CreateVolume(volumeID2, wrongOpts)
 	c.Assert(err, Not(IsNil))
@@ -200,7 +200,7 @@ func (s *TestSuite) TestVolume(c *C) {
 	c.Assert(err, IsNil)
 
 	listOpts := map[string]string{
-		storagedriver.OPT_VOLUME_UUID: volumeID,
+		convoydriver.OPT_VOLUME_UUID: volumeID,
 	}
 	_, err = volOps.ListVolume(map[string]string{})
 	c.Assert(err, IsNil)
@@ -230,7 +230,7 @@ func (s *TestSuite) TestSnapshot(c *C) {
 
 	volumeID := uuid.New()
 	opts := map[string]string{
-		storagedriver.OPT_SIZE: strconv.FormatInt(volumeSize, 10),
+		convoydriver.OPT_SIZE: strconv.FormatInt(volumeSize, 10),
 	}
 	err = volOps.CreateVolume(volumeID, opts)
 	c.Assert(err, IsNil)

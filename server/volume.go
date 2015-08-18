@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/storagedriver"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net/http"
 	"path/filepath"
@@ -96,8 +96,8 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	opts := map[string]string{
-		storagedriver.OPT_SIZE:       strconv.FormatInt(request.Size, 10),
-		storagedriver.OPT_BACKUP_URL: request.BackupURL,
+		convoydriver.OPT_SIZE:       strconv.FormatInt(request.Size, 10),
+		convoydriver.OPT_BACKUP_URL: request.BackupURL,
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
@@ -157,7 +157,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return err
 	}
-	size, err := util.ParseSize(driverInfo[storagedriver.OPT_SIZE])
+	size, err := util.ParseSize(driverInfo[convoydriver.OPT_SIZE])
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	size, err := util.ParseSize(driverInfo[storagedriver.OPT_SIZE])
+	size, err := util.ParseSize(driverInfo[convoydriver.OPT_SIZE])
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	var data []byte
 	if driverSpecific == "1" {
 		result := make(map[string]map[string]string)
-		for _, driver := range s.StorageDrivers {
+		for _, driver := range s.ConvoyDrivers {
 			volOps, err := driver.VolumeOps()
 			if err != nil {
 				break
@@ -424,7 +424,7 @@ func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 	}
 
 	opts := map[string]string{
-		storagedriver.OPT_MOUNT_POINT: request.MountPoint,
+		convoydriver.OPT_MOUNT_POINT: request.MountPoint,
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
@@ -556,5 +556,5 @@ func (s *Server) getVolumeSize(volumeUUID string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return util.ParseSize(infos[storagedriver.OPT_SIZE])
+	return util.ParseSize(infos[convoydriver.OPT_SIZE])
 }

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/metadata"
 	"github.com/rancher/convoy/objectstore"
-	"github.com/rancher/convoy/storagedriver"
 	"github.com/rancher/convoy/util"
 	"os"
 	"path/filepath"
@@ -15,7 +15,7 @@ import (
 	. "github.com/rancher/convoy/logging"
 )
 
-func (d *Driver) BackupOps() (storagedriver.BackupOperations, error) {
+func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
 	return d, nil
 }
 
@@ -137,16 +137,16 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 
 	objVolume := &objectstore.Volume{
 		UUID:        volumeID,
-		Name:        opts[storagedriver.OPT_VOLUME_NAME],
+		Name:        opts[convoydriver.OPT_VOLUME_NAME],
 		Driver:      d.Name(),
 		Size:        volume.Size,
-		FileSystem:  opts[storagedriver.OPT_FILESYSTEM],
-		CreatedTime: opts[storagedriver.OPT_VOLUME_CREATED_TIME],
+		FileSystem:  opts[convoydriver.OPT_FILESYSTEM],
+		CreatedTime: opts[convoydriver.OPT_VOLUME_CREATED_TIME],
 	}
 	objSnapshot := &objectstore.Snapshot{
 		UUID:        snapshotID,
-		Name:        opts[storagedriver.OPT_SNAPSHOT_NAME],
-		CreatedTime: opts[storagedriver.OPT_SNAPSHOT_CREATED_TIME],
+		Name:        opts[convoydriver.OPT_SNAPSHOT_NAME],
+		CreatedTime: opts[convoydriver.OPT_SNAPSHOT_CREATED_TIME],
 	}
 	return objectstore.CreateDeltaBlockBackup(objVolume, objSnapshot, destURL, d)
 }
@@ -174,5 +174,5 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 }
 
 func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
-	return objectstore.List(opts[storagedriver.OPT_VOLUME_UUID], destURL, d.Name())
+	return objectstore.List(opts[convoydriver.OPT_VOLUME_UUID], destURL, d.Name())
 }

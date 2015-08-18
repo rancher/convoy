@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/objectstore"
-	"github.com/rancher/convoy/storagedriver"
 	"github.com/rancher/convoy/util"
 	"os"
 	"path/filepath"
@@ -117,7 +117,7 @@ func generateError(fields logrus.Fields, format string, v ...interface{}) error 
 }
 
 func init() {
-	storagedriver.Register(DRIVER_NAME, Init)
+	convoydriver.Register(DRIVER_NAME, Init)
 }
 
 func (device *Device) listVolumeIDs() ([]string, error) {
@@ -246,7 +246,7 @@ func (d *Driver) remountVolumes() error {
 	return err
 }
 
-func Init(root string, config map[string]string) (storagedriver.StorageDriver, error) {
+func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
 	devicemapper.LogInitVerbose(1)
 	devicemapper.LogInit(&DMLogger{})
 
@@ -321,11 +321,11 @@ func Init(root string, config map[string]string) (storagedriver.StorageDriver, e
 	return d, nil
 }
 
-func (d *Driver) VolumeOps() (storagedriver.VolumeOperations, error) {
+func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
 	return d, nil
 }
 
-func (d *Driver) SnapshotOps() (storagedriver.SnapshotOperations, error) {
+func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
 	return d, nil
 }
 
@@ -356,7 +356,7 @@ func (d *Driver) allocateDevID() (int, error) {
 }
 
 func getSize(opts map[string]string) (int64, error) {
-	size := opts[storagedriver.OPT_SIZE]
+	size := opts[convoydriver.OPT_SIZE]
 	if size == "" || size == "0" {
 		size = DEFAULT_VOLUME_SIZE
 	}
@@ -368,7 +368,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		size int64
 		err  error
 	)
-	backupURL := opts[storagedriver.OPT_BACKUP_URL]
+	backupURL := opts[convoydriver.OPT_BACKUP_URL]
 	if backupURL != "" {
 		objVolume, err := objectstore.LoadVolume(backupURL)
 		if err != nil {
@@ -738,7 +738,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	specifiedPoint := opts[storagedriver.OPT_MOUNT_POINT]
+	specifiedPoint := opts[convoydriver.OPT_MOUNT_POINT]
 	mountPoint, err := d.getVolumeMountPoint(id, specifiedPoint)
 	if err != nil {
 		return "", err
@@ -806,8 +806,8 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}
 	result := map[string]string{
 		"DevID": strconv.Itoa(volume.DevID),
-		storagedriver.OPT_MOUNT_POINT: volume.MountPoint,
-		storagedriver.OPT_SIZE:        strconv.FormatInt(volume.Size, 10),
+		convoydriver.OPT_MOUNT_POINT: volume.MountPoint,
+		convoydriver.OPT_SIZE:        strconv.FormatInt(volume.Size, 10),
 	}
 	return result, nil
 }

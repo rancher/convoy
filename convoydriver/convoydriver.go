@@ -1,4 +1,4 @@
-package storagedriver
+package convoydriver
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 )
 
-type InitFunc func(root string, config map[string]string) (StorageDriver, error)
+type InitFunc func(root string, config map[string]string) (ConvoyDriver, error)
 
-type StorageDriver interface {
+type ConvoyDriver interface {
 	Name() string
 	Info() (map[string]string, error)
 
@@ -58,7 +58,7 @@ const (
 
 var (
 	initializers map[string]InitFunc
-	log          = logrus.WithFields(logrus.Fields{"pkg": "storagedriver"})
+	log          = logrus.WithFields(logrus.Fields{"pkg": "convoydriver"})
 )
 
 func init() {
@@ -73,7 +73,7 @@ func Register(name string, initFunc InitFunc) error {
 	return nil
 }
 
-func GetDriver(name, root string, config map[string]string) (StorageDriver, error) {
+func GetDriver(name, root string, config map[string]string) (ConvoyDriver, error) {
 	if _, exists := initializers[name]; !exists {
 		return nil, fmt.Errorf("Driver %v is not supported!", name)
 	}
