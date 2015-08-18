@@ -34,6 +34,7 @@ const (
 	DM_METADATA_DEV        = "dm.metadatadev"
 	DM_THINPOOL_NAME       = "dm.thinpoolname"
 	DM_THINPOOL_BLOCK_SIZE = "dm.thinpoolblocksize"
+	DM_DEFAULT_VOLUME_SIZE = "dm.defaultvolumesize"
 
 	// as defined in device mapper thin provisioning
 	BLOCK_SIZE_MIN        = 128
@@ -96,6 +97,7 @@ type Device struct {
 	ThinpoolDevice    string
 	ThinpoolSize      int64
 	ThinpoolBlockSize int64
+	DefaultVolumeSize int64
 	LastDevID         int
 }
 
@@ -149,9 +151,7 @@ func verifyConfig(config map[string]string) (*Device, error) {
 	if _, exists := config[DM_THINPOOL_BLOCK_SIZE]; !exists {
 		config[DM_THINPOOL_BLOCK_SIZE] = DEFAULT_BLOCK_SIZE
 	}
-
-	blockSizeString := config[DM_THINPOOL_BLOCK_SIZE]
-	blockSize, err := strconv.ParseInt(blockSizeString, 10, 64)
+	blockSize, err := util.ParseSize(config[DM_THINPOOL_BLOCK_SIZE])
 	if err != nil {
 		return nil, fmt.Errorf("Illegal block size specified")
 	}
@@ -159,8 +159,16 @@ func verifyConfig(config map[string]string) (*Device, error) {
 		return nil, fmt.Errorf("Block size must between %v and %v, and must be a multiple of %v",
 			BLOCK_SIZE_MIN, BLOCK_SIZE_MAX, BLOCK_SIZE_MULTIPLIER)
 	}
-
 	dv.ThinpoolBlockSize = blockSize
+
+	if _, exists := config[DM_DEFAULT_VOLUME_SIZE]; !exists {
+		config[DM_DEFAULT_VOLUME_SIZE] = DEFAULT_VOLUME_SIZE
+	}
+	volumeSize, err := util.ParseSize(config[DM_DEFAULT_VOLUME_SIZE])
+	if err != nil || volumeSize == 0 {
+		return nil, fmt.Errorf("Illegal default volume size specified")
+	}
+	dv.DefaultVolumeSize = volumeSize
 
 	return &dv, nil
 }
@@ -355,10 +363,10 @@ func (d *Driver) allocateDevID() (int, error) {
 	return d.LastDevID, nil
 }
 
-func getSize(opts map[string]string) (int64, error) {
+func (d *Driver) getSize(opts map[string]string) (int64, error) {
 	size := opts[convoydriver.OPT_SIZE]
 	if size == "" || size == "0" {
-		size = DEFAULT_VOLUME_SIZE
+		size = strconv.FormatInt(d.DefaultVolumeSize, 10)
 	}
 	return util.ParseSize(size)
 }
@@ -379,7 +387,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		}
 		size = objVolume.Size
 	} else {
-		size, err = getSize(opts)
+		size, err = d.getSize(opts)
 		if err != nil {
 			return err
 		}
@@ -632,6 +640,7 @@ func (d *Driver) Info() (map[string]string, error) {
 		"ThinpoolDevice":    d.ThinpoolDevice,
 		"ThinpoolSize":      strconv.FormatInt(d.ThinpoolSize, 10),
 		"ThinpoolBlockSize": strconv.FormatInt(blockSize, 10),
+		"DefaultVolumeSize": strconv.FormatInt(d.DefaultVolumeSize, 10),
 	}
 
 	return info, nil

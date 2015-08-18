@@ -49,7 +49,7 @@ DM_DIR = "/dev/mapper"
 DM_BLOCK_SIZE = 2097152
 EMPTY_FILE_SIZE = 104857600
 
-DEFAULT_VOLUME_SIZE = "107374182400"
+DEFAULT_VOLUME_SIZE = "10737418240"
 VOLUME_SIZE_500M_Bytes = "524288000"
 VOLUME_SIZE_500M = "500M"
 VOLUME_SIZE_100M = "104857600"
@@ -116,6 +116,7 @@ def setup_module():
         "--driver-opts", "dm.datadev=" + data_dev,
 	"--driver-opts", "dm.metadatadev=" + metadata_dev,
 	"--driver-opts", "dm.thinpoolname=" + POOL_NAME,
+        "--driver-opts", "dm.defaultvolumesize=" + DEFAULT_VOLUME_SIZE,
         "--drivers=" + VFS,
         "--driver-opts", "vfs.path=" + VFS_VOLUME_PATH])
     dm_cleanup_list.append(POOL_NAME)
@@ -176,6 +177,7 @@ def wait_for_daemon():
         success = bool(success and info[DM]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME))
         success = bool(success and info[DM]["ThinpoolSize"] == str(DATA_DEVICE_SIZE))
         success = bool(success and info[DM]["ThinpoolBlockSize"] == str(DM_BLOCK_SIZE))
+        success = bool(success and info[DM]["DefaultVolumeSize"] == DEFAULT_VOLUME_SIZE)
         success = bool(success and info[VFS]["Root"] == VFS_ROOT)
         success = bool(success and info[VFS]["Path"] == VFS_VOLUME_PATH)
     except:
