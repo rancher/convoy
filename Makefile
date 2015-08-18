@@ -2,7 +2,7 @@ RANCHER-VOLUME_EXEC_FILE = ./bin/rancher-volume
 
 .PHONY: all clean
 
-all: $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-MOUNT_EXEC_FILE)
+all: $(RANCHER-VOLUME_EXEC_FILE)
 
 FLAGS = -tags "libdm_no_deferred_remove"
 ifeq ($(STATIC_LINK), 1)
