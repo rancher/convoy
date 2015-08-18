@@ -1,5 +1,4 @@
 RANCHER-VOLUME_EXEC_FILE = ./bin/rancher-volume
-RANCHER-MOUNT_EXEC_FILE = ./bin/rancher-mount
 
 .PHONY: all clean
 
@@ -33,12 +32,8 @@ $(RANCHER-VOLUME_EXEC_FILE): ./main.go ./api/request.go \
 	./logging/logging.go
 	go build $(FLAGS) -o $(RANCHER-VOLUME_EXEC_FILE)
 
-$(RANCHER-MOUNT_EXEC_FILE): ./tools/rancher_mount.c
-	gcc -o $(RANCHER-MOUNT_EXEC_FILE) ./tools/rancher_mount.c
-
 clean:
-	rm -f $(RANCHER-VOLUME_EXEC_FILE) $(RANCHER-MOUNT_EXEC_FILE)
+	rm -f $(RANCHER-VOLUME_EXEC_FILE)
 
 install:
 	cp $(RANCHER-VOLUME_EXEC_FILE) /usr/local/bin/
-	cp $(RANCHER-MOUNT_EXEC_FILE) /usr/local/bin/
