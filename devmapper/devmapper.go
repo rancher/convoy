@@ -52,8 +52,8 @@ const (
 	DM_LOG_FIELD_VOLUME_DEVID   = "dm_volume_devid"
 	DM_LOG_FIELD_SNAPSHOT_DEVID = "dm_snapshot_devid"
 
-	MOUNT_BINARY         = "rancher-mount"
-	HOST_MOUNT_NAMESPACE = "/proc/1/ns/mnt"
+	MOUNT_BINARY  = "mount"
+	UMOUNT_BINARY = "umount"
 
 	DMLogLevel = devicemapper.LogLevelDebug
 )
@@ -699,30 +699,11 @@ func checkEnvironment() error {
 	if err := util.CheckBinaryVersion(THIN_PROVISION_TOOLS_BINARY, THIN_PROVISION_TOOLS_MIN_VERSION, cmdline); err != nil {
 		return err
 	}
-	if _, err := mountInHostNamespace([]string{}); err != nil {
-		return err
-	}
 	return nil
 }
 
-func mountInHostNamespace(cmdline []string) (string, error) {
-	cmdline = append([]string{
-		HOST_MOUNT_NAMESPACE,
-		"-m",
-	}, cmdline...)
-	return util.Execute(MOUNT_BINARY, cmdline)
-}
-
-func umountInHostNamespace(cmdline []string) (string, error) {
-	cmdline = append([]string{
-		HOST_MOUNT_NAMESPACE,
-		"-u",
-	}, cmdline...)
-	return util.Execute(MOUNT_BINARY, cmdline)
-}
-
 func mounted(dev, mountPoint string) bool {
-	output, err := mountInHostNamespace([]string{})
+	output, err := util.Execute("mount", []string{})
 	if err != nil {
 		return false
 	}
@@ -767,7 +748,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	}
 	if !mounted(dev, mountPoint) {
 		log.Debugf("Volume %v is not mounted, mount it now to %v", id, mountPoint)
-		_, err = mountInHostNamespace([]string{dev, mountPoint})
+		_, err = util.Execute(MOUNT_BINARY, []string{dev, mountPoint})
 		if err != nil {
 			return "", err
 		}
@@ -797,7 +778,7 @@ func (d *Driver) UmountVolume(id string) error {
 		log.Debug("Umount a umounted volume %v", id)
 		return nil
 	}
-	if _, err := umountInHostNamespace([]string{volume.MountPoint}); err != nil {
+	if _, err := util.Execute(UMOUNT_BINARY, []string{volume.MountPoint}); err != nil {
 		return err
 	}
 	d.putVolumeMountPoint(volume.MountPoint)
