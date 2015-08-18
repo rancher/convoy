@@ -11,13 +11,13 @@ managing docker volumes.
 
 # Usage
 
-You can download our prepared static-linked binary and use it right away.
+## Install
 1. Download latest version of [convoy](https://github.com/rancher/convoy/releases/latest) binary and put it in your $PATH(e.g. /usr/local/bin).
-2. Download latest version of [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/latest) and put it in your $PATH(e.g. /usr/local/bin) as well. It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver.
+2. Download latest version of [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/latest) binary and put it in your $PATH(e.g. /usr/local/bin) as well. It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver.
 
 ## Build
 
-If you prefer build:
+If you prefer building it by yourself:
 
 1. Environment: Require Go environment, mercurial and libdevmapper-dev package.
 2. Use docker v1.8+, which supports volume plugins in stable version.
