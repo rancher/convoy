@@ -45,21 +45,14 @@ func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 
 	var (
 		volume     *Volume
-		volumeUUID string
 		volumeName string
 	)
-	if util.ValidateUUID(name) {
-		volumeUUID = name
-		volume = s.loadVolume(name)
-		if volume == nil {
-			return nil, fmt.Errorf("Cannot find volume with uuid %v", volumeUUID)
-		}
-	} else if util.ValidateName(name) {
+	if util.ValidateName(name) {
 		volumeName = name
 		volume = s.loadVolumeByName(name)
 	} else {
 		// Not valid UUID or name
-		return nil, fmt.Errorf("Invalid volume name. Must be a valid UUID or only contains 0-9, a-z, understore(_) and dot(.)")
+		return nil, fmt.Errorf("Invalid volume name. Must be only contains 0-9, a-z, dash(-), underscore(_) and dot(.)")
 	}
 
 	if volume == nil {

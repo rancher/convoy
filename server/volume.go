@@ -82,6 +82,9 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	uuid := uuid.New()
+	if volumeName == "" {
+		volumeName = "volume-" + uuid[:8]
+	}
 
 	if driverName == "" {
 		driverName = s.DefaultDriver
@@ -96,8 +99,9 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	opts := map[string]string{
-		convoydriver.OPT_SIZE:       strconv.FormatInt(request.Size, 10),
-		convoydriver.OPT_BACKUP_URL: request.BackupURL,
+		convoydriver.OPT_SIZE:        strconv.FormatInt(request.Size, 10),
+		convoydriver.OPT_BACKUP_URL:  request.BackupURL,
+		convoydriver.OPT_VOLUME_NAME: request.Name,
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,

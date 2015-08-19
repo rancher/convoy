@@ -148,6 +148,11 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		}
 	}
 
+	volumeName := opts[convoydriver.OPT_VOLUME_NAME]
+	if volumeName == "" {
+		volumeName = "volume-" + id[:8]
+	}
+
 	volume := d.blankVolume(id)
 	exists, err := util.ObjectExists(volume)
 	if err != nil {
@@ -157,7 +162,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		return fmt.Errorf("volume %v already exists", id)
 	}
 
-	volumePath := filepath.Join(d.Path, id)
+	volumePath := filepath.Join(d.Path, volumeName)
 	if err := util.MkdirIfNotExists(volumePath); err != nil {
 		return err
 	}
