@@ -1,7 +1,7 @@
 # Convoy [![Build Status](http://ci.rancher.io/api/badge/github.com/rancher/convoy/status.svg?branch=master)](http://ci.rancher.io/github.com/rancher/convoy)
 
 # Overview
-Convoy is a generic Docker volume plugin for a variety fo storage back-ends. It's designed to simply implmentation of Docker volume plugins while supporting vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a simple standalone binary.
+Convoy is a generic Docker volume plugin for a variety of storage back-ends. It's designed to simplify the implementation of Docker volume plug-ins while supporting vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a simple standalone binary.
 
 # Usage
 
@@ -12,28 +12,8 @@ Convoy is a generic Docker volume plugin for a variety fo storage back-ends. It'
 ## Install
 Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.2-rc5/convoy) binary and put it in your ```$PATH```(e.g. /usr/local/bin). Notice: please make sure ```$PATH``` can be access by sudo user or root.
 
-## Build
-
-If you prefer building it by yourself:
-
-1. Environment: Require Go environment, mercurial and libdevmapper-dev package.
-2. Build and install:
-```
-go get github.com/rancher/convoy
-cd $GOPATH/src/github.com/rancher/convoy
-make
-sudo make install
-```
-The last line would install convoy to /usr/local/bin/, otherwise executables are
-at bin/ directory.
-
 ## Setup
 
-### Stop Docker daemon
-Normally you need to do:
-```
-sudo service docker stop
-```
 ### Install plugin to Docker (apply to v1.8+)
 ```
 sudo mkdir -p /etc/docker/plugins/
@@ -42,7 +22,7 @@ sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/co
 
 ### Start Convoy server
 
-Convoy supports different drivers, and can be easily extended. Currently it contains two implementations of driver: VFS/NFS, or device mapper. EBS support is coming.
+Convoy supports different drivers, and can be easily extended. Currently it contains two driver implementations: VFS/NFS, or device mapper. EBS support is coming.
 
 #### VFS/NFS driver
 ##### Choose a directory as root to store the volumes
@@ -60,7 +40,7 @@ sudo convoy server --drivers vfs --driver-opts vfs.path=<vfs_path>
 ```
 
 #### Device mapper driver
-Convoy can work with any type of block devices, we show cases two kinds of setup here: new LVM logical volumes, or loopbacks. You can use or create your own block devices in your preferred way.
+Convoy can work with any type of block devices, we show two kinds of setup here: new LVM logical volumes, or [loopbacks](docs/loopback.md). You can use or create your own block devices in your preferred way.
 ##### Prepare two block devices for device mapper storage pool
 ###### Create two block devices using LVM2 for device mapper storage pool:
 Assuming the volume group ```convoy-vg``` already exists, and you want to create a 100G pool out of it. Please refer to http://tldp.org/HOWTO/LVM-HOWTO/createlv.html for more details on creating logical volume using LVM2.
@@ -69,15 +49,6 @@ sudo lvcreate -L 100000 -n volume-data convoy-vg
 sudo lvcreate -L 1000 -n volume-metadata convoy-vg
 ```
 The devices would be called ```<datadev>```(``/dev/convoy-vg/volume-data```) and ```<metadatadev>``` (```/dev/convoy-vg/volume-metadata```) respectively below.
-
-###### (Alternative) Create two loopback devices for device mapper storage pool:
-```
-truncate -s 100G data.vol
-truncate -s 1G metadata.vol
-sudo losetup -f data.vol
-sudo losetup -f metadata.vol
-```
-The devices would be called ```<datadev>```(e.g. ```/dev/loop0```) and ```<metadatadev>``` (e.g. ```/dev/loop1```) respectively below.
 
 ##### Start server
 ```
@@ -187,3 +158,18 @@ sudo docker run -it -v res1:/res1 --volume-driver convoy ubuntu /bin/bash
 1. ```--help``` can be helpful.
 2. When working with Convoy CLI, volumes/Snapshots can be referred by either name, full UUID or partial(shorthand) UUID. Docker can only refer to volume by volume's name.
 3. You can create a volume without name. In this case, a name would be automatically generated for you, based on UUID.
+
+## Build
+
+If you prefer building it by yourself:
+
+1. Environment: Require Go environment, mercurial and libdevmapper-dev package.
+2. Build and install:
+```
+go get github.com/rancher/convoy
+cd $GOPATH/src/github.com/rancher/convoy
+make
+sudo make install
+```
+The last line would install convoy to /usr/local/bin/, otherwise executables are
+at bin/ directory.
