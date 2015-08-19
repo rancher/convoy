@@ -34,7 +34,7 @@ var (
 		Usage: "delete a volume: delete <volume> [options]",
 		Flags: []cli.Flag{
 			cli.BoolFlag{
-				Name:  "cleanup",
+				Name:  "reference, r",
 				Usage: "performance cleanup after delete if driver supports",
 			},
 		},
@@ -134,8 +134,8 @@ func doVolumeDelete(c *cli.Context) error {
 	}
 
 	request := &api.VolumeDeleteRequest{
-		VolumeUUID: uuid,
-		Cleanup:    c.Bool("cleanup"),
+		VolumeUUID:    uuid,
+		ReferenceOnly: c.Bool("reference"),
 	}
 
 	url := "/volumes/"

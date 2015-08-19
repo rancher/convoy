@@ -195,8 +195,8 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	if volume.MountPoint != "" {
 		return fmt.Errorf("Cannot delete volume %v. It is still mounted", id)
 	}
-	cleanup, _ := strconv.ParseBool(opts[convoydriver.OPT_CLEANUP])
-	if cleanup {
+	referenceOnly, _ := strconv.ParseBool(opts[convoydriver.OPT_REFERENCE_ONLY])
+	if !referenceOnly {
 		log.Debugf("Cleaning up %v for volume %v", volume.Path, id)
 		if out, err := util.Execute("rm", []string{"-rf", volume.Path}); err != nil {
 			return fmt.Errorf("Fail to cleanup the volume, output: %v, error: %v", out, err.Error())

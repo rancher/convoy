@@ -43,10 +43,10 @@ class VolumeManager:
             assert volume["Name"] == name
         return volume["UUID"]
 
-    def delete_volume(self, volume, cleanup = True):
+    def delete_volume(self, volume, ref_only = False):
         cmdline = self.base_cmdline + ["delete", volume]
-        if cleanup:
-                cmdline += ["--cleanup"]
+        if ref_only:
+                cmdline += ["--reference"]
         subprocess.check_call(cmdline)
 
     def mount_volume_with_path(self, volume):
@@ -56,7 +56,6 @@ class VolumeManager:
         assert os.path.exists(volume_mount_dir)
         cmdline = self.base_cmdline + ["mount", volume,
     		"--mountpoint", volume_mount_dir]
-
 	subprocess.check_call(cmdline)
         return volume_mount_dir
 

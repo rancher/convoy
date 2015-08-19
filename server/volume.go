@@ -209,7 +209,7 @@ func (s *Server) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 	}
 
 	opts := map[string]string{
-		convoydriver.OPT_CLEANUP: strconv.FormatBool(request.Cleanup),
+		convoydriver.OPT_REFERENCE_ONLY: strconv.FormatBool(request.ReferenceOnly),
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,

@@ -199,11 +199,11 @@ def create_volume(size = "", name = "", backup = "", driver = ""):
     dm_cleanup_list.append(uuid)
     return uuid
 
-def delete_volume(uuid, name = "", cleanup = True):
+def delete_volume(uuid, name = "", ref_only = False):
     if name == "":
-        v.delete_volume(uuid, cleanup)
+        v.delete_volume(uuid, ref_only)
     else:
-        v.delete_volume(name, cleanup)
+        v.delete_volume(name, ref_only)
     dm_cleanup_list.remove(uuid)
 
 def mount_volume_with_path(uuid):
@@ -236,6 +236,22 @@ def volume_crud_test(drv, sizeTest = True):
 
     delete_volume(uuid2, uuid2[:6])
     delete_volume(uuid1)
+
+def test_vfs_delete_volume_ref_only():
+    uuid = create_volume(driver=VFS)
+    insp = v.inspect_volume(uuid)
+    path = insp["DriverInfo"]["Path"]
+
+    assert os.path.exists(path)
+    filename = "testfile"
+    test_file = os.path.join(path,filename)
+    with open(test_file, "w") as f:
+	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
+    assert os.path.exists(test_file)
+
+    delete_volume(uuid, ref_only = True)
+    assert os.path.exists(test_file)
+    os.remove(test_file)
 
 def test_volume_name():
     volume_name_test(DM)
