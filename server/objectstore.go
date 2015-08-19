@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/objectstore"
 	"net/http"
+	"strings"
 
 	. "github.com/rancher/convoy/logging"
 )
@@ -128,7 +129,11 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	backup := &api.BackupURLResponse{
 		URL: backupURL,
 	}
-	return sendResponse(w, backup)
+	if request.Verbose {
+		return sendResponse(w, backup)
+	}
+	escapedURL := strings.Replace(backupURL, "&", "\\u0026", 1)
+	return writeStringResponse(w, escapedURL)
 }
 
 func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {

@@ -3,6 +3,7 @@ package api
 type VolumeMountRequest struct {
 	VolumeUUID string
 	MountPoint string
+	Verbose    bool
 }
 
 type VolumeUmountRequest struct {
@@ -14,6 +15,7 @@ type VolumeCreateRequest struct {
 	DriverName string
 	Size       int64
 	BackupURL  string
+	Verbose    bool
 }
 
 type VolumeDeleteRequest struct {
@@ -28,6 +30,7 @@ type VolumeInspectRequest struct {
 type SnapshotCreateRequest struct {
 	Name       string
 	VolumeUUID string
+	Verbose    bool
 }
 
 type SnapshotDeleteRequest struct {
@@ -47,6 +50,7 @@ type BackupListRequest struct {
 type BackupCreateRequest struct {
 	URL          string
 	SnapshotUUID string
+	Verbose      bool
 }
 
 type BackupDeleteRequest struct {

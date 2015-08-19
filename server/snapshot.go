@@ -100,13 +100,16 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	if err != nil {
 		return err
 	}
-	return writeResponseOutput(w, api.SnapshotResponse{
-		UUID:        snapshot.UUID,
-		VolumeUUID:  snapshot.VolumeUUID,
-		Name:        snapshot.Name,
-		CreatedTime: snapshot.CreatedTime,
-		DriverInfo:  driverInfo,
-	})
+	if request.Verbose {
+		return writeResponseOutput(w, api.SnapshotResponse{
+			UUID:        snapshot.UUID,
+			VolumeUUID:  snapshot.VolumeUUID,
+			Name:        snapshot.Name,
+			CreatedTime: snapshot.CreatedTime,
+			DriverInfo:  driverInfo,
+		})
+	}
+	return writeStringResponse(w, snapshot.UUID)
 }
 
 func (s *Server) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map[string]string, error) {

@@ -112,6 +112,7 @@ func doVolumeCreate(c *cli.Context) error {
 		DriverName: driverName,
 		Size:       size,
 		BackupURL:  backupURL,
+		Verbose:    c.GlobalBool(VERBOSE_FLAG),
 	}
 
 	url := "/volumes/create"
@@ -198,6 +199,7 @@ func doVolumeMount(c *cli.Context) error {
 	request := &api.VolumeMountRequest{
 		VolumeUUID: volumeUUID,
 		MountPoint: mountPoint,
+		Verbose:    c.GlobalBool(VERBOSE_FLAG),
 	}
 
 	url := "/volumes/mount"

@@ -169,15 +169,18 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return err
 	}
-	return writeResponseOutput(w, api.VolumeResponse{
-		UUID:        volume.UUID,
-		Name:        volume.Name,
-		Driver:      volume.DriverName,
-		Size:        size,
-		CreatedTime: volume.CreatedTime,
-		DriverInfo:  driverInfo,
-		Snapshots:   map[string]api.SnapshotResponse{},
-	})
+	if request.Verbose {
+		return writeResponseOutput(w, api.VolumeResponse{
+			UUID:        volume.UUID,
+			Name:        volume.Name,
+			Driver:      volume.DriverName,
+			Size:        size,
+			CreatedTime: volume.CreatedTime,
+			DriverInfo:  driverInfo,
+			Snapshots:   map[string]api.SnapshotResponse{},
+		})
+	}
+	return writeStringResponse(w, volume.UUID)
 }
 
 func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -422,10 +425,13 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return err
 	}
 
-	return writeResponseOutput(w, api.VolumeResponse{
-		UUID:       volumeUUID,
-		MountPoint: mountPoint,
-	})
+	if request.Verbose {
+		return writeResponseOutput(w, api.VolumeResponse{
+			UUID:       volumeUUID,
+			MountPoint: mountPoint,
+		})
+	}
+	return writeStringResponse(w, mountPoint)
 }
 
 func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) (string, error) {

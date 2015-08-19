@@ -28,6 +28,7 @@ var (
 	SOCKET_FLAG_WITH_ALIAS = "socket, s"
 	DEBUG_FLAG             = "debug"
 	DEBUG_FLAG_WITH_ALIAS  = "debug, d"
+	VERBOSE_FLAG           = "verbose"
 
 	client Client
 )
@@ -134,6 +135,10 @@ func NewCli(version string) *cli.App {
 		cli.BoolFlag{
 			Name:  DEBUG_FLAG_WITH_ALIAS,
 			Usage: "Enable debug level log with client or not",
+		},
+		cli.BoolFlag{
+			Name:  VERBOSE_FLAG,
+			Usage: "Verbose level output for client, for create volume/snapshot etc",
 		},
 	}
 	app.CommandNotFound = cmdNotFound

@@ -28,7 +28,7 @@ class VolumeManager:
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
     def create_volume(self, size = "", name = "", backup = "", driver = ""):
-        cmd = ["create"]
+        cmd = ["--verbose", "create"]
         if name != "":
             cmd = cmd + [name]
         if size != "":
@@ -60,7 +60,7 @@ class VolumeManager:
         return volume_mount_dir
 
     def mount_volume(self, volume):
-        cmdline = self.base_cmdline + ["mount", volume]
+        cmdline = self.base_cmdline + ["--verbose", "mount", volume]
 
 	data = subprocess.check_output(cmdline)
         volume = json.loads(data)
@@ -81,7 +81,7 @@ class VolumeManager:
         return json.loads(data)
 
     def create_snapshot(self, volume, name = ""):
-        cmd = ["snapshot", "create", volume]
+        cmd = ["--verbose", "snapshot", "create", volume]
         if name != "":
                 cmd += ["--name", name]
         data = subprocess.check_output(self.base_cmdline + cmd)
@@ -99,9 +99,9 @@ class VolumeManager:
         return snapshot
 
     def create_backup(self, snapshot, dest):
-        data = subprocess.check_output(self.base_cmdline + ["backup", "create",
-                snapshot,
-		"--dest", dest])
+        data = subprocess.check_output(self.base_cmdline + ["--verbose",
+            "backup", "create", snapshot,
+	    "--dest", dest])
         backup = json.loads(data)
         return backup["URL"]
 

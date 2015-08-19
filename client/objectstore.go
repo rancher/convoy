@@ -121,6 +121,7 @@ func doBackupCreate(c *cli.Context) error {
 	request := &api.BackupCreateRequest{
 		URL:          destURL,
 		SnapshotUUID: snapshotUUID,
+		Verbose:      c.GlobalBool(VERBOSE_FLAG),
 	}
 
 	url := "/backups/create"
