@@ -81,9 +81,13 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
 	}
 
-	uuid := uuid.New()
+	volumeUUID := uuid.New()
 	if volumeName == "" {
-		volumeName = "volume-" + uuid[:8]
+		volumeName = "volume-" + volumeUUID[:8]
+		for s.NameUUIDIndex.Get(volumeName) != "" {
+			volumeUUID = uuid.New()
+			volumeName = "volume-" + volumeUUID[:8]
+		}
 	}
 
 	if driverName == "" {
@@ -107,22 +111,22 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:       LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      uuid,
+		LOG_FIELD_VOLUME:      volumeUUID,
 		LOG_FIELD_VOLUME_NAME: volumeName,
 		LOG_FIELD_OPTS:        opts,
 	}).Debug()
-	if err := volOps.CreateVolume(uuid, opts); err != nil {
+	if err := volOps.CreateVolume(volumeUUID, opts); err != nil {
 		return nil, err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: uuid,
+		LOG_FIELD_VOLUME: volumeUUID,
 	}).Debug("Created volume")
 
 	volume := &Volume{
-		UUID:        uuid,
+		UUID:        volumeUUID,
 		Name:        volumeName,
 		DriverName:  driverName,
 		FileSystem:  "ext4",
