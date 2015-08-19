@@ -381,6 +381,28 @@ def snapshot_crud_test(driver):
     v.delete_snapshot("snap2")
     delete_volume(volume_uuid)
 
+def test_snapshot_name():
+    snapshot_name_test(DM)
+    snapshot_name_test(VFS)
+
+def snapshot_name_test(driver):
+    volume_uuid = create_volume(VOLUME_SIZE_500M, driver=driver)
+
+    snap1_name = "snap1"
+    snap1_uuid = v.create_snapshot(volume_uuid, name=snap1_name)
+
+    vols = v.list_volumes()
+    s = vols[volume_uuid]["Snapshots"][snap1_uuid]
+    assert s["Name"] == snap1_name
+    assert s["DriverInfo"]["Driver"] == driver
+    assert s["CreatedTime"] != ""
+
+    with pytest.raises(subprocess.CalledProcessError):
+	    new_uuid = v.create_snapshot(volume_uuid, name=snap1_name)
+
+    v.delete_snapshot(snap1_uuid)
+    delete_volume(volume_uuid)
+
 def test_snapshot_list():
     snapshot_list_test(DM)
     snapshot_list_test(VFS, False)

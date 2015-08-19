@@ -81,10 +81,10 @@ class VolumeManager:
 
         return json.loads(data)
 
-    def create_snapshot(self, volume, snapshot_name = ""):
+    def create_snapshot(self, volume, name = ""):
         cmd = ["snapshot", "create", volume]
-        if snapshot_name != "":
-                cmd += ["--name", snapshot_name]
+        if name != "":
+                cmd += ["--name", name]
         data = subprocess.check_output(self.base_cmdline + cmd)
         snapshot = json.loads(data)
         return snapshot["UUID"]

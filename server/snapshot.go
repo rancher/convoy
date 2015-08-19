@@ -33,6 +33,17 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	if err := util.CheckUUID(volumeUUID); err != nil {
 		return err
 	}
+	snapshotName := request.Name
+	if snapshotName != "" {
+		if err := util.CheckName(snapshotName); err != nil {
+			return err
+		}
+		existUUID := s.NameUUIDIndex.Get(snapshotName)
+		if existUUID != "" {
+			return fmt.Errorf("Snapshot name %v already associated with %v", snapshotName, existUUID)
+		}
+	}
+
 	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
@@ -44,14 +55,6 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	}
 
 	uuid := uuid.New()
-
-	snapshotName := request.Name
-	if snapshotName == "" {
-		snapshotName = "snapshot-" + uuid[:8]
-	}
-	if err := util.CheckName(snapshotName); err != nil {
-		return err
-	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
