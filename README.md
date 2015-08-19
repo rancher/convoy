@@ -1,19 +1,14 @@
 # Convoy [![Build Status](http://ci.rancher.io/api/badge/github.com/rancher/convoy/status.svg?branch=master)](http://ci.rancher.io/github.com/rancher/convoy)
 
 # Overview
-Convoy is a storage driver platform can be integrated with Docker,
-managing docker volumes.
-
-# Features
-1. Integration with Docker.
-2. Implements device mapper storage driver, make it possible to use device mapper with docker volumes.
-3. Take snapshot of volume, back it up to S3 or local disk/nfs.
+Convoy is a generic Docker volume plugin for a variety fo storage back-ends. It's designed to simply implmentation of Docker volume plugins while supporting vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a simple standalone binary.
 
 # Usage
 
 ## Install
 1. Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.2-rc4/convoy) binary and put it in your $PATH(e.g. /usr/local/bin).
 2. Download latest version of [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2/pdata_tools) binary and put it in your $PATH(e.g. /usr/local/bin) as well. It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver.
+3. Notice: please make sure $PATH can be access by sudo user or root.
 
 ## Build
 
@@ -34,19 +29,24 @@ at bin/ directory.
 
 ## Setup
 
+### Stop Docker daemon
+Normally you need to do:
+```
+sudo service docker stop
+```
 ### Install plugin to Docker (apply to v1.8+)
 ```
 sudo mkdir -p /etc/docker/plugins/
 sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec'
 ```
 
-### Start server
+### Start Convoy server
 
-Convoy supports different drivers, and can be easily extended. Currently it contains two implementations of driver: VFS, or device mapper.
+Convoy supports different drivers, and can be easily extended. Currently it contains two implementations of driver: VFS, or device mapper. EBS support is coming.
 
 #### VFS driver
 ##### Choose a directory as root to store the volumes
-It can be NFS mounted. We would refer the directory as ```<vfs_path>``` below.
+We would refer the directory as ```<vfs_path>``` below.
 ##### Start server
 ```
 sudo convoy server --drivers vfs --driver-opts vfs.path=<vfs_path>
@@ -76,9 +76,20 @@ The devices would be called ```<datadev>```(e.g. ```/dev/loop0```) and ```<metad
 ```
 sudo convoy server --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
 ```
+* Device mapper default volume size is 100G. You can override it with e.g. "--driver-opts dm.defaultvolumesize=10G"
+
+#### Start Docker server
+Normally you need to do:
+```
+sudo service docker start
+```
+#### Test run
+```
+sudo docker -it test_volume:/test --volume-driver=convoy ubuntu /bin/bash
+```
 #### Tips
 1. As long as convoy has been initialized once, next time "convoy server" would be enough to start it.
-2. The server configuration file would be at /var/lib/convoy by default.
+2. The server metadata files would be stored at /var/lib/convoy by default.
 3. Different drivers can co-exists at the same time, just add "--drivers" and "--driver-opts" to start command line.
 4. The driver can be chosen though "convoy create <name> --driver" command. The first driver in the "--drivers" list would be default driver, and would be used if volume created without specified driver.
 
@@ -127,6 +138,7 @@ or
 vfs:///opt/backup?backup=f98f9ea1-dd6e-4490-8212-6d50df1982ea\u0026volume=e0d386c5-6a24-446c-8111-1077d10356b0
 ```
 We would refer it as <url> below.
+* For S3, please make sure you have AWS credential ready either at ```~/.aws/credentials``` or as environment variables, as described (here)[http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs]. You may need to put credentials to ```/root/.aws/credentials``` or setup sudo environment variables in order to get S3 credential works.
 
 ##### Create a new volume using the backup
 ```
@@ -139,7 +151,6 @@ sudo docker run -it -v res1:/res1 --volume-driver convoy ubuntu /bin/bash
 ```
 
 ## Tips
-1. ```--help``` would be helpful most of time.
-2. Volume/Snapshot can be referred by either name, full UUID or partial(shorthand) UUID
-3. Name is not mandatory now. If left empty, you can refer to it by UUID or partial UUID.
-4. AWS credentials are provided through normal way, e.g. ```~/.aws/credentials```. We didn't store credentials.
+1. ```--help``` can be helpful most of time.
+2. Volumes/Snapshots can be referred by either name, full UUID or partial(shorthand) UUID
+3. Name is not mandatory. If left empty, you can refer to it by UUID or partial UUID.
