@@ -18,6 +18,7 @@ type VolumeCreateRequest struct {
 
 type VolumeDeleteRequest struct {
 	VolumeUUID string
+	Cleanup    bool
 }
 
 type VolumeInspectRequest struct {

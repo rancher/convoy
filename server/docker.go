@@ -113,7 +113,10 @@ func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.processVolumeDelete(volume.UUID); err != nil {
+	request := &api.VolumeDeleteRequest{
+		VolumeUUID: volume.UUID,
+	}
+	if err := s.processVolumeDelete(request); err != nil {
 		dockerResponse(w, "", err)
 		return
 	}

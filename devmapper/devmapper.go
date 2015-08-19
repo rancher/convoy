@@ -497,7 +497,7 @@ func (d *Driver) removeDevice(name string) error {
 	return nil
 }
 
-func (d *Driver) DeleteVolume(id string) error {
+func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	var err error
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {

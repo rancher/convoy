@@ -185,15 +185,15 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	volumeUUID := request.VolumeUUID
-	if err := util.CheckUUID(volumeUUID); err != nil {
+	if err := util.CheckUUID(request.VolumeUUID); err != nil {
 		return err
 	}
 
-	return s.processVolumeDelete(volumeUUID)
+	return s.processVolumeDelete(request)
 }
 
-func (s *Server) processVolumeDelete(uuid string) error {
+func (s *Server) processVolumeDelete(request *api.VolumeDeleteRequest) error {
+	uuid := request.VolumeUUID
 	volume := s.loadVolume(uuid)
 	if volume == nil {
 		return fmt.Errorf("Cannot find volume %s", uuid)
@@ -210,7 +210,7 @@ func (s *Server) processVolumeDelete(uuid string) error {
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug()
-	if err := volOps.DeleteVolume(uuid); err != nil {
+	if err := volOps.DeleteVolume(uuid, map[string]string{}); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

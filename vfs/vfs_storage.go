@@ -182,7 +182,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteVolume(id string) error {
+func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 

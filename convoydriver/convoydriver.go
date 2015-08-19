@@ -20,7 +20,7 @@ type ConvoyDriver interface {
 type VolumeOperations interface {
 	Name() string
 	CreateVolume(id string, opts map[string]string) error
-	DeleteVolume(id string) error
+	DeleteVolume(id string, opts map[string]string) error
 	MountVolume(id string, opts map[string]string) (string, error)
 	UmountVolume(id string) error
 	MountPoint(id string) (string, error)
