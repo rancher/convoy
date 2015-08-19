@@ -56,11 +56,6 @@ sudo convoy server --drivers devicemapper --driver-opts dm.datadev=<datadev> --d
 ```
 * Device mapper default volume size is 100G. You can override it with e.g. ```--driver-opts dm.defaultvolumesize=10G```
 
-#### Start Docker server
-Normally you need to do:
-```
-sudo service docker start
-```
 #### Test run
 ```
 sudo docker -it test_volume:/test --volume-driver=convoy ubuntu /bin/bash
