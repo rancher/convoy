@@ -7,10 +7,10 @@ Convoy is a generic Docker volume plugin for a variety fo storage back-ends. It'
 
 ## Requirement:
 1. Docker v1.8+, which supports volume plugins in stable version.
-2. Download thin-provisioning-tools from [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2/pdata_tools), then put it in your $PATH(e.g. /usr/local/bin). It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver. Notice: please make sure $PATH can be access by sudo user or root.
+2. Download thin-provisioning-tools from [thin-provisioning-tools](https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2/pdata_tools), then put it in your ```$PATH```(e.g. /usr/local/bin). It's a Rancher Labs maintained version of thin-provisioning-tools to work with device mapper driver. Notice: please make sure $PATH can be access by sudo user or root.
 
 ## Install
-Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.2-rc5/convoy) binary and put it in your $PATH(e.g. /usr/local/bin). Notice: please make sure $PATH can be access by sudo user or root.
+Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.2-rc5/convoy) binary and put it in your ```$PATH```(e.g. /usr/local/bin). Notice: please make sure $PATH can be access by sudo user or root.
 
 ## Build
 
