@@ -204,13 +204,16 @@ func (s *Server) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 		return err
 	}
 
+	opts := map[string]string{
+		convoydriver.OPT_CLEANUP: strconv.FormatBool(request.Cleanup),
+	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: uuid,
 	}).Debug()
-	if err := volOps.DeleteVolume(uuid, map[string]string{}); err != nil {
+	if err := volOps.DeleteVolume(uuid, opts); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{

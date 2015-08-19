@@ -54,6 +54,7 @@ const (
 	OPT_SNAPSHOT_CREATED_TIME = "SnapshotCreatedAt"
 	OPT_FILESYSTEM            = "FileSystem"
 	OPT_BACKUP_URL            = "BackupURL"
+	OPT_CLEANUP               = "Cleanup"
 )
 
 var (

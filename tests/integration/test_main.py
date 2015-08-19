@@ -199,11 +199,11 @@ def create_volume(size = "", name = "", backup = "", driver = ""):
     dm_cleanup_list.append(uuid)
     return uuid
 
-def delete_volume(uuid, name = ""):
+def delete_volume(uuid, name = "", cleanup = True):
     if name == "":
-        v.delete_volume(uuid)
+        v.delete_volume(uuid, cleanup)
     else:
-        v.delete_volume(name)
+        v.delete_volume(name, cleanup)
     dm_cleanup_list.remove(uuid)
 
 def mount_volume_with_path(uuid):

@@ -19,19 +19,25 @@ var (
 			},
 			cli.StringFlag{
 				Name:  "size",
-				Usage: "size of volume, in bytes, or end in either G or M or K",
+				Usage: "size of volume if driver supports, in bytes, or end in either G or M or K",
 			},
 			cli.StringFlag{
 				Name:  "backup",
-				Usage: "create a volume of backup",
+				Usage: "create a volume of backup if driver supports",
 			},
 		},
 		Action: cmdVolumeCreate,
 	}
 
 	volumeDeleteCmd = cli.Command{
-		Name:   "delete",
-		Usage:  "delete a volume: delete <volume> [options]",
+		Name:  "delete",
+		Usage: "delete a volume: delete <volume> [options]",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "cleanup",
+				Usage: "performance cleanup after delete if driver supports",
+			},
+		},
 		Action: cmdVolumeDelete,
 	}
 
@@ -129,6 +135,7 @@ func doVolumeDelete(c *cli.Context) error {
 
 	request := &api.VolumeDeleteRequest{
 		VolumeUUID: uuid,
+		Cleanup:    c.Bool("cleanup"),
 	}
 
 	url := "/volumes/"

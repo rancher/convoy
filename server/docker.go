@@ -115,6 +115,8 @@ func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 
 	request := &api.VolumeDeleteRequest{
 		VolumeUUID: volume.UUID,
+		// By default we don't want to remove the volume because probably we're using NFS
+		Cleanup: false,
 	}
 	if err := s.processVolumeDelete(request); err != nil {
 		dockerResponse(w, "", err)

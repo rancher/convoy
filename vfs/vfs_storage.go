@@ -7,6 +7,7 @@ import (
 	"github.com/rancher/convoy/util"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 )
 
@@ -194,8 +195,12 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	if volume.MountPoint != "" {
 		return fmt.Errorf("Cannot delete volume %v. It is still mounted", id)
 	}
-	if out, err := util.Execute("rm", []string{"-rf", volume.Path}); err != nil {
-		return fmt.Errorf("Fail to delete the volume, output: %v, error: %v", out, err.Error())
+	cleanup, _ := strconv.ParseBool(opts[convoydriver.OPT_CLEANUP])
+	if cleanup {
+		log.Debugf("Cleaning up %v for volume %v", volume.Path, id)
+		if out, err := util.Execute("rm", []string{"-rf", volume.Path}); err != nil {
+			return fmt.Errorf("Fail to cleanup the volume, output: %v, error: %v", out, err.Error())
+		}
 	}
 	return util.ObjectDelete(volume)
 }
