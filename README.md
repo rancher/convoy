@@ -159,6 +159,7 @@ sudo docker run -it -v vol1:/vol1 --volume-driver=convoy ubuntu
 ## Build Convoy
 
 1. Environment: Ensure Go environment, mercurial and `libdevmapper-dev` package are installed.
+2. Download [convoy-pdata_tools](https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2.1/convoy-pdata_tools) and put it in your $PATH.
 2. Build and install:
 ```
 go get github.com/rancher/convoy
