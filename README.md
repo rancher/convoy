@@ -77,7 +77,8 @@ Assuming you have two devices created, one data device called `/dev/convoy-vg/da
 ```
 sudo convoy daemon --drivers devicemapper --driver-opts dm.datadev=/dev/convoy-vg/data --driver-opts dm.metadatadev=/dev/convoy-vg/metadata
 ```
-Default Device Mapper volume size is 100G. You can override it with the `---driver-opts dm.defaultvolumesize` option.
+* A default Device Mapper volume size is 100G. You can override it with the `---driver-opts dm.defaultvolumesize` option.
+* You can take a look at [here](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#calculate-the-size-you-need-for-metadata-block-device) if you want to know how much storage need to be allocated for metadata device.
 
 #### NFS
 First, mount the NFS share to the root directory used to store volumes. Substitute `<vfs_path>` to the appropriate directory of your choice:
@@ -96,7 +97,7 @@ Volumes can be created using the `convoy create` command:
 ```
 sudo convoy create volume_name
 ```
-Default device mapper volume size is 100G. We can supply the `--size` option to specify a custom device mapper volume size.
+A default Device Mapper volume size is 100G. We can supply the `--size` option to specify a custom device mapper volume size.
 
 We can also create a volume using the `docker run` command. If the volume does not yet exist, a new volume will be greated. Otherwise the existing volume will be used.
 ```
