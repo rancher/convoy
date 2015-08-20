@@ -109,7 +109,7 @@ def setup_module():
 
     global v
     v = VolumeManager(CONVOY_BINARY, TEST_ROOT)
-    v.start_server(PID_FILE, ["server",
+    v.start_server(PID_FILE, ["daemon",
         "--root", CFG_ROOT,
         "--log", LOG_FILE,
         "--drivers=" + DM,

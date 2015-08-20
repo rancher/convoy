@@ -31,9 +31,9 @@ sudo losetup /dev/loop6 metadata.vol
 ```
 Once we have the data and metadata device setup, we can start the Convoy plugin daemon as follows:
 ```
-sudo convoy server --drivers devicemapper --driver-opts dm.datadev=/dev/loop5 --driver-opts dm.metadatadev=/dev/loop6
+sudo convoy daemon --drivers devicemapper --driver-opts dm.datadev=/dev/loop5 --driver-opts dm.metadatadev=/dev/loop6
 ```
-We can create a Docker container with a convoy volume. As a test, we create a file called `/vol1/foo` in the convoy volume: 
+We can create a Docker container with a convoy volume. As a test, we create a file called `/vol1/foo` in the convoy volume:
 ```
 sudo docker run -v vol1:/vol1 --volume-driver=convoy ubuntu touch /vol1/foo
 ```
@@ -51,7 +51,7 @@ The following command creates a new container and mounts the recovered convoy vo
 ```
 sudo docker run -v res1:/res1 --volume-driver=convoy ubuntu ls /res1/foo
 ```
-You should see the recovered file ```/res1/foo```. 
+You should see the recovered file ```/res1/foo```.
 
 ## Installation
 Ensure you have Docker 1.8 or above installed.
@@ -75,7 +75,7 @@ You need to pass different arguments to convoy daemon depending on the choice of
 #### Device Mapper
 Assuming you have two devices created, one data device called `/dev/convoy-vg/data` and the other metadata device called `/dev/convoy-vg/metadata`. You run the following command to start the Convoy daemon:
 ```
-sudo convoy server --drivers devicemapper --driver-opts dm.datadev=/dev/convoy-vg/data --driver-opts dm.metadatadev=/dev/convoy-vg/metadata
+sudo convoy daemon --drivers devicemapper --driver-opts dm.datadev=/dev/convoy-vg/data --driver-opts dm.metadatadev=/dev/convoy-vg/metadata
 ```
 Default Convoy volume size is 100G. You can override it with the `---driver-opts dm.defaultvolumesize` option.
 
@@ -87,7 +87,7 @@ sudo mount -t nfs <nfs_server>:/path <vfs_path>
 ```
 The NFS-based Convoy daemon can be started as follows:
 ```
-sudo convoy server --drivers vfs --driver-opts vfs.path=<vfs_path>
+sudo convoy daemon --drivers vfs --driver-opts vfs.path=<vfs_path>
 ```
 ## Volume Commands
 #### Create a Volume

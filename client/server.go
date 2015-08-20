@@ -9,8 +9,8 @@ import (
 
 var (
 	serverCmd = cli.Command{
-		Name:  "server",
-		Usage: "start convoy server",
+		Name:  "daemon",
+		Usage: "start convoy daemon",
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:  "debug",
