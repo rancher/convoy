@@ -1,45 +1,57 @@
 # Convoy [![Build Status](http://ci.rancher.io/api/badge/github.com/rancher/convoy/status.svg?branch=master)](http://ci.rancher.io/github.com/rancher/convoy)
 
 # Overview
-Convoy is a generic Docker volume plugin for a variety of storage back-ends. It's designed to simplify the implementation of Docker volume plug-ins while supporting vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a simple standalone binary.
+Convoy is a  Docker volume plugin for a variety of storage back-ends. It's designed to be a simple Docker volume plug-ins that supports vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a standalone binary.
 
 [![Convoy_DEMO](https://asciinema.org/a/9y5nbp3h97vyyxnzuax9f568e.png)](https://asciinema.org/a/9y5nbp3h97vyyxnzuax9f568e?autoplay=1&loop=1&size=medium&speed=2)
 
-# TL; DR (a.k.a Quick Hands-on)
-Check Docker version. Make sure it's 1.8+
+# Quick Start Guide
+First let's make sure we have Docker 1.8 or above running.
 ```
 docker --version
 ```
-Otherwise you need to upgrade:
+If not, install the latest Docker daemon as follows:
 ```
 curl -sSL https://get.docker.com/ | sh
 ```
-Quick development server setup(WARNING: NOT FOR PRODUCTION BECAUSE LOOPBACK IS NOT RECOMMENDED)
+Once we have made sure we have the right Docker daemon running, we can install and configure Convoy volume plugin as follows:
 ```
 wget https://github.com/rancher/convoy/releases/download/v0.2/convoy.tar.gz
 tar xvf convoy.tar.gz
 sudo cp convoy/* /usr/local/bin/
 sudo mkdir -p /etc/docker/plugins/
 sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec'
+```
+We can use file-backed lookback device to test and demo Convoy driver. Lookback device, however, is known to be unstable and should not be used in production.
+```
 truncate -s 100G data.vol
 truncate -s 1G metadata.vol
 sudo losetup /dev/loop5 data.vol
 sudo losetup /dev/loop6 metadata.vol
+```
+Once we have the data and metadata device setup, we can start the Convoy plugin daemon as follows:
+```
 sudo convoy server --drivers devicemapper --driver-opts dm.datadev=/dev/loop5 --driver-opts dm.metadatadev=/dev/loop6
 ```
-Create volume/snapshot/backup:
+We can create a Docker container with a convoy volume. As a test, we create a file called `/vol1/foo` in the convoy volume: 
 ```
-sudo mkdir /opt/convoy/
 sudo docker run -v vol1:/vol1 --volume-driver=convoy ubuntu touch /vol1/foo
+```
+Next we take a snapshot of the convoy volume. We backup the snapshot to a local directory: (Backup to NFS share or S3 objectore is also supported.)
+```
 sudo convoy snapshot create vol1 --name snap1vol1
+sudo mkdir /opt/convoy/
 sudo convoy backup create snap1vol1 --dest vfs:///opt/convoy/
 ```
-The last command returned ```<backup_url>```, then:
+The `convoy backup` command returns a URL string representing backup dataset. You can use the same URL string to recover the volume to another host:
 ```
 sudo convoy create res1 --backup <backup_url>
+```
+The following command creates a new container and mounts the recovered convoy volume into that container:
+```
 sudo docker run -v res1:/res1 --volume-driver=convoy ubuntu ls /res1/foo
 ```
-You should see the output of ```/res1/foo```. 
+You should see the recovered file ```/res1/foo```. 
 
 # Usage
 
