@@ -1,4 +1,21 @@
-# Device Mapper Loopback Setup
+# Device Mapper
+
+## Calculate the size you need for metadata block device
+
+Use ```convoy-pdata_tools thin_metadata_size```.
+
+For example
+
+1. You have a 100G block device as data device for the pool.
+2. Use 2MiB block by default
+3. Planning to have 100 volumes on it, each with 1000 snapshots. That is 100,000 devices in total.
+```
+$ convoy-pdata_tools thin_metadata_size -b 2m -s 100G -m 100000 -u M
+thin_metadata_size - 411.15 megabytes estimated metadata area size for "--block-size=2mebibytes --pool-size=100gigabytes --max-thins=100000"
+```
+Now you see estimated size of metadata block device would be around 411MB. 
+
+## Loopback Setup
 
 ***NOTE: This is for development purposes only. Using loopback is slow and may have other issues with data corruption***
 
