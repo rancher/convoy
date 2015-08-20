@@ -16,7 +16,7 @@ curl -sSL https://get.docker.com/ | sh
 ```
 Quick development server setup(WARNING: NOT FOR PRODUCTION BECAUSE LOOPBACK IS NOT RECOMMENDED)
 ```
-wget https://github.com/rancher/convoy/releases/download/v0.2-rc6/convoy.tar.gz
+wget https://github.com/rancher/convoy/releases/download/v0.2/convoy.tar.gz
 tar xvf convoy.tar.gz
 sudo cp convoy/* /usr/local/bin/
 sudo mkdir -p /etc/docker/plugins/
@@ -47,9 +47,9 @@ You should see the output of ```/res1/foo```.
 Docker v1.8+, which supports volume plugins in stable version.
 
 ## Install
-Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.2-rc6/convoy.tar.gz) and unzip it. Put the binaries in your ```$PATH```(e.g. /usr/local/bin). Notice: please make sure ```$PATH``` can be access by sudo user or root. E.g.
+Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.2/convoy.tar.gz) and unzip it. Put the binaries in your ```$PATH```(e.g. /usr/local/bin). Notice: please make sure ```$PATH``` can be access by sudo user or root. E.g.
 ```
-wget https://github.com/rancher/convoy/releases/download/v0.2-rc6/convoy.tar.gz
+wget https://github.com/rancher/convoy/releases/download/v0.2/convoy.tar.gz
 tar xvf convoy.tar.gz
 sudo cp convoy/* /usr/local/bin/
 ```
