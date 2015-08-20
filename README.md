@@ -40,7 +40,7 @@ sudo docker run -v vol1:/vol1 --volume-driver=convoy ubuntu touch /vol1/foo
 Next we take a snapshot of the convoy volume. We backup the snapshot to a local directory: (Backup to NFS share or S3 objectore is also supported.)
 ```
 sudo convoy snapshot create vol1 --name snap1vol1
-sudo mkdir /opt/convoy/
+sudo mkdir -p /opt/convoy/
 sudo convoy backup create snap1vol1 --dest vfs:///opt/convoy/
 ```
 The `convoy backup` command returns a URL string representing backup dataset. You can use the same URL string to recover the volume to another host:
