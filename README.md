@@ -3,6 +3,8 @@
 # Overview
 Convoy is a generic Docker volume plugin for a variety of storage back-ends. It's designed to simplify the implementation of Docker volume plug-ins while supporting vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a simple standalone binary.
 
+[![asciicast](https://asciinema.org/a/ay18fzin6hf4b1rww5460n3lj.png)](https://asciinema.org/a/ay18fzin6hf4b1rww5460n3lj?autoplay=1&loop=1&size=medium&speed=3)
+
 # TL; DR (a.k.a Quick Hands-on)
 Check Docker version. Make sure it's 1.8+
 ```
@@ -37,6 +39,7 @@ The last command returned ```<backup_url>```, then:
 sudo convoy create res1 --backup <backup_url>
 sudo docker run -v res1:/res1 --volume-driver=convoy ubuntu ls /res1/foo
 ```
+You should see the output of ```/res1/foo```. 
 
 # Usage
 
