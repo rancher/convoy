@@ -156,7 +156,7 @@ You can mount an NFS-backed volume on multiple servers. You can use the standard
 ```
 sudo docker run -it -v vol1:/vol1 --volume-driver=convoy ubuntu
 ```
-## Build
+## Build Convoy
 
 1. Environment: Ensure Go environment, mercurial and `libdevmapper-dev` package are installed.
 2. Build and install:
