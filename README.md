@@ -27,7 +27,7 @@ sudo convoy server --drivers devicemapper --driver-opts dm.datadev=/dev/loop5 --
 ```
 Create volume/snapshot/backup:
 ```
-mkdir /opt/convoy/
+sudo mkdir /opt/convoy/
 sudo docker run -v vol1:/vol1 --volume-driver=convoy ubuntu touch /vol1/foo
 sudo convoy snapshot create vol1 --name snap1vol1
 sudo convoy backup create snap1vol1 --dest vfs:///opt/convoy/
