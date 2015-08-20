@@ -76,10 +76,6 @@ or
 ```
 sudo convoy create volume_name
 ```
-or
-```
-sudo convoy create volume_name --driver <driver>
-```
 * ```--size``` option is available for device mapper driver.
 
 ##### Delete a volume:
