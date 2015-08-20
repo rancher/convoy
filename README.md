@@ -129,7 +129,7 @@ sudo convoy create res1 --backup <url>
 sudo docker run -it -v res1:/res1 --volume-driver convoy ubuntu /bin/bash
 ```
 
-###### Reuse the existing volume in NFS server:
+##### Reuse the existing volume in NFS server:
 In order to reuse the existing volume in NFS server, just use the same name when you create the volume in the new node:
 E.g. on VM1, with VFS as default driver, we want to create volume ```vol1```:
 ```
