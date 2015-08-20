@@ -60,7 +60,7 @@ Download latest version of [convoy](https://github.com/rancher/convoy/releases/d
 ```
 wget https://github.com/rancher/convoy/releases/download/v0.2.1/convoy.tar.gz
 tar xvf convoy.tar.gz
-sudo cp convoy/* /usr/local/bin/
+sudo cp convoy/convoy convoy/convoy-pdata_tools /usr/local/bin/
 ```
 Run the following commands to setup the Convoy volume plugin for Docker:
 ```
@@ -77,7 +77,7 @@ Assuming you have two devices created, one data device called `/dev/convoy-vg/da
 ```
 sudo convoy daemon --drivers devicemapper --driver-opts dm.datadev=/dev/convoy-vg/data --driver-opts dm.metadatadev=/dev/convoy-vg/metadata
 ```
-Default Convoy volume size is 100G. You can override it with the `---driver-opts dm.defaultvolumesize` option.
+Default Device Mapper volume size is 100G. You can override it with the `---driver-opts dm.defaultvolumesize` option.
 
 #### NFS
 First, mount the NFS share to the root directory used to store volumes. Substitute `<vfs_path>` to the appropriate directory of your choice:
@@ -105,11 +105,11 @@ sudo docker -it test_volume:/test --volume-driver=convoy ubuntu
 
 #### Delete a Volume
 ```
-sudo docker rm -v <container_name>
+sudo convoy delete <volume_name>
 ```
 or
 ```
-sudo convoy delete <volume_name>
+sudo docker rm -v <container_name>
 ```
 * For NFS-backed volumes only: The `--reference` option instructs the `convoy delete` command to only delete the reference to the NFS-based volume from the current host and leave the underlying files on NFS server unchanged. This is useful where the same NFS-backed volume is mounted into multiple containers.
 
