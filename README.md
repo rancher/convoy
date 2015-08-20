@@ -3,7 +3,7 @@
 # Overview
 Convoy is a generic Docker volume plugin for a variety of storage back-ends. It's designed to simplify the implementation of Docker volume plug-ins while supporting vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a simple standalone binary.
 
-[![asciicast](https://asciinema.org/a/ay18fzin6hf4b1rww5460n3lj.png)](https://asciinema.org/a/ay18fzin6hf4b1rww5460n3lj?autoplay=1&loop=1&size=medium&speed=3)
+[![Convoy_DEMO](https://asciinema.org/a/9y5nbp3h97vyyxnzuax9f568e.png)](https://asciinema.org/a/9y5nbp3h97vyyxnzuax9f568e?autoplay=1&loop=1&size=medium&speed=2)
 
 # TL; DR (a.k.a Quick Hands-on)
 Check Docker version. Make sure it's 1.8+
