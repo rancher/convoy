@@ -3,6 +3,41 @@
 # Overview
 Convoy is a generic Docker volume plugin for a variety of storage back-ends. It's designed to simplify the implementation of Docker volume plug-ins while supporting vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a simple standalone binary.
 
+# TL; DR
+Check Docker version. Make sure it's 1.8+
+```
+docker --version
+```
+Otherwise you need to upgrade:
+```
+curl -sSL https://get.docker.com/ | sh
+```
+Quick development server setup(WARNING: NOT FOR PRODUCTION BECAUSE LOOPBACK IS NOT RECOMMENDED)
+```
+wget https://github.com/rancher/convoy/releases/download/v0.2-rc6/convoy.tar.gz
+tar xvf convoy.tar.gz
+sudo cp convoy/* /usr/local/bin/
+sudo mkdir -p /etc/docker/plugins/
+sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec'
+truncate -s 100G data.vol
+truncate -s 1G metadata.vol
+sudo losetup /dev/loop5 data.vol
+sudo losetup /dev/loop6 metadata.vol
+sudo convoy server --drivers devicemapper --driver-opts dm.datadev=/dev/loop5 --driver-opts dm.metadatadev=/dev/loop6
+```
+Create volume/snapshot/backup:
+```
+mkdir /opt/convoy/
+sudo docker run -v vol1:/vol1 --volume-driver=convoy ubuntu touch /vol1/foo
+sudo convoy snapshot create vol1 --name snap1vol1
+sudo convoy backup create snap1vol1 --dest vfs:///opt/convoy/
+```
+The last command returned ```<backup_url>```, then:
+```
+sudo convoy create res1 --backup <backup_url>
+sudo docker run -v res1:/res1 --volume-driver=convoy ubuntu ls /res1/foo
+```
+
 # Usage
 
 ## Requirement:
