@@ -9,6 +9,7 @@ rm -rf dist/artifacts
 mkdir -p build/${CONTENT}
 mkdir -p dist/artifacts
 
+cp /usr/local/bin/convoy-pdata_tools bin/
 cp -rf apply.sh bin build/${CONTENT}
 
 cd build

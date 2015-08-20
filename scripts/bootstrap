@@ -37,9 +37,9 @@ install_pytest()
 
 install_pdata_tools()
 {
-   wget https://github.com/rancher/thin-provisioning-tools/releases/download/rancher-v0.2/pdata_tools \
-        -O /usr/local/bin/pdata_tools
-   chmod a+x /usr/local/bin/pdata_tools
+   wget https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2.1/convoy-pdata_tools \
+        -O /usr/local/bin/convoy-pdata_tools
+   chmod a+x /usr/local/bin/convoy-pdata_tools
 }
 
 mkdir -p ./build
@@ -59,8 +59,8 @@ if [ ! $(command -v py.test) ]; then
     install_pytest
 fi
 
-if [ ! $(command -v pdata_tools) ]; then
-    echo "Installing pdata_tools..."
+if [ ! $(command -v convoy-pdata_tools) ]; then
+    echo "Installing convoy-pdata_tools..."
     install_pdata_tools
 fi
 

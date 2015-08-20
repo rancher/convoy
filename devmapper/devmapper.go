@@ -27,8 +27,8 @@ const (
 	DM_DIR                = "/dev/mapper/"
 	MOUNTS_DIR            = "mounts"
 
-	THIN_PROVISION_TOOLS_BINARY      = "pdata_tools"
-	THIN_PROVISION_TOOLS_MIN_VERSION = "0.5"
+	THIN_PROVISION_TOOLS_BINARY      = "convoy-pdata_tools"
+	THIN_PROVISION_TOOLS_MIN_VERSION = "0.5.1"
 
 	DM_DATA_DEV            = "dm.datadev"
 	DM_METADATA_DEV        = "dm.metadatadev"

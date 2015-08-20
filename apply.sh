@@ -8,6 +8,7 @@ cd $(dirname $0)
 
 mkdir -p ${CATTLE_HOME}/bin
 
-cp bin/convoy ${CATTLE_HOME}/bin
+cp bin/convoy bin/convoy-pdata_tools ${CATTLE_HOME}/bin
 
 chmod +x ${CATTLE_HOME}/bin/convoy
+chmod +x ${CATTLE_HOME}/bin/convoy-pdata_tools
