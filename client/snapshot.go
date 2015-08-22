@@ -60,7 +60,7 @@ func doSnapshotCreate(c *cli.Context) error {
 	request := &api.SnapshotCreateRequest{
 		Name:       snapshotName,
 		VolumeUUID: volumeUUID,
-		Verbose:    c.GlobalBool(VERBOSE_FLAG),
+		Verbose:    c.GlobalBool(verboseFlag),
 	}
 
 	url := "/snapshots/create"

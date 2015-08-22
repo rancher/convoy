@@ -16,24 +16,20 @@ import (
 	"time"
 )
 
-type Client struct {
+type convoyClient struct {
 	addr      string
 	scheme    string
 	transport *http.Transport
 }
 
 var (
-	log                    = logrus.WithFields(logrus.Fields{"pkg": "client"})
-	SOCKET_FLAG            = "socket"
-	SOCKET_FLAG_WITH_ALIAS = "socket, s"
-	DEBUG_FLAG             = "debug"
-	DEBUG_FLAG_WITH_ALIAS  = "debug, d"
-	VERBOSE_FLAG           = "verbose"
+	verboseFlag = "verbose"
 
-	client Client
+	log    = logrus.WithFields(logrus.Fields{"pkg": "client"})
+	client convoyClient
 )
 
-func (c *Client) call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
+func (c *convoyClient) call(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, int, error) {
 	params, err := util.EncodeData(data)
 	if err != nil {
 		return nil, -1, err
@@ -51,7 +47,7 @@ func (c *Client) call(method, path string, data interface{}, headers map[string]
 	return body, statusCode, err
 }
 
-func (c *Client) HTTPClient() *http.Client {
+func (c *convoyClient) httpClient() *http.Client {
 	return &http.Client{Transport: c.transport}
 }
 
@@ -59,7 +55,7 @@ func getRequestPath(path string) string {
 	return fmt.Sprintf("/v1%s", path)
 }
 
-func (c *Client) clientRequest(method, path string, in io.Reader, headers map[string][]string) (io.ReadCloser, string, int, error) {
+func (c *convoyClient) clientRequest(method, path string, in io.Reader, headers map[string][]string) (io.ReadCloser, string, int, error) {
 	req, err := http.NewRequest(method, getRequestPath(path), in)
 	if err != nil {
 		return nil, "", -1, err
@@ -68,7 +64,7 @@ func (c *Client) clientRequest(method, path string, in io.Reader, headers map[st
 	req.URL.Host = c.addr
 	req.URL.Scheme = c.scheme
 
-	resp, err := c.HTTPClient().Do(req)
+	resp, err := c.httpClient().Do(req)
 	statusCode := -1
 	if resp != nil {
 		statusCode = resp.StatusCode
@@ -120,6 +116,7 @@ func cmdNotFound(c *cli.Context, command string) {
 	panic(fmt.Errorf("Unrecognized command", command))
 }
 
+// NewCli would generate Convoy CLI
 func NewCli(version string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "convoy"
@@ -128,16 +125,16 @@ func NewCli(version string) *cli.App {
 	app.Usage = "A volume manager capable of snapshot and delta backup"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  SOCKET_FLAG_WITH_ALIAS,
+			Name:  "socket, s",
 			Value: "/var/run/convoy/convoy.sock",
 			Usage: "Specify unix domain socket for communication between server and client",
 		},
 		cli.BoolFlag{
-			Name:  DEBUG_FLAG_WITH_ALIAS,
+			Name:  "debug, d",
 			Usage: "Enable debug level log with client or not",
 		},
 		cli.BoolFlag{
-			Name:  VERBOSE_FLAG,
+			Name:  "verbose",
 			Usage: "Verbose level output for client, for create volume/snapshot etc",
 		},
 	}
@@ -159,12 +156,12 @@ func NewCli(version string) *cli.App {
 }
 
 func initClient(c *cli.Context) error {
-	sockFile := c.GlobalString(SOCKET_FLAG)
+	sockFile := c.GlobalString("socket")
 	if sockFile == "" {
 		return fmt.Errorf("Require unix domain socket location")
 	}
 	logrus.SetOutput(os.Stderr)
-	debug := c.GlobalBool(DEBUG_FLAG)
+	debug := c.GlobalBool("debug")
 	if debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
