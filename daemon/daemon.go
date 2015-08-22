@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"fmt"
@@ -21,14 +21,14 @@ import (
 	. "github.com/rancher/convoy/logging"
 )
 
-type Server struct {
+type daemon struct {
 	Router              *mux.Router
 	ConvoyDrivers       map[string]convoydriver.ConvoyDriver
 	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
 	UUIDIndex           *truncindex.TruncIndex
-	Config
+	daemonConfig
 }
 
 const (
@@ -46,25 +46,25 @@ var (
 	lock    string
 	logFile *os.File
 
-	log = logrus.WithFields(logrus.Fields{"pkg": "server"})
+	log = logrus.WithFields(logrus.Fields{"pkg": "daemon"})
 )
 
-type Config struct {
+type daemonConfig struct {
 	Root          string
 	DriverList    []string
 	DefaultDriver string
 }
 
-func (c *Config) ConfigFile() (string, error) {
+func (c *daemonConfig) ConfigFile() (string, error) {
 	if c.Root == "" {
-		return "", fmt.Errorf("BUG: Invalid empty server config path")
+		return "", fmt.Errorf("BUG: Invalid empty daemon config path")
 	}
 	return filepath.Join(c.Root, CONFIGFILE), nil
 }
 
-func createRouter(s *Server) *mux.Router {
+func createRouter(s *daemon) *mux.Router {
 	router := mux.NewRouter()
-	m := map[string]map[string]RequestHandler{
+	m := map[string]map[string]requestHandler{
 		"GET": {
 			"/info":            s.doInfo,
 			"/uuid":            s.doRequestUUID,
@@ -116,15 +116,15 @@ func createRouter(s *Server) *mux.Router {
 	return router
 }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *daemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	info := fmt.Sprintf("Handler not found: %v %v", r.Method, r.RequestURI)
 	log.Errorf(info)
 	w.Write([]byte(info))
 }
 
-type RequestHandler func(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error
+type requestHandler func(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error
 
-func makeHandlerFunc(method string, route string, version string, f RequestHandler) http.HandlerFunc {
+func makeHandlerFunc(method string, route string, version string, f requestHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Debugf("Calling: %v, %v, request: %v, %v", method, route, r.Method, r.RequestURI)
 
@@ -142,7 +142,7 @@ func makeHandlerFunc(method string, route string, version string, f RequestHandl
 	}
 }
 
-func (s *Server) updateIndex() error {
+func (s *daemon) updateIndex() error {
 	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
 	if err != nil {
 		return err
@@ -178,7 +178,7 @@ func (s *Server) updateIndex() error {
 	return nil
 }
 
-func serverEnvironmentSetup(c *cli.Context) error {
+func daemonEnvironmentSetup(c *cli.Context) error {
 	root := c.String("root")
 	if root == "" {
 		return fmt.Errorf("Have to specific root directory")
@@ -222,7 +222,7 @@ func environmentCleanup() {
 	}
 }
 
-func (s *Server) finializeInitialization() error {
+func (s *daemon) finializeInitialization() error {
 	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
 	s.UUIDIndex = truncindex.NewTruncIndex([]string{})
@@ -232,7 +232,7 @@ func (s *Server) finializeInitialization() error {
 	return nil
 }
 
-func (s *Server) initDrivers(driverOpts map[string]string) error {
+func (s *daemon) initDrivers(driverOpts map[string]string) error {
 	for _, driverName := range s.DriverList {
 		log.WithFields(logrus.Fields{
 			LOG_FIELD_REASON: LOG_REASON_PREPARE,
@@ -257,19 +257,20 @@ func (s *Server) initDrivers(driverOpts map[string]string) error {
 	return nil
 }
 
+// Start the daemon
 func Start(sockFile string, c *cli.Context) error {
 	var err error
 
-	if err = serverEnvironmentSetup(c); err != nil {
+	if err = daemonEnvironmentSetup(c); err != nil {
 		return err
 	}
 	defer environmentCleanup()
 
 	root := c.String("root")
-	server := &Server{
+	s := &daemon{
 		ConvoyDrivers: make(map[string]convoydriver.ConvoyDriver),
 	}
-	config := &Config{
+	config := &daemonConfig{
 		Root: root,
 	}
 	exists, err := util.ObjectExists(config)
@@ -292,19 +293,19 @@ func Start(sockFile string, c *cli.Context) error {
 		config.DriverList = driverList
 		config.DefaultDriver = driverList[0]
 	}
-	server.Config = *config
+	s.daemonConfig = *config
 
-	if err := server.initDrivers(driverOpts); err != nil {
+	if err := s.initDrivers(driverOpts); err != nil {
 		return err
 	}
-	if err := server.finializeInitialization(); err != nil {
+	if err := s.finializeInitialization(); err != nil {
 		return err
 	}
 	if err := util.ObjectSave(config); err != nil {
 		return err
 	}
 
-	server.Router = createRouter(server)
+	s.Router = createRouter(s)
 
 	if err := util.MkdirIfNotExists(filepath.Dir(sockFile)); err != nil {
 		return err
@@ -327,7 +328,7 @@ func Start(sockFile string, c *cli.Context) error {
 	}()
 
 	go func() {
-		err = http.Serve(l, server.Router)
+		err = http.Serve(l, s.Router)
 		if err != nil {
 			log.Error("http server error", err.Error())
 		}
@@ -338,7 +339,7 @@ func Start(sockFile string, c *cli.Context) error {
 	return nil
 }
 
-func (s *Server) getDriver(driverName string) (convoydriver.ConvoyDriver, error) {
+func (s *daemon) getDriver(driverName string) (convoydriver.ConvoyDriver, error) {
 	driver, exists := s.ConvoyDrivers[driverName]
 	if !exists {
 		return nil, fmt.Errorf("Cannot find driver %s", driverName)
@@ -346,7 +347,7 @@ func (s *Server) getDriver(driverName string) (convoydriver.ConvoyDriver, error)
 	return driver, nil
 }
 
-func (s *Server) getVolumeOpsForVolume(volume *Volume) (convoydriver.VolumeOperations, error) {
+func (s *daemon) getVolumeOpsForVolume(volume *Volume) (convoydriver.VolumeOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err
@@ -354,7 +355,7 @@ func (s *Server) getVolumeOpsForVolume(volume *Volume) (convoydriver.VolumeOpera
 	return driver.VolumeOps()
 }
 
-func (s *Server) getSnapshotOpsForVolume(volume *Volume) (convoydriver.SnapshotOperations, error) {
+func (s *daemon) getSnapshotOpsForVolume(volume *Volume) (convoydriver.SnapshotOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err
@@ -362,7 +363,7 @@ func (s *Server) getSnapshotOpsForVolume(volume *Volume) (convoydriver.SnapshotO
 	return driver.SnapshotOps()
 }
 
-func (s *Server) getBackupOpsForVolume(volume *Volume) (convoydriver.BackupOperations, error) {
+func (s *daemon) getBackupOpsForVolume(volume *Volume) (convoydriver.BackupOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err

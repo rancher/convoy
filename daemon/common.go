@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ func writeStringResponse(w http.ResponseWriter, s string) error {
 	return err
 }
 
-func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doInfo(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
@@ -49,7 +49,7 @@ func (s *Server) doInfo(version string, w http.ResponseWriter, r *http.Request, 
 		return err
 	}
 
-	data, err := api.ResponseOutput(&s.Config)
+	data, err := api.ResponseOutput(&s.daemonConfig)
 	if err != nil {
 		return err
 	}

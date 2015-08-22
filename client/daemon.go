@@ -3,12 +3,12 @@ package client
 import (
 	"fmt"
 	"github.com/codegangsta/cli"
-	"github.com/rancher/convoy/server"
+	"github.com/rancher/convoy/daemon"
 	"io/ioutil"
 )
 
 var (
-	serverCmd = cli.Command{
+	daemonCmd = cli.Command{
 		Name:  "daemon",
 		Usage: "start convoy daemon",
 		Flags: []cli.Flag{
@@ -41,7 +41,7 @@ var (
 				Usage: "default directory for mounting volume",
 			},
 		},
-		Action: cmdStartServer,
+		Action: cmdStartDaemon,
 	}
 
 	infoCmd = cli.Command{
@@ -72,12 +72,12 @@ func doInfo(c *cli.Context) error {
 	return nil
 }
 
-func cmdStartServer(c *cli.Context) {
-	if err := startServer(c); err != nil {
+func cmdStartDaemon(c *cli.Context) {
+	if err := startDaemon(c); err != nil {
 		panic(err)
 	}
 }
 
-func startServer(c *cli.Context) error {
-	return server.Start(client.addr, c)
+func startDaemon(c *cli.Context) error {
+	return daemon.Start(client.addr, c)
 }

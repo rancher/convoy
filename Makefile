@@ -13,12 +13,12 @@ endif
 
 $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./api/response.go ./api/const.go \
-	./server/server.go ./server/common.go ./server/volume.go \
-	./server/snapshot.go ./server/objectstore.go \
-	./server/import_objectstore.go ./server/import_devmapper.go \
-	./server/docker.go \
+	./daemon/daemon.go ./daemon/common.go ./daemon/volume.go \
+	./daemon/snapshot.go ./daemon/objectstore.go \
+	./daemon/import_objectstore.go ./daemon/import_devmapper.go \
+	./daemon/docker.go \
 	./client/volume.go ./client/snapshot.go ./client/objectstore.go \
-	./client/client.go ./client/server.go \
+	./client/client.go ./client/daemon.go \
 	./objectstore/objectstore.go ./objectstore/driver.go \
 	./objectstore/config.go \
 	./objectstore/deltablock.go ./objectstore/singlefile.go \

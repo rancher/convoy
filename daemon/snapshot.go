@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"code.google.com/p/go-uuid/uuid"
@@ -12,7 +12,7 @@ import (
 	. "github.com/rancher/convoy/logging"
 )
 
-func (s *Server) snapshotExists(volumeUUID, snapshotUUID string) bool {
+func (s *daemon) snapshotExists(volumeUUID, snapshotUUID string) bool {
 	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return false
@@ -21,7 +21,7 @@ func (s *Server) snapshotExists(volumeUUID, snapshotUUID string) bool {
 	return exists
 }
 
-func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -112,7 +112,7 @@ func (s *Server) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	return writeStringResponse(w, snapshot.UUID)
 }
 
-func (s *Server) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map[string]string, error) {
+func (s *daemon) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map[string]string, error) {
 	snapOps, err := s.getSnapshotOpsForVolume(volume)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (s *Server) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map
 	return driverInfo, nil
 }
 
-func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -187,7 +187,7 @@ func (s *Server) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	return s.saveVolume(volume)
 }
 
-func (s *Server) doSnapshotInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 

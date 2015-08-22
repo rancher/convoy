@@ -141,7 +141,7 @@ func NewCli(version string) *cli.App {
 	app.CommandNotFound = cmdNotFound
 	app.Before = initClient
 	app.Commands = []cli.Command{
-		serverCmd,
+		daemonCmd,
 		infoCmd,
 		volumeCreateCmd,
 		volumeDeleteCmd,

@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"encoding/json"
@@ -21,7 +21,7 @@ type pluginRequest struct {
 	Name string
 }
 
-func (s *Server) dockerActivate(w http.ResponseWriter, r *http.Request) {
+func (s *daemon) dockerActivate(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin activate: %v %v", r.Method, r.RequestURI)
 	info := pluginInfo{
 		Implements: []string{"VolumeDriver"},
@@ -37,7 +37,7 @@ func getDockerVolumeName(r *http.Request) (string, error) {
 	return request.Name, nil
 }
 
-func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) {
+func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) {
 	name, err := getDockerVolumeName(r)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func dockerResponse(w http.ResponseWriter, mountPoint string, err error) {
 	writeResponseOutput(w, e)
 }
 
-func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
+func (s *daemon) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -101,7 +101,7 @@ func (s *Server) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 	dockerResponse(w, "", nil)
 }
 
-func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
+func (s *daemon) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -128,7 +128,7 @@ func (s *Server) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 	dockerResponse(w, "", nil)
 }
 
-func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
+func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -151,7 +151,7 @@ func (s *Server) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 	dockerResponse(w, mountPoint, nil)
 }
 
-func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
+func (s *daemon) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -173,7 +173,7 @@ func (s *Server) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 	dockerResponse(w, "", nil)
 }
 
-func (s *Server) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
+func (s *daemon) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 

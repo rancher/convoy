@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	. "github.com/rancher/convoy/logging"
 )
 
-func (s *Server) doBackupList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
@@ -48,7 +48,7 @@ func (s *Server) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	return err
 }
 
-func (s *Server) doBackupInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doBackupInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
@@ -74,7 +74,7 @@ func (s *Server) doBackupInspect(version string, w http.ResponseWriter, r *http.
 	return err
 }
 
-func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	request := &api.BackupCreateRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -136,7 +136,7 @@ func (s *Server) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	return writeStringResponse(w, escapedURL)
 }
 
-func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -170,7 +170,7 @@ func (s *Server) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-func (s *Server) getBackupOpsForBackup(requestURL string) (convoydriver.BackupOperations, error) {
+func (s *daemon) getBackupOpsForBackup(requestURL string) (convoydriver.BackupOperations, error) {
 	objVolume, err := objectstore.LoadVolume(requestURL)
 	if err != nil {
 		return nil, err

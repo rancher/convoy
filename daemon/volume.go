@@ -1,4 +1,4 @@
-package server
+package daemon
 
 import (
 	"code.google.com/p/go-uuid/uuid"
@@ -42,7 +42,7 @@ func (v *Volume) ConfigFile() (string, error) {
 	return filepath.Join(v.configPath, VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
 }
 
-func (s *Server) loadVolume(uuid string) *Volume {
+func (s *daemon) loadVolume(uuid string) *Volume {
 	volume := &Volume{
 		UUID:       uuid,
 		configPath: s.Root,
@@ -54,17 +54,17 @@ func (s *Server) loadVolume(uuid string) *Volume {
 	return volume
 }
 
-func (s *Server) saveVolume(volume *Volume) error {
+func (s *daemon) saveVolume(volume *Volume) error {
 	volume.configPath = s.Root
 	return util.ObjectSave(volume)
 }
 
-func (s *Server) deleteVolume(volume *Volume) error {
+func (s *daemon) deleteVolume(volume *Volume) error {
 	volume.configPath = s.Root
 	return util.ObjectDelete(volume)
 }
 
-func (s *Server) loadVolumeByName(name string) *Volume {
+func (s *daemon) loadVolumeByName(name string) *Volume {
 	uuid := s.NameUUIDIndex.Get(name)
 	if uuid == "" {
 		return nil
@@ -72,7 +72,7 @@ func (s *Server) loadVolumeByName(name string) *Volume {
 	return s.loadVolume(uuid)
 }
 
-func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
+func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
 	volumeName := request.Name
 	driverName := request.DriverName
 
@@ -147,7 +147,7 @@ func (s *Server) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	return volume, nil
 }
 
-func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -183,7 +183,7 @@ func (s *Server) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	return writeStringResponse(w, volume.UUID)
 }
 
-func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -199,7 +199,7 @@ func (s *Server) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 	return s.processVolumeDelete(request)
 }
 
-func (s *Server) processVolumeDelete(request *api.VolumeDeleteRequest) error {
+func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 	uuid := request.VolumeUUID
 	volume := s.loadVolume(uuid)
 	if volume == nil {
@@ -250,7 +250,7 @@ func (s *Server) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 	return s.deleteVolume(volume)
 }
 
-func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
+func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return nil, err
@@ -293,7 +293,7 @@ func (s *Server) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	return resp, nil
 }
 
-func (s *Server) listVolume() ([]byte, error) {
+func (s *daemon) listVolume() ([]byte, error) {
 	resp := make(map[string]api.VolumeResponse)
 
 	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
@@ -316,7 +316,7 @@ func (s *Server) listVolume() ([]byte, error) {
 	return api.ResponseOutput(resp)
 }
 
-func (s *Server) getVolumeDriverInfo(volume *Volume) (map[string]string, error) {
+func (s *daemon) getVolumeDriverInfo(volume *Volume) (map[string]string, error) {
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return nil, err
@@ -329,7 +329,7 @@ func (s *Server) getVolumeDriverInfo(volume *Volume) (map[string]string, error) 
 	return driverInfo, nil
 }
 
-func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
@@ -366,7 +366,7 @@ func (s *Server) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	return err
 }
 
-func (s *Server) inspectVolume(volumeUUID string) ([]byte, error) {
+func (s *daemon) inspectVolume(volumeUUID string) ([]byte, error) {
 	volume := s.loadVolume(volumeUUID)
 	if volume == nil {
 		return nil, fmt.Errorf("Cannot find volume %v", volumeUUID)
@@ -378,7 +378,7 @@ func (s *Server) inspectVolume(volumeUUID string) ([]byte, error) {
 	return api.ResponseOutput(*resp)
 }
 
-func (s *Server) doVolumeInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doVolumeInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
@@ -400,7 +400,7 @@ func (s *Server) doVolumeInspect(version string, w http.ResponseWriter, r *http.
 	return err
 }
 
-func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -434,7 +434,7 @@ func (s *Server) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 	return writeStringResponse(w, mountPoint)
 }
 
-func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) (string, error) {
+func (s *daemon) processVolumeMount(volume *Volume, request *api.VolumeMountRequest) (string, error) {
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return "", err
@@ -464,7 +464,7 @@ func (s *Server) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 	return mountPoint, nil
 }
 
-func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	s.GlobalLock.Lock()
 	defer s.GlobalLock.Unlock()
 
@@ -485,7 +485,7 @@ func (s *Server) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 	return s.processVolumeUmount(volume)
 }
 
-func (s *Server) processVolumeUmount(volume *Volume) error {
+func (s *daemon) processVolumeUmount(volume *Volume) error {
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return err
@@ -510,7 +510,7 @@ func (s *Server) processVolumeUmount(volume *Volume) error {
 	return nil
 }
 
-func (s *Server) getVolumeMountPoint(volume *Volume) (string, error) {
+func (s *daemon) getVolumeMountPoint(volume *Volume) (string, error) {
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return "", err
@@ -537,7 +537,7 @@ func (s *Server) getVolumeMountPoint(volume *Volume) (string, error) {
 	return mountPoint, nil
 }
 
-func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+func (s *daemon) doRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
 	var err error
 	key, err := util.GetName(r, api.KEY_NAME, true, err)
 	if err != nil {
@@ -563,7 +563,7 @@ func (s *Server) doRequestUUID(version string, w http.ResponseWriter, r *http.Re
 	return writeResponseOutput(w, resp)
 }
 
-func (s *Server) getVolumeSize(volumeUUID string) (int64, error) {
+func (s *daemon) getVolumeSize(volumeUUID string) (int64, error) {
 	volume := s.loadVolume(volumeUUID)
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
