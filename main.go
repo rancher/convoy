@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// version of Convoy
 	VERSION = "0.2.1"
 )
 

@@ -8,29 +8,29 @@ import (
 	"net/http"
 )
 
-type PluginInfo struct {
+type pluginInfo struct {
 	Implements []string
 }
 
-type PluginResponse struct {
+type pluginResponse struct {
 	Mountpoint string `json:",omitempty"`
 	Err        string `json:",omitempty"`
 }
 
-type PluginRequest struct {
+type pluginRequest struct {
 	Name string
 }
 
 func (s *Server) dockerActivate(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin activate: %v %v", r.Method, r.RequestURI)
-	info := PluginInfo{
+	info := pluginInfo{
 		Implements: []string{"VolumeDriver"},
 	}
 	writeResponseOutput(w, info)
 }
 
 func getDockerVolumeName(r *http.Request) (string, error) {
-	request := &PluginRequest{}
+	request := &pluginRequest{}
 	if err := json.NewDecoder(r.Body).Decode(request); err != nil {
 		return "", err
 	}
@@ -75,7 +75,7 @@ func (s *Server) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 }
 
 func dockerResponse(w http.ResponseWriter, mountPoint string, err error) {
-	e := PluginResponse{
+	e := pluginResponse{
 		Mountpoint: mountPoint,
 	}
 	if err != nil {

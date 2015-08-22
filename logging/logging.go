@@ -68,15 +68,17 @@ const (
 	LOG_OBJECT_CONFIG     = "config"
 )
 
-type LoggingError struct {
+// Error is a wrapper for a go error contains more details
+type Error struct {
 	entry *logrus.Entry
 	error
 }
 
-func ErrorWithFields(pkg string, fields logrus.Fields, format string, v ...interface{}) LoggingError {
+// ErrorWithFields is a helper for searchable error fields output
+func ErrorWithFields(pkg string, fields logrus.Fields, format string, v ...interface{}) Error {
 	fields["pkg"] = pkg
 	entry := logrus.WithFields(fields)
 	entry.Message = fmt.Sprintf(format, v...)
 
-	return LoggingError{entry, fmt.Errorf(format, v...)}
+	return Error{entry, fmt.Errorf(format, v...)}
 }
