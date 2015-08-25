@@ -124,10 +124,13 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		return "", err
 	}
 	defer deltaOps.CloseSnapshot(snapshot.UUID, volume.UUID)
-	for _, d := range delta.Mappings {
+	mCounts := len(delta.Mappings)
+	for m, d := range delta.Mappings {
 		block := make([]byte, DEFAULT_BLOCK_SIZE)
-		for i := int64(0); i < d.Size/delta.BlockSize; i++ {
+		blkCounts := d.Size / delta.BlockSize
+		for i := int64(0); i < blkCounts; i++ {
 			offset := d.Offset + i*delta.BlockSize
+			log.Debugf("Backup for %v: segment %v/%v, blocks %v/%v", snapshot.UUID, m+1, mCounts, i+1, blkCounts)
 			err := deltaOps.ReadSnapshot(snapshot.UUID, volume.UUID, offset, block)
 			if err != nil {
 				return "", err
