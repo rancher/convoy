@@ -22,7 +22,7 @@ sudo cp convoy/convoy convoy/convoy-pdata_tools /usr/local/bin/
 sudo mkdir -p /etc/docker/plugins/
 sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec'
 ```
-We can use file-backed lookback device to test and demo Convoy driver. Lookback device, however, is known to be unstable and should not be used in production.
+We can use file-backed lookback device to test and demo Convoy driver. Loopback device, however, is known to be unstable and should not be used in production.
 ```
 truncate -s 100G data.vol
 truncate -s 1G metadata.vol
