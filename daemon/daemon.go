@@ -202,7 +202,7 @@ func daemonEnvironmentSetup(c *cli.Context) error {
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 		logrus.SetOutput(logFile)
 	} else {
-		logrus.SetOutput(os.Stderr)
+		logrus.SetOutput(os.Stdout)
 	}
 
 	return nil

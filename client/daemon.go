@@ -18,7 +18,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  "log",
-				Usage: "specific output log file, otherwise output to stderr by default",
+				Usage: "specific output log file, otherwise output to stdout by default",
 			},
 			cli.StringFlag{
 				Name:  "root",
