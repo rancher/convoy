@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net/http"
 
@@ -216,16 +215,11 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	if err != nil {
 		return err
 	}
-	size, err := util.ParseSize(driverInfo[convoydriver.OPT_SIZE])
-	if err != nil {
-		return err
-	}
 
 	resp := api.SnapshotResponse{
 		UUID:            snapshotUUID,
 		VolumeUUID:      volume.UUID,
 		VolumeName:      volume.Name,
-		Size:            size,
 		VolumeCreatedAt: volume.CreatedTime,
 		Name:            volume.Snapshots[snapshotUUID].Name,
 		CreatedTime:     volume.Snapshots[snapshotUUID].CreatedTime,

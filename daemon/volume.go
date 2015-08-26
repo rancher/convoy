@@ -165,16 +165,11 @@ func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return err
 	}
-	size, err := util.ParseSize(driverInfo[convoydriver.OPT_SIZE])
-	if err != nil {
-		return err
-	}
 	if request.Verbose {
 		return writeResponseOutput(w, api.VolumeResponse{
 			UUID:        volume.UUID,
 			Name:        volume.Name,
 			Driver:      volume.DriverName,
-			Size:        size,
 			CreatedTime: volume.CreatedTime,
 			DriverInfo:  driverInfo,
 			Snapshots:   map[string]api.SnapshotResponse{},
@@ -264,15 +259,10 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	size, err := util.ParseSize(driverInfo[convoydriver.OPT_SIZE])
-	if err != nil {
-		return nil, err
-	}
 	resp := &api.VolumeResponse{
 		UUID:        volume.UUID,
 		Name:        volume.Name,
 		Driver:      volume.DriverName,
-		Size:        size,
 		MountPoint:  mountPoint,
 		CreatedTime: volume.CreatedTime,
 		DriverInfo:  driverInfo,
@@ -561,17 +551,4 @@ func (s *daemon) doRequestUUID(version string, w http.ResponseWriter, r *http.Re
 		resp.UUID = uuid
 	}
 	return writeResponseOutput(w, resp)
-}
-
-func (s *daemon) getVolumeSize(volumeUUID string) (int64, error) {
-	volume := s.loadVolume(volumeUUID)
-	volOps, err := s.getVolumeOpsForVolume(volume)
-	if err != nil {
-		return 0, err
-	}
-	infos, err := volOps.GetVolumeInfo(volumeUUID)
-	if err != nil {
-		return 0, err
-	}
-	return util.ParseSize(infos[convoydriver.OPT_SIZE])
 }

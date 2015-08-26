@@ -348,18 +348,18 @@ def volume_list_driver_test(drv, check_size = True):
     volume = v.inspect_volume(uuid1)
     assert volume["UUID"] == uuid1
     if check_size:
-	assert volume["Size"] == int(DEFAULT_VOLUME_SIZE)
+	assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
     volume = v.inspect_volume(uuid2)
     assert volume["UUID"] == uuid2
     if check_size:
-	assert volume["Size"] == int(DEFAULT_VOLUME_SIZE)
+	assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
 
     if check_size:
         volumes = v.list_volumes()
-        assert volumes[uuid1]["Size"] == int(DEFAULT_VOLUME_SIZE)
-        assert volumes[uuid2]["Size"] == int(DEFAULT_VOLUME_SIZE)
-        assert volumes[uuid3]["Size"] == int(VOLUME_SIZE_500M_Bytes)
-        assert volumes[uuid4]["Size"] == int(VOLUME_SIZE_100M)
+        assert volumes[uuid1]["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
+        assert volumes[uuid2]["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
+        assert volumes[uuid3]["DriverInfo"]["Size"] == VOLUME_SIZE_500M_Bytes
+        assert volumes[uuid4]["DriverInfo"]["Size"] == VOLUME_SIZE_100M
 
 	delete_volume(uuid4)
 	delete_volume(uuid3)
@@ -440,7 +440,7 @@ def snapshot_list_test(driver, check_size = True):
     assert snapshot["VolumeUUID"] == volume1_uuid
     assert snapshot["VolumeName"] == "volume1"
     if check_size:
-        assert str(snapshot["Size"]) == VOLUME_SIZE_100M
+        assert str(snapshot["DriverInfo"]["Size"]) == VOLUME_SIZE_100M
     assert snapshot["Name"] == "snap0_vol1"
 
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
@@ -627,7 +627,8 @@ def process_objectstore_test(dest, driver):
     assert backup["DriverName"] == driver
     assert backup["VolumeUUID"] == volume1["UUID"]
     assert backup["VolumeName"] == volume1["Name"]
-    assert backup["VolumeSize"] == str(volume1["Size"])
+    if "Size" in volume1["DriverInfo"]:
+        assert backup["VolumeSize"] == volume1["DriverInfo"]["Size"]
     assert backup["VolumeCreatedAt"] == volume1["CreatedTime"]
     assert backup["SnapshotUUID"] == snap1_vol1["UUID"]
     assert backup["SnapshotName"] == snap1_vol1["Name"]
@@ -638,7 +639,8 @@ def process_objectstore_test(dest, driver):
     assert backup["DriverName"] == driver
     assert backup["VolumeUUID"] == volume1["UUID"]
     assert backup["VolumeName"] == volume1["Name"]
-    assert backup["VolumeSize"] == str(volume1["Size"])
+    if "Size" in volume1["DriverInfo"]:
+        assert backup["VolumeSize"] == volume1["DriverInfo"]["Size"]
     assert backup["VolumeCreatedAt"] == volume1["CreatedTime"]
     assert backup["SnapshotUUID"] == snap1_vol1["UUID"]
     assert backup["SnapshotName"] == snap1_vol1["Name"]
