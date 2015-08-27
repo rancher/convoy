@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"io"
 )
@@ -15,7 +14,7 @@ type S3Service struct {
 }
 
 func (s *S3Service) New() (*s3.S3, error) {
-	return s3.New(&aws.Config{Region: s.Region}), nil
+	return s3.New(&aws.Config{Region: &s.Region}), nil
 }
 
 func (s *S3Service) Close() {
@@ -48,7 +47,7 @@ func (s *S3Service) ListObjects(key, delimiter string) ([]*s3.Object, []*s3.Comm
 	}
 	resp, err := svc.ListObjects(params)
 	if err != nil {
-		return nil, nil, parseAwsError(awsutil.StringValue(resp), err)
+		return nil, nil, parseAwsError(resp.String(), err)
 	}
 	return resp.Contents, resp.CommonPrefixes, nil
 }
@@ -68,7 +67,7 @@ func (s *S3Service) PutObject(key string, reader io.ReadSeeker) error {
 
 	resp, err := svc.PutObject(params)
 	if err != nil {
-		return parseAwsError(awsutil.StringValue(resp), err)
+		return parseAwsError(resp.String(), err)
 	}
 	return nil
 }
@@ -87,7 +86,7 @@ func (s *S3Service) GetObject(key string) (io.ReadCloser, error) {
 
 	resp, err := svc.GetObject(params)
 	if err != nil {
-		return nil, parseAwsError(awsutil.StringValue(resp), err)
+		return nil, parseAwsError(resp.String(), err)
 	}
 
 	return resp.Body, nil
@@ -123,17 +122,18 @@ func (s *S3Service) DeleteObjects(keys []string) error {
 			Key: aws.String(k),
 		}
 	}
+	quiet := true
 	params := &s3.DeleteObjectsInput{
 		Bucket: aws.String(s.Bucket),
 		Delete: &s3.Delete{
 			Objects: identifiers,
-			Quiet:   aws.Boolean(true),
+			Quiet:   &quiet,
 		},
 	}
 
 	resp, err := svc.DeleteObjects(params)
 	if err != nil {
-		return parseAwsError(awsutil.StringValue(resp), err)
+		return parseAwsError(resp.String(), err)
 	}
 	return nil
 }
