@@ -7,16 +7,23 @@ import (
 )
 
 /*
-InitFunc is the initialize function for each ConvoyDriver. Each driver must implement this function and register itself through Register().
+InitFunc is the initialize function for each ConvoyDriver. Each driver must
+implement this function and register itself through Register().
 
-The registered function would be called upon Convoy need a ConvoyDriver instance, and it would return a valid ConvoyDriver for operation.
+The registered function would be called upon Convoy need a ConvoyDriver
+instance, and it would return a valid ConvoyDriver for operation.
 
-The registered function would take a "root" path, used as driver's configuration file path, and a map of configuration specified for the driver.
+The registered function would take a "root" path, used as driver's configuration
+file path, and a map of configuration specified for the driver.
 */
 type InitFunc func(root string, config map[string]string) (ConvoyDriver, error)
 
 /*
-ConvoyDriver interface would provide all the functionality needed for driver specific handling. Driver can choose to implement some or all of the available operations interfaces to provide different functionality to Convoy user. xxxOps() should return error if the functionality is not implemented by the driver.
+ConvoyDriver interface would provide all the functionality needed for driver
+specific handling. Driver can choose to implement some or all of the available
+operations interfaces to provide different functionality to Convoy user.
+xxxOps() should return error if the functionality is not implemented by the
+driver.
 */
 type ConvoyDriver interface {
 	Name() string
@@ -28,7 +35,8 @@ type ConvoyDriver interface {
 }
 
 /*
-VolumeOperations is Convoy Driver volume related operations interface. Any Convoy Driver must implement this interface.
+VolumeOperations is Convoy Driver volume related operations interface. Any
+Convoy Driver must implement this interface.
 */
 type VolumeOperations interface {
 	Name() string
@@ -42,7 +50,8 @@ type VolumeOperations interface {
 }
 
 /*
-SnapshotOperations is Convoy Driver snapshot related operations interface. Any Convoy Driver want to operate snapshots must implement this interface.
+SnapshotOperations is Convoy Driver snapshot related operations interface. Any
+Convoy Driver want to operate snapshots must implement this interface.
 */
 type SnapshotOperations interface {
 	Name() string
@@ -53,7 +62,10 @@ type SnapshotOperations interface {
 }
 
 /*
-BackupOperations is Convoy Driver backup related operations interface. Any Convoy Driver want to provide backup functionality must implement this interface. Restore would need to be implemented in VolumeOperations.CreateVolume() with opts[OPT_BACKUP_URL]
+BackupOperations is Convoy Driver backup related operations interface. Any
+Convoy Driver want to provide backup functionality must implement this
+interface. Restore would need to be implemented in
+VolumeOperations.CreateVolume() with opts[OPT_BACKUP_URL]
 */
 type BackupOperations interface {
 	Name() string
