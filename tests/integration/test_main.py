@@ -603,6 +603,9 @@ def s3_objectstore_test(driver):
     process_objectstore_test(get_s3_dest(), driver)
     process_objectstore_test(get_s3_dest(S3_PATH), driver)
 
+def unescape_url(url):
+    return url.replace("\\u0026", "&").replace("u0026","&")
+
 def process_objectstore_test(dest, driver):
     #make sure objectstore is empty
     backups = v.list_backup(dest)
@@ -623,7 +626,7 @@ def process_objectstore_test(dest, driver):
 
     backups = v.list_backup(dest, volume1_uuid)
     assert len(backups) == 1
-    backup = backups[snap1_vol1_bak]
+    backup = backups[unescape_url(snap1_vol1_bak)]
     assert backup["DriverName"] == driver
     assert backup["VolumeUUID"] == volume1["UUID"]
     assert backup["VolumeName"] == volume1["Name"]
@@ -670,32 +673,32 @@ def process_objectstore_test(dest, driver):
     #list snapshots again
     backups = v.list_backup(dest)
     assert len(backups) == 4
-    assert backups[snap1_vol1_bak]["DriverName"] == driver
-    assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
-    assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
-    assert backups[snap2_vol1_bak]["DriverName"] == driver
-    assert backups[snap2_vol1_bak]["VolumeUUID"] == volume1_uuid
-    assert backups[snap2_vol1_bak]["SnapshotUUID"] == snap2_vol1_uuid
-    assert backups[snap1_vol2_bak]["DriverName"] == driver
-    assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
-    assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
-    assert backups[snap2_vol2_bak]["DriverName"] == driver
-    assert backups[snap2_vol2_bak]["VolumeUUID"] == volume2_uuid
-    assert backups[snap2_vol2_bak]["SnapshotUUID"] == snap2_vol2_uuid
+    assert backups[unescape_url(snap1_vol1_bak)]["DriverName"] == driver
+    assert backups[unescape_url(snap1_vol1_bak)]["VolumeUUID"] == volume1_uuid
+    assert backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[unescape_url(snap2_vol1_bak)]["DriverName"] == driver
+    assert backups[unescape_url(snap2_vol1_bak)]["VolumeUUID"] == volume1_uuid
+    assert backups[unescape_url(snap2_vol1_bak)]["SnapshotUUID"] == snap2_vol1_uuid
+    assert backups[unescape_url(snap1_vol2_bak)]["DriverName"] == driver
+    assert backups[unescape_url(snap1_vol2_bak)]["VolumeUUID"] == volume2_uuid
+    assert backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] == snap1_vol2_uuid
+    assert backups[unescape_url(snap2_vol2_bak)]["DriverName"] == driver
+    assert backups[unescape_url(snap2_vol2_bak)]["VolumeUUID"] == volume2_uuid
+    assert backups[unescape_url(snap2_vol2_bak)]["SnapshotUUID"] == snap2_vol2_uuid
 
     backups = v.list_backup(dest, volume1_uuid)
     assert len(backups) == 2
-    assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
-    assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
-    assert backups[snap2_vol1_bak]["VolumeUUID"] == volume1_uuid
-    assert backups[snap2_vol1_bak]["SnapshotUUID"] == snap2_vol1_uuid
+    assert backups[unescape_url(snap1_vol1_bak)]["VolumeUUID"] == volume1_uuid
+    assert backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[unescape_url(snap2_vol1_bak)]["VolumeUUID"] == volume1_uuid
+    assert backups[unescape_url(snap2_vol1_bak)]["SnapshotUUID"] == snap2_vol1_uuid
 
     backups = v.list_backup(dest, volume2_uuid)
     assert len(backups) == 2
-    assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
-    assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
-    assert backups[snap2_vol2_bak]["VolumeUUID"] == volume2_uuid
-    assert backups[snap2_vol2_bak]["SnapshotUUID"] == snap2_vol2_uuid
+    assert backups[unescape_url(snap1_vol2_bak)]["VolumeUUID"] == volume2_uuid
+    assert backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] == snap1_vol2_uuid
+    assert backups[unescape_url(snap2_vol2_bak)]["VolumeUUID"] == volume2_uuid
+    assert backups[unescape_url(snap2_vol2_bak)]["SnapshotUUID"] == snap2_vol2_uuid
 
     #restore snapshot
     res_volume1_uuid = create_volume(name = "res-vol1", backup = snap2_vol1_bak,
@@ -712,16 +715,16 @@ def process_objectstore_test(dest, driver):
     #list snapshots again
     backups = v.list_backup(dest)
     assert len(backups) == 2
-    assert backups[snap1_vol1_bak]["DriverName"] == driver
-    assert backups[snap1_vol1_bak]["VolumeUUID"] == volume1_uuid
-    assert backups[snap1_vol1_bak]["SnapshotUUID"] == snap1_vol1_uuid
-    assert backups[snap1_vol2_bak]["DriverName"] == driver
-    assert backups[snap1_vol2_bak]["VolumeUUID"] == volume2_uuid
-    assert backups[snap1_vol2_bak]["SnapshotUUID"] == snap1_vol2_uuid
+    assert backups[unescape_url(snap1_vol1_bak)]["DriverName"] == driver
+    assert backups[unescape_url(snap1_vol1_bak)]["VolumeUUID"] == volume1_uuid
+    assert backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] == snap1_vol1_uuid
+    assert backups[unescape_url(snap1_vol2_bak)]["DriverName"] == driver
+    assert backups[unescape_url(snap1_vol2_bak)]["VolumeUUID"] == volume2_uuid
+    assert backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] == snap1_vol2_uuid
 
     backups = v.list_backup(dest, volume1_uuid)
     assert len(backups) == 1
-    backup = backups[snap1_vol1_bak]
+    backup = backups[unescape_url(snap1_vol1_bak)]
     assert backup["DriverName"] == driver
     assert backup["VolumeUUID"] == volume1_uuid
     assert backup["SnapshotUUID"] == snap1_vol1_uuid
@@ -733,7 +736,7 @@ def process_objectstore_test(dest, driver):
 
     backups = v.list_backup(dest, volume2_uuid)
     assert len(backups) == 1
-    backup = backups[snap1_vol2_bak]
+    backup = backups[unescape_url(snap1_vol2_bak)]
     assert backup["DriverName"] == driver
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid

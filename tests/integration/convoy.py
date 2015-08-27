@@ -28,7 +28,7 @@ class VolumeManager:
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
     def create_volume(self, size = "", name = "", backup = "", driver = ""):
-        cmd = ["--verbose", "create"]
+        cmd = ["create"]
         if name != "":
             cmd = cmd + [name]
         if size != "":
@@ -38,10 +38,7 @@ class VolumeManager:
         if driver != "":
             cmd = cmd + ["--driver", driver]
         data = subprocess.check_output(self.base_cmdline + cmd)
-        volume = json.loads(data)
-        if name != "":
-            assert volume["Name"] == name
-        return volume["UUID"]
+        return data.strip()
 
     def delete_volume(self, volume, ref_only = False):
         cmdline = self.base_cmdline + ["delete", volume]
@@ -60,11 +57,10 @@ class VolumeManager:
         return volume_mount_dir
 
     def mount_volume(self, volume):
-        cmdline = self.base_cmdline + ["--verbose", "mount", volume]
+        cmdline = self.base_cmdline + ["mount", volume]
 
 	data = subprocess.check_output(cmdline)
-        volume = json.loads(data)
-        return volume["MountPoint"]
+        return data.strip()
 
     def umount_volume(self, volume):
         subprocess.check_call(self.base_cmdline + ["umount", volume])
@@ -81,12 +77,11 @@ class VolumeManager:
         return json.loads(data)
 
     def create_snapshot(self, volume, name = ""):
-        cmd = ["--verbose", "snapshot", "create", volume]
+        cmd = ["snapshot", "create", volume]
         if name != "":
                 cmd += ["--name", name]
         data = subprocess.check_output(self.base_cmdline + cmd)
-        snapshot = json.loads(data)
-        return snapshot["UUID"]
+        return data.strip()
 
     def delete_snapshot(self, snapshot):
         subprocess.check_call(self.base_cmdline + ["snapshot", "delete",
@@ -99,11 +94,10 @@ class VolumeManager:
         return snapshot
 
     def create_backup(self, snapshot, dest):
-        data = subprocess.check_output(self.base_cmdline + ["--verbose",
+        data = subprocess.check_output(self.base_cmdline + [
             "backup", "create", snapshot,
 	    "--dest", dest])
-        backup = json.loads(data)
-        return backup["URL"]
+        return data.strip()
 
     def delete_backup(self, backup):
 	subprocess.check_call(self.base_cmdline + ["backup", "delete", backup])
