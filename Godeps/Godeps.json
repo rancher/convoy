@@ -12,63 +12,63 @@
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.6.4-6-g539d4dc",
-			"Rev": "539d4dc034c079a7188b5d4ca9650632d73c66e8"
+			"Comment": "v0.8.2-2-g6ba91e2",
+			"Rev": "6ba91e24c498b49d0363c723e9e2ab2b5b8fd012"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/aws",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/endpoints",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/query",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/rest",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/restxml",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/xml/xmlutil",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/signer/v4",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/s3",
-			"Comment": "v0.6.5",
-			"Rev": "8b15d2217025f7d51ae34b88497232d3b6cfca81"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "1.2.0-98-g30b361b",
-			"Rev": "30b361bf66a60174a9589458afbf494478bafd00"
+			"Comment": "1.2.0-139-g142e6cd",
+			"Rev": "142e6cd241a4dfbf7f07a018f1f8225180018da4"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
-			"Comment": "v1.4.1-4172-g8861d65",
-			"Rev": "8861d65e97413a5824a163a176f9a0aaebb74619"
+			"Comment": "v1.4.1-5826-gea65c38",
+			"Rev": "ea65c38ac0972709cdb371ce6b1886eb252a126e"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/truncindex",
-			"Comment": "v1.4.1-4172-g8861d65",
-			"Rev": "8861d65e97413a5824a163a176f9a0aaebb74619"
+			"Comment": "v1.4.1-5826-gea65c38",
+			"Rev": "ea65c38ac0972709cdb371ce6b1886eb252a126e"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
@@ -93,7 +93,7 @@
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "bfff0ae28b4728bd08d00d0fee164ff85a8c3275"
+			"Rev": "0879c8a4d6aac6173053a1349f0aa915081c44da"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",

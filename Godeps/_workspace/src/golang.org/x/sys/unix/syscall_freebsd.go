@@ -379,8 +379,8 @@ func Llistxattr(link string, dest []byte) (sz int, err error) {
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
 //sys	Close(fd int) (err error)
-//sysnb	Dup(fd int) (nfd int, err error)
-//sysnb	Dup2(from int, to int) (err error)
+//sys	Dup(fd int) (nfd int, err error)
+//sys	Dup2(from int, to int) (err error)
 //sys	Exit(code int)
 //sys	ExtattrGetFd(fd int, attrnamespace int, attrname string, data uintptr, nbytes int) (ret int, err error)
 //sys	ExtattrSetFd(fd int, attrnamespace int, attrname string, data uintptr, nbytes int) (ret int, err error)
@@ -394,6 +394,7 @@ func Llistxattr(link string, dest []byte) (sz int, err error) {
 //sys	ExtattrSetLink(link string, attrnamespace int, attrname string, data uintptr, nbytes int) (ret int, err error)
 //sys	ExtattrDeleteLink(link string, attrnamespace int, attrname string) (err error)
 //sys	ExtattrListLink(link string, attrnamespace int, data uintptr, nbytes int) (ret int, err error)
+//sys	Fadvise(fd int, offset int64, length int64, advice int) (err error) = SYS_POSIX_FADVISE
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
