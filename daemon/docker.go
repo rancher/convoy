@@ -19,6 +19,7 @@ type pluginResponse struct {
 
 type pluginRequest struct {
 	Name string
+	Opts map[string]string
 }
 
 func (s *daemon) dockerActivate(w http.ResponseWriter, r *http.Request) {
@@ -30,19 +31,29 @@ func (s *daemon) dockerActivate(w http.ResponseWriter, r *http.Request) {
 }
 
 func getDockerVolumeName(r *http.Request) (string, error) {
-	request := &pluginRequest{}
-	if err := json.NewDecoder(r.Body).Decode(request); err != nil {
+	request, err := getDockerVolumeRequest(r)
+	if err != nil {
 		return "", err
 	}
 	return request.Name, nil
 }
 
+func getDockerVolumeRequest(r *http.Request) (*pluginRequest, error) {
+	request := &pluginRequest{}
+	if err := json.NewDecoder(r.Body).Decode(request); err != nil {
+		return nil, err
+	}
+	log.Debugf("Request from docker: %v", request)
+	return request, nil
+}
+
 func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) {
-	name, err := getDockerVolumeName(r)
+	request, err := getDockerVolumeRequest(r)
 	if err != nil {
 		return nil, err
 	}
 
+	name := request.Name
 	var (
 		volume     *Volume
 		volumeName string
@@ -59,8 +70,15 @@ func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 		if create {
 			log.Debugf("Create a new volume %v for docker", name)
 
+			size, err := util.ParseSize(request.Opts["size"])
+			if err != nil {
+				return nil, err
+			}
 			request := &api.VolumeCreateRequest{
-				Name: volumeName,
+				Name:       volumeName,
+				DriverName: request.Opts["driver"],
+				Size:       size,
+				BackupURL:  request.Opts["backup"],
 			}
 			volume, err = s.processVolumeCreate(request)
 			if err != nil {

@@ -372,8 +372,12 @@ func GetLowerCaseFlag(v interface{}, key string, required bool, err error) (stri
 	if required && result == "" {
 		err = RequiredMissingError(key)
 	}
-	// Deal with escape in url inputed from bash
-	result = strings.Replace(result, "\\u0026", "&", 1)
-	result = strings.Replace(result, "u0026", "&", 1)
 	return result, err
+}
+
+func UnescapeURL(url string) string {
+	// Deal with escape in url inputed from bash
+	result := strings.Replace(url, "\\u0026", "&", 1)
+	result = strings.Replace(result, "u0026", "&", 1)
+	return result
 }

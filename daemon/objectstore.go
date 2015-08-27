@@ -6,6 +6,7 @@ import (
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/objectstore"
+	"github.com/rancher/convoy/util"
 	"net/http"
 	"strings"
 
@@ -20,6 +21,7 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
+	request.URL = util.UnescapeURL(request.URL)
 
 	opts := map[string]string{
 		convoydriver.OPT_VOLUME_UUID: request.VolumeUUID,
@@ -56,6 +58,7 @@ func (s *daemon) doBackupInspect(version string, w http.ResponseWriter, r *http.
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
+	request.URL = util.UnescapeURL(request.URL)
 	backupOps, err := s.getBackupOpsForBackup(request.URL)
 	if err != nil {
 		return err
@@ -79,6 +82,8 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
+	request.URL = util.UnescapeURL(request.URL)
+
 	snapshotUUID := request.SnapshotUUID
 	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
 	if volumeUUID == "" {
@@ -144,6 +149,7 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
+	request.URL = util.UnescapeURL(request.URL)
 
 	backupOps, err := s.getBackupOpsForBackup(request.URL)
 	if err != nil {

@@ -104,7 +104,7 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 
 	opts := map[string]string{
 		convoydriver.OPT_SIZE:        strconv.FormatInt(request.Size, 10),
-		convoydriver.OPT_BACKUP_URL:  request.BackupURL,
+		convoydriver.OPT_BACKUP_URL:  util.UnescapeURL(request.BackupURL),
 		convoydriver.OPT_VOLUME_NAME: request.Name,
 	}
 	log.WithFields(logrus.Fields{
