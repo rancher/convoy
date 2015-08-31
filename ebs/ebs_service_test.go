@@ -22,6 +22,13 @@ func (s *TestSuite) SetUpSuite(c *C) {
 	logrus.SetOutput(os.Stderr)
 }
 
+func (s *TestSuite) TestBlkDevList(c *C) {
+	devList, err := getBlkDevList()
+	c.Assert(err, IsNil)
+	c.Assert(len(devList), Not(Equals), 0)
+	c.Assert(devList["loop0"], Equals, true)
+}
+
 func (s *TestSuite) TestEC2Metadata(c *C) {
 	var err error
 
@@ -56,7 +63,7 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(volumeID1, Not(Equals), "")
 
 	logrus.Debug("Attaching volume1")
-	dev1, err := svc.AttachVolume(volumeID1, "/dev/sdf")
+	dev1, err := svc.AttachVolume(volumeID1, "/dev/sdf", GB)
 	c.Assert(err, IsNil)
 	c.Assert(dev1, Not(Equals), "")
 	logrus.Debug("Attached volume1 at ", dev1)
@@ -77,7 +84,7 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 
 	logrus.Debug("Attaching volume2")
-	dev2, err := svc.AttachVolume(volumeID2, "/dev/sdg")
+	dev2, err := svc.AttachVolume(volumeID2, "/dev/sdg", 2*GB)
 	c.Assert(err, IsNil)
 	c.Assert(dev2, Not(Equals), "")
 	logrus.Debug("Attached volume2 at ", dev2)

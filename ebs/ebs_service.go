@@ -7,6 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"io/ioutil"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -174,7 +177,53 @@ func (s *ebsService) waitForVolumeAttaching(a *ec2.VolumeAttachment) (*ec2.Volum
 	return attachment, nil
 }
 
-func (s *ebsService) AttachVolume(volumeID, dev string) (string, error) {
+func getBlkDevList() (map[string]bool, error) {
+	devList := make(map[string]bool)
+	dirList, err := ioutil.ReadDir("/sys/block")
+	if err != nil {
+		return nil, err
+	}
+	for _, dir := range dirList {
+		devList[dir.Name()] = true
+	}
+	return devList, nil
+}
+
+func getAttachedDev(oldDevList map[string]bool, size int64) (string, error) {
+	newDevList, err := getBlkDevList()
+	attachedDev := ""
+	if err != nil {
+		return "", err
+	}
+	log.Debug(newDevList, oldDevList)
+	for dev := range newDevList {
+		if oldDevList[dev] {
+			continue
+		}
+		devSizeInSectorStr, err := ioutil.ReadFile("/sys/block/" + dev + "/size")
+		if err != nil {
+			return "", err
+		}
+		devSize, err := strconv.ParseInt(strings.TrimSpace(string(devSizeInSectorStr)), 10, 64)
+		if err != nil {
+			return "", err
+		}
+		devSize *= 512
+		if devSize == size {
+			if attachedDev != "" {
+				return "", fmt.Errorf("Found more than one device matching description, %v and %v",
+					attachedDev, dev)
+			}
+			attachedDev = dev
+		}
+	}
+	if attachedDev == "" {
+		return "", fmt.Errorf("Cannot find a device matching description")
+	}
+	return attachedDev, nil
+}
+
+func (s *ebsService) AttachVolume(volumeID, dev string, size int64) (string, error) {
 	instanceID, err := s.GetInstanceID()
 	if err != nil {
 		return "", err
@@ -184,6 +233,11 @@ func (s *ebsService) AttachVolume(volumeID, dev string) (string, error) {
 		Device:     aws.String(dev),
 		InstanceId: aws.String(instanceID),
 		VolumeId:   aws.String(volumeID),
+	}
+
+	blkList, err := getBlkDevList()
+	if err != nil {
+		return "", err
 	}
 
 	resp, err := s.ec2Client.AttachVolume(params)
@@ -198,7 +252,12 @@ func (s *ebsService) AttachVolume(volumeID, dev string) (string, error) {
 	if *resp.State != ec2.VolumeAttachmentStateAttached {
 		return "", fmt.Errorf("Cannot attach volume, final state %v", *resp.State)
 	}
-	return *resp.Device, nil
+
+	result, err := getAttachedDev(blkList, size)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
 }
 
 func (s *ebsService) waitForVolumeDetaching(a *ec2.VolumeAttachment) error {
