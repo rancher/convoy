@@ -195,7 +195,6 @@ func getAttachedDev(oldDevList map[string]bool, size int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Debug(newDevList, oldDevList)
 	for dev := range newDevList {
 		if oldDevList[dev] {
 			continue
@@ -223,7 +222,36 @@ func getAttachedDev(oldDevList map[string]bool, size int64) (string, error) {
 	return attachedDev, nil
 }
 
-func (s *ebsService) AttachVolume(volumeID, dev string, size int64) (string, error) {
+func (s *ebsService) getInstanceDevList() (map[string]bool, error) {
+	instanceID, err := s.GetInstanceID()
+	if err != nil {
+		return nil, err
+	}
+	params := &ec2.DescribeVolumesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("attachment.instance-id"),
+				Values: []*string{
+					aws.String(instanceID),
+				},
+			},
+		},
+	}
+	volumes, err := s.ec2Client.DescribeVolumes(params)
+	if err != nil {
+		return nil, parseAwsError(err)
+	}
+	devMap := make(map[string]bool)
+	for _, volume := range volumes.Volumes {
+		if len(volume.Attachments) == 0 {
+			continue
+		}
+		devMap[*volume.Attachments[0].Device] = true
+	}
+	return devMap, nil
+}
+
+func (s *ebsService) AttachVolume(volumeID string, dev string, size int64) (string, error) {
 	instanceID, err := s.GetInstanceID()
 	if err != nil {
 		return "", err

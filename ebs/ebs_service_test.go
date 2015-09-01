@@ -57,6 +57,11 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	svc, err := NewEBSService()
 	c.Assert(err, IsNil)
 
+	// should contain the root device only
+	devMap, err := svc.getInstanceDevList()
+	c.Assert(err, IsNil)
+	c.Assert(len(devMap), Not(Equals), 0)
+
 	logrus.Debug("Creating volume1")
 	volumeID1, err := svc.CreateVolume(GB, "", "")
 	c.Assert(err, IsNil)
@@ -67,6 +72,10 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(dev1, Not(Equals), "")
 	logrus.Debug("Attached volume1 at ", dev1)
+
+	devMap, err = svc.getInstanceDevList()
+	c.Assert(err, IsNil)
+	c.Assert(devMap["/dev/sdf"], Equals, true)
 
 	logrus.Debug("Creating snapshot")
 	snapshotID, err := svc.CreateSnapshot(volumeID1, "Test snapshot")
