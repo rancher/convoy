@@ -362,38 +362,34 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 	return s.waitForVolumeDetaching(volumeID)
 }
 
-func (s *ebsService) waitForSnapshotComplete(snap *ec2.Snapshot) error {
-	snapshot := snap
-	if *snapshot.State == ec2.SnapshotStateCompleted {
-		return nil
-	}
+func (s *ebsService) ListSingleSnapshot(snapshotID string) (*ec2.Snapshot, error) {
 	params := &ec2.DescribeSnapshotsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("snapshot-id"),
-				Values: []*string{
-					snapshot.SnapshotId,
-				},
-			},
-		},
-		OwnerIds: []*string{
-			snapshot.OwnerId,
-		},
-		RestorableByUserIds: []*string{
-			snapshot.OwnerId,
-		},
 		SnapshotIds: []*string{
-			snapshot.SnapshotId,
+			aws.String(snapshotID),
 		},
+	}
+	snapshots, err := s.ec2Client.DescribeSnapshots(params)
+	if err != nil {
+		return nil, parseAwsError(err)
+	}
+	if len(snapshots.Snapshots) != 1 {
+		return nil, fmt.Errorf("Cannot find snapshot %v", snapshotID)
+	}
+	return snapshots.Snapshots[0], nil
+}
+
+func (s *ebsService) waitForSnapshotComplete(snapshotID string) error {
+	snapshot, err := s.ListSingleSnapshot(snapshotID)
+	if err != nil {
+		return err
 	}
 	for *snapshot.State == ec2.SnapshotStatePending {
 		log.Debugf("Snapshot %v process %v", *snapshot.SnapshotId, *snapshot.Progress)
 		time.Sleep(time.Second)
-		snapshots, err := s.ec2Client.DescribeSnapshots(params)
+		snapshot, err = s.ListSingleSnapshot(snapshotID)
 		if err != nil {
-			return parseAwsError(err)
+			return err
 		}
-		snapshot = snapshots.Snapshots[0]
 	}
 	return nil
 }
@@ -407,11 +403,11 @@ func (s *ebsService) CreateSnapshot(volumeID, desc string) (string, error) {
 	if err != nil {
 		return "", parseAwsError(err)
 	}
-	err = s.waitForSnapshotComplete(resp)
-	if err != nil {
-		return "", parseAwsError(err)
+	snapshotID := *resp.SnapshotId
+	if err = s.waitForSnapshotComplete(snapshotID); err != nil {
+		return "", err
 	}
-	return *resp.SnapshotId, nil
+	return snapshotID, nil
 }
 
 func (s *ebsService) DeleteSnapshot(snapshotID string) error {
