@@ -125,6 +125,12 @@ sudo convoy inspect vol1
 sudo convoy snapshot create vol1 --name snap1vol1
 ```
 
+#### Delete an Snapshot
+```
+sudo convoy snapshot delete snap1vol1
+```
+* For Device Mapper, please make sure you keep _the latest backed-up snapshot_ for the same volume available to enable incremental backup mechanism, since Convoy need it to calculate the differences between snapshots.
+
 #### Backup a Snapshot
 We can backup a snapshot to S3 object store or an NFS mount:
 ```
