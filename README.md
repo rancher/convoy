@@ -125,7 +125,7 @@ sudo convoy inspect vol1
 sudo convoy snapshot create vol1 --name snap1vol1
 ```
 
-#### Delete an Snapshot
+#### Delete a Snapshot
 ```
 sudo convoy snapshot delete snap1vol1
 ```
