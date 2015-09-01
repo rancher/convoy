@@ -251,12 +251,43 @@ func (s *ebsService) getInstanceDevList() (map[string]bool, error) {
 	return devMap, nil
 }
 
-func (s *ebsService) AttachVolume(volumeID string, dev string, size int64) (string, error) {
+func (s *ebsService) FindFreeDeviceForAttach(instanceID string) (string, error) {
+	availableDevs := make(map[string]bool)
+	// Recommended available devices for EBS volume from AWS website
+	chars := "fghijklmnop"
+	for i := 0; i < len(chars); i++ {
+		availableDevs["/dev/sd"+string(chars[i])] = true
+	}
+	devMap, err := s.getInstanceDevList()
+	if err != nil {
+		return "", err
+	}
+	for d := range devMap {
+		if _, ok := availableDevs[d]; !ok {
+			continue
+		}
+		availableDevs[d] = false
+	}
+	for dev, available := range availableDevs {
+		if available {
+			return dev, nil
+		}
+	}
+	return "", fmt.Errorf("Cannot find an available device for instance %v", instanceID)
+}
+
+func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 	instanceID, err := s.GetInstanceID()
 	if err != nil {
 		return "", err
 	}
 
+	dev, err := s.FindFreeDeviceForAttach(instanceID)
+	if err != nil {
+		return "", err
+	}
+
+	log.Debugf("Attaching %v to %v's %v", volumeID, instanceID, dev)
 	params := &ec2.AttachVolumeInput{
 		Device:     aws.String(dev),
 		InstanceId: aws.String(instanceID),

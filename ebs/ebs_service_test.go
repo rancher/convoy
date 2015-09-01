@@ -60,7 +60,8 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	// should contain the root device only
 	devMap, err := svc.getInstanceDevList()
 	c.Assert(err, IsNil)
-	c.Assert(len(devMap), Not(Equals), 0)
+	originDevCounts := len(devMap)
+	c.Assert(originDevCounts, Not(Equals), 0)
 
 	logrus.Debug("Creating volume1")
 	volumeID1, err := svc.CreateVolume(GB, "", "")
@@ -68,14 +69,14 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(volumeID1, Not(Equals), "")
 
 	logrus.Debug("Attaching volume1")
-	dev1, err := svc.AttachVolume(volumeID1, "/dev/sdf", GB)
+	dev1, err := svc.AttachVolume(volumeID1, GB)
 	c.Assert(err, IsNil)
 	c.Assert(dev1, Not(Equals), "")
 	logrus.Debug("Attached volume1 at ", dev1)
 
 	devMap, err = svc.getInstanceDevList()
 	c.Assert(err, IsNil)
-	c.Assert(devMap["/dev/sdf"], Equals, true)
+	c.Assert(len(devMap), Equals, originDevCounts+1)
 
 	logrus.Debug("Creating snapshot")
 	snapshotID, err := svc.CreateSnapshot(volumeID1, "Test snapshot")
@@ -93,18 +94,30 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 
 	logrus.Debug("Attaching volume2")
-	dev2, err := svc.AttachVolume(volumeID2, "/dev/sdg", 2*GB)
+	dev2, err := svc.AttachVolume(volumeID2, 2*GB)
 	c.Assert(err, IsNil)
 	c.Assert(dev2, Not(Equals), "")
 	logrus.Debug("Attached volume2 at ", dev2)
+
+	devMap, err = svc.getInstanceDevList()
+	c.Assert(err, IsNil)
+	c.Assert(len(devMap), Equals, originDevCounts+2)
 
 	logrus.Debug("Detaching volume2")
 	err = svc.DetachVolume(volumeID2)
 	c.Assert(err, IsNil)
 
+	devMap, err = svc.getInstanceDevList()
+	c.Assert(err, IsNil)
+	c.Assert(len(devMap), Equals, originDevCounts+1)
+
 	logrus.Debug("Detaching volume1")
 	err = svc.DetachVolume(volumeID1)
 	c.Assert(err, IsNil)
+
+	devMap, err = svc.getInstanceDevList()
+	c.Assert(err, IsNil)
+	c.Assert(len(devMap), Equals, originDevCounts)
 
 	logrus.Debug("Deleting volume2")
 	err = svc.DeleteVolume(volumeID2)
