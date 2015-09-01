@@ -25,6 +25,14 @@ var (
 				Name:  "backup",
 				Usage: "create a volume of backup if driver supports",
 			},
+			cli.StringFlag{
+				Name:  "id",
+				Usage: "driver specific volume ID if driver supports",
+			},
+			cli.StringFlag{
+				Name:  "type",
+				Usage: "volume type if driver supports",
+			},
 		},
 		Action: cmdVolumeCreate,
 	}
@@ -103,16 +111,21 @@ func doVolumeCreate(c *cli.Context) error {
 		return err
 	}
 
+	driverVolumeID := c.String("id")
+	volumeType := c.String("type")
+
 	if backupURL != "" && size != 0 {
 		return fmt.Errorf("Cannot specify volume size with backup-url. It would be the same size of backup")
 	}
 
 	request := &api.VolumeCreateRequest{
-		Name:       name,
-		DriverName: driverName,
-		Size:       size,
-		BackupURL:  backupURL,
-		Verbose:    c.GlobalBool(verboseFlag),
+		Name:           name,
+		DriverName:     driverName,
+		Size:           size,
+		BackupURL:      backupURL,
+		DriverVolumeID: driverVolumeID,
+		Type:           volumeType,
+		Verbose:        c.GlobalBool(verboseFlag),
 	}
 
 	url := "/volumes/create"

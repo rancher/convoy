@@ -712,7 +712,7 @@ func checkEnvironment() error {
 }
 
 func mounted(dev, mountPoint string) bool {
-	output, err := util.Execute("mount", []string{})
+	output, err := util.Execute(MOUNT_BINARY, []string{})
 	if err != nil {
 		return false
 	}
@@ -784,7 +784,7 @@ func (d *Driver) UmountVolume(id string) error {
 		return err
 	}
 	if volume.MountPoint == "" {
-		log.Debug("Umount a umounted volume %v", id)
+		log.Debugf("Umount a umounted volume %v", id)
 		return nil
 	}
 	if _, err := util.Execute(UMOUNT_BINARY, []string{volume.MountPoint}); err != nil {

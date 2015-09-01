@@ -285,7 +285,7 @@ func Start(sockFile string, c *cli.Context) error {
 		}
 	} else {
 		driverList := c.StringSlice("drivers")
-		if len(driverList) == 0 || driverOpts == nil {
+		if len(driverList) == 0 {
 			return fmt.Errorf("Missing or invalid parameters")
 		}
 		log.Debug("Creating config at ", root)

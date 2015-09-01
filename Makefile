@@ -24,7 +24,7 @@ $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./objectstore/config.go \
 	./objectstore/deltablock.go ./objectstore/singlefile.go \
 	./s3/s3.go ./s3/s3_service.go \
-	./ebs/ebs_service.go \
+	./ebs/ebs.go ./ebs/ebs_service.go \
 	./vfs/vfs_objectstore.go ./vfs/vfs_storage.go \
 	./convoydriver/convoydriver.go \
 	./devmapper/devmapper.go ./devmapper/backup.go \
