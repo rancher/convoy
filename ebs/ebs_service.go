@@ -24,6 +24,10 @@ var (
 type ebsService struct {
 	metadataClient *ec2metadata.Client
 	ec2Client      *ec2.EC2
+
+	InstanceID       string
+	Region           string
+	AvailabilityZone string
 }
 
 func parseAwsError(err error) error {
@@ -45,33 +49,33 @@ func NewEBSService() (*ebsService, error) {
 
 	s := &ebsService{}
 	s.metadataClient = ec2metadata.New(nil)
-	if !s.IsEC2Instance() {
+	if !s.isEC2Instance() {
 		return nil, fmt.Errorf("Not running on an EC2 instance")
 	}
 
-	region, err := s.GetRegion()
+	s.InstanceID, err = s.metadataClient.GetMetadata("instance-id")
 	if err != nil {
 		return nil, err
 	}
-	config := aws.NewConfig().WithRegion(region)
+
+	s.Region, err = s.metadataClient.Region()
+	if err != nil {
+		return nil, err
+	}
+
+	s.AvailabilityZone, err = s.metadataClient.GetMetadata("placement/availability-zone")
+	if err != nil {
+		return nil, err
+	}
+
+	config := aws.NewConfig().WithRegion(s.Region)
 	s.ec2Client = ec2.New(config)
+
 	return s, nil
 }
 
-func (s *ebsService) IsEC2Instance() bool {
+func (s *ebsService) isEC2Instance() bool {
 	return s.metadataClient.Available()
-}
-
-func (s *ebsService) GetRegion() (string, error) {
-	return s.metadataClient.Region()
-}
-
-func (s *ebsService) GetAvailablityZone() (string, error) {
-	return s.metadataClient.GetMetadata("placement/availability-zone")
-}
-
-func (s *ebsService) GetInstanceID() (string, error) {
-	return s.metadataClient.GetMetadata("instance-id")
 }
 
 func (s *ebsService) waitForVolumeCreating(v *ec2.Volume) (*ec2.Volume, error) {
@@ -97,10 +101,6 @@ func (s *ebsService) waitForVolumeCreating(v *ec2.Volume) (*ec2.Volume, error) {
 }
 
 func (s *ebsService) CreateVolume(size int64, snapshotID, volumeType string) (string, error) {
-	az, err := s.GetAvailablityZone()
-	if err != nil {
-		return "", err
-	}
 	// EBS size are in GB, we would round it up
 	ebsSize := size / GB
 	if size%GB > 0 {
@@ -108,7 +108,7 @@ func (s *ebsService) CreateVolume(size int64, snapshotID, volumeType string) (st
 	}
 
 	params := &ec2.CreateVolumeInput{
-		AvailabilityZone: aws.String(az),
+		AvailabilityZone: aws.String(s.AvailabilityZone),
 		Size:             aws.Int64(ebsSize),
 	}
 	if snapshotID != "" {
@@ -223,16 +223,12 @@ func getAttachedDev(oldDevList map[string]bool, size int64) (string, error) {
 }
 
 func (s *ebsService) getInstanceDevList() (map[string]bool, error) {
-	instanceID, err := s.GetInstanceID()
-	if err != nil {
-		return nil, err
-	}
 	params := &ec2.DescribeVolumesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name: aws.String("attachment.instance-id"),
 				Values: []*string{
-					aws.String(instanceID),
+					aws.String(s.InstanceID),
 				},
 			},
 		},
@@ -251,7 +247,7 @@ func (s *ebsService) getInstanceDevList() (map[string]bool, error) {
 	return devMap, nil
 }
 
-func (s *ebsService) FindFreeDeviceForAttach(instanceID string) (string, error) {
+func (s *ebsService) FindFreeDeviceForAttach() (string, error) {
 	availableDevs := make(map[string]bool)
 	// Recommended available devices for EBS volume from AWS website
 	chars := "fghijklmnop"
@@ -273,24 +269,19 @@ func (s *ebsService) FindFreeDeviceForAttach(instanceID string) (string, error) 
 			return dev, nil
 		}
 	}
-	return "", fmt.Errorf("Cannot find an available device for instance %v", instanceID)
+	return "", fmt.Errorf("Cannot find an available device for instance %v", s.InstanceID)
 }
 
 func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
-	instanceID, err := s.GetInstanceID()
+	dev, err := s.FindFreeDeviceForAttach()
 	if err != nil {
 		return "", err
 	}
 
-	dev, err := s.FindFreeDeviceForAttach(instanceID)
-	if err != nil {
-		return "", err
-	}
-
-	log.Debugf("Attaching %v to %v's %v", volumeID, instanceID, dev)
+	log.Debugf("Attaching %v to %v's %v", volumeID, s.InstanceID, dev)
 	params := &ec2.AttachVolumeInput{
 		Device:     aws.String(dev),
-		InstanceId: aws.String(instanceID),
+		InstanceId: aws.String(s.InstanceID),
 		VolumeId:   aws.String(volumeID),
 	}
 
@@ -348,14 +339,9 @@ func (s *ebsService) waitForVolumeDetaching(a *ec2.VolumeAttachment) error {
 }
 
 func (s *ebsService) DetachVolume(volumeID string) error {
-	instanceID, err := s.GetInstanceID()
-	if err != nil {
-		return err
-	}
-
 	params := &ec2.DetachVolumeInput{
 		VolumeId:   aws.String(volumeID),
-		InstanceId: aws.String(instanceID),
+		InstanceId: aws.String(s.InstanceID),
 	}
 
 	resp, err := s.ec2Client.DetachVolume(params)

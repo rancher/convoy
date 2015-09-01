@@ -22,33 +22,22 @@ func (s *TestSuite) SetUpSuite(c *C) {
 	logrus.SetOutput(os.Stderr)
 }
 
-func (s *TestSuite) TestBlkDevList(c *C) {
-	devList, err := getBlkDevList()
-	c.Assert(err, IsNil)
-	c.Assert(len(devList), Not(Equals), 0)
-	c.Assert(devList["loop0"], Equals, true)
-}
-
 func (s *TestSuite) TestEC2Metadata(c *C) {
 	var err error
 
 	svc, err := NewEBSService()
 	c.Assert(err, IsNil)
 
-	isEC2 := svc.IsEC2Instance()
-	c.Assert(isEC2, Equals, true)
+	c.Assert(svc.Region, Not(Equals), "")
+	c.Assert(svc.AvailabilityZone, Not(Equals), "")
+	c.Assert(svc.InstanceID, Not(Equals), "")
+}
 
-	region, err := svc.GetRegion()
+func (s *TestSuite) TestBlkDevList(c *C) {
+	devList, err := getBlkDevList()
 	c.Assert(err, IsNil)
-	c.Assert(region, Not(Equals), "")
-
-	az, err := svc.GetAvailablityZone()
-	c.Assert(err, IsNil)
-	c.Assert(az, Not(Equals), "")
-
-	instanceID, err := svc.GetInstanceID()
-	c.Assert(err, IsNil)
-	c.Assert(instanceID, Not(Equals), "")
+	c.Assert(len(devList), Not(Equals), 0)
+	c.Assert(devList["loop0"], Equals, true)
 }
 
 func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
