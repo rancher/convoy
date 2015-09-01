@@ -63,47 +63,47 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	originDevCounts := len(devMap)
 	c.Assert(originDevCounts, Not(Equals), 0)
 
-	logrus.Debug("Creating volume1")
+	log.Debug("Creating volume1")
 	volumeID1, err := svc.CreateVolume(GB, "", "")
 	c.Assert(err, IsNil)
 	c.Assert(volumeID1, Not(Equals), "")
 
-	logrus.Debug("Attaching volume1")
+	log.Debug("Attaching volume1")
 	dev1, err := svc.AttachVolume(volumeID1, GB)
 	c.Assert(err, IsNil)
 	c.Assert(dev1, Not(Equals), "")
-	logrus.Debug("Attached volume1 at ", dev1)
+	log.Debug("Attached volume1 at ", dev1)
 
 	devMap, err = svc.getInstanceDevList()
 	c.Assert(err, IsNil)
 	c.Assert(len(devMap), Equals, originDevCounts+1)
 
-	logrus.Debug("Creating snapshot")
+	log.Debug("Creating snapshot")
 	snapshotID, err := svc.CreateSnapshot(volumeID1, "Test snapshot")
 	c.Assert(err, IsNil)
 	c.Assert(snapshotID, Not(Equals), "")
-	logrus.Debug("Created snapshot ", snapshotID)
+	log.Debug("Created snapshot ", snapshotID)
 
-	logrus.Debug("Creating volume from snapshot")
+	log.Debug("Creating volume from snapshot")
 	volumeID2, err := svc.CreateVolume(2*GB, snapshotID, "gp2")
 	c.Assert(err, IsNil)
 	c.Assert(volumeID2, Not(Equals), "")
 
-	logrus.Debug("Deleting snapshot")
+	log.Debug("Deleting snapshot")
 	err = svc.DeleteSnapshot(snapshotID)
 	c.Assert(err, IsNil)
 
-	logrus.Debug("Attaching volume2")
+	log.Debug("Attaching volume2")
 	dev2, err := svc.AttachVolume(volumeID2, 2*GB)
 	c.Assert(err, IsNil)
 	c.Assert(dev2, Not(Equals), "")
-	logrus.Debug("Attached volume2 at ", dev2)
+	log.Debug("Attached volume2 at ", dev2)
 
 	devMap, err = svc.getInstanceDevList()
 	c.Assert(err, IsNil)
 	c.Assert(len(devMap), Equals, originDevCounts+2)
 
-	logrus.Debug("Detaching volume2")
+	log.Debug("Detaching volume2")
 	err = svc.DetachVolume(volumeID2)
 	c.Assert(err, IsNil)
 
@@ -111,7 +111,7 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(len(devMap), Equals, originDevCounts+1)
 
-	logrus.Debug("Detaching volume1")
+	log.Debug("Detaching volume1")
 	err = svc.DetachVolume(volumeID1)
 	c.Assert(err, IsNil)
 
@@ -119,11 +119,11 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(len(devMap), Equals, originDevCounts)
 
-	logrus.Debug("Deleting volume2")
+	log.Debug("Deleting volume2")
 	err = svc.DeleteVolume(volumeID2)
 	c.Assert(err, IsNil)
 
-	logrus.Debug("Deleting volume1")
+	log.Debug("Deleting volume1")
 	err = svc.DeleteVolume(volumeID1)
 	c.Assert(err, IsNil)
 }
