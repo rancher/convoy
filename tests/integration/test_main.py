@@ -588,13 +588,8 @@ def test_vfs_objectstore():
 def vfs_objectstore_test(driver):
     process_objectstore_test(VFS_DEST, driver)
 
-def get_s3_dest(path = ""):
-    region = os.environ[ENV_TEST_AWS_REGION]
-    bucket = os.environ[ENV_TEST_AWS_BUCKET]
-
-    return "s3://" + bucket + "@" + region + "/" + path
-
-@pytest.mark.s3
+@pytest.mark.skipif(not pytest.config.getoption("s3"),
+        reason="--s3 was not specified")
 def test_s3_objectstore():
     s3_objectstore_test(VFS)
     s3_objectstore_test(DM)
@@ -602,6 +597,11 @@ def test_s3_objectstore():
 def s3_objectstore_test(driver):
     process_objectstore_test(get_s3_dest(), driver)
     process_objectstore_test(get_s3_dest(S3_PATH), driver)
+
+def get_s3_dest(path = ""):
+    region = os.environ[ENV_TEST_AWS_REGION]
+    bucket = os.environ[ENV_TEST_AWS_BUCKET]
+    return "s3://" + bucket + "@" + region + "/" + path
 
 def unescape_url(url):
     return url.replace("\\u0026", "&").replace("u0026","&")
