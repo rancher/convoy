@@ -49,6 +49,9 @@ func RegisterDriver(kind string, initFunc InitFunc) error {
 }
 
 func GetObjectStoreDriver(destURL string) (ObjectStoreDriver, error) {
+	if destURL == "" {
+		return nil, fmt.Errorf("Destination URL hasn't been specified")
+	}
 	u, err := url.Parse(destURL)
 	if err != nil {
 		return nil, err

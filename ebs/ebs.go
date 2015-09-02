@@ -5,8 +5,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -557,5 +559,79 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 }
 
 func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
-	return nil, fmt.Errorf("Not supported")
+	return d, nil
+}
+
+func checkEBSSnapshotID(id string) error {
+	validID := regexp.MustCompile(`^snap-[0-9a-z]+$`)
+	if !validID.MatchString(id) {
+		return fmt.Errorf("Invalid EBS snapshot id %v", id)
+	}
+	return nil
+}
+
+func encodeURL(region, ebsSnapshotID string) string {
+	return "ebs://" + region + "/" + ebsSnapshotID
+}
+
+func decodeURL(backupURL string) (string, string, error) {
+	u, err := url.Parse(backupURL)
+	if err != nil {
+		return "", "", err
+	}
+	if u.Scheme != DRIVER_NAME {
+		return "", "", fmt.Errorf("BUG: Why dispatch %v to %v?", u.Scheme, DRIVER_NAME)
+	}
+
+	region := u.Host
+	ebsSnapshotID := strings.TrimRight(strings.TrimLeft(u.Path, "/"), "/")
+	if err := checkEBSSnapshotID(ebsSnapshotID); err != nil {
+		return "", "", err
+	}
+
+	return region, ebsSnapshotID, nil
+}
+
+func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error) {
+	//destURL is not necessary in EBS case
+	snapshot, _, err := d.getSnapshotAndVolume(snapshotID, volumeID)
+	if err != nil {
+		return "", err
+	}
+
+	if err := d.ebsService.WaitForSnapshotComplete(snapshot.EBSID); err != nil {
+		return "", err
+	}
+	return encodeURL(d.ebsService.Region, snapshot.EBSID), nil
+}
+
+func (d *Driver) DeleteBackup(backupURL string) error {
+	//DeleteBackup is no-op in EBS
+	return nil
+}
+
+func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
+	region, ebsSnapshotID, err := decodeURL(backupURL)
+	if err != nil {
+		return nil, err
+	}
+	ebsSnapshot, err := d.ebsService.GetSnapshotWithRegion(ebsSnapshotID, region)
+	if err != nil {
+		return nil, err
+	}
+
+	info := map[string]string{
+		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
+		"EBSVolumeID":   *ebsSnapshot.VolumeId,
+		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
+		"Size":          strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
+		"State":         *ebsSnapshot.State,
+	}
+
+	return info, nil
+}
+
+func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
+	//EBS doesn't support ListBackup(), return empty to satisfy caller
+	return map[string]map[string]string{}, nil
 }
