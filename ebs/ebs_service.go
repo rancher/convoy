@@ -79,14 +79,14 @@ func (s *ebsService) isEC2Instance() bool {
 }
 
 func (s *ebsService) waitForVolumeCreating(volumeID string) error {
-	volume, err := s.ListSingleVolume(volumeID)
+	volume, err := s.GetVolume(volumeID)
 	if err != nil {
 		return err
 	}
 	for *volume.State == ec2.VolumeStateCreating {
 		log.Debugf("Waiting for volume %v creating", volumeID)
 		time.Sleep(time.Second)
-		volume, err = s.ListSingleVolume(volumeID)
+		volume, err = s.GetVolume(volumeID)
 		if err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func (s *ebsService) DeleteVolume(volumeID string) error {
 	return parseAwsError(err)
 }
 
-func (s *ebsService) ListSingleVolume(volumeID string) (*ec2.Volume, error) {
+func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 	params := &ec2.DescribeVolumesInput{
 		VolumeIds: []*string{
 			aws.String(volumeID),
@@ -163,7 +163,7 @@ func (s *ebsService) ListSingleVolume(volumeID string) (*ec2.Volume, error) {
 
 func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 	var attachment *ec2.VolumeAttachment
-	volume, err := s.ListSingleVolume(volumeID)
+	volume, err := s.GetVolume(volumeID)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
 		log.Debugf("Waiting for volume %v attaching", volumeID)
 		time.Sleep(time.Second)
-		volume, err := s.ListSingleVolume(volumeID)
+		volume, err := s.GetVolume(volumeID)
 		if err != nil {
 			return err
 		}
@@ -322,7 +322,7 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 
 func (s *ebsService) waitForVolumeDetaching(volumeID string) error {
 	var attachment *ec2.VolumeAttachment
-	volume, err := s.ListSingleVolume(volumeID)
+	volume, err := s.GetVolume(volumeID)
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func (s *ebsService) waitForVolumeDetaching(volumeID string) error {
 	for *attachment.State == ec2.VolumeAttachmentStateDetaching {
 		log.Debugf("Waiting for volume %v detaching", volumeID)
 		time.Sleep(time.Second)
-		volume, err := s.ListSingleVolume(volumeID)
+		volume, err := s.GetVolume(volumeID)
 		if err != nil {
 			return err
 		}
@@ -362,13 +362,17 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 	return s.waitForVolumeDetaching(volumeID)
 }
 
-func (s *ebsService) ListSingleSnapshot(snapshotID string) (*ec2.Snapshot, error) {
+func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snapshot, error) {
 	params := &ec2.DescribeSnapshotsInput{
 		SnapshotIds: []*string{
 			aws.String(snapshotID),
 		},
 	}
-	snapshots, err := s.ec2Client.DescribeSnapshots(params)
+	ec2Client := s.ec2Client
+	if region != s.Region {
+		ec2Client = ec2.New(aws.NewConfig().WithRegion(region))
+	}
+	snapshots, err := ec2Client.DescribeSnapshots(params)
 	if err != nil {
 		return nil, parseAwsError(err)
 	}
@@ -378,15 +382,19 @@ func (s *ebsService) ListSingleSnapshot(snapshotID string) (*ec2.Snapshot, error
 	return snapshots.Snapshots[0], nil
 }
 
+func (s *ebsService) GetSnapshot(snapshotID string) (*ec2.Snapshot, error) {
+	return s.GetSnapshotWithRegion(snapshotID, s.Region)
+}
+
 func (s *ebsService) WaitForSnapshotComplete(snapshotID string) error {
-	snapshot, err := s.ListSingleSnapshot(snapshotID)
+	snapshot, err := s.GetSnapshot(snapshotID)
 	if err != nil {
 		return err
 	}
 	for *snapshot.State == ec2.SnapshotStatePending {
 		log.Debugf("Snapshot %v process %v", *snapshot.SnapshotId, *snapshot.Progress)
 		time.Sleep(time.Second)
-		snapshot, err = s.ListSingleSnapshot(snapshotID)
+		snapshot, err = s.GetSnapshot(snapshotID)
 		if err != nil {
 			return err
 		}

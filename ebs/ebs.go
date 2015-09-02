@@ -234,7 +234,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		log.Debugf("Created volume %v from EBS volume %v", id, volumeID)
 		format = true
 	} else {
-		ebsVolume, err := d.ebsService.ListSingleVolume(volumeID)
+		ebsVolume, err := d.ebsService.GetVolume(volumeID)
 		if err != nil {
 			return err
 		}
@@ -389,7 +389,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		return nil, err
 	}
 
-	ebsVolume, err := d.ebsService.ListSingleVolume(volume.EBSID)
+	ebsVolume, err := d.ebsService.GetVolume(volume.EBSID)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +503,7 @@ func (d *Driver) GetSnapshotInfo(id, volumeID string) (map[string]string, error)
 		return nil, err
 	}
 
-	ebsSnapshot, err := d.ebsService.ListSingleSnapshot(snapshot.EBSID)
+	ebsSnapshot, err := d.ebsService.GetSnapshot(snapshot.EBSID)
 	if err != nil {
 		return nil, err
 	}
