@@ -31,7 +31,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  "type",
-				Usage: "volume type if driver supports",
+				Usage: "driver specific volume type if driver supports",
 			},
 		},
 		Action: cmdVolumeCreate,

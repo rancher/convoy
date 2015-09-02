@@ -1,6 +1,7 @@
 package ebs
 
 import (
+	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/convoydriver"
@@ -203,6 +204,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		err        error
 		volumeSize int64
 		format     bool
+		snapshot   *Snapshot
 	)
 
 	d.mutex.Lock()
@@ -219,7 +221,55 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 	//EBS volume ID
 	volumeID := opts[convoydriver.OPT_VOLUME_ID]
-	if volumeID == "" {
+	backupURL := opts[convoydriver.OPT_BACKUP_URL]
+	if backupURL != "" && volumeID != "" {
+		return fmt.Errorf("Cannot specify both backup and EBS volume ID")
+	}
+
+	if volumeID != "" {
+		ebsVolume, err := d.ebsService.GetVolume(volumeID)
+		if err != nil {
+			return err
+		}
+		volumeSize = *ebsVolume.Size * GB
+		log.Debugf("Found EBS volume %v for volume %v", volumeID, id)
+	} else if backupURL != "" {
+		region, ebsSnapshotID, err := decodeURL(backupURL)
+		if err != nil {
+			return err
+		}
+		if region != d.ebsService.Region {
+			// We don't want to automatically copy snapshot here
+			// because it's way too time consuming.
+			return fmt.Errorf("Snapshot %v is at %v rather than current region %v. Copy snapshot is needed",
+				ebsSnapshotID, region, d.ebsService.Region)
+		}
+		if err := d.ebsService.WaitForSnapshotComplete(ebsSnapshotID); err != nil {
+			return err
+		}
+		log.Debugf("Snapshot %v is ready", ebsSnapshotID)
+		ebsSnapshot, err := d.ebsService.GetSnapshot(ebsSnapshotID)
+		if err != nil {
+			return err
+		}
+		snapshot = &Snapshot{
+			UUID:       uuid.New(),
+			VolumeUUID: id,
+			EBSID:      ebsSnapshotID,
+		}
+
+		volumeSize = *ebsSnapshot.VolumeSize * GB
+		volumeType, err := d.getType(opts)
+		if err != nil {
+			return err
+		}
+		volumeID, err = d.ebsService.CreateVolume(volumeSize, ebsSnapshotID, volumeType)
+		if err != nil {
+			return err
+		}
+		log.Debugf("Created volume %v from EBS snapshot %v", id, ebsSnapshotID)
+	} else {
+
 		// Create a new EBS volume
 		volumeSize, err = d.getSize(opts)
 		if err != nil {
@@ -235,13 +285,6 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		}
 		log.Debugf("Created volume %v from EBS volume %v", id, volumeID)
 		format = true
-	} else {
-		ebsVolume, err := d.ebsService.GetVolume(volumeID)
-		if err != nil {
-			return err
-		}
-		volumeSize = *ebsVolume.Size * GB
-		log.Debugf("Found EBS volume %v for volume %v", volumeID, id)
 	}
 
 	dev, err := d.ebsService.AttachVolume(volumeID, volumeSize)
@@ -253,8 +296,11 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	volume.EBSID = volumeID
 	volume.Device = dev
 	volume.Snapshots = make(map[string]Snapshot)
+	if snapshot != nil {
+		volume.Snapshots[snapshot.UUID] = *snapshot
+	}
 
-	// We don't format existing volume
+	// We don't format existing or snapshot restored volume
 	if format {
 		if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
 			return err
