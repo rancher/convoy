@@ -2,6 +2,7 @@ package ebs
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	. "github.com/rancher/convoy/logging"
 )
 
 const (
@@ -54,7 +57,6 @@ type Snapshot struct {
 	UUID       string
 	VolumeUUID string
 	EBSID      string
-	Region     string
 }
 
 type Volume struct {
@@ -86,6 +88,10 @@ func (v *Volume) ConfigFile() (string, error) {
 
 func init() {
 	convoydriver.Register(DRIVER_NAME, Init)
+}
+
+func generateError(fields logrus.Fields, format string, v ...interface{}) error {
+	return ErrorWithFields("ebs", fields, format, v)
 }
 
 func checkVolumeType(volumeType string) error {
@@ -244,6 +250,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 	volume.EBSID = volumeID
 	volume.Device = dev
+	volume.Snapshots = make(map[string]Snapshot)
 
 	// We don't format existing volume
 	if format {
@@ -420,7 +427,133 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 }
 
 func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
-	return nil, fmt.Errorf("Not supported")
+	return d, nil
+}
+
+func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *Volume, error) {
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return nil, nil, err
+	}
+	snap, exists := volume.Snapshots[snapshotID]
+	if !exists {
+		return nil, nil, generateError(logrus.Fields{
+			LOG_FIELD_VOLUME:   volumeID,
+			LOG_FIELD_SNAPSHOT: snapshotID,
+		}, "cannot find snapshot of volume")
+	}
+	return &snap, volume, nil
+}
+
+func (d *Driver) CreateSnapshot(id, volumeID string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volume := d.blankVolume(volumeID)
+	if err := util.ObjectLoad(volume); err != nil {
+		return err
+	}
+	snapshot, exists := volume.Snapshots[id]
+	if exists {
+		return generateError(logrus.Fields{
+			LOG_FIELD_VOLUME:   volumeID,
+			LOG_FIELD_SNAPSHOT: id,
+		}, "Already has snapshot with uuid")
+	}
+
+	desc := fmt.Sprintf("Convoy snapshot %v for volume %v", id, volumeID)
+	ebsSnapshotID, err := d.ebsService.CreateSnapshot(volume.EBSID, desc)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Creating snapshot %v(%v) of volume %v(%v)", id, ebsSnapshotID, volumeID, volume.EBSID)
+
+	snapshot = Snapshot{
+		UUID:       id,
+		VolumeUUID: volumeID,
+		EBSID:      ebsSnapshotID,
+	}
+	volume.Snapshots[id] = snapshot
+	return util.ObjectSave(volume)
+}
+
+func (d *Driver) DeleteSnapshot(id, volumeID string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
+	if err != nil {
+		return err
+	}
+
+	if err := d.ebsService.DeleteSnapshot(snapshot.EBSID); err != nil {
+		return err
+	}
+	log.Debugf("Deleting snapshot %v(%v) of volume %v(%v)", id, snapshot.EBSID, volumeID, volume.EBSID)
+	delete(volume.Snapshots, id)
+	return util.ObjectSave(volume)
+}
+
+func (d *Driver) GetSnapshotInfo(id, volumeID string) (map[string]string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	snapshot, _, err := d.getSnapshotAndVolume(id, volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	ebsSnapshot, err := d.ebsService.ListSingleSnapshot(snapshot.EBSID)
+	if err != nil {
+		return nil, err
+	}
+
+	info := map[string]string{
+		"UUID":          id,
+		"VolumeUUID":    volumeID,
+		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
+		"EBSVolumeID":   *ebsSnapshot.VolumeId,
+		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
+		"Size":          strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
+		"State":         *ebsSnapshot.State,
+	}
+
+	return info, nil
+}
+
+func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	var (
+		volumeIDs []string
+		err       error
+	)
+	snapshots := make(map[string]map[string]string)
+	specifiedVolumeID := opts["VolumeID"]
+	if specifiedVolumeID != "" {
+		volumeIDs = []string{
+			specifiedVolumeID,
+		}
+	} else {
+		volumeIDs, err = d.listVolumeIDs()
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, volumeID := range volumeIDs {
+		volume := d.blankVolume(volumeID)
+		if err := util.ObjectLoad(volume); err != nil {
+			return nil, err
+		}
+		for snapshotID := range volume.Snapshots {
+			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, volumeID)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return snapshots, nil
 }
 
 func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
