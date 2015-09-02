@@ -75,7 +75,9 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	snapshotID, err := svc.CreateSnapshot(volumeID1, "Test snapshot")
 	c.Assert(err, IsNil)
 	c.Assert(snapshotID, Not(Equals), "")
-	log.Debug("Created snapshot ", snapshotID)
+	log.Debug("Creating snapshot ", snapshotID)
+	err = svc.WaitForSnapshotComplete(snapshotID)
+	c.Assert(err, IsNil)
 
 	log.Debug("Creating volume from snapshot")
 	volumeID2, err := svc.CreateVolume(2*GB, snapshotID, "gp2")

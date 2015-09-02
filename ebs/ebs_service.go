@@ -378,7 +378,7 @@ func (s *ebsService) ListSingleSnapshot(snapshotID string) (*ec2.Snapshot, error
 	return snapshots.Snapshots[0], nil
 }
 
-func (s *ebsService) waitForSnapshotComplete(snapshotID string) error {
+func (s *ebsService) WaitForSnapshotComplete(snapshotID string) error {
 	snapshot, err := s.ListSingleSnapshot(snapshotID)
 	if err != nil {
 		return err
@@ -403,11 +403,7 @@ func (s *ebsService) CreateSnapshot(volumeID, desc string) (string, error) {
 	if err != nil {
 		return "", parseAwsError(err)
 	}
-	snapshotID := *resp.SnapshotId
-	if err = s.waitForSnapshotComplete(snapshotID); err != nil {
-		return "", err
-	}
-	return snapshotID, nil
+	return *resp.SnapshotId, nil
 }
 
 func (s *ebsService) DeleteSnapshot(snapshotID string) error {
