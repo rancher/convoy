@@ -234,7 +234,7 @@ func getAttachedDev(oldDevList map[string]bool, size int64) (string, error) {
 	if attachedDev == "" {
 		return "", fmt.Errorf("Cannot find a device matching description")
 	}
-	return attachedDev, nil
+	return "/dev/" + attachedDev, nil
 }
 
 func (s *ebsService) getInstanceDevList() (map[string]bool, error) {

@@ -5,6 +5,7 @@ package ebs
 import (
 	"github.com/Sirupsen/logrus"
 	"os"
+	"strings"
 	"testing"
 
 	. "gopkg.in/check.v1"
@@ -60,7 +61,10 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	log.Debug("Attaching volume1")
 	dev1, err := svc.AttachVolume(volumeID1, GB)
 	c.Assert(err, IsNil)
-	c.Assert(dev1, Not(Equals), "")
+	c.Assert(strings.HasPrefix(dev1, "/dev/"), Equals, true)
+	stat1, err := os.Stat(dev1)
+	c.Assert(err, IsNil)
+	c.Assert(stat1.Mode()&os.ModeDevice != 0, Equals, true)
 	log.Debug("Attached volume1 at ", dev1)
 
 	devMap, err = svc.getInstanceDevList()
@@ -85,7 +89,10 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	log.Debug("Attaching volume2")
 	dev2, err := svc.AttachVolume(volumeID2, 2*GB)
 	c.Assert(err, IsNil)
-	c.Assert(dev2, Not(Equals), "")
+	c.Assert(strings.HasPrefix(dev2, "/dev/"), Equals, true)
+	stat2, err := os.Stat(dev2)
+	c.Assert(err, IsNil)
+	c.Assert(stat2.Mode()&os.ModeDevice != 0, Equals, true)
 	log.Debug("Attached volume2 at ", dev2)
 
 	devMap, err = svc.getInstanceDevList()
