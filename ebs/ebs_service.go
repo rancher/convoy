@@ -421,3 +421,18 @@ func (s *ebsService) DeleteSnapshot(snapshotID string) error {
 	_, err := s.ec2Client.DeleteSnapshot(params)
 	return parseAwsError(err)
 }
+
+func (s *ebsService) CopySnapshot(snapshotID, srcRegion string) (string, error) {
+	// Copy to current region
+	params := &ec2.CopySnapshotInput{
+		SourceRegion:     aws.String(srcRegion),
+		SourceSnapshotId: aws.String(snapshotID),
+	}
+
+	resp, err := s.ec2Client.CopySnapshot(params)
+	if err != nil {
+		return "", parseAwsError(err)
+	}
+
+	return *resp.SnapshotId, nil
+}

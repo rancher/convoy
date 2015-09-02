@@ -84,8 +84,19 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(volumeID2, Not(Equals), "")
 
+	snapshotID2, err := svc.CopySnapshot(snapshotID, svc.Region)
+	c.Assert(err, IsNil)
+	c.Assert(snapshotID2, Not(Equals), "")
+	log.Debug("Copying snapshot ", snapshotID2)
+	err = svc.WaitForSnapshotComplete(snapshotID2)
+	c.Assert(err, IsNil)
+
 	log.Debug("Deleting snapshot")
 	err = svc.DeleteSnapshot(snapshotID)
+	c.Assert(err, IsNil)
+
+	log.Debug("Deleting snapshot2")
+	err = svc.DeleteSnapshot(snapshotID2)
 	c.Assert(err, IsNil)
 
 	log.Debug("Attaching volume2")
