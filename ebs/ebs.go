@@ -465,6 +465,10 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		return nil, err
 	}
 
+	iops := ""
+	if ebsVolume.Iops != nil {
+		iops = strconv.FormatInt(*ebsVolume.Iops, 10)
+	}
 	info := map[string]string{
 		"Device":          volume.Device,
 		"MountPoint":      volume.MountPoint,
@@ -475,7 +479,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"Size":            strconv.FormatInt(*ebsVolume.Size*GB, 10),
 		"State":           *ebsVolume.State,
 		"Type":            *ebsVolume.VolumeType,
-		"IOPS":            strconv.FormatInt(*ebsVolume.Iops, 10),
+		"IOPS":            iops,
 	}
 	return info, nil
 }

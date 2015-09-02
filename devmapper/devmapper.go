@@ -819,8 +819,13 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	if err := util.ObjectLoad(volume); err != nil {
 		return nil, err
 	}
+	dev, err := d.GetVolumeDevice(id)
+	if err != nil {
+		return nil, err
+	}
 	result := map[string]string{
-		"DevID": strconv.Itoa(volume.DevID),
+		"DevID":                      strconv.Itoa(volume.DevID),
+		"Device":                     dev,
 		convoydriver.OPT_MOUNT_POINT: volume.MountPoint,
 		convoydriver.OPT_SIZE:        strconv.FormatInt(volume.Size, 10),
 	}
