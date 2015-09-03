@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/util"
@@ -117,10 +116,6 @@ func doVolumeCreate(c *cli.Context) error {
 
 	driverVolumeID := c.String("id")
 	volumeType := c.String("type")
-
-	if backupURL != "" && size != 0 {
-		return fmt.Errorf("Cannot specify volume size with backup-url. It would be the same size of backup")
-	}
 	iops := c.Int("iops")
 
 	request := &api.VolumeCreateRequest{

@@ -541,9 +541,9 @@ def process_restore_with_original_removed(dest, driver):
     delete_volume(volume1_uuid)
 
     if driver == DM:
-        #cannot specify size with backup
+        #cannot specify different size with backup
         with pytest.raises(subprocess.CalledProcessError):
-	    res_volume1_uuid = create_volume(VOLUME_SIZE_BIG, "res-vol1", bak,
+	    res_volume1_uuid = create_volume(VOLUME_SIZE_SMALL, "res-vol1", bak,
                     driver = driver)
 
     res_volume1_uuid = create_volume(name = "res-vol1", backup = bak, driver =

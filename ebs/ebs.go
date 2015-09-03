@@ -180,10 +180,10 @@ func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
 	return d, nil
 }
 
-func (d *Driver) getSize(opts map[string]string) (int64, error) {
+func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64, error) {
 	size := opts[convoydriver.OPT_SIZE]
 	if size == "" || size == "0" {
-		size = strconv.FormatInt(d.DefaultVolumeSize, 10)
+		size = strconv.FormatInt(defaultVolumeSize, 10)
 	}
 	return util.ParseSize(size)
 }
@@ -274,7 +274,14 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 			EBSID:      ebsSnapshotID,
 		}
 
-		volumeSize = *ebsSnapshot.VolumeSize * GB
+		snapshotVolumeSize := *ebsSnapshot.VolumeSize * GB
+		volumeSize, err = d.getSize(opts, snapshotVolumeSize)
+		if err != nil {
+			return err
+		}
+		if volumeSize < snapshotVolumeSize {
+			return fmt.Errorf("Volume size cannot be less than snapshot size %v", snapshotVolumeSize)
+		}
 		volumeType, iops, err := d.getTypeAndIOPS(opts)
 		if err != nil {
 			return err
@@ -287,7 +294,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	} else {
 
 		// Create a new EBS volume
-		volumeSize, err = d.getSize(opts)
+		volumeSize, err = d.getSize(opts, d.DefaultVolumeSize)
 		if err != nil {
 			return err
 		}

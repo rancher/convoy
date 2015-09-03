@@ -363,10 +363,10 @@ func (d *Driver) allocateDevID() (int, error) {
 	return d.LastDevID, nil
 }
 
-func (d *Driver) getSize(opts map[string]string) (int64, error) {
+func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64, error) {
 	size := opts[convoydriver.OPT_SIZE]
 	if size == "" || size == "0" {
-		size = strconv.FormatInt(d.DefaultVolumeSize, 10)
+		size = strconv.FormatInt(defaultVolumeSize, 10)
 	}
 	return util.ParseSize(size)
 }
@@ -385,9 +385,15 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		if objVolume.Driver != d.Name() {
 			return fmt.Errorf("Cannot restore backup of %v to %v", objVolume.Driver, d.Name())
 		}
-		size = objVolume.Size
+		size, err = d.getSize(opts, objVolume.Size)
+		if err != nil {
+			return err
+		}
+		if size != objVolume.Size {
+			return fmt.Errorf("Volume size must match with backup's size")
+		}
 	} else {
-		size, err = d.getSize(opts)
+		size, err = d.getSize(opts, d.DefaultVolumeSize)
 		if err != nil {
 			return err
 		}
