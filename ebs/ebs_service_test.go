@@ -54,7 +54,7 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(originDevCounts, Not(Equals), 0)
 
 	log.Debug("Creating volume1")
-	volumeID1, err := svc.CreateVolume(GB, "", "")
+	volumeID1, err := svc.CreateVolume(GB, "", "", 0)
 	c.Assert(err, IsNil)
 	c.Assert(volumeID1, Not(Equals), "")
 
@@ -71,32 +71,42 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(len(devMap), Equals, originDevCounts+1)
 
-	log.Debug("Creating snapshot")
+	log.Debug("Creating snapshot1")
 	snapshotID, err := svc.CreateSnapshot(volumeID1, "Test snapshot")
 	c.Assert(err, IsNil)
 	c.Assert(snapshotID, Not(Equals), "")
-	log.Debug("Creating snapshot ", snapshotID)
+	log.Debug("Waiting for snapshot1 complete ", snapshotID)
 	err = svc.WaitForSnapshotComplete(snapshotID)
 	c.Assert(err, IsNil)
 
-	log.Debug("Creating volume from snapshot")
-	volumeID2, err := svc.CreateVolume(2*GB, snapshotID, "gp2")
+	log.Debug("Creating gp2 type volume2 from snapshot1")
+	volumeID2, err := svc.CreateVolume(2*GB, snapshotID, "gp2", 0)
 	c.Assert(err, IsNil)
 	c.Assert(volumeID2, Not(Equals), "")
 
+	log.Debug("Copying snapshot1 to snapshot2")
 	snapshotID2, err := svc.CopySnapshot(snapshotID, svc.Region)
 	c.Assert(err, IsNil)
 	c.Assert(snapshotID2, Not(Equals), "")
-	log.Debug("Copying snapshot ", snapshotID2)
+	log.Debug("Waiting for snapshot2 complete ", snapshotID2)
 	err = svc.WaitForSnapshotComplete(snapshotID2)
 	c.Assert(err, IsNil)
 
-	log.Debug("Deleting snapshot")
+	log.Debug("Creating io1 type volume3 from snapshot2")
+	volumeID3, err := svc.CreateVolume(5*GB, snapshotID2, "io1", 100)
+	c.Assert(err, IsNil)
+	c.Assert(volumeID3, Not(Equals), "")
+
+	log.Debug("Deleting snapshot1")
 	err = svc.DeleteSnapshot(snapshotID)
 	c.Assert(err, IsNil)
 
 	log.Debug("Deleting snapshot2")
 	err = svc.DeleteSnapshot(snapshotID2)
+	c.Assert(err, IsNil)
+
+	log.Debug("Deleting volume3")
+	err = svc.DeleteVolume(volumeID3)
 	c.Assert(err, IsNil)
 
 	log.Debug("Attaching volume2")

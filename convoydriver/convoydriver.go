@@ -83,6 +83,7 @@ const (
 	OPT_VOLUME_NAME           = "VolumeName"
 	OPT_VOLUME_ID             = "VolumeDriverID"
 	OPT_VOLUME_TYPE           = "VolumeType"
+	OPT_VOLUME_IOPS           = "VolumeIOPS"
 	OPT_VOLUME_CREATED_TIME   = "VolumeCreatedAt"
 	OPT_SNAPSHOT_NAME         = "SnapshotName"
 	OPT_SNAPSHOT_CREATED_TIME = "SnapshotCreatedAt"

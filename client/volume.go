@@ -33,6 +33,10 @@ var (
 				Name:  "type",
 				Usage: "driver specific volume type if driver supports",
 			},
+			cli.StringFlag{
+				Name:  "iops",
+				Usage: "IOPS if driver supports",
+			},
 		},
 		Action: cmdVolumeCreate,
 	}
@@ -117,6 +121,7 @@ func doVolumeCreate(c *cli.Context) error {
 	if backupURL != "" && size != 0 {
 		return fmt.Errorf("Cannot specify volume size with backup-url. It would be the same size of backup")
 	}
+	iops := c.Int("iops")
 
 	request := &api.VolumeCreateRequest{
 		Name:           name,
@@ -125,6 +130,7 @@ func doVolumeCreate(c *cli.Context) error {
 		BackupURL:      backupURL,
 		DriverVolumeID: driverVolumeID,
 		Type:           volumeType,
+		IOPS:           int64(iops),
 		Verbose:        c.GlobalBool(verboseFlag),
 	}
 

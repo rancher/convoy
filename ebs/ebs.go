@@ -188,15 +188,31 @@ func (d *Driver) getSize(opts map[string]string) (int64, error) {
 	return util.ParseSize(size)
 }
 
-func (d *Driver) getType(opts map[string]string) (string, error) {
+func (d *Driver) getTypeAndIOPS(opts map[string]string) (string, int64, error) {
+	var (
+		iops int64
+		err  error
+	)
 	volumeType := opts[convoydriver.OPT_VOLUME_TYPE]
 	if volumeType == "" {
 		volumeType = d.DefaultVolumeType
 	}
 	if err := checkVolumeType(volumeType); err != nil {
-		return "", err
+		return "", 0, err
 	}
-	return volumeType, nil
+	if opts[convoydriver.OPT_VOLUME_IOPS] != "" {
+		iops, err = strconv.ParseInt(opts[convoydriver.OPT_VOLUME_IOPS], 10, 64)
+		if err != nil {
+			return "", 0, err
+		}
+	}
+	if volumeType == "io1" && iops == 0 {
+		return "", 0, fmt.Errorf("Invalid IOPS for volume type io1")
+	}
+	if volumeType != "io1" && iops != 0 {
+		return "", 0, fmt.Errorf("IOPS only valid for volume type io1")
+	}
+	return volumeType, iops, nil
 }
 
 func (d *Driver) CreateVolume(id string, opts map[string]string) error {
@@ -259,11 +275,11 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		}
 
 		volumeSize = *ebsSnapshot.VolumeSize * GB
-		volumeType, err := d.getType(opts)
+		volumeType, iops, err := d.getTypeAndIOPS(opts)
 		if err != nil {
 			return err
 		}
-		volumeID, err = d.ebsService.CreateVolume(volumeSize, ebsSnapshotID, volumeType)
+		volumeID, err = d.ebsService.CreateVolume(volumeSize, ebsSnapshotID, volumeType, iops)
 		if err != nil {
 			return err
 		}
@@ -275,11 +291,11 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		if err != nil {
 			return err
 		}
-		volumeType, err := d.getType(opts)
+		volumeType, iops, err := d.getTypeAndIOPS(opts)
 		if err != nil {
 			return err
 		}
-		volumeID, err = d.ebsService.CreateVolume(volumeSize, "", volumeType)
+		volumeID, err = d.ebsService.CreateVolume(volumeSize, "", volumeType, iops)
 		if err != nil {
 			return err
 		}
@@ -452,6 +468,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"Size":            strconv.FormatInt(*ebsVolume.Size*GB, 10),
 		"State":           *ebsVolume.State,
 		"Type":            *ebsVolume.VolumeType,
+		"IOPS":            strconv.FormatInt(*ebsVolume.Iops, 10),
 	}
 	return info, nil
 }

@@ -97,7 +97,7 @@ func (s *ebsService) waitForVolumeCreating(volumeID string) error {
 	return nil
 }
 
-func (s *ebsService) CreateVolume(size int64, snapshotID, volumeType string) (string, error) {
+func (s *ebsService) CreateVolume(size int64, snapshotID, volumeType string, iops int64) (string, error) {
 	// EBS size are in GB, we would round it up
 	ebsSize := size / GB
 	if size%GB > 0 {
@@ -115,7 +115,16 @@ func (s *ebsService) CreateVolume(size int64, snapshotID, volumeType string) (st
 		if volumeType != "gp2" && volumeType != "io1" && volumeType != "standard" {
 			return "", fmt.Errorf("Invalid volume type for EBS: %v", volumeType)
 		}
+		if volumeType == "io1" && iops == 0 {
+			return "", fmt.Errorf("Invalid IOPS for volume type io1")
+		}
+		if volumeType != "io1" && iops != 0 {
+			return "", fmt.Errorf("IOPS only valid for volume type io1")
+		}
 		params.VolumeType = aws.String(volumeType)
+		if iops != 0 {
+			params.Iops = aws.Int64(iops)
+		}
 	}
 
 	ec2Volume, err := s.ec2Client.CreateVolume(params)
