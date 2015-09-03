@@ -63,6 +63,7 @@ metadata_dev = ""
 
 mount_cleanup_list = []
 dm_cleanup_list = []
+volume_cleanup_list = []
 
 def create_empty_file(filepath, size):
     subprocess.check_call(["truncate", "-s", str(size), filepath])
@@ -139,14 +140,18 @@ def teardown_module():
         print "Something wrong when tearing down, continuing with code ", code
 
     while mount_cleanup_list:
-	code = subprocess.call(["umount", mount_cleanup_list.pop()])
+        code = subprocess.call(["umount", mount_cleanup_list.pop()])
         if code != 0:
             print "Something wrong when tearing down, continuing with code", code
-
     while dm_cleanup_list:
-	code = subprocess.call(["dmsetup", "remove", "--retry", dm_cleanup_list.pop()])
+        code = subprocess.call(["dmsetup", "remove", "--retry",
+            dm_cleanup_list.pop()])
         if code != 0:
             print "Something wrong when tearing down, continuing with code ", code
+
+    code = subprocess.call(["dmsetup", "remove", "--retry", POOL_NAME])
+    if code != 0:
+        print "Something wrong when tearing down, continuing with code ", code
 
     code = subprocess.call(["losetup", "-d", data_dev, metadata_dev])
     if code != 0:
@@ -192,15 +197,28 @@ def wait_for_daemon():
         assert False
 
 @pytest.yield_fixture(autouse=True)
-def check_test():
+def cleanup_test():
     yield
     filenames = os.listdir(CFG_ROOT)
+    leftover_volumes = []
     for filename in filenames:
-        assert not filename.startswith('volume')
+        if filename.startswith('volume'):
+            leftover_volumes.append(filename)
+    while volume_cleanup_list:
+        v = volume_cleanup_list.pop()
+        try:
+            delete_volume(v)
+        except:
+            print "Failed to delete volume ", v
+    if len(leftover_volumes) != 0:
+        print leftover_volumes
+        assert False
 
 def create_volume(size = "", name = "", backup = "", driver = ""):
     uuid = v.create_volume(size, name, backup, driver)
-    dm_cleanup_list.append(uuid)
+    if driver == "" or driver == DM:
+        dm_cleanup_list.append(uuid)
+    volume_cleanup_list.append(uuid)
     return uuid
 
 def delete_volume(uuid, name = "", ref_only = False):
@@ -208,7 +226,11 @@ def delete_volume(uuid, name = "", ref_only = False):
         v.delete_volume(uuid, ref_only)
     else:
         v.delete_volume(name, ref_only)
-    dm_cleanup_list.remove(uuid)
+    try:
+        dm_cleanup_list.remove(uuid)
+    except ValueError:
+        pass
+    volume_cleanup_list.remove(uuid)
 
 def mount_volume_with_path(uuid):
     mount_dir = v.mount_volume_with_path(uuid)
