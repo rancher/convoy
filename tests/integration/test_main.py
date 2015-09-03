@@ -49,10 +49,11 @@ DM_DIR = "/dev/mapper"
 DM_BLOCK_SIZE = 2097152
 EMPTY_FILE_SIZE = 104857600
 
-DEFAULT_VOLUME_SIZE = "10737418240"
-VOLUME_SIZE_500M_Bytes = "524288000"
-VOLUME_SIZE_500M = "500M"
-VOLUME_SIZE_100M = "104857600"
+DEFAULT_VOLUME_SIZE = "1073741824"
+VOLUME_SIZE_BIG_Bytes = "2147483648"
+VOLUME_SIZE_BIG = "2G"
+VOLUME_SIZE_SMALL = "1073741824"
+
 VOLUME_SIZE_6M = "6M"
 
 RANDOM_VALID_UUID = "0bd0bc5f-f3ad-4e1b-9283-98adb3ef38f4"
@@ -229,8 +230,8 @@ def volume_crud_test(drv, sizeTest = True):
     uuid2 = create_volume(driver=drv)
 
     if sizeTest:
-        uuid3 = create_volume(VOLUME_SIZE_500M, driver=drv)
-        uuid4 = create_volume(VOLUME_SIZE_100M, driver=drv)
+        uuid3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
+        uuid4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
         delete_volume(uuid4)
         delete_volume(uuid3)
 
@@ -342,8 +343,8 @@ def volume_list_driver_test(drv, check_size = True):
     uuid1 = create_volume(driver=drv)
     uuid2 = create_volume(driver=drv)
     if check_size:
-	uuid3 = create_volume(VOLUME_SIZE_500M, driver=drv)
-	uuid4 = create_volume(VOLUME_SIZE_100M, driver=drv)
+	uuid3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
+	uuid4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
 
     volume = v.inspect_volume(uuid1)
     assert volume["UUID"] == uuid1
@@ -358,8 +359,8 @@ def volume_list_driver_test(drv, check_size = True):
         volumes = v.list_volumes()
         assert volumes[uuid1]["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
         assert volumes[uuid2]["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
-        assert volumes[uuid3]["DriverInfo"]["Size"] == VOLUME_SIZE_500M_Bytes
-        assert volumes[uuid4]["DriverInfo"]["Size"] == VOLUME_SIZE_100M
+        assert volumes[uuid3]["DriverInfo"]["Size"] == VOLUME_SIZE_BIG_Bytes
+        assert volumes[uuid4]["DriverInfo"]["Size"] == VOLUME_SIZE_SMALL
 
 	delete_volume(uuid4)
 	delete_volume(uuid3)
@@ -372,7 +373,7 @@ def test_snapshot_crud():
     snapshot_crud_test(VFS)
 
 def snapshot_crud_test(driver):
-    volume_uuid = create_volume(VOLUME_SIZE_500M, name="vol1", driver=driver)
+    volume_uuid = create_volume(VOLUME_SIZE_BIG, name="vol1", driver=driver)
 
     snapshot_uuid = v.create_snapshot(volume_uuid)
     v.delete_snapshot(snapshot_uuid)
@@ -380,7 +381,7 @@ def snapshot_crud_test(driver):
     delete_volume(volume_uuid)
 
     # delete snapshot automatically with volume
-    volume_uuid = create_volume(VOLUME_SIZE_500M, name="vol1", driver=driver)
+    volume_uuid = create_volume(VOLUME_SIZE_BIG, name="vol1", driver=driver)
     snap1 = v.create_snapshot(volume_uuid)
     snap2 = v.create_snapshot(volume_uuid)
     snap3 = v.create_snapshot(volume_uuid)
@@ -389,7 +390,7 @@ def snapshot_crud_test(driver):
     v.delete_snapshot(snap2[:6])
     delete_volume(volume_uuid)
 
-    volume_uuid = create_volume(VOLUME_SIZE_500M, driver=driver)
+    volume_uuid = create_volume(VOLUME_SIZE_BIG, driver=driver)
     snap1 = v.create_snapshot(volume_uuid, "snap1")
     snap2 = v.create_snapshot(volume_uuid, "snap2")
     snap3 = v.create_snapshot(volume_uuid, "snap3")
@@ -402,7 +403,7 @@ def test_snapshot_name():
     snapshot_name_test(VFS)
 
 def snapshot_name_test(driver):
-    volume_uuid = create_volume(VOLUME_SIZE_500M, driver=driver)
+    volume_uuid = create_volume(VOLUME_SIZE_BIG, driver=driver)
 
     snap1_name = "snap1"
     snap1_uuid = v.create_snapshot(volume_uuid, name=snap1_name)
@@ -424,8 +425,8 @@ def test_snapshot_list():
     snapshot_list_test(VFS, False)
 
 def snapshot_list_test(driver, check_size = True):
-    volume1_uuid = create_volume(VOLUME_SIZE_100M, name = "volume1", driver=driver)
-    volume2_uuid = create_volume(VOLUME_SIZE_500M, driver=driver)
+    volume1_uuid = create_volume(VOLUME_SIZE_SMALL, name = "volume1", driver=driver)
+    volume2_uuid = create_volume(VOLUME_SIZE_BIG, driver=driver)
 
     with pytest.raises(subprocess.CalledProcessError):
         snapshot = v.inspect_snapshot(str(uuid.uuid1()))
@@ -440,7 +441,7 @@ def snapshot_list_test(driver, check_size = True):
     assert snapshot["VolumeUUID"] == volume1_uuid
     assert snapshot["VolumeName"] == "volume1"
     if check_size:
-        assert str(snapshot["DriverInfo"]["Size"]) == VOLUME_SIZE_100M
+        assert str(snapshot["DriverInfo"]["Size"]) == VOLUME_SIZE_SMALL
     assert snapshot["Name"] == "snap0_vol1"
 
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
@@ -532,7 +533,7 @@ def test_backup_create_restore_only():
     process_restore_with_original_removed(VFS_DEST, DM)
 
 def process_restore_with_original_removed(dest, driver):
-    volume1_uuid = create_volume(size = VOLUME_SIZE_500M, driver = driver)
+    volume1_uuid = create_volume(size = VOLUME_SIZE_BIG, driver = driver)
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     bak = v.create_backup(snap1_vol1_uuid, dest)
@@ -542,7 +543,7 @@ def process_restore_with_original_removed(dest, driver):
     if driver == DM:
         #cannot specify size with backup
         with pytest.raises(subprocess.CalledProcessError):
-	    res_volume1_uuid = create_volume(VOLUME_SIZE_500M, "res-vol1", bak,
+	    res_volume1_uuid = create_volume(VOLUME_SIZE_BIG, "res-vol1", bak,
                     driver = driver)
 
     res_volume1_uuid = create_volume(name = "res-vol1", backup = bak, driver =
@@ -558,7 +559,7 @@ def test_duplicate_backup():
     process_duplicate_backup_test(VFS_DEST, DM)
 
 def process_duplicate_backup_test(dest, driver):
-    volume_uuid = create_volume(size = VOLUME_SIZE_500M, driver = driver)
+    volume_uuid = create_volume(size = VOLUME_SIZE_BIG, driver = driver)
     mount_volume_and_create_file(volume_uuid, "volume_snap_test")
     snap_uuid = v.create_snapshot(volume_uuid)
     volume_checksum = get_volume_checksum(volume_uuid, driver)
@@ -612,9 +613,9 @@ def process_objectstore_test(dest, driver):
     assert len(backups) == 0
 
     #add volume to objectstore
-    volume1_uuid = create_volume(VOLUME_SIZE_500M, "volume1", driver=driver)
+    volume1_uuid = create_volume(VOLUME_SIZE_BIG, "volume1", driver=driver)
     volume1 = v.inspect_volume("volume1")
-    volume2_uuid = create_volume(VOLUME_SIZE_100M, "volume2", driver=driver)
+    volume2_uuid = create_volume(VOLUME_SIZE_SMALL, "volume2", driver=driver)
 
     with pytest.raises(subprocess.CalledProcessError):
         backups = v.list_backup(dest, volume1_uuid)
@@ -765,7 +766,7 @@ def test_cross_restore_error_checking():
     vfs_snap_uuid = v.create_snapshot(vfs_vol_uuid)
     vfs_backup = v.create_backup(vfs_snap_uuid, VFS_DEST)
 
-    dm_vol_uuid = create_volume(size = VOLUME_SIZE_100M, driver=DM)
+    dm_vol_uuid = create_volume(size = VOLUME_SIZE_SMALL, driver=DM)
     dm_snap_uuid = v.create_snapshot(dm_vol_uuid)
     dm_backup = v.create_backup(dm_snap_uuid, VFS_DEST)
 
