@@ -89,6 +89,9 @@ def umount_dev(mountpoint):
     mount_cleanup_list.remove(mountpoint)
 
 def setup_module():
+    processes = subprocess.check_output(["ps", "aux"])
+    assert("convoy" not in processes)
+
     if os.path.exists(TEST_ROOT):
 	subprocess.check_call(["rm", "-rf", TEST_ROOT])
 
