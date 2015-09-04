@@ -101,9 +101,6 @@ func SliceToMap(slices []string) map[string]string {
 		}
 		result[pair[0]] = pair[1]
 	}
-	if len(result) == 0 {
-		return nil
-	}
 	return result
 }
 

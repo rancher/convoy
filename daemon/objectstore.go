@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/convoy/objectstore"
 	"github.com/rancher/convoy/util"
 	"net/http"
+	"net/url"
 	"strings"
 
 	. "github.com/rancher/convoy/logging"
@@ -177,13 +178,26 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 }
 
 func (s *daemon) getBackupOpsForBackup(requestURL string) (convoydriver.BackupOperations, error) {
-	objVolume, err := objectstore.LoadVolume(requestURL)
-	if err != nil {
-		return nil, err
+	driverName := ""
+
+	if _, err := objectstore.GetObjectStoreDriver(requestURL); err == nil {
+		// Known objectstore driver
+		objVolume, err := objectstore.LoadVolume(requestURL)
+		if err != nil {
+			return nil, err
+		}
+		driverName = objVolume.Driver
+	} else {
+		// Try Convoy driver
+		u, err := url.Parse(requestURL)
+		if err != nil {
+			return nil, err
+		}
+		driverName = u.Scheme
 	}
-	driver := s.ConvoyDrivers[objVolume.Driver]
+	driver := s.ConvoyDrivers[driverName]
 	if driver == nil {
-		return nil, fmt.Errorf("Cannot find driver %v for restoring", objVolume.Driver)
+		return nil, fmt.Errorf("Cannot find driver %v for restoring", driverName)
 	}
 	return driver.BackupOps()
 }

@@ -27,7 +27,8 @@ class VolumeManager:
     def server_info(self):
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size = "", name = "", backup = "", driver = ""):
+    def create_volume(self, size = "", name = "", backup = "", driver = "",
+                    volume_id = "", volume_type = "", iops = ""):
         cmd = ["create"]
         if name != "":
             cmd = cmd + [name]
@@ -37,6 +38,12 @@ class VolumeManager:
             cmd = cmd + ["--backup", backup]
         if driver != "":
             cmd = cmd + ["--driver", driver]
+        if volume_id != "":
+            cmd = cmd + ["--id", volume_id]
+        if volume_type != "":
+            cmd = cmd + ["--type", volume_type]
+        if iops != "":
+            cmd = cmd + ["--iops", iops]
         data = subprocess.check_output(self.base_cmdline + cmd)
         return data.strip()
 
@@ -93,10 +100,11 @@ class VolumeManager:
         snapshot = json.loads(output)
         return snapshot
 
-    def create_backup(self, snapshot, dest):
-        data = subprocess.check_output(self.base_cmdline + [
-            "backup", "create", snapshot,
-	    "--dest", dest])
+    def create_backup(self, snapshot, dest = ""):
+        cmdline = self.base_cmdline + ["backup", "create", snapshot]
+        if dest != "":
+            cmdline += ["--dest", dest]
+        data = subprocess.check_output(cmdline)
         return data.strip()
 
     def delete_backup(self, backup):

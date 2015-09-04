@@ -363,10 +363,10 @@ func (d *Driver) allocateDevID() (int, error) {
 	return d.LastDevID, nil
 }
 
-func (d *Driver) getSize(opts map[string]string) (int64, error) {
+func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64, error) {
 	size := opts[convoydriver.OPT_SIZE]
 	if size == "" || size == "0" {
-		size = strconv.FormatInt(d.DefaultVolumeSize, 10)
+		size = strconv.FormatInt(defaultVolumeSize, 10)
 	}
 	return util.ParseSize(size)
 }
@@ -385,9 +385,15 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		if objVolume.Driver != d.Name() {
 			return fmt.Errorf("Cannot restore backup of %v to %v", objVolume.Driver, d.Name())
 		}
-		size = objVolume.Size
+		size, err = d.getSize(opts, objVolume.Size)
+		if err != nil {
+			return err
+		}
+		if size != objVolume.Size {
+			return fmt.Errorf("Volume size must match with backup's size")
+		}
 	} else {
-		size, err = d.getSize(opts)
+		size, err = d.getSize(opts, d.DefaultVolumeSize)
 		if err != nil {
 			return err
 		}
@@ -712,7 +718,7 @@ func checkEnvironment() error {
 }
 
 func mounted(dev, mountPoint string) bool {
-	output, err := util.Execute("mount", []string{})
+	output, err := util.Execute(MOUNT_BINARY, []string{})
 	if err != nil {
 		return false
 	}
@@ -784,7 +790,7 @@ func (d *Driver) UmountVolume(id string) error {
 		return err
 	}
 	if volume.MountPoint == "" {
-		log.Debug("Umount a umounted volume %v", id)
+		log.Debugf("Umount a umounted volume %v", id)
 		return nil
 	}
 	if _, err := util.Execute(UMOUNT_BINARY, []string{volume.MountPoint}); err != nil {
@@ -813,8 +819,13 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	if err := util.ObjectLoad(volume); err != nil {
 		return nil, err
 	}
+	dev, err := d.GetVolumeDevice(id)
+	if err != nil {
+		return nil, err
+	}
 	result := map[string]string{
-		"DevID": strconv.Itoa(volume.DevID),
+		"DevID":                      strconv.Itoa(volume.DevID),
+		"Device":                     dev,
 		convoydriver.OPT_MOUNT_POINT: volume.MountPoint,
 		convoydriver.OPT_SIZE:        strconv.FormatInt(volume.Size, 10),
 	}

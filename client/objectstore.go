@@ -13,7 +13,7 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "dest",
-				Usage: "required. destination of backup, would be url like s3://bucket@region/path/ or vfs:///path/",
+				Usage: "destination of backup if driver supports, would be url like s3://bucket@region/path/ or vfs:///path/",
 			},
 		},
 		Action: cmdBackupCreate,
@@ -108,7 +108,7 @@ func cmdBackupCreate(c *cli.Context) {
 func doBackupCreate(c *cli.Context) error {
 	var err error
 
-	destURL, err := util.GetLowerCaseFlag(c, "dest", true, err)
+	destURL, err := util.GetLowerCaseFlag(c, "dest", false, err)
 	if err != nil {
 		return err
 	}

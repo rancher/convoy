@@ -11,11 +11,14 @@ type VolumeUmountRequest struct {
 }
 
 type VolumeCreateRequest struct {
-	Name       string
-	DriverName string
-	Size       int64
-	BackupURL  string
-	Verbose    bool
+	Name           string
+	DriverName     string
+	Size           int64
+	BackupURL      string
+	DriverVolumeID string
+	Type           string
+	IOPS           int64
+	Verbose        bool
 }
 
 type VolumeDeleteRequest struct {
