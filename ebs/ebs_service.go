@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	GB = 1073741824
+	GB            = 1073741824
+	RETRY_TIMEOUT = 15
 )
 
 var (
@@ -28,6 +29,10 @@ type ebsService struct {
 	InstanceID       string
 	Region           string
 	AvailabilityZone string
+}
+
+func sleepBeforeRetry() {
+	time.Sleep(RETRY_TIMEOUT * time.Second)
 }
 
 func parseAwsError(err error) error {
@@ -85,7 +90,6 @@ func (s *ebsService) waitForVolumeCreating(volumeID string) error {
 	}
 	for *volume.State == ec2.VolumeStateCreating {
 		log.Debugf("Waiting for volume %v creating", volumeID)
-		time.Sleep(time.Second)
 		volume, err = s.GetVolume(volumeID)
 		if err != nil {
 			return err
@@ -155,6 +159,7 @@ func (s *ebsService) DeleteVolume(volumeID string) error {
 }
 
 func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
+	sleepBeforeRetry()
 	params := &ec2.DescribeVolumesInput{
 		VolumeIds: []*string{
 			aws.String(volumeID),
@@ -184,7 +189,6 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 
 	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
 		log.Debugf("Waiting for volume %v attaching", volumeID)
-		time.Sleep(time.Second)
 		volume, err := s.GetVolume(volumeID)
 		if err != nil {
 			return err
@@ -338,12 +342,12 @@ func (s *ebsService) waitForVolumeDetaching(volumeID string) error {
 	if len(volume.Attachments) != 0 {
 		attachment = volume.Attachments[0]
 	} else {
-		return fmt.Errorf("Attaching failed for ", volumeID)
+		// Already detached
+		return nil
 	}
 
 	for *attachment.State == ec2.VolumeAttachmentStateDetaching {
 		log.Debugf("Waiting for volume %v detaching", volumeID)
-		time.Sleep(time.Second)
 		volume, err := s.GetVolume(volumeID)
 		if err != nil {
 			return err
@@ -392,6 +396,7 @@ func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snap
 }
 
 func (s *ebsService) GetSnapshot(snapshotID string) (*ec2.Snapshot, error) {
+	sleepBeforeRetry()
 	return s.GetSnapshotWithRegion(snapshotID, s.Region)
 }
 
@@ -402,7 +407,6 @@ func (s *ebsService) WaitForSnapshotComplete(snapshotID string) error {
 	}
 	for *snapshot.State == ec2.SnapshotStatePending {
 		log.Debugf("Snapshot %v process %v", *snapshot.SnapshotId, *snapshot.Progress)
-		time.Sleep(time.Second)
 		snapshot, err = s.GetSnapshot(snapshotID)
 		if err != nil {
 			return err
