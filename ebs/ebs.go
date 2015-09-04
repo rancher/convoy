@@ -558,10 +558,7 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 		return err
 	}
 
-	if err := d.ebsService.DeleteSnapshot(snapshot.EBSID); err != nil {
-		return err
-	}
-	log.Debugf("Deleting snapshot %v(%v) of volume %v(%v)", id, snapshot.EBSID, volumeID, volume.EBSID)
+	log.Debugf("Removing reference of snapshot %v(%v) of volume %v(%v)", id, snapshot.EBSID, volumeID, volume.EBSID)
 	delete(volume.Snapshots, id)
 	return util.ObjectSave(volume)
 }
@@ -676,7 +673,14 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 }
 
 func (d *Driver) DeleteBackup(backupURL string) error {
-	//DeleteBackup is no-op in EBS
+	// Would remove the snapshot
+	region, ebsSnapshotID, err := decodeURL(backupURL)
+	if err != nil {
+		return err
+	}
+	if err := d.ebsService.DeleteSnapshotWithRegion(ebsSnapshotID, region); err != nil {
+		return err
+	}
 	return nil
 }
 

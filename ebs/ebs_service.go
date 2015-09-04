@@ -423,12 +423,20 @@ func (s *ebsService) CreateSnapshot(volumeID, desc string) (string, error) {
 	return *resp.SnapshotId, nil
 }
 
-func (s *ebsService) DeleteSnapshot(snapshotID string) error {
+func (s *ebsService) DeleteSnapshotWithRegion(snapshotID, region string) error {
 	params := &ec2.DeleteSnapshotInput{
 		SnapshotId: aws.String(snapshotID),
 	}
-	_, err := s.ec2Client.DeleteSnapshot(params)
+	ec2Client := s.ec2Client
+	if region != s.Region {
+		ec2Client = ec2.New(aws.NewConfig().WithRegion(region))
+	}
+	_, err := ec2Client.DeleteSnapshot(params)
 	return parseAwsError(err)
+}
+
+func (s *ebsService) DeleteSnapshot(snapshotID string) error {
+	return s.DeleteSnapshotWithRegion(snapshotID, s.Region)
 }
 
 func (s *ebsService) CopySnapshot(snapshotID, srcRegion string) (string, error) {
