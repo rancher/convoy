@@ -6,6 +6,7 @@ import (
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/util"
 	"net/http"
+	"strconv"
 )
 
 type pluginInfo struct {
@@ -74,11 +75,21 @@ func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 			if err != nil {
 				return nil, err
 			}
+			iops := 0
+			if request.Opts["iops"] != "" {
+				iops, err = strconv.Atoi(request.Opts["iops"])
+				if err != nil {
+					return nil, err
+				}
+			}
 			request := &api.VolumeCreateRequest{
-				Name:       volumeName,
-				DriverName: request.Opts["driver"],
-				Size:       size,
-				BackupURL:  request.Opts["backup"],
+				Name:           volumeName,
+				DriverName:     request.Opts["driver"],
+				Size:           size,
+				BackupURL:      request.Opts["backup"],
+				DriverVolumeID: request.Opts["id"],
+				Type:           request.Opts["type"],
+				IOPS:           int64(iops),
 			}
 			volume, err = s.processVolumeCreate(request)
 			if err != nil {
