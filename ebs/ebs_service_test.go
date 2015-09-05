@@ -126,6 +126,10 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	err = svc.DetachVolume(volumeID2)
 	c.Assert(err, IsNil)
 
+	log.Debug("Deleting volume2")
+	err = svc.DeleteVolume(volumeID2)
+	c.Assert(err, IsNil)
+
 	devMap, err = svc.getInstanceDevList()
 	c.Assert(err, IsNil)
 	c.Assert(len(devMap), Equals, originDevCounts+1)
@@ -137,10 +141,6 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	devMap, err = svc.getInstanceDevList()
 	c.Assert(err, IsNil)
 	c.Assert(len(devMap), Equals, originDevCounts)
-
-	log.Debug("Deleting volume2")
-	err = svc.DeleteVolume(volumeID2)
-	c.Assert(err, IsNil)
 
 	log.Debug("Deleting volume1")
 	err = svc.DeleteVolume(volumeID1)

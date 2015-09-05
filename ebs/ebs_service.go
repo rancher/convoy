@@ -83,20 +83,57 @@ func (s *ebsService) isEC2Instance() bool {
 	return s.metadataClient.Available()
 }
 
-func (s *ebsService) waitForVolumeCreating(volumeID string) error {
+func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error {
 	volume, err := s.GetVolume(volumeID)
 	if err != nil {
 		return err
 	}
-	for *volume.State == ec2.VolumeStateCreating {
-		log.Debugf("Waiting for volume %v creating", volumeID)
+
+	for *volume.State == start {
+		log.Debugf("Waiting for volume %v state transiting from %v to %v",
+			volumeID, start, end)
 		volume, err = s.GetVolume(volumeID)
 		if err != nil {
 			return err
 		}
 	}
-	if *volume.State != ec2.VolumeStateAvailable {
-		return fmt.Errorf("Failed to create volume %v, ending state %v", *volume.VolumeId, *volume.State)
+	if *volume.State != end {
+		return fmt.Errorf("Cannot finish volume %v state transition, ",
+			"from %v to %v, though final state %v",
+			volumeID, start, end, *volume.State)
+	}
+	return nil
+}
+
+func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
+	var attachment *ec2.VolumeAttachment
+	volume, err := s.GetVolume(volumeID)
+	if err != nil {
+		return err
+	}
+	for len(volume.Attachments) == 0 {
+		log.Debugf("Retry to get attachment of volume")
+		volume, err = s.GetVolume(volumeID)
+		if err != nil {
+			return err
+		}
+	}
+	attachment = volume.Attachments[0]
+
+	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
+		log.Debugf("Waiting for volume %v attaching", volumeID)
+		volume, err := s.GetVolume(volumeID)
+		if err != nil {
+			return err
+		}
+		if len(volume.Attachments) != 0 {
+			attachment = volume.Attachments[0]
+		} else {
+			return fmt.Errorf("Attaching failed for ", volumeID)
+		}
+	}
+	if *attachment.State != ec2.VolumeAttachmentStateAttached {
+		return fmt.Errorf("Cannot attach volume, final state %v", *attachment.State)
 	}
 	return nil
 }
@@ -137,7 +174,7 @@ func (s *ebsService) CreateVolume(size int64, snapshotID, volumeType string, iop
 	}
 
 	volumeID := *ec2Volume.VolumeId
-	if err = s.waitForVolumeCreating(volumeID); err != nil {
+	if err = s.waitForVolumeTransition(volumeID, ec2.VolumeStateCreating, ec2.VolumeStateAvailable); err != nil {
 		log.Debug("Failed to create volume: ", err)
 		err = s.DeleteVolume(volumeID)
 		if err != nil {
@@ -173,36 +210,6 @@ func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 		return nil, fmt.Errorf("Cannot find volume %v", volumeID)
 	}
 	return volumes.Volumes[0], nil
-}
-
-func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
-	var attachment *ec2.VolumeAttachment
-	volume, err := s.GetVolume(volumeID)
-	if err != nil {
-		return err
-	}
-	if len(volume.Attachments) != 0 {
-		attachment = volume.Attachments[0]
-	} else {
-		return fmt.Errorf("Attaching failed for ", volumeID)
-	}
-
-	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
-		log.Debugf("Waiting for volume %v attaching", volumeID)
-		volume, err := s.GetVolume(volumeID)
-		if err != nil {
-			return err
-		}
-		if len(volume.Attachments) != 0 {
-			attachment = volume.Attachments[0]
-		} else {
-			return fmt.Errorf("Attaching failed for ", volumeID)
-		}
-	}
-	if *attachment.State != ec2.VolumeAttachmentStateAttached {
-		return fmt.Errorf("Cannot attach volume, final state %v", *attachment.State)
-	}
-	return nil
 }
 
 func getBlkDevList() (map[string]bool, error) {
@@ -333,35 +340,6 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 	return result, nil
 }
 
-func (s *ebsService) waitForVolumeDetaching(volumeID string) error {
-	var attachment *ec2.VolumeAttachment
-	volume, err := s.GetVolume(volumeID)
-	if err != nil {
-		return err
-	}
-	if len(volume.Attachments) != 0 {
-		attachment = volume.Attachments[0]
-	} else {
-		// Already detached
-		return nil
-	}
-
-	for *attachment.State == ec2.VolumeAttachmentStateDetaching {
-		log.Debugf("Waiting for volume %v detaching", volumeID)
-		volume, err := s.GetVolume(volumeID)
-		if err != nil {
-			return err
-		}
-		if len(volume.Attachments) != 0 {
-			attachment = volume.Attachments[0]
-		} else {
-			// Already detached
-			break
-		}
-	}
-	return nil
-}
-
 func (s *ebsService) DetachVolume(volumeID string) error {
 	params := &ec2.DetachVolumeInput{
 		VolumeId:   aws.String(volumeID),
@@ -372,7 +350,7 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 		return parseAwsError(err)
 	}
 
-	return s.waitForVolumeDetaching(volumeID)
+	return s.waitForVolumeTransition(volumeID, ec2.VolumeStateInUse, ec2.VolumeStateAvailable)
 }
 
 func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snapshot, error) {
