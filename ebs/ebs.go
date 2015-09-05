@@ -242,13 +242,20 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		return fmt.Errorf("Cannot specify both backup and EBS volume ID")
 	}
 
+	newTags := map[string]string{
+		"Name":             opts[convoydriver.OPT_VOLUME_NAME],
+		"ConvoyVolumeUUID": id,
+	}
 	if volumeID != "" {
 		ebsVolume, err := d.ebsService.GetVolume(volumeID)
 		if err != nil {
 			return err
 		}
 		volumeSize = *ebsVolume.Size * GB
-		log.Debugf("Found EBS volume %v for volume %v", volumeID, id)
+		log.Debugf("Found EBS volume %v for volume %v, update tags", volumeID, id)
+		if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
+			log.Debugf("Failed to update tags for volume %v, but continue", volumeID)
+		}
 	} else if backupURL != "" {
 		region, ebsSnapshotID, err := decodeURL(backupURL)
 		if err != nil {
@@ -291,6 +298,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 			SnapshotID: ebsSnapshotID,
 			VolumeType: volumeType,
 			IOPS:       iops,
+			Tags:       newTags,
 		}
 		volumeID, err = d.ebsService.CreateVolume(r)
 		if err != nil {
@@ -312,6 +320,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 			Size:       volumeSize,
 			VolumeType: volumeType,
 			IOPS:       iops,
+			Tags:       newTags,
 		}
 		volumeID, err = d.ebsService.CreateVolume(r)
 		if err != nil {
@@ -554,9 +563,14 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 		}, "Already has snapshot with uuid")
 	}
 
+	tags := map[string]string{
+		"ConvoyVolumeUUID":   volumeID,
+		"ConvoySnapshotUUID": id,
+	}
 	request := &CreateSnapshotRequest{
 		VolumeID:    volume.EBSID,
-		Description: fmt.Sprintf("Convoy snapshot %v for volume %v", id, volumeID),
+		Description: fmt.Sprintf("Convoy snapshot"),
+		Tags:        tags,
 	}
 	ebsSnapshotID, err := d.ebsService.CreateSnapshot(request)
 	if err != nil {
