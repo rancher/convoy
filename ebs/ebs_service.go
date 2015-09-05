@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	GB            = 1073741824
-	RETRY_TIMEOUT = 15
+	GB             = 1073741824
+	RETRY_INTERVAL = 5
 )
 
 var (
@@ -32,7 +32,7 @@ type ebsService struct {
 }
 
 func sleepBeforeRetry() {
-	time.Sleep(RETRY_TIMEOUT * time.Second)
+	time.Sleep(RETRY_INTERVAL * time.Second)
 }
 
 func parseAwsError(err error) error {
