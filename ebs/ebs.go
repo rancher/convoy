@@ -342,12 +342,18 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 		return err
 	}
 
-	if err := d.ebsService.DetachVolume(volume.EBSID); err != nil {
-		return err
-	}
-	log.Debugf("Detached %v(%v) from %v", id, volume.EBSID, volume.Device)
-
 	referenceOnly, _ := strconv.ParseBool(opts[convoydriver.OPT_REFERENCE_ONLY])
+	if err := d.ebsService.DetachVolume(volume.EBSID); err != nil {
+		if !referenceOnly {
+			return err
+		}
+		//Ignore the error, remove the reference
+		log.Warnf("Unable to detached %v(%v) due to %v, but continue with removing the reference",
+			id, volume.EBSID, err)
+	} else {
+		log.Debugf("Detached %v(%v) from %v", id, volume.EBSID, volume.Device)
+	}
+
 	if !referenceOnly {
 		if err := d.ebsService.DeleteVolume(volume.EBSID); err != nil {
 			return err
