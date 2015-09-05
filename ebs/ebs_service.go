@@ -36,11 +36,13 @@ type CreateEBSVolumeRequest struct {
 	IOPS       int64
 	SnapshotID string
 	VolumeType string
+	Tags       map[string]string
 }
 
 type CreateSnapshotRequest struct {
 	VolumeID    string
 	Description string
+	Tags        map[string]string
 }
 
 func sleepBeforeRetry() {
@@ -202,6 +204,11 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 		}
 		return "", fmt.Errorf("Failed creating volume with size %v and snapshot %v",
 			size, snapshotID)
+	}
+	if request.Tags != nil {
+		if err := s.AddTags(volumeID, request.Tags); err != nil {
+			log.Warnf("Unable to tag %v with %v, but continue", volumeID, request.Tags)
+		}
 	}
 
 	return volumeID, nil
@@ -422,6 +429,11 @@ func (s *ebsService) CreateSnapshot(request *CreateSnapshotRequest) (string, err
 	if err != nil {
 		return "", parseAwsError(err)
 	}
+	if request.Tags != nil {
+		if err := s.AddTags(*resp.SnapshotId, request.Tags); err != nil {
+			log.Warnf("Unable to tag %v with %v, but continue", *resp.SnapshotId, request.Tags)
+		}
+	}
 	return *resp.SnapshotId, nil
 }
 
@@ -454,4 +466,62 @@ func (s *ebsService) CopySnapshot(snapshotID, srcRegion string) (string, error) 
 	}
 
 	return *resp.SnapshotId, nil
+}
+
+func (s *ebsService) AddTags(resourceID string, tags map[string]string) error {
+	if tags == nil {
+		return nil
+	}
+	log.Debugf("Adding tags for %v, as %v", resourceID, tags)
+	params := &ec2.CreateTagsInput{
+		Resources: []*string{
+			aws.String(resourceID),
+		},
+	}
+	ec2Tags := []*ec2.Tag{}
+	for k, v := range tags {
+		tag := &ec2.Tag{
+			Key:   aws.String(k),
+			Value: aws.String(v),
+		}
+		ec2Tags = append(ec2Tags, tag)
+	}
+	params.Tags = ec2Tags
+
+	_, err := s.ec2Client.CreateTags(params)
+	if err != nil {
+		return parseAwsError(err)
+	}
+	return nil
+}
+
+func (s *ebsService) GetTags(resourceID string) (map[string]string, error) {
+	params := &ec2.DescribeTagsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("resource-id"),
+				Values: []*string{
+					aws.String(resourceID),
+				},
+			},
+		},
+	}
+
+	resp, err := s.ec2Client.DescribeTags(params)
+	if err != nil {
+		return nil, parseAwsError(err)
+	}
+
+	result := map[string]string{}
+	if resp.Tags == nil {
+		return result, nil
+	}
+
+	for _, tag := range resp.Tags {
+		if *tag.ResourceId != resourceID {
+			return nil, fmt.Errorf("BUG: why the result is not related to what I asked for?")
+		}
+		result[*tag.Key] = *tag.Value
+	}
+	return result, nil
 }

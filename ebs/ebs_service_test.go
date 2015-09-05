@@ -42,7 +42,10 @@ func (s *TestSuite) TestBlkDevList(c *C) {
 }
 
 func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
-	var err error
+	var (
+		err  error
+		tags map[string]string
+	)
 
 	svc, err := NewEBSService()
 	c.Assert(err, IsNil)
@@ -54,12 +57,19 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(originDevCounts, Not(Equals), 0)
 
 	log.Debug("Creating volume1")
+	r1Tags := map[string]string{
+		"Name": "volume1",
+	}
 	r1 := &CreateEBSVolumeRequest{
 		Size: GB,
+		Tags: r1Tags,
 	}
 	volumeID1, err := svc.CreateVolume(r1)
 	c.Assert(err, IsNil)
 	c.Assert(volumeID1, Not(Equals), "")
+	tags, err = svc.GetTags(volumeID1)
+	c.Assert(err, IsNil)
+	c.Assert(r1Tags, DeepEquals, tags)
 
 	log.Debug("Attaching volume1")
 	dev1, err := svc.AttachVolume(volumeID1, GB)
@@ -75,9 +85,13 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(len(devMap), Equals, originDevCounts+1)
 
 	log.Debug("Creating snapshot1")
+	rs1Tags := map[string]string{
+		"Name": "snapshot1",
+	}
 	rs1 := &CreateSnapshotRequest{
 		VolumeID:    volumeID1,
 		Description: "Test snapshot",
+		Tags:        rs1Tags,
 	}
 	snapshotID, err := svc.CreateSnapshot(rs1)
 	c.Assert(err, IsNil)
@@ -85,6 +99,9 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	log.Debug("Waiting for snapshot1 complete ", snapshotID)
 	err = svc.WaitForSnapshotComplete(snapshotID)
 	c.Assert(err, IsNil)
+	tags, err = svc.GetTags(snapshotID)
+	c.Assert(err, IsNil)
+	c.Assert(rs1Tags, DeepEquals, tags)
 
 	log.Debug("Creating gp2 type volume2 from snapshot1")
 	r2 := &CreateEBSVolumeRequest{
