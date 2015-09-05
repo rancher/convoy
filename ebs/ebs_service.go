@@ -31,6 +31,18 @@ type ebsService struct {
 	AvailabilityZone string
 }
 
+type CreateEBSVolumeRequest struct {
+	Size       int64
+	IOPS       int64
+	SnapshotID string
+	VolumeType string
+}
+
+type CreateSnapshotRequest struct {
+	VolumeID    string
+	Description string
+}
+
 func sleepBeforeRetry() {
 	time.Sleep(RETRY_INTERVAL * time.Second)
 }
@@ -138,7 +150,15 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 	return nil
 }
 
-func (s *ebsService) CreateVolume(size int64, snapshotID, volumeType string, iops int64) (string, error) {
+func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, error) {
+	if request == nil {
+		return "", fmt.Errorf("Invalid CreateEBSVolumeRequest")
+	}
+	size := request.Size
+	iops := request.IOPS
+	snapshotID := request.SnapshotID
+	volumeType := request.VolumeType
+
 	// EBS size are in GB, we would round it up
 	ebsSize := size / GB
 	if size%GB > 0 {
@@ -393,10 +413,10 @@ func (s *ebsService) WaitForSnapshotComplete(snapshotID string) error {
 	return nil
 }
 
-func (s *ebsService) CreateSnapshot(volumeID, desc string) (string, error) {
+func (s *ebsService) CreateSnapshot(request *CreateSnapshotRequest) (string, error) {
 	params := &ec2.CreateSnapshotInput{
-		VolumeId:    aws.String(volumeID),
-		Description: aws.String(desc),
+		VolumeId:    aws.String(request.VolumeID),
+		Description: aws.String(request.Description),
 	}
 	resp, err := s.ec2Client.CreateSnapshot(params)
 	if err != nil {

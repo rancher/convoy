@@ -54,7 +54,10 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(originDevCounts, Not(Equals), 0)
 
 	log.Debug("Creating volume1")
-	volumeID1, err := svc.CreateVolume(GB, "", "", 0)
+	r1 := &CreateEBSVolumeRequest{
+		Size: GB,
+	}
+	volumeID1, err := svc.CreateVolume(r1)
 	c.Assert(err, IsNil)
 	c.Assert(volumeID1, Not(Equals), "")
 
@@ -72,7 +75,11 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(len(devMap), Equals, originDevCounts+1)
 
 	log.Debug("Creating snapshot1")
-	snapshotID, err := svc.CreateSnapshot(volumeID1, "Test snapshot")
+	rs1 := &CreateSnapshotRequest{
+		VolumeID:    volumeID1,
+		Description: "Test snapshot",
+	}
+	snapshotID, err := svc.CreateSnapshot(rs1)
 	c.Assert(err, IsNil)
 	c.Assert(snapshotID, Not(Equals), "")
 	log.Debug("Waiting for snapshot1 complete ", snapshotID)
@@ -80,7 +87,12 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 
 	log.Debug("Creating gp2 type volume2 from snapshot1")
-	volumeID2, err := svc.CreateVolume(2*GB, snapshotID, "gp2", 0)
+	r2 := &CreateEBSVolumeRequest{
+		Size:       2 * GB,
+		SnapshotID: snapshotID,
+		VolumeType: "gp2",
+	}
+	volumeID2, err := svc.CreateVolume(r2)
 	c.Assert(err, IsNil)
 	c.Assert(volumeID2, Not(Equals), "")
 
@@ -93,7 +105,13 @@ func (s *TestSuite) TestVolumeAndSnapshot(c *C) {
 	c.Assert(err, IsNil)
 
 	log.Debug("Creating io1 type volume3 from snapshot2")
-	volumeID3, err := svc.CreateVolume(5*GB, snapshotID2, "io1", 100)
+	r3 := &CreateEBSVolumeRequest{
+		Size:       5 * GB,
+		SnapshotID: snapshotID2,
+		VolumeType: "io1",
+		IOPS:       100,
+	}
+	volumeID3, err := svc.CreateVolume(r3)
 	c.Assert(err, IsNil)
 	c.Assert(volumeID3, Not(Equals), "")
 

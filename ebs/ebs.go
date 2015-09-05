@@ -286,7 +286,13 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		if err != nil {
 			return err
 		}
-		volumeID, err = d.ebsService.CreateVolume(volumeSize, ebsSnapshotID, volumeType, iops)
+		r := &CreateEBSVolumeRequest{
+			Size:       volumeSize,
+			SnapshotID: ebsSnapshotID,
+			VolumeType: volumeType,
+			IOPS:       iops,
+		}
+		volumeID, err = d.ebsService.CreateVolume(r)
 		if err != nil {
 			return err
 		}
@@ -302,7 +308,12 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		if err != nil {
 			return err
 		}
-		volumeID, err = d.ebsService.CreateVolume(volumeSize, "", volumeType, iops)
+		r := &CreateEBSVolumeRequest{
+			Size:       volumeSize,
+			VolumeType: volumeType,
+			IOPS:       iops,
+		}
+		volumeID, err = d.ebsService.CreateVolume(r)
 		if err != nil {
 			return err
 		}
@@ -543,8 +554,11 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 		}, "Already has snapshot with uuid")
 	}
 
-	desc := fmt.Sprintf("Convoy snapshot %v for volume %v", id, volumeID)
-	ebsSnapshotID, err := d.ebsService.CreateSnapshot(volume.EBSID, desc)
+	request := &CreateSnapshotRequest{
+		VolumeID:    volume.EBSID,
+		Description: fmt.Sprintf("Convoy snapshot %v for volume %v", id, volumeID),
+	}
+	ebsSnapshotID, err := d.ebsService.CreateSnapshot(request)
 	if err != nil {
 		return err
 	}
