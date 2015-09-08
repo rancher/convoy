@@ -1,5 +1,19 @@
 # Device Mapper
 
+## Driver initialization
+### Driver name: ```devicemapper```
+### Driver options:
+#### ```dm.datadev```
+Data device used to create device mapper thin-provisioning pool.
+#### ```dm.metadatadev```
+Metadata device used to create device mapper thin-provisioning pool.
+#### ```dm.thinpoolname```
+```convoy-pool``` by default. The name of thin-provisioning pool.
+#### ```dm.thinpoolblocksize```
+```4096```(2MiB) by default. The block size in 512-byte sectors of thin-provisioning pool. Notice it must be a value between 128 and 2097152, and must be multiples of 128.
+#### ```dm.defaultvolumesize```
+```100G``` by default. Since we're using thin-provisioning volumes of device mapper, here the volume size is the upper limit of volume size, rather than real volume size occupied the disk. Though specify a number too big here would result in bigger storage space taken by the empty filesystem.
+
 ## Calculate the size you need for metadata block device
 
 Use ```convoy-pdata_tools thin_metadata_size```.
