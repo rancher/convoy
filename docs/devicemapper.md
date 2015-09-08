@@ -1,6 +1,6 @@
 # Device Mapper
 
-## Driver initialization
+## Initialization
 ### Driver name: ```devicemapper```
 ### Driver options:
 #### ```dm.datadev```
@@ -12,7 +12,49 @@ Metadata device used to create device mapper thin-provisioning pool.
 #### ```dm.thinpoolblocksize```
 ```4096```(2MiB) by default. The block size in 512-byte sectors of thin-provisioning pool. Notice it must be a value between 128 and 2097152, and must be multiples of 128.
 #### ```dm.defaultvolumesize```
-```100G``` by default. Since we're using thin-provisioning volumes of device mapper, here the volume size is the upper limit of volume size, rather than real volume size occupied the disk. Though specify a number too big here would result in bigger storage space taken by the empty filesystem.
+```100G``` by default. Since we're using thin-provisioning volumes of device mapper, here the volume size is the upper limit of volume size, rather than real volume size allocated on the disk. Though specify a number too big here would result in bigger storage space taken by the empty filesystem.
+
+## Command details
+#### `create`
+1. `--size` would specify the size for thin-provisioning volume. It's upper limit of volume size rather than allocated volume size on the disk.
+2. `--backup` accepts `s3://` and `vfs://` type of backup. It would create a volume with the same size of backup. If user specify a different size through `--size` option, operation would fail.
+
+#### `inspect`
+`inspect` would provides following informations at `DriverInfo` section:
+* `DevID`: Device Mapper device ID.
+* `Device`: Device Mapper block device location.
+* `MountPoint`: Mount point of volume if mounted.
+* `Size`: Volume size. It's thin-provisioning volume size, not the size allocated on the disk.
+
+#### `info`
+`info` would provides following informations at `devicemapper` section:
+* `Driver`: `devicemapper`
+* `Root`: Config root directory
+* `DataDevice`: Data device for thin-provisioning pool
+* `MetadataDevice`: Metadata device for thin-provisioning pool
+* `ThinpoolDevice`: Thin-provisioning pool device
+* `ThinpoolSize`: Size of thin-provisioning pool
+* `ThinpoolBlockSize`: Block size of thin-provisioning pool in bytes(not in sectors as command line specified)
+* `DefaultVolumeSize`: Default thin-provisioning volume size in bytes
+
+#### `snapshot inspect`:
+`snapshot inspect` would provides following informations at `DriverInfo` section:
+* `DevID`: Device Mapper device ID.
+* `Size`: Size of thin-provisioning volume this snapshot has taken of.
+
+#### `backup inspect`:
+`backup inspect` would provides following informations:
+* `BackupURL`: URL represent this backup
+* `BackupUUID`: Backup's UUID
+* `DriverName`: Name of Convoy Driver created this backup
+* `VolumeUUID`: Original Convoy volume's UUID.
+* `VolumeName`: Original Convoy volume's name.
+* `VolumeSize`: Original Convoy volume's size.
+* `VolumeCreatedAt`: Original Convoy volume's timestamp.
+* `SnapshotUUID`: Original Convoy snapshot's UUID.
+* `SnapshotName`: Original Convoy snapshot's name.
+* `SnapshotCreatedAt`: Orignal Convoy snapshot's timestamp.
+* `CreatedTime`: Timestamp of this backup.
 
 ## Calculate the size you need for metadata block device
 
