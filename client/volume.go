@@ -54,7 +54,7 @@ var (
 
 	volumeMountCmd = cli.Command{
 		Name:  "mount",
-		Usage: "mount a volume to an specific path: mount <volume> [options]",
+		Usage: "mount a volume: mount <volume> [options]",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "mountpoint",

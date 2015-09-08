@@ -27,7 +27,7 @@ var (
 
 	backupListCmd = cli.Command{
 		Name:  "list",
-		Usage: "list volume in objectstore: list <dest>",
+		Usage: "list backups in objectstore: list <dest>",
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "volume-uuid",
