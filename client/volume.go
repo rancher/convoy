@@ -46,7 +46,7 @@ var (
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:  "reference, r",
-				Usage: "performance cleanup after delete if driver supports",
+				Usage: "only delete the reference of volume if driver supports",
 			},
 		},
 		Action: cmdVolumeDelete,
