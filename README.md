@@ -184,3 +184,6 @@ sudo make install
 ```
 The last line would install convoy to `/usr/local/bin/`, otherwise executables are
 in `bin/` directory.
+
+## More documents
+[Convoy Command Line Reference](https://github.com/rancher/convoy/blob/master/docs/cli_reference.md)
