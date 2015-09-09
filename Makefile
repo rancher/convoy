@@ -39,3 +39,6 @@ clean:
 
 install:
 	cp $(CONVOY_EXEC_FILE) /usr/local/bin/
+
+test:
+	go test -tags "libdm_no_deferred_remove" ./...
