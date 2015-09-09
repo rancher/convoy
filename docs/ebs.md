@@ -59,6 +59,8 @@ Notice user would be billed for EBS volume and snapshots from Amazon.
 ### `backup create`
 `backup create` would wait for a EBS snapshot complete creating if it hasn't completed yet. If creation of snapshot was success, the command would return URL in the format of `ebs://<region>/snap-xxxxxxxx` represent the backup, which can be used with `create --backup` command later.
 
+`--dest` option is not supported with EBS driver.
+
 ### `backup delete`
 `backup delete` would take `ebs://<region>/snap-xxxxxxxx` and delete `snap-xxxxxxxx` in AWS `region`.
 
