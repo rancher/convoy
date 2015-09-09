@@ -114,7 +114,7 @@ sudo convoy create volume_name
 ```
 A default Device Mapper volume size is 100G. We can supply the `--size` option to specify a custom device mapper volume size.
 
-We can also create a volume using the `docker run` command. If the volume does not yet exist, a new volume will be greated. Otherwise the existing volume will be used.
+We can also create a volume using the `docker run` command. If the volume does not yet exist, a new volume will be created. Otherwise the existing volume will be used.
 ```
 sudo docker -it test_volume:/test --volume-driver=convoy ubuntu
 ```
@@ -147,7 +147,7 @@ sudo convoy snapshot delete snap1vol1
 * For Device Mapper, please make sure you keep _the latest backed-up snapshot_ for the same volume available to enable incremental backup mechanism, since Convoy need it to calculate the differences between snapshots.
 
 #### Backup a Snapshot
-We can backup a snapshot to S3 object store or an NFS mount:
+For Device Mapper and VFS, We can backup a snapshot to S3 object store or an NFS mount:
 ```
 sudo convoy backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
 ```
@@ -161,6 +161,12 @@ The backup operation returns a URL string that uniquely idenfied the backup data
 s3://backup-bucket@us-west-2/?backup=f98f9ea1-dd6e-4490-8212-6d50df1982ea\u0026volume=e0d386c5-6a24-446c-8111-1077d10356b0
 ```
 * For S3, please make sure you have AWS credential ready either at ```~/.aws/credentials``` or as environment variables, as described [here](https://github.com/aws/aws-sdk-go#configuring-credentials). You may need to put credentials to ```/root/.aws/credentials``` or setup sudo environment variables in order to get S3 credential works.
+
+For EBS, `--dest` is not necessary. Just do:
+```
+sudo convoy backup create snap1vol1
+```
+Would create a backup, URL would be in the format of `ebs://<region>/snap_xxxxxxxx`. See [here](https://github.com/rancher/convoy/blob/master/docs/ebs.md#backup-create) for details.
 
 #### Restore a Volume from Backup
 ```
