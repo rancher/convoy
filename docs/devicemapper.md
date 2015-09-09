@@ -16,8 +16,8 @@ Metadata device used to create device mapper thin-provisioning pool.
 
 ## Command details
 #### `create`
-1. `--size` would specify the size for thin-provisioning volume. It's upper limit of volume size rather than allocated volume size on the disk.
-2. `--backup` accepts `s3://` and `vfs://` type of backup. It would create a volume with the same size of backup. If user specify a different size through `--size` option, operation would fail.
+* `--size` would specify the size for thin-provisioning volume. It's upper limit of volume size rather than allocated volume size on the disk.
+* `--backup` accepts `s3://` and `vfs://` type of backup as long as driver used to create backup is `devicemapper`. It would create a volume with the same size of backup. If user specify a different size through `--size` option, operation would fail.
 
 #### `inspect`
 `inspect` would provides following informations at `DriverInfo` section:
