@@ -109,6 +109,26 @@ func checkVolumeType(volumeType string) error {
 	return nil
 }
 
+func (d *Driver) remountVolumes() error {
+	volumeIDs, err := d.listVolumeIDs()
+	if err != nil {
+		return err
+	}
+	for _, uuid := range volumeIDs {
+		volume := d.blankVolume(uuid)
+		if err := util.ObjectLoad(volume); err != nil {
+			return err
+		}
+		if volume.MountPoint == "" {
+			continue
+		}
+		if _, err := d.MountVolume(uuid, map[string]string{}); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
 func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
 	ebsService, err := NewEBSService()
 	if err != nil {
@@ -157,6 +177,9 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 		mutex:      &sync.RWMutex{},
 		ebsService: ebsService,
 		Device:     *dev,
+	}
+	if err := d.remountVolumes(); err != nil {
+		return nil, err
 	}
 
 	return d, nil
