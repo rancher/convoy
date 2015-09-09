@@ -189,3 +189,7 @@ in `bin/` directory.
 [Convoy Command Line Reference](https://github.com/rancher/convoy/blob/master/docs/cli_reference.md)
 ### Driver References
 [Device Mapper](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md)
+
+[Amazon Elastic Block Store](https://github.com/rancher/convoy/blob/master/docs/ebs.md)
+
+[Virtual File System/Network File System](https://github.com/rancher/convoy/blob/master/docs/vfs.md)
