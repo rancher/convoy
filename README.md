@@ -98,6 +98,13 @@ The NFS-based Convoy daemon can be started as follows:
 ```
 sudo convoy daemon --drivers vfs --driver-opts vfs.path=<vfs_path>
 ```
+
+#### EBS
+Make sure you're running on EC2 instance, and has already [configured AWS credentials](https://github.com/aws/aws-sdk-go#configuring-credentials) correctly.
+```
+sudo convoy daemon --drivers ebs
+```
+
 ## Volume Commands
 #### Create a Volume
 
@@ -120,7 +127,7 @@ or
 ```
 sudo docker rm -v <container_name>
 ```
-* For NFS-backed volumes only: The `--reference` option instructs the `convoy delete` command to only delete the reference to the NFS-based volume from the current host and leave the underlying files on NFS server unchanged. This is useful where the same NFS-backed volume is mounted into multiple containers.
+* For NFS or EBS volumes: The `--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on NFS server or EBS volume unchanged. This is useful when the volume need to be reused later.
 
 #### List and Inspect a Volume
 ```
@@ -153,7 +160,7 @@ The backup operation returns a URL string that uniquely idenfied the backup data
 ```
 s3://backup-bucket@us-west-2/?backup=f98f9ea1-dd6e-4490-8212-6d50df1982ea\u0026volume=e0d386c5-6a24-446c-8111-1077d10356b0
 ```
-* For S3, please make sure you have AWS credential ready either at ```~/.aws/credentials``` or as environment variables, as described [here](http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs). You may need to put credentials to ```/root/.aws/credentials``` or setup sudo environment variables in order to get S3 credential works.
+* For S3, please make sure you have AWS credential ready either at ```~/.aws/credentials``` or as environment variables, as described [here](https://github.com/aws/aws-sdk-go#configuring-credentials). You may need to put credentials to ```/root/.aws/credentials``` or setup sudo environment variables in order to get S3 credential works.
 
 #### Restore a Volume from Backup
 ```
