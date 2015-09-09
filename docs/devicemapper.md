@@ -37,6 +37,14 @@ Metadata device used to create device mapper thin-provisioning pool.
 * `ThinpoolBlockSize`: Block size of thin-provisioning pool in bytes(not in sectors as command line specified)
 * `DefaultVolumeSize`: Default thin-provisioning volume size in bytes
 
+#### `snapshot create`
+`snapshot create` would use create a local Device Mapper snapshot of volume, means it's very fast, involving no data copying. The way how Device Mapper snapshot works also enable Convoy able to do incremental backup of snapshots.
+
+#### `backup create`
+`backup create` would incrementally backup a local snapshot to the backup destination. It supports `s3://` and `vfs:///` in the format of `s3://<bucket>@<region>/<path>` or `vfs:///<path>/`. Notice in order to work with S3, user need to configure AWS certificate, normally at `~/.aws/credentials`. See [here](https://github.com/aws/aws-sdk-go#configuring-credentials) for more details.
+
+In order to make incremental backup works, the latest backed up snapshot need to be perserved. It's needed to compare with the new snapshot to find difference in order to back them up. After the new snapshot has been backed up and become the latest backed up snapshot, the old snapshot can be delete. If the latest backed up snapshot cannot be found locally, the new snapshot would be backed up in full backup way rather than in incremental backup way.
+
 #### `snapshot inspect`:
 `snapshot inspect` would provides following informations at `DriverInfo` section:
 * `DevID`: Device Mapper device ID.
