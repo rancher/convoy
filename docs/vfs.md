@@ -1,5 +1,11 @@
 # Virtual File System / Network File System
-## Initialization
+## Introduction
+
+VFS/NFS driver would create a directory for each volume at user specified location(`vfs.path`), and store all the content of volume in that directory. The driver can be used either locally, or remotely by mounting NFS to `vfs.path`. If `vfs.path` is mounted NFS path, then the volume can be shared across the servers by using the same NFS mount and refer to the volume name on the other servers.
+
+VFS/NFS driver implements snapshot/backup as an compressed single file, supports using S3 or VFS/NFS as backup destination.
+
+## Daemon Options
 ### Driver Name: `vfs`
 ### Driver options:
 #### `vfs.path`
