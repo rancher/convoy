@@ -756,6 +756,7 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 	}
 
 	info := map[string]string{
+		"Region":        region,
 		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
 		"EBSVolumeID":   *ebsSnapshot.VolumeId,
 		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
