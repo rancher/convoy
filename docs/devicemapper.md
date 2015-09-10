@@ -1,12 +1,15 @@
 # Device Mapper
 
+## Introduction
+Convoy utilizes Linux Device Mapper's thin-provisioning mechanism, to provide persistent volumes for Docker containers. The driver supports snapshot and backup/restore for the volume. Snapshotting is extremely fast and crash consistent, since Device Mapper's snapshot would only involve metadata. It also supports incremental backup, means every backup after first one would only backup the changed parts of volume, greatly reduce the storage cost and increase the speed of backup. The driver supports using S3 or VFS/NFS as backup destination.
+
 ## Daemon Options
 ### Driver name: ```devicemapper```
 ### Driver options:
 #### ```dm.datadev```
-__Required__. Data device used to create device mapper thin-provisioning pool.
+__Required__. A big block device called data device used to create device mapper thin-provisioning pool. All volumes created in the future would take up the storage space in the data device.
 #### ```dm.metadatadev```
-__Required__. Metadata device used to create device mapper thin-provisioning pool.
+__Required__. A small block device called metadata device used to create device mapper thin-provisioning pool. See [below](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#calculate-the-size-you-need-for-metadata-block-device) for how to calculate the necessary size of metadata device.
 #### ```dm.thinpoolname```
 ```convoy-pool``` by default. The name of thin-provisioning pool.
 #### ```dm.thinpoolblocksize```
