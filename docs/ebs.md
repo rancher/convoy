@@ -7,7 +7,7 @@ Convoy would create a EBS volume for user, attach it to the current running inst
 
 Notice user would be billed for EBS volume and snapshots from Amazon.
 
-## Initialization
+## Daemon Options
 
 ### Driver name: `ebs`
 ### Driver options:
