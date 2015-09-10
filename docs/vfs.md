@@ -9,7 +9,7 @@ VFS/NFS driver implements snapshot/backup as an compressed single file, supports
 ### Driver Name: `vfs`
 ### Driver options:
 #### `vfs.path`
-The directory used to store volumes. Can be local directory or mounted NFS directory.
+__Required__. The directory used to store volumes. Can be local directory or mounted NFS directory.
 
 ## Command details
 #### `create`
