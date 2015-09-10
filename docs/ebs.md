@@ -71,3 +71,14 @@ Notice user would be billed for EBS volume and snapshots from Amazon.
 * `StartTime`: Timestamp of start creating EBS snapshot
 * `Size`: Size of original EBS volume.
 * `State`: EBS snapshot state. Would be either `completed`, `error` or `pending`
+
+## AWS tags
+Convoy would use tags in EBS volume/snapshot to provide some insight of the volume in Convoy's perspect.
+
+### EBS Volume
+* `Name`: Volume Name In Convoy
+* `ConvoyVolumeUUID`: Volume UUID In Convoy
+
+### EBS Snapshot
+* `ConvoyVolumeUUID`: Related Volume UUID In Convoy
+* `ConvoySnapshotUUID`: Snapshot UUID in Convoy
