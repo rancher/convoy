@@ -115,7 +115,7 @@ sudo convoy create volume_name
 * Device Mapper: Default volume size is 100G. `--size` [option](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#create) is supported.
 * EBS: Default volume size is 4G. `--size` and [some other options](https://github.com/rancher/convoy/blob/master/docs/ebs.md#create) are supported.
 
-We can also create a volume using the `docker run` command. If the volume does not yet exist, a new volume will be created. Otherwise the existing volume will be used.
+We can also create a volume using the [`docker run`](https://github.com/rancher/convoy/blob/master/docs/docker.md#create-container) command. If the volume does not yet exist, a new volume will be created. Otherwise the existing volume will be used.
 ```
 sudo docker -it test_volume:/test --volume-driver=convoy ubuntu
 ```
@@ -128,7 +128,8 @@ or
 ```
 sudo docker rm -v <container_name>
 ```
-* NFS or EBS: The `--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on [NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS volume](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete) unchanged. This is useful when the volume need to be reused later.
+* NFS or EBS: The `-r/--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on [NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS volume](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete) unchanged. This is useful when the volume need to be reused later.
+* [`docker rm -v`](https://github.com/rancher/convoy/blob/master/docs/docker.md#delete-container) would be treated as `convoy delete` with `-r/--reference`.
 
 #### List and Inspect a Volume
 ```
@@ -145,7 +146,7 @@ sudo convoy snapshot create vol1 --name snap1vol1
 ```
 sudo convoy snapshot delete snap1vol1
 ```
-* [Device Mapper](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#backup-create): please make sure you keep _the latest backed-up snapshot_ for the same volume available to enable incremental backup mechanism, since Convoy need it to calculate the differences between snapshots.
+* Device Mapper: please make sure you keep [the latest backed-up snapshot](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#backup-create) for the same volume available to enable incremental backup mechanism, since Convoy need it to calculate the differences between snapshots.
 
 #### Backup a Snapshot
 * Device Mapper or VFS: We can backup a snapshot to S3 object store or an NFS mount/local directory:
@@ -197,7 +198,7 @@ And of course, [bug fixes](https://github.com/rancher/convoy/issues) are always 
 ## References
 [Convoy Command Line Reference](https://github.com/rancher/convoy/blob/master/docs/cli_reference.md)
 
-[Convoy's Interaction with Docker](https://github.com/rancher/convoy/blob/master/docs/docker.md)
+[Using Convoy with Docker](https://github.com/rancher/convoy/blob/master/docs/docker.md)
 #### Driver Specific
 [Device Mapper](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md)
 
