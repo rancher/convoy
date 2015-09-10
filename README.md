@@ -112,7 +112,8 @@ Volumes can be created using the `convoy create` command:
 ```
 sudo convoy create volume_name
 ```
-A default Device Mapper volume size is 100G. We can supply the `--size` option to specify a custom device mapper volume size.
+* Device Mapper: Default volume size is 100G. `--size` [option](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#create) is supported.
+* EBS: Default volume size is 4G. `--size` and [some other options](https://github.com/rancher/convoy/blob/master/docs/ebs.md#create) are supported.
 
 We can also create a volume using the `docker run` command. If the volume does not yet exist, a new volume will be created. Otherwise the existing volume will be used.
 ```
@@ -127,7 +128,7 @@ or
 ```
 sudo docker rm -v <container_name>
 ```
-* For NFS or EBS volumes: The `--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on NFS server or EBS volume unchanged. This is useful when the volume need to be reused later.
+* NFS or EBS: The `--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on [NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS volume](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete) unchanged. This is useful when the volume need to be reused later.
 
 #### List and Inspect a Volume
 ```
@@ -144,10 +145,10 @@ sudo convoy snapshot create vol1 --name snap1vol1
 ```
 sudo convoy snapshot delete snap1vol1
 ```
-* For Device Mapper, please make sure you keep _the latest backed-up snapshot_ for the same volume available to enable incremental backup mechanism, since Convoy need it to calculate the differences between snapshots.
+* [Device Mapper](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#backup-create): please make sure you keep _the latest backed-up snapshot_ for the same volume available to enable incremental backup mechanism, since Convoy need it to calculate the differences between snapshots.
 
 #### Backup a Snapshot
-For Device Mapper and VFS, We can backup a snapshot to S3 object store or an NFS mount:
+* Device Mapper or VFS: We can backup a snapshot to S3 object store or an NFS mount/local directory:
 ```
 sudo convoy backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
 ```
@@ -160,18 +161,15 @@ The backup operation returns a URL string that uniquely idenfied the backup data
 ```
 s3://backup-bucket@us-west-2/?backup=f98f9ea1-dd6e-4490-8212-6d50df1982ea\u0026volume=e0d386c5-6a24-446c-8111-1077d10356b0
 ```
-* For S3, please make sure you have AWS credential ready either at ```~/.aws/credentials``` or as environment variables, as described [here](https://github.com/aws/aws-sdk-go#configuring-credentials). You may need to put credentials to ```/root/.aws/credentials``` or setup sudo environment variables in order to get S3 credential works.
+If you're using S3, please make sure you have AWS credential ready either at ```~/.aws/credentials``` or as environment variables, as described [here](https://github.com/aws/aws-sdk-go#configuring-credentials). You may need to put credentials to ```/root/.aws/credentials``` or setup sudo environment variables in order to get S3 credential works.
 
-For EBS, `--dest` is not necessary. Just do:
-```
-sudo convoy backup create snap1vol1
-```
-Would create a backup, URL would be in the format of `ebs://<region>/snap_xxxxxxxx`. See [here](https://github.com/rancher/convoy/blob/master/docs/ebs.md#backup-create) for details.
+* EBS: `--dest` is [not needed](https://github.com/rancher/convoy/blob/master/docs/ebs.md#backup-create). Just do `convoy backup create snap1vol1`.
 
 #### Restore a Volume from Backup
 ```
 sudo convoy create res1 --backup <url>
 ```
+* EBS: Current host must be in the [same region](https://github.com/rancher/convoy/blob/master/docs/ebs.md#create) of backup to be restored.
 
 #### Mount a Restored Volume into a Docker Container
 We can use the standard `docker run` command to mount the restored volume into a Docker container:
@@ -184,23 +182,23 @@ You can mount an NFS-backed volume on multiple servers. You can use the standard
 ```
 sudo docker run -it -v vol1:/vol1 --volume-driver=convoy ubuntu
 ```
-## Build Convoy
+## Support and Discussion
+If you need any help with Convoy, please join us at either our [forum](http://forums.rancher.com/c/convoy) or [#rancher IRC channel](http://webchat.freenode.net/?channels=rancher).
 
-1. Environment: Ensure Go environment, mercurial and `libdevmapper-dev` package are installed.
-2. Download [convoy-pdata_tools](https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2.1/convoy-pdata_tools) and put it in your $PATH.
-2. Build and install:
-```
-go get github.com/rancher/convoy
-cd $GOPATH/src/github.com/rancher/convoy
-make
-sudo make install
-```
-The last line would install convoy to `/usr/local/bin/`, otherwise executables are
-in `bin/` directory.
+Feel free to submit any bugs, issues, and feature requests to [Convoy Issues](https://github.com/rancher/convoy/issues).
 
-## More documents
+## Contribution
+Contribution are welcome! Please take a look at [Development Guide](https://github.com/rancher/convoy/blob/master/docs/development.md) if you want to how to build Convoy from source or running test cases.
+
+We love to hear new Convoy Driver ideas from you. Implemenations are most welcome! Please consider take a look at [enhancement ideas](https://github.com/rancher/convoy/labels/enhancement) if you want contribute.
+
+And of course, [bug fixes](https://github.com/rancher/convoy/issues) are always welcome!
+
+## References
 [Convoy Command Line Reference](https://github.com/rancher/convoy/blob/master/docs/cli_reference.md)
-### Driver References
+
+[Convoy's Interaction with Docker](https://github.com/rancher/convoy/blob/master/docs/docker.md)
+#### Driver Specific
 [Device Mapper](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md)
 
 [Amazon Elastic Block Store](https://github.com/rancher/convoy/blob/master/docs/ebs.md)
