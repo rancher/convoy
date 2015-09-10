@@ -6,12 +6,16 @@ Convoy is a  Docker volume plugin for a variety of storage back-ends. It's desig
 [![Convoy_DEMO](https://asciinema.org/a/9y5nbp3h97vyyxnzuax9f568e.png)](https://asciinema.org/a/9y5nbp3h97vyyxnzuax9f568e?autoplay=1&loop=1&size=medium&speed=2)
 
 ## Why we need Convoy?
-
 Docker has various drivers(aufs, device mapper, etc) for container's root image, but not for volumes. User can create volume through ```docker run -v volname```, but it's disposable, cannot be easily reused for new containers or containers on the other hosts. For example, if you start a wordpress container with database, add some posts, remove the container, then the modified database would lost.
 
 Before volume plugin, the only way to reuse the volume is using host bind mount feature of Docker, as ```docker run -v /host_path:/container_path```, then maintain the content of the volume at ```/hostpath```. You can also use ```--volume-from``` but that would require original container still exists on the same host.
 
-Convoy used Docker volume plugin mechanism to provide persistent volume for Docker containers, and supports various of drivers(e.g. device mapper, NFS, EBS) and more features like snapshot/backup/restore. So user would able to migrate the volumes between the hosts, share the same volume across the hosts, make scheduled snapshots of as well as recover to previous version of volume. It's much easier for user to manage data with Docker volumes with Convoy.
+Convoy used Docker volume plugin mechanism to provide persistent volume for Docker containers, and supports various of backends(e.g. device mapper, NFS, EBS) and more features like snapshot/backup/restore. So user would able to migrate the volumes between the hosts, share the same volume across the hosts, make scheduled snapshots of as well as recover to previous version of volume. It's much easier for user to manage data with Docker volumes with Convoy.
+
+### Backends supported by Convoy currently
+* Device Mapper
+* Virtual File System(VFS)/Network File System(NFS)
+* Amazon Elastic Block Store(EBS)
 
 ## Quick Start Guide
 First let's make sure we have Docker 1.8 or above running.
@@ -30,7 +34,7 @@ sudo cp convoy/convoy convoy/convoy-pdata_tools /usr/local/bin/
 sudo mkdir -p /etc/docker/plugins/
 sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/convoy.spec'
 ```
-We can use file-backed lookback device to test and demo Convoy driver. Loopback device, however, is known to be unstable and should not be used in production.
+We can use file-backed lookback device to test and demo Convoy Device Mapper driver. Loopback device, however, is known to be unstable and should not be used in production.
 ```
 truncate -s 100G data.vol
 truncate -s 1G metadata.vol
