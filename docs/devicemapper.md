@@ -1,12 +1,12 @@
 # Device Mapper
 
-## Initialization
+## Daemon Options
 ### Driver name: ```devicemapper```
 ### Driver options:
 #### ```dm.datadev```
-Data device used to create device mapper thin-provisioning pool.
+__Required__. Data device used to create device mapper thin-provisioning pool.
 #### ```dm.metadatadev```
-Metadata device used to create device mapper thin-provisioning pool.
+__Required__. Metadata device used to create device mapper thin-provisioning pool.
 #### ```dm.thinpoolname```
 ```convoy-pool``` by default. The name of thin-provisioning pool.
 #### ```dm.thinpoolblocksize```
@@ -95,4 +95,4 @@ The devices would be called ```<datadev>```(e.g. ```/dev/loop0```) and ```<metad
 ```
 sudo convoy server --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
 ```
-* Device mapper default volume size is 100G. You can override it with e.g. ```--driver-opts dm.defaultvolumesize=10G```
+* Device mapper default volume size is 100G. You can override it with e.g. ```--driver-opts dm.defaultvolumesize=10G``` as stated above.
