@@ -1,9 +1,9 @@
 # Amazon Elastic Block Store
 
 ## Introduction
-If user is running Convoy on AWS EC2 instance, Convoy would be able to create EBS volumes attached directly to the Docker container using AWS APIs. It suits for mission critial or performance critical tasks.
+If user is running Convoy on AWS EC2 instance, Convoy would be able to create EBS volumes attached directly to the Docker container. It suits for mission critial or performance critical tasks.
 
-Convoy would create a EBS volume for user, attach it to the current running instance, format it if necessary, then mount and assign it to Docker container. Convoy can also take snapshot of the volume and back it up, then create a new volume from the backup. Further more, Convoy can take an existing EBS volume and use it for Docker container as well.
+Convoy would create a EBS volume for user, attach it to the current running instance, and assign it to the Docker container. Convoy can also take snapshot of the volume and back it up, then create a new volume from the backup. The snapshot and backup operations are implemented using EBS snapshot mechanism. Further more, Convoy can take an existing EBS volume and use it for Docker container as well.
 
 Notice user would be billed for EBS volume and snapshots from Amazon.
 
