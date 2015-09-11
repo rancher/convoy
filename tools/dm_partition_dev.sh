@@ -76,8 +76,9 @@ fi
 echo "Start partitioning of $dev"
 
 (echo n; echo p; echo 1; echo; echo $datadev_sectors; \
-        echo n; echo p; echo 2; echo; echo; echo w) | fdisk $dev
+        echo n; echo p; echo 2; echo; echo; echo w) | fdisk $dev > /dev/null
 
+echo
 echo "Complete the partition of $dev"
 fdisk -l $dev
 
