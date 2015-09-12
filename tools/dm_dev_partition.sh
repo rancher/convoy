@@ -60,14 +60,14 @@ echo "Data Device size would be $datadev_size bytes"
 datadev_sectors=$((datadev_size/512))
 echo "Data Device would be $datadev_sectors sectors"
 
-if [ $write_to_disk -eq 0 ]; then
-        exit
-fi
-
 last_line=$(fdisk -l $dev|tail -n 1)
 if [[ "$last_line" != *"Device"* && "$last_line" != "" ]]; then
         echo "$dev already partitioned, can't start partition"
         exit 1
+fi
+
+if [ $write_to_disk -eq 0 ]; then
+        exit
 fi
 
 echo "Start partitioning of $dev"
