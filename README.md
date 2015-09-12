@@ -85,7 +85,7 @@ sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/co
 You need to pass different arguments to convoy daemon depending on the choice of backend implementation.
 
 #### Device Mapper
-For production environment, it's recommended to attach a new empty block device to the host Convoy running on for using Device Mapper driver. Then you can make two partitions out of the device using [`dm_dev_partition.sh`](https://raw.githubusercontent.com/rancher/convoy/master/tools/dm_dev_partition.sh) to create two block devices fitting for Device Mapper driver. See [Device Mapper Partition Helper](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#device-mapper-partition-helper) for more details.
+For production environment, it's recommended to attach a new empty block device to the host Convoy running on for using Device Mapper driver. Then you can make two partitions out of the device using [`dm_dev_partition.sh`](https://raw.githubusercontent.com/rancher/convoy/master/tools/dm_dev_partition.sh) to get two block devices fitting for Device Mapper driver. See [Device Mapper Partition Helper](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#device-mapper-partition-helper) for more details.
 
 Device Mapper requires two block devices to create storage pool for all volumes and snapshots. Assuming you have two devices created, one data device called `/dev/convoy-vg/data` and the other metadata device called `/dev/convoy-vg/metadata`. You run the following command to start the Convoy daemon:
 ```

@@ -85,4 +85,4 @@ metadev=$(cat $tempfile| tail -n 1| cut -d " " -f 1)
 
 echo "Now you can start Convoy Daemon using: "
 echo
-echo "convoy daemon --drivers devicemapper --driver-opts dm.datadev=${datadev} --driver-opts dm.metadatadev=${metadev}"
+echo "sudo convoy daemon --drivers devicemapper --driver-opts dm.datadev=${datadev} --driver-opts dm.metadatadev=${metadev}"

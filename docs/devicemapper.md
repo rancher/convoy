@@ -109,7 +109,7 @@ Disk identifier: 0xd6e7a605
 /dev/xvdf2       209631945   209715199       41627+  83  Linux
 Now you can start Convoy Daemon using:
 
-convoy daemon --drivers devicemapper --driver-opts dm.datadev=/dev/xvdf1 --driver-opts dm.metadatadev=/dev/xvdf2
+sudo convoy daemon --drivers devicemapper --driver-opts dm.datadev=/dev/xvdf1 --driver-opts dm.metadatadev=/dev/xvdf2
 ```
 Now you can use the last line of output to start Convoy daemon.
 
