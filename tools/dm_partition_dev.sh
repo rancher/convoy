@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 if [ $# -eq 0 ]; then
         echo "Usage: $0 [--write-to-disk] [-m|--max-thins 10000] <dev>"
         exit
@@ -66,10 +64,9 @@ if [ $write_to_disk -eq 0 ]; then
         exit
 fi
 
-last_partition=$(fdisk -l $dev|tail -n 1)
-echo $last_partition
-if [[ "$last_partition" != *"Device"* ]]; then
-        echo "$dev already partitioned, won't to start new partition"
+last_line=$(fdisk -l $dev|tail -n 1)
+if [[ "$last_line" != *"Device"* && "$last_line" != "" ]]; then
+        echo "$dev already partitioned, can't start partition"
         exit 1
 fi
 
@@ -80,8 +77,12 @@ echo "Start partitioning of $dev"
 
 echo
 echo "Complete the partition of $dev"
-fdisk -l $dev
+
+tempfile=$(mktemp)
+fdisk -l $dev | tee $tempfile
+datadev=$(cat $tempfile| tail -n 2| head -n 1 |cut -d " " -f 1)
+metadev=$(cat $tempfile| tail -n 1| cut -d " " -f 1)
 
 echo "Now you can start Convoy Daemon using: "
 echo
-echo "convoy daemon --drivers devicemapper --driver-opts dm.datadev=${dev}1 --driver-opts dm.metadatadev=${dev}2"
+echo "convoy daemon --drivers devicemapper --driver-opts dm.datadev=${datadev} --driver-opts dm.metadatadev=${metadev}"
