@@ -67,6 +67,52 @@ In order to make incremental backup works, the latest backed up snapshot need to
 * `SnapshotCreatedAt`: Orignal Convoy snapshot's timestamp.
 * `CreatedTime`: Timestamp of this backup.
 
+## Device Mapper Partition helper
+[`dm_dev_partition.sh`](https://raw.githubusercontent.com/rancher/convoy/master/tools/dm_dev_partition.sh) was created to help with setting up Device Mapper driver. It would make proper partitions out of single empty block devices automatically(see [Calculate the size you need for metadata block device](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#calculate-the-size-you-need-for-metadata-block-device)), and shows the command line to start Convoy daemon with Device Mapper driver.
+
+Before running `dm_dev_partition.sh`, make sure Convoy has been installed correctly. Then download [`dm_dev_partition.sh`](https://raw.githubusercontent.com/rancher/convoy/master/tools/dm_dev_partition.sh). Make a dry run against the __empty__ block device you want to use first, e.g.:
+```
+$ sudo ./dm_dev_partition.sh /dev/xvdf
+/dev/xvdf size is 107374182400 bytes
+Maximum volume and snapshot counts is 10000
+Metadata Device size would be 42627072 bytes
+Data Device size would be 107331555328 bytes
+Data Device would be 209631944 sectors
+```
+If there are partitions already existed on the disk, an error would be reported:
+```
+/dev/xvdf already partitioned, can't start partition
+```
+Note: the script is trying to make sure user do want to use this block device as Device Mapper's storage pool. Though user need to make sure the disk is empty and doesn't contain any valuable data.
+
+Now we're going to create the new partitions on the device:
+```
+$ sudo ./dm_dev_partition.sh --write-to-disk /dev/xvdf
+/dev/xvdf size is 107374182400 bytes
+Maximum volume and snapshot counts is 10000
+Metadata Device size would be 42627072 bytes
+Data Device size would be 107331555328 bytes
+Data Device would be 209631944 sectors
+Start partitioning of /dev/xvdf
+
+Complete the partition of /dev/xvdf
+
+Disk /dev/xvdf: 107.4 GB, 107374182400 bytes
+255 heads, 63 sectors/track, 13054 cylinders, total 209715200 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0xd6e7a605
+
+    Device Boot      Start         End      Blocks   Id  System
+/dev/xvdf1            2048   209631944   104814948+  83  Linux
+/dev/xvdf2       209631945   209715199       41627+  83  Linux
+Now you can start Convoy Daemon using:
+
+convoy daemon --drivers devicemapper --driver-opts dm.datadev=/dev/xvdf1 --driver-opts dm.metadatadev=/dev/xvdf2
+```
+Now you can use the last line of output to start Convoy daemon.
+
 ## Calculate the size you need for metadata block device
 
 Use ```convoy-pdata_tools thin_metadata_size```.
