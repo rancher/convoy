@@ -7,9 +7,9 @@ Convoy utilizes Linux Device Mapper's thin-provisioning mechanism, to provide pe
 ### Driver name: ```devicemapper```
 ### Driver options:
 #### ```dm.datadev```
-__Required__. A big block device called data device used to create device mapper thin-provisioning pool. All volumes created in the future would take up the storage space in the data device.
+__Required__. A big block device called data device used to create device mapper thin-provisioning pool. All volumes created in the future would take up the storage space in the data device. See [below](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#device-mapper-partition-helper) for how to create data device and metadata device out of single block device.
 #### ```dm.metadatadev```
-__Required__. A small block device called metadata device used to create device mapper thin-provisioning pool. See [below](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#calculate-the-size-you-need-for-metadata-block-device) for how to calculate the necessary size of metadata device.
+__Required__. A small block device called metadata device used to create device mapper thin-provisioning pool. See [below](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#device-mapper-partition-helper) for how to create data device and metadata device out of single block device, and [here](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#calculate-the-size-you-need-for-metadata-block-device) for how to calculate the necessary size of metadata device.
 #### ```dm.thinpoolname```
 ```convoy-pool``` by default. The name of thin-provisioning pool.
 #### ```dm.thinpoolblocksize```
