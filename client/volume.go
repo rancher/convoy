@@ -58,7 +58,7 @@ var (
 		Flags: []cli.Flag{
 			cli.StringFlag{
 				Name:  "mountpoint",
-				Usage: "mountpoint of volume, if not specified, it would be automatic mounted to default mounts-dir",
+				Usage: "mountpoint of volume. If not specified, it would be automatic mounted to default directory",
 			},
 		},
 		Action: cmdVolumeMount,

@@ -38,12 +38,10 @@ OPTIONS:
    --root "/var/lib/convoy"					specific root directory of convoy, if configure file exists, daemon specific options would be ignored
    --drivers [--drivers option --drivers option]		Drivers to be enabled, first driver in the list would be treated as default driver
    --driver-opts [--driver-opts option --driver-opts option]	options for driver
-   --mounts-dir "/var/lib/convoy/mounts"			default directory for mounting volume
 ```
 1. ```daemon``` command would start the Convoy daemon.The same Convoy binary would be used to start daemon as well as used as the client to communicate with daemon. In order to use Convoy, user need to setup and start the Convoy daemon first. Convoy daemon would run in the foreground by default. User can use various method e.g. [init-script](https://github.com/fhd/init-script-template) to start Convoy as background daemon.
 2. ```--root``` option would specify Convoy daemon's config root directory. After start Convoy on the host for the first time, it would contains all the information necessary for Convoy to start. After first time of start up, ```convoy daemon``` would automatically load configuration from config root directory. User don't need to specify same configurations anymore.
 3. ```--drivers``` and ```--driver-opts``` can be specified multiple times. ```--drivers``` would be the name of Convoy Driver, and ````--driver-opts``` would be the options for initialize the certain driver. See [```devicemapper```](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#driver-initialization), ```vfs```, ```ebs``` for driver option details. If there are multiple drivers specified, the first one in the list would be the default driver. See ```convoy create``` for details.
-4. ```--mounts-dir``` The directory used to automatically mount volume. Convoy would create sub-directories below this directory for mounting volumes.
 
 
 #### info
@@ -100,7 +98,7 @@ USAGE:
    command mount [command options] [arguments...]
 
 OPTIONS:
-   --mountpoint 	mountpoint of volume, if not specified, it would be automatic mounted to default mounts-dir
+   --mountpoint 	mountpoint of volume, if not specified, it would be automatic mounted to default directory
 ```
 * Volume can be referred by name, UUID, or partial UUID.
 

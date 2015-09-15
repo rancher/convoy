@@ -35,11 +35,6 @@ var (
 				Value: &cli.StringSlice{},
 				Usage: "options for driver",
 			},
-			cli.StringFlag{
-				Name:  "mounts-dir",
-				Value: "/var/lib/convoy/mounts",
-				Usage: "default directory for mounting volume",
-			},
 		},
 		Action: cmdStartDaemon,
 	}
