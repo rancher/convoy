@@ -326,7 +326,7 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	s.GlobalLock.RLock()
 	defer s.GlobalLock.RUnlock()
 
-	driverSpecific, err := util.GetLowerCaseFlag(r, "driver", false, nil)
+	driverSpecific, err := util.GetFlag(r, "driver", false, nil)
 	if err != nil {
 		return err
 	}

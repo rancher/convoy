@@ -14,7 +14,6 @@ from convoy import VolumeManager
 
 TEST_ROOT = "/tmp/convoy_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "convoy")
-MOUNT_ROOT = os.path.join(TEST_ROOT, "mount")
 PID_FILE = os.path.join(TEST_ROOT, "convoy.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "convoy.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
@@ -25,7 +24,8 @@ DM_ROOT = os.path.join(CFG_ROOT, DM)
 TEST_THREAD_COUNT = 100
 TEST_LOOP_COUNT = 100
 
-VFS_DEST = "vfs://" + TEST_ROOT
+VFS_BACKUP_DIR = os.path.join(TEST_ROOT, "Backup")
+VFS_DEST = "vfs://" + VFS_BACKUP_DIR
 
 VFS = "vfs"
 VFS_ROOT = os.path.join(CFG_ROOT, VFS)
@@ -106,8 +106,8 @@ def setup_module():
     os.makedirs(TEST_ROOT)
     assert os.path.exists(TEST_ROOT)
 
-    os.makedirs(MOUNT_ROOT)
-    assert os.path.exists(MOUNT_ROOT)
+    os.makedirs(VFS_BACKUP_DIR)
+    assert os.path.exists(VFS_BACKUP_DIR)
 
     data_file = os.path.join(TEST_ROOT, DATA_FILE)
     create_empty_file(data_file, DATA_DEVICE_SIZE)

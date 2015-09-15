@@ -64,7 +64,7 @@ func cmdBackupList(c *cli.Context) {
 func doBackupList(c *cli.Context) error {
 	var err error
 
-	destURL, err := util.GetLowerCaseFlag(c, "", true, err)
+	destURL, err := util.GetFlag(c, "", true, err)
 	volumeUUID, err := util.GetUUID(c, "volume-uuid", false, err)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func cmdBackupInspect(c *cli.Context) {
 func doBackupInspect(c *cli.Context) error {
 	var err error
 
-	backupURL, err := util.GetLowerCaseFlag(c, "", true, err)
+	backupURL, err := util.GetFlag(c, "", true, err)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func cmdBackupCreate(c *cli.Context) {
 func doBackupCreate(c *cli.Context) error {
 	var err error
 
-	destURL, err := util.GetLowerCaseFlag(c, "dest", false, err)
+	destURL, err := util.GetFlag(c, "dest", false, err)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func cmdBackupDelete(c *cli.Context) {
 
 func doBackupDelete(c *cli.Context) error {
 	var err error
-	backupURL, err := util.GetLowerCaseFlag(c, "", true, err)
+	backupURL, err := util.GetFlag(c, "", true, err)
 	if err != nil {
 		return err
 	}

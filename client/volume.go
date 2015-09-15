@@ -96,7 +96,7 @@ func cmdVolumeCreate(c *cli.Context) {
 }
 
 func getSize(c *cli.Context, err error) (int64, error) {
-	size, err := util.GetLowerCaseFlag(c, "size", false, err)
+	size, err := util.GetFlag(c, "size", false, err)
 	if err != nil {
 		return 0, err
 	}
@@ -108,8 +108,8 @@ func doVolumeCreate(c *cli.Context) error {
 
 	name := c.Args().First()
 	size, err := getSize(c, err)
-	driverName, err := util.GetLowerCaseFlag(c, "driver", false, err)
-	backupURL, err := util.GetLowerCaseFlag(c, "backup", false, err)
+	driverName, err := util.GetFlag(c, "driver", false, err)
+	backupURL, err := util.GetFlag(c, "backup", false, err)
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func doVolumeMount(c *cli.Context) error {
 	var err error
 
 	volumeUUID, err := getOrRequestUUID(c, "", true)
-	mountPoint, err := util.GetLowerCaseFlag(c, "mountpoint", false, err)
+	mountPoint, err := util.GetFlag(c, "mountpoint", false, err)
 	if err != nil {
 		return err
 	}

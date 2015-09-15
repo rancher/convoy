@@ -228,7 +228,7 @@ func ParseSize(size string) (int64, error) {
 		return 0, nil
 	}
 	size = strings.ToLower(size)
-	readableSize := regexp.MustCompile(`^[0-9.]+[kmg]$`)
+	readableSize := regexp.MustCompile(`^[0-9.]+[kmgt]$`)
 	if !readableSize.MatchString(size) {
 		value, err := strconv.ParseInt(size, 10, 64)
 		return value, err
@@ -312,12 +312,13 @@ func DecompressAndVerify(src io.Reader, checksum string) (io.Reader, error) {
 }
 
 func GetUUID(v interface{}, key string, required bool, err error) (string, error) {
-	uuid, err := GetLowerCaseFlag(v, key, required, err)
+	uuid, err := GetFlag(v, key, required, err)
 	if err != nil {
 		return uuid, err
 	}
+	uuid = strings.ToLower(uuid)
 	if !required && uuid == "" {
-		return uuid, nil
+		return "", nil
 	}
 	if err := CheckUUID(uuid); err != nil {
 		return "", err
@@ -326,7 +327,7 @@ func GetUUID(v interface{}, key string, required bool, err error) (string, error
 }
 
 func GetName(v interface{}, key string, required bool, err error) (string, error) {
-	name, err := GetLowerCaseFlag(v, key, required, err)
+	name, err := GetFlag(v, key, required, err)
 	if err != nil {
 		return name, err
 	}
@@ -343,7 +344,7 @@ func RequiredMissingError(name string) error {
 	return fmt.Errorf("Cannot find valid required parameter:", name)
 }
 
-func GetLowerCaseFlag(v interface{}, key string, required bool, err error) (string, error) {
+func GetFlag(v interface{}, key string, required bool, err error) (string, error) {
 	if err != nil {
 		return "", err
 	}
@@ -365,11 +366,10 @@ func GetLowerCaseFlag(v interface{}, key string, required bool, err error) (stri
 		}
 		value = v.FormValue(key)
 	}
-	result := strings.ToLower(value)
-	if required && result == "" {
+	if required && value == "" {
 		err = RequiredMissingError(key)
 	}
-	return result, err
+	return value, err
 }
 
 func UnescapeURL(url string) string {

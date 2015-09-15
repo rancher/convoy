@@ -182,7 +182,7 @@ func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error)
 	if key == "" {
 		id = c.Args().First()
 	} else {
-		id, err = util.GetLowerCaseFlag(c, key, required, err)
+		id, err = util.GetFlag(c, key, required, err)
 		if err != nil {
 			return "", err
 		}
