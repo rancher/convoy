@@ -123,7 +123,7 @@ sudo convoy create volume_name
 
 We can also create a volume using the [`docker run`](https://github.com/rancher/convoy/blob/master/docs/docker.md#create-container) command. If the volume does not yet exist, a new volume will be created. Otherwise the existing volume will be used.
 ```
-sudo docker -it test_volume:/test --volume-driver=convoy ubuntu
+sudo docker run -it -v test_volume:/test --volume-driver=convoy ubuntu
 ```
 
 #### Delete a Volume
