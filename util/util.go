@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/mcuadros/go-version"
 	"golang.org/x/sys/unix"
@@ -24,6 +25,10 @@ import (
 
 const (
 	PRESERVED_CHECKSUM_LENGTH = 64
+)
+
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "util"})
 )
 
 func EncodeData(v interface{}) (*bytes.Buffer, error) {

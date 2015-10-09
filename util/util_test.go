@@ -22,6 +22,7 @@ var _ = Suite(&TestSuite{})
 
 const (
 	testRoot  = "/tmp/util"
+	emptyFile = "/tmp/util/empty"
 	testImage = "test.img"
 	imageSize = 1 << 27
 )
@@ -32,6 +33,12 @@ func (s *TestSuite) SetUpSuite(c *C) {
 
 	s.imageFile = filepath.Join(testRoot, testImage)
 	err = exec.Command("dd", "if=/dev/zero", "of="+s.imageFile, "bs=4096", "count="+strconv.Itoa(imageSize/4096)).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("mkfs.ext4", "-F", s.imageFile).Run()
+	c.Assert(err, IsNil)
+
+	err = exec.Command("touch", emptyFile).Run()
 	c.Assert(err, IsNil)
 }
 
@@ -138,9 +145,10 @@ func (s *TestSuite) TestSliceToMap(c *C) {
 }
 
 func (s *TestSuite) TestChecksum(c *C) {
-	checksum, err := GetFileChecksum(s.imageFile)
+	checksum, err := GetFileChecksum(emptyFile)
 	c.Assert(err, IsNil)
-	c.Assert(checksum, Equals, "0ff7859005e5debb631f55b7dcf4fb3a1293ff937b488d8bf5a8e173d758917ccf9e835403c16db1b33d406b9b40438f88d184d95c81baece136bc68fa0ae5d2")
+	c.Assert(checksum, Equals,
+		"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e")
 }
 
 func (s *TestSuite) TestLoopDevice(c *C) {

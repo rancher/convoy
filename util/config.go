@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+const (
+	MOUNT_BINARY  = "mount"
+	UMOUNT_BINARY = "umount"
+)
+
 func LoadConfig(fileName string, v interface{}) error {
 	if _, err := os.Stat(fileName); err != nil {
 		return err
