@@ -7,7 +7,6 @@ import (
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -87,6 +86,14 @@ func (v *Volume) ConfigFile() (string, error) {
 		return "", fmt.Errorf("BUG: Invalid empty volume config path")
 	}
 	return filepath.Join(v.configPath, CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
+}
+
+func (v *Volume) GetDevice() (string, error) {
+	return v.Device, nil
+}
+
+func (v *Volume) GenerateDefaultMountPoint() string {
+	return filepath.Join(v.configPath, MOUNTS_DIR, v.UUID)
 }
 
 func init() {
@@ -406,55 +413,17 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	return util.ObjectDelete(volume)
 }
 
-func mounted(dev, mountPoint string) bool {
-	output, err := util.Execute(MOUNT_BINARY, []string{})
-	if err != nil {
-		return false
-	}
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, dev) && strings.Contains(line, mountPoint) {
-			return true
-		}
-	}
-	return false
-}
-
-func (d *Driver) getVolumeMountPoint(volumeUUID, specifiedPoint string) (string, error) {
-	var dir string
-	if specifiedPoint != "" {
-		dir = specifiedPoint
-	} else {
-		dir = filepath.Join(d.Root, MOUNTS_DIR, volumeUUID)
-	}
-	if err := util.MkdirIfNotExists(dir); err != nil {
-		return "", err
-	}
-	return dir, nil
-}
-
 func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
-	dev := volume.Device
-	specifiedPoint := opts[convoydriver.OPT_MOUNT_POINT]
-	mountPoint, err := d.getVolumeMountPoint(id, specifiedPoint)
+
+	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT])
 	if err != nil {
 		return "", err
 	}
-	if volume.MountPoint != "" && volume.MountPoint != mountPoint {
-		return "", fmt.Errorf("volume %v already mounted at %v, but asked to mount at %v", id, volume.MountPoint, mountPoint)
-	}
-	if !mounted(dev, mountPoint) {
-		log.Debugf("Volume %v is not mounted, mount it now to %v", id, mountPoint)
-		_, err = util.Execute(MOUNT_BINARY, []string{dev, mountPoint})
-		if err != nil {
-			return "", err
-		}
-	}
-	volume.MountPoint = mountPoint
+
 	if err := util.ObjectSave(volume); err != nil {
 		return "", err
 	}
@@ -462,29 +431,16 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return mountPoint, nil
 }
 
-func (d *Driver) putVolumeMountPoint(mountPoint string) {
-	if strings.HasPrefix(mountPoint, filepath.Join(d.Root, MOUNTS_DIR)) {
-		if err := os.Remove(mountPoint); err != nil {
-			log.Warnf("Cannot cleanup mount point directory %v\n", mountPoint)
-		}
-	}
-}
-
 func (d *Driver) UmountVolume(id string) error {
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
-	if volume.MountPoint == "" {
-		log.Debugf("Umount a umounted volume %v", id)
-		return nil
-	}
-	if _, err := util.Execute(UMOUNT_BINARY, []string{volume.MountPoint}); err != nil {
+
+	if err := util.VolumeUmount(volume); err != nil {
 		return err
 	}
-	d.putVolumeMountPoint(volume.MountPoint)
 
-	volume.MountPoint = ""
 	if err := util.ObjectSave(volume); err != nil {
 		return err
 	}
