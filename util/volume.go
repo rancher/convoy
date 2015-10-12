@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+const (
+	MOUNT_BINARY   = "mount"
+	UMOUNT_BINARY  = "umount"
+	NSENTER_BINARY = "nsenter"
+)
+
+var (
+	mountNamespaceFD = ""
+)
+
 /* Caller must implement VolumeHelper interface, and must have fields "UUID" and "MountPoint" */
 type VolumeHelper interface {
 	GetDevice() (string, error)
@@ -159,7 +169,18 @@ func VolumeUmount(v interface{}) error {
 }
 
 func callMount(args []string) (string, error) {
-	output, err := Execute(MOUNT_BINARY, args)
+	cmdName := MOUNT_BINARY
+	cmdArgs := args
+	if mountNamespaceFD != "" {
+		cmdArgs = []string{
+			"--mount=" + mountNamespaceFD,
+			cmdName,
+		}
+		cmdArgs = append(cmdArgs, args...)
+		cmdName = NSENTER_BINARY
+		log.Debugf("Mount in namespace %v", mountNamespaceFD)
+	}
+	output, err := Execute(cmdName, cmdArgs)
 	if err != nil {
 		return "", err
 	}
@@ -167,8 +188,34 @@ func callMount(args []string) (string, error) {
 }
 
 func callUmount(args []string) error {
-	if _, err := Execute(UMOUNT_BINARY, args); err != nil {
+	cmdName := UMOUNT_BINARY
+	cmdArgs := args
+	if mountNamespaceFD != "" {
+		cmdArgs = []string{
+			"--mount=" + mountNamespaceFD,
+			cmdName,
+		}
+		cmdArgs = append(cmdArgs, args...)
+		cmdName = NSENTER_BINARY
+		log.Debugf("Umount in namespace %v", mountNamespaceFD)
+	}
+	if _, err := Execute(cmdName, cmdArgs); err != nil {
 		return err
 	}
+	return nil
+}
+
+func InitMountNamespace(fd string) error {
+	if fd == "" {
+		return nil
+	}
+	if _, err := Execute(NSENTER_BINARY, []string{"-V"}); err != nil {
+		return fmt.Errorf("Cannot find nsenter for namespace switching")
+	}
+	if _, err := Execute(NSENTER_BINARY, []string{"--mount=" + fd}); err != nil {
+		return fmt.Errorf("Invalid mount namespace %v, error %v", fd, err)
+	}
+
+	mountNamespaceFD = fd
 	return nil
 }

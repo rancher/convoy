@@ -35,6 +35,10 @@ var (
 				Value: &cli.StringSlice{},
 				Usage: "options for driver",
 			},
+			cli.StringFlag{
+				Name:  "mnt-ns",
+				Usage: "Specify mount namespace file descriptor if user don't want to mount in current namespace. Support by Device Mapper and EBS",
+			},
 		},
 		Action: cmdStartDaemon,
 	}

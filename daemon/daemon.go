@@ -50,9 +50,10 @@ var (
 )
 
 type daemonConfig struct {
-	Root          string
-	DriverList    []string
-	DefaultDriver string
+	Root             string
+	DriverList       []string
+	DefaultDriver    string
+	MountNamespaceFD string
 }
 
 func (c *daemonConfig) ConfigFile() (string, error) {
@@ -277,13 +278,20 @@ func Start(sockFile string, c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	if exists {
 		log.Debug("Found existing config. Ignoring command line opts, loading config from ", root)
 		if err := util.ObjectLoad(config); err != nil {
 			return err
 		}
 	} else {
+		fd := c.String("mnt-ns")
+		if fd != "" {
+			if _, err := os.Stat(fd); err != nil {
+				return fmt.Errorf("Cannot find mount namespace fd %v", fd)
+			}
+			config.MountNamespaceFD = fd
+		}
+
 		driverList := c.StringSlice("drivers")
 		if len(driverList) == 0 {
 			return fmt.Errorf("Missing or invalid parameters")
@@ -293,10 +301,16 @@ func Start(sockFile string, c *cli.Context) error {
 		config.DriverList = driverList
 		config.DefaultDriver = driverList[0]
 	}
+
 	s.daemonConfig = *config
 
+	// driverOpts would be ignored by Convoy Drivers if config already exists
+	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	if err := s.initDrivers(driverOpts); err != nil {
 		return err
+	}
+	if err := util.InitMountNamespace(s.MountNamespaceFD); err != nil {
+		return nil
 	}
 	if err := s.finializeInitialization(); err != nil {
 		return err
