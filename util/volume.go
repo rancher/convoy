@@ -89,8 +89,8 @@ func getVolumeOps(obj interface{}) (VolumeHelper, error) {
 	return ops, nil
 }
 
-func mounted(dev, mountPoint string) bool {
-	output, err := Execute(MOUNT_BINARY, []string{})
+func isMounted(dev, mountPoint string) bool {
+	output, err := callMount([]string{})
 	if err != nil {
 		return false
 	}
@@ -125,9 +125,9 @@ func VolumeMount(v interface{}, mountPoint string) (string, error) {
 	if existMount != "" && existMount != mountPoint {
 		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
 	}
-	if !mounted(dev, mountPoint) {
+	if !isMounted(dev, mountPoint) {
 		log.Debugf("Volume %v is not mounted, mount it now to %v", getVolumeUUID(vol), mountPoint)
-		_, err = Execute(MOUNT_BINARY, []string{dev, mountPoint})
+		_, err = callMount([]string{dev, mountPoint})
 		if err != nil {
 			return "", err
 		}
@@ -146,7 +146,7 @@ func VolumeUmount(v interface{}) error {
 		log.Debugf("Umount a umounted volume %v", getVolumeUUID(vol))
 		return nil
 	}
-	if _, err := Execute(UMOUNT_BINARY, []string{mountPoint}); err != nil {
+	if err := callUmount([]string{mountPoint}); err != nil {
 		return err
 	}
 	if mountPoint == vol.GenerateDefaultMountPoint() {
@@ -155,5 +155,20 @@ func VolumeUmount(v interface{}) error {
 		}
 	}
 	setVolumeMountPoint(vol, "")
+	return nil
+}
+
+func callMount(args []string) (string, error) {
+	output, err := Execute(MOUNT_BINARY, args)
+	if err != nil {
+		return "", err
+	}
+	return output, nil
+}
+
+func callUmount(args []string) error {
+	if _, err := Execute(UMOUNT_BINARY, args); err != nil {
+		return err
+	}
 	return nil
 }
