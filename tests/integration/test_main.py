@@ -18,6 +18,12 @@ PID_FILE = os.path.join(TEST_ROOT, "convoy.pid")
 LOG_FILE= os.path.join(TEST_ROOT, "convoy.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
+CONTAINER_NAME = "convoy-test"
+CONTAINER = "yasker/convoy"
+CONVOY_CONTAINER_CMD = ["docker", "exec", CONTAINER_NAME, "convoy"]
+
+CONVOY_BINARY = [os.path.abspath("../../bin/convoy")]
+
 DM = "devicemapper"
 DM_ROOT = os.path.join(CFG_ROOT, DM)
 
@@ -39,7 +45,6 @@ S3_PATH = "test/volume/"
 
 DD_BLOCK_SIZE = 4096
 POOL_NAME = "convoy_test_pool"
-CONVOY_BINARY = os.path.abspath("../../bin/convoy")
 
 DATA_FILE = "data.vol"
 METADATA_FILE = "metadata.vol"
@@ -68,6 +73,7 @@ dm_cleanup_list = []
 volume_cleanup_list = []
 
 test_ebs = False
+test_container = False
 
 def create_empty_file(filepath, size):
     subprocess.check_call(["truncate", "-s", str(size), filepath])
@@ -82,9 +88,6 @@ def attach_loopback_dev(filepath):
 def detach_loopback_dev(dev):
     subprocess.check_output(["losetup", "-d", dev])
 
-def format_dev(dev):
-    subprocess.check_call(["mkfs", "-t", "ext4", dev])
-
 def mount_dev(dev, mountpoint):
     subprocess.check_call(["mount", dev, mountpoint])
     mount_cleanup_list.append(mountpoint)
@@ -94,11 +97,11 @@ def umount_dev(mountpoint):
     mount_cleanup_list.remove(mountpoint)
 
 def setup_module():
-    processes = subprocess.check_output(["ps", "aux"])
-    assert("convoy" not in processes)
-
     global test_ebs
     test_ebs = pytest.config.getoption("ebs")
+
+    global test_container
+    test_container = pytest.config.getoption("container")
 
     if os.path.exists(TEST_ROOT):
 	subprocess.check_call(["rm", "-rf", TEST_ROOT])
@@ -120,8 +123,15 @@ def setup_module():
     metadata_dev = attach_loopback_dev(metadata_file)
 
     global v
-    v = VolumeManager(CONVOY_BINARY, TEST_ROOT)
-    cmdline = ["daemon",
+    cmdline = []
+    if test_container:
+        v = VolumeManager(CONVOY_CONTAINER_CMD, TEST_ROOT)
+        cmdline = ["convoy-start",
+                   "--mnt-ns", "/host/proc/1/ns/mnt"]
+    else:
+        v = VolumeManager(CONVOY_BINARY, TEST_ROOT)
+        cmdline = ["daemon"]
+    cmdline += [
         "--root", CFG_ROOT,
         "--log", LOG_FILE,
         "--drivers=" + DM,
@@ -137,7 +147,10 @@ def setup_module():
                 "ebs.defaultvolumesize=" + DEFAULT_VOLUME_SIZE,
                 "--driver-opts",
                 "ebs.defaultvolumetype=" + EBS_DEFAULT_VOLUME_TYPE]
-    v.start_server(PID_FILE, cmdline)
+    if test_container:
+        v.start_server_container(CONTAINER_NAME, CFG_ROOT, TEST_ROOT, CONTAINER, cmdline)
+    else:
+        v.start_server(PID_FILE, cmdline)
     dm_cleanup_list.append(POOL_NAME)
     wait_for_daemon()
 
@@ -149,7 +162,10 @@ def detach_all_lodev(keyword):
             detach_loopback_dev(line.split(":")[0].strip())
 
 def teardown_module():
-    code = v.stop_server(PID_FILE)
+    if test_container:
+        code = v.stop_server_container(CONTAINER_NAME)
+    else:
+        code = v.stop_server(PID_FILE)
     if code != 0:
         print "Something wrong when tearing down, continuing with code ", code
 
@@ -180,7 +196,12 @@ def wait_for_daemon():
                 break
         except subprocess.CalledProcessError:
                 print "Fail to communicate with daemon"
-                if v.check_server(PID_FILE) != 0:
+                check_result = 0
+                if test_container:
+                    check_result = v.check_server_container(CONTAINER_NAME)
+                else:
+                    check_result = v.check_server(PID_FILE)
+                if check_result != 0:
                     print "Server failed to start"
                     teardown_module()
                     assert False
