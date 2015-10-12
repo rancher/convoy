@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mount --rbind /host/dev /dev && \
+convoy daemon $@
