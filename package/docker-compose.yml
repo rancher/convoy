@@ -1,0 +1,23 @@
+convoy-instance:
+    restart: always
+    labels:
+        io.rancher.container.pull_image: always
+    entrypoint:
+        - /bin/bash
+        - -c
+    command:
+        - /usr/local/bin/convoy-start --mnt-ns /host/proc/1/ns/mnt \
+            --drivers=devicemapper \
+            --driver-opts dm.datadev=/dev/loop0 \
+            --driver-opts dm.metadatadev=/dev/loop1 \
+            --driver-opts dm.thinpoolname=convoy_test_pool
+    privileged: true
+    working_dir: /storage
+    volumes:
+        - /etc/ssl/certs:/etc/ssl/certs
+        - /root/.aws:/root/.aws
+        - /dev:/host/dev
+        - /proc:/host/proc
+        - /var/lib/convoy:/var/lib/convoy
+        - /storage
+    image: yasker/convoy
