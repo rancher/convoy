@@ -310,7 +310,7 @@ func Start(sockFile string, c *cli.Context) error {
 		return err
 	}
 	if err := util.InitMountNamespace(s.MountNamespaceFD); err != nil {
-		return nil
+		return err
 	}
 	if err := s.finializeInitialization(); err != nil {
 		return err

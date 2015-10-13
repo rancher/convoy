@@ -212,7 +212,7 @@ func InitMountNamespace(fd string) error {
 	if _, err := Execute(NSENTER_BINARY, []string{"-V"}); err != nil {
 		return fmt.Errorf("Cannot find nsenter for namespace switching")
 	}
-	if _, err := Execute(NSENTER_BINARY, []string{"--mount=" + fd}); err != nil {
+	if _, err := Execute(NSENTER_BINARY, []string{"--mount=" + fd, "mount"}); err != nil {
 		return fmt.Errorf("Invalid mount namespace %v, error %v", fd, err)
 	}
 
