@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	rancherClient "github.com/rancher/go-rancher/client"
 )
@@ -22,6 +23,9 @@ const (
 	CFG_POSTFIX         = ".json"
 
 	SNAPSHOT_PATH = "snapshots"
+
+	RETRY_INTERVAL = 1 * time.Second
+	RETRY_MAX      = 5
 
 	DEFAULT_VOLUME_SIZE = "10G"
 
@@ -174,7 +178,7 @@ func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
 }
 
 func getStackName(name string) string {
-	return "Longhorn_" + name
+	return "Longhorn-" + name
 }
 
 func (d *Driver) CreateVolume(id string, opts map[string]string) error {
@@ -188,7 +192,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 	volume := d.blankVolume(id)
 	volume.Size = size
-	volume.StackName = "teststack"
+	volume.StackName = getStackName(id)
 
 	sizeString := strconv.FormatInt(size, 10)
 	dockerCompose := DockerComposeTemplate
@@ -203,12 +207,62 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		DockerCompose:  dockerCompose,
 		RancherCompose: rancherCompose,
 	}
-	resp, err := d.client.Environment.Create(config)
+	env, err := d.client.Environment.Create(config)
 	if err != nil {
 		return err
 	}
-	volume.StackID = resp.Id
+	volume.StackID = env.Id
+
+	if err := d.waitForServices(env, 2, "inactive"); err != nil {
+		log.Debugf("Cleaning up %v", env.Name)
+		if err := d.client.Environment.Delete(env); err != nil {
+			return err
+		}
+		return err
+	}
+	// Action should return error if env is not ready
+	_, err = d.client.Environment.ActionActivateServices(env)
+	if err != nil {
+		log.Debugf("Cleaning up %v", env.Name)
+		if err := d.client.Environment.Delete(env); err != nil {
+			return err
+		}
+		return err
+	}
 	return util.ObjectSave(volume)
+}
+
+func (d *Driver) waitForServices(env *rancherClient.Environment, targetServiceCount int, targetState string) error {
+	var serviceCollection rancherClient.ServiceCollection
+	ready := false
+
+	for i := 0; !ready && i < RETRY_MAX; i++ {
+		log.Debugf("Waiting for %v services in %v turn to %v state", targetServiceCount, env.Name, targetState)
+		time.Sleep(RETRY_INTERVAL)
+		if err := d.client.GetLink(env.Resource, "services", &serviceCollection); err != nil {
+			return err
+		}
+		services := serviceCollection.Data
+		if len(services) != targetServiceCount {
+			continue
+		}
+		incorrectState := false
+		for _, service := range services {
+			if service.State != targetState {
+				incorrectState = true
+				break
+			}
+		}
+		if incorrectState {
+			continue
+		}
+		ready = true
+	}
+	if !ready {
+		return fmt.Errorf("Failed to wait for %v services in %v turn to %v state", targetServiceCount, env.Name, targetState)
+	}
+	log.Debugf("Services change state to %v in %v", targetState, env.Name)
+	return nil
 }
 
 func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
@@ -224,6 +278,9 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 
 	env, err := d.client.Environment.ById(volume.StackID)
 	if err != nil {
+		return err
+	}
+	if _, err := d.client.Environment.ActionDeactivateServices(env); err != nil {
 		return err
 	}
 	if err := d.client.Environment.Delete(env); err != nil {
