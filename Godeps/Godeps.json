@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/rancher/convoy",
-	"GoVersion": "go1.5",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -89,8 +89,17 @@
 			"Rev": "ee1815431e497d3850809578c93ab6705f1a19f7"
 		},
 		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Rev": "c66b764651cdca39f42d263b07a507c6e8b58ee9"
+		},
+		{
 			"ImportPath": "github.com/mcuadros/go-version",
 			"Rev": "d52711f8d6bea8dc01efafdb68ad95a4e2606630"
+		},
+		{
+			"ImportPath": "github.com/rancher/go-rancher/client",
+			"Comment": "v0.1.0-79-gdd18ff4",
+			"Rev": "dd18ff4e7d5af991aadca1eb513fa3ce282d2542"
 		},
 		{
 			"ImportPath": "github.com/tchap/go-patricia/patricia",
@@ -107,7 +116,7 @@
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
-			"Rev": "11d3bc7aa68e238947792f30573146a3231fc0f1"
+			"Rev": "64131543e7896d5bcc6bd5a76287eb75ea96c673"
 		}
 	]
 }
