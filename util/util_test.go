@@ -331,3 +331,12 @@ func (s *TestSuite) TestCompressDir(c *C) {
 	err = file2.Close()
 	c.Assert(err, IsNil)
 }
+
+/*
+func (s *TestSuite) TestNBDDeviceFind(c *C) {
+
+	dev, err := NBDFindFreeDevice()
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(dev, "/dev/nbd"), Equals, true)
+}
+*/

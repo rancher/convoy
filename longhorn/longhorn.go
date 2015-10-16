@@ -17,6 +17,7 @@ import (
 const (
 	DRIVER_NAME        = "longhorn"
 	DRIVER_CONFIG_FILE = "longhorn.cfg"
+	MOUNTS_DIR         = "mounts"
 
 	VOLUME_CFG_PREFIX   = "volume_"
 	LONGHORN_CFG_PREFIX = DRIVER_NAME + "_"
@@ -24,8 +25,10 @@ const (
 
 	SNAPSHOT_PATH = "snapshots"
 
-	RETRY_INTERVAL = 1 * time.Second
-	RETRY_MAX      = 5
+	RETRY_INTERVAL = 2 * time.Second
+	RETRY_MAX      = 20
+
+	NBD_CLIENT = "nbd-client"
 
 	DEFAULT_VOLUME_SIZE = "10G"
 
@@ -68,6 +71,7 @@ func (dev *Device) ConfigFile() (string, error) {
 type Volume struct {
 	UUID       string
 	Size       int64
+	Device     string
 	MountPoint string
 	StackID    string
 	StackName  string
@@ -85,6 +89,14 @@ func (v *Volume) ConfigFile() (string, error) {
 	return filepath.Join(v.configPath, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
 }
 
+func (v *Volume) GetDevice() (string, error) {
+	return v.Device, nil
+}
+
+func (v *Volume) GenerateDefaultMountPoint() string {
+	return filepath.Join(v.configPath, MOUNTS_DIR, v.UUID)
+}
+
 func (d *Driver) blankVolume(id string) *Volume {
 	return &Volume{
 		configPath: d.Root,
@@ -96,7 +108,18 @@ func init() {
 	convoydriver.Register(DRIVER_NAME, Init)
 }
 
+func checkEnvironment() error {
+	if _, err := util.Execute(NBD_CLIENT, []string{"--help"}); err != nil {
+		return fmt.Errorf("Cannot find nbd-client")
+	}
+	return nil
+}
+
 func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
+	if err := checkEnvironment(); err != nil {
+		return nil, err
+	}
+
 	dev := &Device{
 		Root: root,
 	}
@@ -214,7 +237,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	volume.StackID = env.Id
 
 	if err := d.waitForServices(env, 2, "inactive"); err != nil {
-		log.Debugf("Cleaning up %v", env.Name)
+		log.Debugf("Failed waiting services to be ready to launch. Cleaning up %v", env.Name)
 		if err := d.client.Environment.Delete(env); err != nil {
 			return err
 		}
@@ -223,13 +246,67 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	// Action should return error if env is not ready
 	_, err = d.client.Environment.ActionActivateServices(env)
 	if err != nil {
-		log.Debugf("Cleaning up %v", env.Name)
+		log.Debugf("Failed to activate services. Cleaning up %v", env.Name)
 		if err := d.client.Environment.Delete(env); err != nil {
 			return err
 		}
 		return err
 	}
+
+	controllerIP, err := d.getControllerIP(env)
+	if err != nil {
+		log.Debugf("Failed to get controller IP. Cleaning up %v", env.Name)
+		if err := d.client.Environment.Delete(env); err != nil {
+			return err
+		}
+		return err
+	}
+	log.Debugf("Connect nbd-client to controller at %v", controllerIP)
+	dev, err := util.NBDConnect(controllerIP)
+	if err != nil {
+		log.Debugf("Failed to get nbd-client connected. Cleaning up %v", env.Name)
+		if err := d.client.Environment.Delete(env); err != nil {
+			return err
+		}
+		return err
+	}
+	if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
+		return err
+	}
+	volume.Device = dev
 	return util.ObjectSave(volume)
+}
+
+func (d *Driver) getControllerIP(env *rancherClient.Environment) (string, error) {
+	if err := d.waitForServices(env, 2, "active"); err != nil {
+		return "", err
+	}
+	var serviceCollection rancherClient.ServiceCollection
+	if err := d.client.GetLink(env.Resource, "services", &serviceCollection); err != nil {
+		return "", err
+	}
+	services := serviceCollection.Data
+
+	var service rancherClient.Service
+	for _, service = range services {
+		if service.Name == "controller" {
+			break
+		}
+	}
+	if service.Name != "controller" {
+		return "", fmt.Errorf("Cannot find service controller in %v", env.Name)
+	}
+
+	var containerCollection rancherClient.ContainerCollection
+	if err := d.client.GetLink(service.Resource, "instances", &containerCollection); err != nil {
+		return "", err
+	}
+	containers := containerCollection.Data
+	if len(containers) != 1 {
+		return "", fmt.Errorf("Instance number is not matched expectation. It's %v rather than 1", len(containers))
+	}
+	container := containers[0]
+	return container.PrimaryIpAddress, nil
 }
 
 func (d *Driver) waitForServices(env *rancherClient.Environment, targetServiceCount int, targetState string) error {
@@ -276,6 +353,10 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 		return fmt.Errorf("Cannot delete volume %v. It is still mounted", id)
 	}
 
+	if err := util.NBDDisconnect(volume.Device); err != nil {
+		return fmt.Errorf("Cannot disconnect NBD device %v for volume %v", volume.Device, id)
+	}
+
 	env, err := d.client.Environment.ById(volume.StackID)
 	if err != nil {
 		return err
@@ -290,15 +371,46 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 }
 
 func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
-	return "", nil
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
+	}
+
+	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT])
+	if err != nil {
+		return "", err
+	}
+
+	if err := util.ObjectSave(volume); err != nil {
+		return "", err
+	}
+
+	return mountPoint, nil
 }
 
 func (d *Driver) UmountVolume(id string) error {
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return err
+	}
+
+	if err := util.VolumeUmount(volume); err != nil {
+		return err
+	}
+
+	if err := util.ObjectSave(volume); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (d *Driver) MountPoint(id string) (string, error) {
-	return "", nil
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
+	}
+	return volume.MountPoint, nil
 }
 
 func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
@@ -308,6 +420,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}
 	return map[string]string{
 		"Size":      strconv.FormatInt(volume.Size, 10),
+		"Device":    volume.Device,
 		"StackName": volume.StackName,
 		"StackID":   volume.StackID,
 	}, nil
