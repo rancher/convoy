@@ -35,6 +35,7 @@ $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./util/nbdclient.go \
 	./logging/logging.go
 	go build $(FLAGS) -o $(CONVOY_EXEC_FILE)
+	cp $(CONVOY_EXEC_FILE) ./package/
 
 clean:
 	rm -f $(CONVOY_EXEC_FILE)

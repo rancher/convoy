@@ -5,5 +5,5 @@ RUN apt-get install -y \
         libaio1 \
         nbd-client
 
-COPY ../bin/convoy* convoy-start /usr/local/bin/
+COPY convoy* /usr/local/bin/
 RUN chmod a+x /usr/local/bin/convoy*

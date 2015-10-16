@@ -7,17 +7,15 @@ convoy-instance:
         - -c
     command:
         - /usr/local/bin/convoy-start --mnt-ns /host/proc/1/ns/mnt \
-            --drivers=devicemapper \
-            --driver-opts dm.datadev=/dev/loop0 \
-            --driver-opts dm.metadatadev=/dev/loop1 \
-            --driver-opts dm.thinpoolname=convoy_test_pool
+            --drivers longhorn \
+            --driver-opts lh.rancherurl=http://104.197.100.82:8080/ \
+            --driver-opts lh.rancheraccesskey=E7182AB3ECC98B71D954 \
+            --driver-opts lh.ranchersecretkey=gCSZmRm1D5W3LBMAmv9veZKGk67haE8bPuG4eKqP
     privileged: true
     working_dir: /storage
     volumes:
-        - /etc/ssl/certs:/etc/ssl/certs
-        - /root/.aws:/root/.aws
         - /dev:/host/dev
         - /proc:/host/proc
         - /var/lib/convoy:/var/lib/convoy
         - /storage
-    image: yasker/convoy
+    image: yasker/convoy:test
