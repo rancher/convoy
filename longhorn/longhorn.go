@@ -5,6 +5,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
+	"github.com/rancher/go-rancher-metadata/metadata"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -32,6 +33,8 @@ const (
 
 	DEFAULT_VOLUME_SIZE = "10G"
 
+	RANCHER_METADATA_URL = "http://rancher-metadata"
+
 	LH_RANCHER_URL         = "lh.rancherurl"
 	LH_RANCHER_ACCESS_KEY  = "lh.rancheraccesskey"
 	LH_RANCHER_SECRET_KEY  = "lh.ranchersecretkey"
@@ -48,8 +51,10 @@ var (
 )
 
 type Driver struct {
-	mutex  *sync.RWMutex
-	client *rancherClient.RancherClient
+	mutex           *sync.RWMutex
+	client          *rancherClient.RancherClient
+	metadataHandler *metadata.Handler
+	containerName   string
 	Device
 }
 
@@ -112,6 +117,9 @@ func checkEnvironment() error {
 	if _, err := util.Execute(NBD_CLIENT, []string{"--help"}); err != nil {
 		return fmt.Errorf("Cannot find nbd-client")
 	}
+	if _, err := util.NBDGetDeviceList(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -161,6 +169,12 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 		}
 	}
 
+	handler := metadata.NewHandler(RANCHER_METADATA_URL)
+	container, err := handler.GetSelfContainer()
+	if err != nil {
+		return nil, err
+	}
+
 	log.Debugf("Try to connect to Rancher server at %v", dev.RancherURL)
 	client, err := rancherClient.NewRancherClient(&rancherClient.ClientOpts{
 		Url:       dev.RancherURL,
@@ -175,9 +189,11 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 		return nil, err
 	}
 	d := &Driver{
-		mutex:  &sync.RWMutex{},
-		client: client,
-		Device: *dev,
+		mutex:           &sync.RWMutex{},
+		client:          client,
+		containerName:   container.Name,
+		metadataHandler: &handler,
+		Device:          *dev,
 	}
 
 	return d, nil
@@ -222,7 +238,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	dockerCompose = strings.Replace(dockerCompose, COMPOSE_VOLUME_NAME, id, -1)
 	dockerCompose = strings.Replace(dockerCompose, COMPOSE_VOLUME_SIZE, sizeString, -1)
 	dockerCompose = strings.Replace(dockerCompose, COMPOSE_SLAB_SIZE, sizeString, -1)
-	dockerCompose = strings.Replace(dockerCompose, COMPOSE_CONVOY, "testcon", -1)
+	dockerCompose = strings.Replace(dockerCompose, COMPOSE_CONVOY, d.containerName, -1)
 	rancherCompose := RancherComposeTemplate
 
 	config := &rancherClient.Environment{

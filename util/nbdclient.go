@@ -7,18 +7,26 @@ import (
 	"syscall"
 )
 
-func NBDFindFreeDevice() (string, error) {
+func NBDGetDeviceList() ([]string, error) {
 	out, err := Execute("find", []string{"/dev",
 		"-maxdepth", "1",
 		"-name", "nbd*",
 		"-printf", "%p "})
 	if err != nil {
-		return "", fmt.Errorf("Error when finding NBD devices: %v", err)
+		return nil, fmt.Errorf("Error when finding NBD devices: %v", err)
 	}
 	if len(out) == 0 {
-		return "", fmt.Errorf("Cannot find NBD devices")
+		return nil, fmt.Errorf("Cannot find NBD devices, check if nbd kernel module is loaded")
 	}
 	devs := strings.Split(strings.TrimSpace(string(out)), " ")
+	return devs, nil
+}
+
+func NBDFindFreeDevice() (string, error) {
+	devs, err := NBDGetDeviceList()
+	if err != nil {
+		return "", err
+	}
 	for _, dev := range devs {
 		// nbd-client would return nothing and error code 1 if the
 		// device is available to use
