@@ -4,6 +4,7 @@ import argparse
 import sys
 import os.path
 import urllib2
+import time
 
 # depends on rtslib-fb
 from rtslib import FileIOStorageObject, FabricModule, Target, TPG,\
@@ -159,6 +160,20 @@ def main():
     args = parser.parse_args()
     print args
 
+    ip = None
+    for i in range(0, 10):
+        try:
+            ip = urllib2.urlopen("http://rancher-metadata/2015-07-25/self/container/primary_ip").read()
+        except urllib2.URLError:
+            # rancher probably not ready yet, wait for it
+            print "Waiting for connect to Rancher network"
+            time.sleep(1)
+            continue
+        break
+    if ip == None:
+        print "Cannot get Rancher management IP"
+        sys.exit(1)
+
     if not args.daemon:
         if args.target == None:
             print "missing required parameter --target"
@@ -171,7 +186,6 @@ def main():
     api.add_resource(TargetResource, '/v1/target')
     api.add_resource(ACLResource, '/v1/target/acl')
 
-    ip = urllib2.urlopen("http://rancher-metadata/2015-07-25/self/container/primary_ip").read()
     app.run(host = ip, port = 3140, debug = True, use_reloader = False)
 
 if __name__ == "__main__":

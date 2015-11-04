@@ -185,6 +185,21 @@ def main():
 
     args = parser.parse_args()
     print args
+
+    ip = None
+    for i in range(0, 10):
+        try:
+            ip = urllib2.urlopen("http://rancher-metadata/2015-07-25/self/container/primary_ip").read()
+        except urllib2.URLError:
+            # rancher probably not ready yet, wait for it
+            print "Waiting for connect to Rancher network"
+            time.sleep(1)
+            continue
+        break
+    if ip == None:
+        print "Cannot get Rancher management IP"
+        sys.exit(1)
+
     if not args.daemon:
         if args.device == None:
             print "missing required parameter --device"
