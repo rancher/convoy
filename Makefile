@@ -28,6 +28,7 @@ $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./vfs/vfs_objectstore.go ./vfs/vfs_storage.go \
 	./convoydriver/convoydriver.go \
 	./devmapper/devmapper.go ./devmapper/backup.go \
+	./shorthorn/shorthorn.go ./shorthorn/template.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
 	./util/util.go ./util/config.go \
 	./util/volume.go ./util/index.go \
