@@ -20,7 +20,6 @@ CHAP_USERID = "convoy"
 CHAP_PASSWORD = "shorthorn"
 
 parser = reqparse.RequestParser()
-parser.add_argument("target", help="iscsi target wwn", type=str, required=True)
 parser.add_argument("file", help="file id", type=str)
 parser.add_argument("dir", help="file path", type=str)
 parser.add_argument("size", help="volume size", type=int)
@@ -34,13 +33,18 @@ def GetFileStorageObject(name):
 	    return obj
     return None
 
-def GetTarget(wwn):
+def GetTarget():
     root = RTSRoot()
-    l = list(root.targets)
+    l = list(root.network_portals)
+    portal = None
     for obj in l:
-	if obj.wwn == wwn:
-	    return obj
-    return None
+	if obj.ip_address == self_ip:
+            portal = obj
+            break
+    if portal == None:
+        return None
+    target = portal.parent_tpg.parent_target
+    return target
 
 def GetNodeACL(node_wwn):
     root = RTSRoot()
@@ -59,7 +63,7 @@ class TargetResource(Resource):
     def delete(self):
         args = parser.parse_args(strict = True)
         print "Target delete: " + str(args)
-	return TargetDelete(args)
+	return TargetDelete()
 
 class ACLResource(Resource):
     def post(self):
@@ -79,6 +83,7 @@ def TargetCreate(args):
     if not os.path.exists(args.dir):
         return "path " + args.dir + " doesn't exists", 400
 
+    global file_id
     file_id = args.file
     file_path = os.path.join(args.dir, args.file + ".img")
     size = args.size
@@ -90,7 +95,7 @@ def TargetCreate(args):
 
     f = FileIOStorageObject(file_id, file_path, size)
     iscsi = FabricModule("iscsi")
-    target = Target(iscsi, args.target)
+    target = Target(iscsi)
     tpg = TPG(target, 1)
     portal = NetworkPortal(tpg, ip, 3260)
     lun = LUN(tpg, 0, f)
@@ -101,35 +106,41 @@ def TargetCreate(args):
         nodeacl.chap_password = CHAP_PASSWORD
         mlun = MappedLUN(nodeacl, 0, lun)
     tpg.enable = 1
-    return args.target, 200
+    return target.wwn, 200
 
-def TargetDelete(args):
-    if args.file == None:
-        return "missing require file parameter", 400
-    target = GetTarget(args.target)
+def TargetDelete():
+    global file_id
+    if file_id == None:
+        return "BUG: Didn't get file_id", 400
+    target = GetTarget()
     if target is None:
-        return "cannot find target " + args.target, 400
-    f = GetFileStorageObject(args.file)
+        return "cannot find target " + target, 400
+    f = GetFileStorageObject(file_id)
     if f is None:
-        return "cannot find file storage object " + args.file, 400
+        return "cannot find file storage object " + file_id, 400
     target.delete()
     f.delete()
-    return "", 204
+    return "target delete complete", 204
 
 def ACLAdd(args):
-    if args.initiator == None:
+    initiator = args.initiator
+    if initiator == None:
         return "missing required initiator name parameter", 400
-    target = GetTarget(args.target)
+    target = GetTarget()
     if target is None:
-        return "cannot find target " + args.target, 400
+        return "cannot find target " + target, 400
     tpg = list(target.tpgs)[0]
     if tpg is None:
-        return "cannot find tpg of target " + args.target, 400
+        return "cannot find tpg of target " + target, 400
     lun = list(tpg.luns)[0]
     if lun is None:
-        return "cannot find lun of tpg of target " + args.target, 400
+        return "cannot find lun of tpg of target " + target, 400
 
-    nodeacl = NodeACL(tpg, args.initiator)
+    for node in list(tpg.node_acls):
+        if node.node_wwn == initiator:
+            node.delete()
+
+    nodeacl = NodeACL(tpg, initiator)
     nodeacl.chap_userid = CHAP_USERID
     nodeacl.chap_password = CHAP_PASSWORD
     mlun = MappedLUN(nodeacl, 0, lun)
@@ -147,8 +158,6 @@ def ACLRemove(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--target", help="iscsi target wwn",
-            type=str)
     parser.add_argument("-f", "--file", help="file id", type=str)
     parser.add_argument("-d", "--dir", help="file path", type=str)
     parser.add_argument("-s", "--size", help="volume size", type=int)
@@ -174,12 +183,12 @@ def main():
         print "Cannot get Rancher management IP"
         sys.exit(1)
 
+    global self_ip
+    self_ip = ip
+
     if not args.daemon:
-        if args.target == None:
-            print "missing required parameter --target"
-            sys.exit(1)
         msg, code = TargetCreate(args)
-        print msg 
+        print msg
         if code == 400:
 	    sys.exit(1)
 

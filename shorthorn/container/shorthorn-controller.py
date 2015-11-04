@@ -38,18 +38,18 @@ def GetInitiatorName():
     	assert False
     return name
 
-def ACLAddToPortal(target, ip):
+def ACLAddToPortal(ip):
     initiator = GetInitiatorName()
     url = "http://" + ip + ":3140/v1/target/acl"
-    payload = {"initiator" : initiator, "target" : target}
+    payload = {"initiator" : initiator}
     print payload
     response = requests.post(url, params=payload)
     return response.text, response.status_code
 
-def ACLRemoveFromPortal(target, ip):
+def ACLRemoveFromPortal(ip):
     initiator = GetInitiatorName()
     url = "http://" + ip + ":3140/v1/target/acl"
-    payload = {"initiator" : initiator, "target" : target}
+    payload = {"initiator" : initiator}
     print payload
     response = requests.delete(url, params=payload)
     return response.text, response.status_code
@@ -72,7 +72,7 @@ def TargetLogin(ip):
     if target == None:
 	return None
     print target
-    msg, code = ACLAddToPortal(target, ip)
+    msg, code = ACLAddToPortal(ip)
     print msg
     if code >= 400:
 	return None
@@ -105,7 +105,7 @@ def TargetLogin(ip):
 def TargetLogout(ip):
     target = TargetGet(ip)
     print target
-    msg, code = ACLRemoveFromPortal(target, ip)
+    msg, code = ACLRemoveFromPortal(ip)
     if code >= 400:
 	return msg, code
     output = subprocess.check_output(ISCSIADM + ["-m", "node", "--targetname",  target,
