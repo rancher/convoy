@@ -21,7 +21,6 @@ CHAP_PASSWORD = "shorthorn"
 
 parser = reqparse.RequestParser()
 parser.add_argument("file", help="file id", type=str)
-parser.add_argument("dir", help="file path", type=str)
 parser.add_argument("size", help="volume size", type=int)
 parser.add_argument("initiator", help="iscsi initiator wwn", type=str)
 
@@ -77,15 +76,12 @@ class ACLResource(Resource):
 	return ACLRemove(args)
 
 def TargetCreate(args):
-    if (args.file == None) or (args.dir == None) or (args.size == None):
+    if (args.file == None) or (args.size == None):
         return "missing required parameter", 400
-
-    if not os.path.exists(args.dir):
-        return "path " + args.dir + " doesn't exists", 400
 
     global file_id
     file_id = args.file
-    file_path = os.path.join(args.dir, args.file + ".img")
+    file_path = file_id + ".img"
     size = args.size
 
     if os.path.exists(file_path):
@@ -159,7 +155,6 @@ def ACLRemove(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--file", help="file id", type=str)
-    parser.add_argument("-d", "--dir", help="file path", type=str)
     parser.add_argument("-s", "--size", help="volume size", type=int)
     parser.add_argument("-i", "--initiator", help="iscsi initiator wwn",
             type=str)
