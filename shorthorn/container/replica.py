@@ -147,20 +147,26 @@ def ACLRemove(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--target", help="iscsi target wwn",
-            type=str, required=True)
+            type=str)
     parser.add_argument("-f", "--file", help="file id", type=str)
     parser.add_argument("-d", "--dir", help="file path", type=str)
     parser.add_argument("-s", "--size", help="volume size", type=int)
     parser.add_argument("-i", "--initiator", help="iscsi initiator wwn",
             type=str)
+    parser.add_argument("-D", "--daemon", help="start daemon only, don't init",
+            action="store_true")
 
     args = parser.parse_args()
     print args
 
-    msg, code = TargetCreate(args)
-    print msg 
-    if code == 400:
-	sys.exit(1)
+    if not args.daemon:
+        if args.target == None:
+            print "missing required parameter --target"
+            sys.exit(1)
+        msg, code = TargetCreate(args)
+        print msg 
+        if code == 400:
+	    sys.exit(1)
 
     api.add_resource(TargetResource, '/v1/target')
     api.add_resource(ACLResource, '/v1/target/acl')

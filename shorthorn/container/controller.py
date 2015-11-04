@@ -178,16 +178,24 @@ def ControllerTeardown(args):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--peers", help="replica peers' ip addresses, separate by comma",
-            required=True)
-    parser.add_argument("-d", "--device", help="raid device", required=True)
+    parser.add_argument("-p", "--peers", help="replica peers ips, separate by comma")
+    parser.add_argument("-d", "--device", help="raid device")
+    parser.add_argument("-D", "--daemon", help="start daemon only",
+            action="store_true")
 
     args = parser.parse_args()
     print args
-    msg, code = ControllerSetup(args)
-    print msg
-    if code == 400:
-        sys.exit(1)
+    if not args.daemon:
+        if args.device == None:
+            print "missing required parameter --device"
+            sys.exit(1)
+        if args.peers == None:
+            print "missing required parameter --peers"
+            sys.exit(1)
+        msg, code = ControllerSetup(args)
+        print msg
+        if code == 400:
+            sys.exit(1)
 
     api.add_resource(ControllerResource, '/v1/controller')
 
