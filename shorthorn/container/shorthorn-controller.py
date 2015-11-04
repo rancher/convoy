@@ -127,17 +127,20 @@ def RaidDelete(mddev):
         subprocess.check_call([MDADM, "--remove", mddev])
 
 class ControllerResource(Resource):
+    def get(self):
+        global mddev
+	return mddev, 200
+
     def post(self):
         args = parser.parse_args(strict = True)
         print "Controller post: " + str(args)
 	return ControllerSetup(args)
 
     def delete(self):
-        args = parser.parse_args(strict = True)
-        print "Controller delete: " + str(args)
-	return ControllerTeardown(args)
+	return ControllerTeardown()
 
 def ControllerSetup(args):
+    global peers
     peers = args.peers.split(",")
     if len(peers) != 2:
         return "only support 2 peers", 400
@@ -156,6 +159,7 @@ def ControllerSetup(args):
     if len(devices) != 2:
         return "only support 2 devices, but have " + " ".join(devices), 400
 
+    global mddev
     mddev = args.device
     if not mddev.startswith("/dev/md"):
         return "device " + mddev + " must start with /dev/md", 400
@@ -164,12 +168,11 @@ def ControllerSetup(args):
     RaidCreate(mddev, devices)
     return "create complete", 200
 
-def ControllerTeardown(args):
-    peers = args.peers.split(",")
-    if len(peers) != 2:
-        return "only support 2 peers", 400
+def ControllerTeardown():
+    global mddev
+    RaidDelete(mddev)
 
-    RaidDelete(args.device)
+    global peers
     for ip in peers:
         msg, code = TargetLogout(ip)
         if code == 400:
