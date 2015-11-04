@@ -147,9 +147,19 @@ class ControllerResource(Resource):
 
 def ControllerSetup(args):
     global peers
-    peers = args.peers.split(",")
-    if len(peers) != 2:
-        return "only support 2 peers", 400
+    peers = []
+    if args.service != None:
+        output = subprocess.check_output(["/usr/bin/dig",
+            "+noall", "+answer", "+short", args.service])
+        lines = output.strip().split('\n')
+        if len(lines) == 0:
+            return "cannot communicate through service " + args.service, 400
+        for ip in lines:
+            peers.append(ip)
+    else:
+        peers = args.peers.split(",")
+        if len(peers) != 2:
+            return "only support 2 peers", 400
 
     global devices
     devices=[]
@@ -190,6 +200,7 @@ def ControllerTeardown():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--peers", help="replica peers ips, separate by comma")
+    parser.add_argument("-s", "--service", help="replica service name")
     parser.add_argument("-d", "--device", help="raid device name")
     parser.add_argument("-D", "--daemon", help="start daemon only",
             action="store_true")
@@ -215,8 +226,8 @@ def main():
         if args.device == None:
             print "missing required parameter --device"
             sys.exit(1)
-        if args.peers == None:
-            print "missing required parameter --peers"
+        if (args.peers == None) and (args.service == None):
+            print "missing required parameter --peers or --service"
             sys.exit(1)
         msg, code = ControllerSetup(args)
         print msg
