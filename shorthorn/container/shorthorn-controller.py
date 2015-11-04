@@ -114,7 +114,7 @@ def TargetLogout(ip):
 
 def RaidCreate(mddev, devices):
     cmd = MDADM + ["--create", mddev,
-		"--verbose", "--run",
+                "--verbose", "--run", "--assume-clean",
 		"--level", "mirror",
 		"--raid-devices", "2",
  		devices[0], devices[1]]
@@ -124,13 +124,17 @@ def RaidCreate(mddev, devices):
 def RaidDelete(mddev):
     subprocess.check_call(MDADM + ["--stop", mddev])
     if os.path.exists(mddev):
-        if not os.path.exists(os.path.realpath(mdadm)):
+        if not os.path.exists(os.path.realpath(mddev)):
             os.remove(mddev)
         else:
             subprocess.check_call(MDADM + ["--remove", mddev])
 
     for dev in devices:
         subprocess.check_call(MDADM + ["--zero-superblock", dev])
+
+class ReplicaResource(Resource):
+    def delete(self):
+	return ReplicaTeardown()
 
 class ControllerResource(Resource):
     def get(self):
@@ -197,6 +201,17 @@ def ControllerTeardown():
             return msg, code
     return "delete complete", 200
 
+def ReplicaTeardown():
+    global peers
+    for ip in peers:
+	url = "http://" + ip + ":3140/v1/target"
+	response = requests.delete(url)
+	if response.status_code != 204:
+	    print "replica at " + ip + " returns " + response.text
+	else:
+	    print "successfully remove replica at " + ip + " delete"
+    return "replica removed", 204
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--peers", help="replica peers ips, separate by comma")
@@ -235,6 +250,7 @@ def main():
             sys.exit(1)
 
     api.add_resource(ControllerResource, '/v1/controller')
+    api.add_resource(ReplicaResource, '/v1/replicas')
 
     ip = urllib2.urlopen("http://rancher-metadata/2015-07-25/self/container/primary_ip").read()
     app.run(host = ip, port = 3140, debug = True, use_reloader = False)
