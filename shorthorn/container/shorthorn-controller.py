@@ -18,7 +18,7 @@ CHAP_USERID = "convoy"
 CHAP_PASSWORD = "shorthorn"
 
 ISCSIADM = ["nsenter", "--net=/host/proc/1/ns/net", "iscsiadm"]
-MDADM = "mdadm"
+MDADM = ["nsenter", "--mount=/host/proc/1/ns/mnt", "mdadm"]
 
 parser = reqparse.RequestParser()
 parser.add_argument("peers", help="replica peers' ip addresses, separate by comma",
@@ -113,7 +113,7 @@ def TargetLogout(ip):
     return "", 200
 
 def RaidCreate(mddev, devices):
-    cmd = [MDADM, "--create", mddev,
+    cmd = MDADM + ["--create", mddev,
 		"--verbose", "--run",
 		"--level", "mirror",
 		"--raid-devices", "2",
@@ -122,9 +122,15 @@ def RaidCreate(mddev, devices):
     subprocess.check_call(cmd)
 
 def RaidDelete(mddev):
-    subprocess.check_call([MDADM, "--stop", mddev])
+    subprocess.check_call(MDADM + ["--stop", mddev])
     if os.path.exists(mddev):
-        subprocess.check_call([MDADM, "--remove", mddev])
+        if not os.path.exists(os.path.realpath(mdadm)):
+            os.remove(mddev)
+        else:
+            subprocess.check_call(MDADM + ["--remove", mddev])
+
+    for dev in devices:
+        subprocess.check_call(MDADM + ["--zero-superblock", dev])
 
 class ControllerResource(Resource):
     def get(self):
@@ -145,6 +151,7 @@ def ControllerSetup(args):
     if len(peers) != 2:
         return "only support 2 peers", 400
 
+    global devices
     devices=[]
     for ip in peers:
         dev = TargetLogin(ip)
@@ -160,9 +167,10 @@ def ControllerSetup(args):
         return "only support 2 devices, but have " + " ".join(devices), 400
 
     global mddev
-    mddev = args.device
-    if not mddev.startswith("/dev/md"):
-        return "device " + mddev + " must start with /dev/md", 400
+    devname = args.device
+    mddev = "/dev/md/" + devname
+    #if not mddev.startswith("/dev/md"):
+    #   return "device " + mddev + " must start with /dev/md", 400
     if os.path.exists(mddev):
         return "device " + mddev + " already exists", 400
     RaidCreate(mddev, devices)
@@ -182,7 +190,7 @@ def ControllerTeardown():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--peers", help="replica peers ips, separate by comma")
-    parser.add_argument("-d", "--device", help="raid device")
+    parser.add_argument("-d", "--device", help="raid device name")
     parser.add_argument("-D", "--daemon", help="start daemon only",
             action="store_true")
 
