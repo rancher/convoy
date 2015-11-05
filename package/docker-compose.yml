@@ -19,5 +19,6 @@ convoy-instance:
         - /dev:/host/dev
         - /proc:/host/proc
         - /var/lib/convoy:/var/lib/convoy
+        - /var/run/convoy:/var/run/convoy
         - /storage
     image: yasker/convoy
