@@ -326,6 +326,13 @@ func Start(sockFile string, c *cli.Context) error {
 	if err := util.MkdirIfNotExists(filepath.Dir(sockFile)); err != nil {
 		return err
 	}
+	// This should be safe because lock file prevent starting daemon twice
+	if _, err := os.Stat(sockFile); err == nil {
+		log.Warnf("Remove previous sockfile at %v", sockFile)
+		if err := os.Remove(sockFile); err != nil {
+			return err
+		}
+	}
 
 	l, err := net.Listen("unix", sockFile)
 	if err != nil {
