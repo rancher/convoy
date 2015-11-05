@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/rancher/convoy",
-	"GoVersion": "go1.5",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -12,58 +12,58 @@
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.8.6-13-g84b968c",
-			"Rev": "84b968cb9f82d727044973f8255489bbe15e9948"
+			"Comment": "v0.8.2-2-g6ba91e2",
+			"Rev": "6ba91e24c498b49d0363c723e9e2ab2b5b8fd012"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/aws",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/endpoints",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/ec2query",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/query",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/rest",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/restxml",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/xml/xmlutil",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/internal/signer/v4",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/ec2",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/s3",
-			"Comment": "v0.9.4rc5-2-g18ac217",
-			"Rev": "18ac217c5abb1a13a5a9b63c1a3aa3e74e8fdaee"
+			"Comment": "v0.9.2rc3",
+			"Rev": "1dc63737201ce6f6fb46c49c259cf2147cc67891"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
@@ -72,21 +72,21 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
-			"Comment": "v1.4.1-5851-gfdc73cc",
-			"Rev": "fdc73cc3fc3166c2c78d70653c117f1573d47096"
+			"Comment": "v1.4.1-5826-gea65c38",
+			"Rev": "ea65c38ac0972709cdb371ce6b1886eb252a126e"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/truncindex",
-			"Comment": "v1.4.1-5851-gfdc73cc",
-			"Rev": "fdc73cc3fc3166c2c78d70653c117f1573d47096"
+			"Comment": "v1.4.1-5826-gea65c38",
+			"Rev": "ea65c38ac0972709cdb371ce6b1886eb252a126e"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
-			"Rev": "1c83b3eabd45b6d76072b66b746c20815fb2872d"
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "ee1815431e497d3850809578c93ab6705f1a19f7"
+			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
 		},
 		{
 			"ImportPath": "github.com/mcuadros/go-version",
@@ -107,7 +107,7 @@
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
-			"Rev": "11d3bc7aa68e238947792f30573146a3231fc0f1"
+			"Rev": "64131543e7896d5bcc6bd5a76287eb75ea96c673"
 		}
 	]
 }
