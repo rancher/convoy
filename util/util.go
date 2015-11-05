@@ -74,24 +74,24 @@ func GetChecksum(data []byte) string {
 	return checksum
 }
 
-func LockFile(fileName string) error {
+func LockFile(fileName string) (*os.File, error) {
 	f, err := os.Create(fileName)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB)
+	if err := unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return f, nil
 }
 
-func UnlockFile(fileName string) error {
-	f, err := os.Open(fileName)
-	if err != nil {
-		return err
-	}
+func UnlockFile(f *os.File) error {
 	defer f.Close()
 	if err := unix.Flock(int(f.Fd()), unix.LOCK_UN); err != nil {
 		return err
 	}
-	if _, err := Execute("rm", []string{fileName}); err != nil {
+	if _, err := Execute("rm", []string{f.Name()}); err != nil {
 		return err
 	}
 	return nil

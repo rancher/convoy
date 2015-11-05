@@ -106,24 +106,27 @@ func (s *TestSuite) TestListConfigIDs(c *C) {
 
 func (s *TestSuite) TestLockFile(c *C) {
 	file := "/tmp/t.lock"
-	err := LockFile(file)
+	f, err := LockFile(file)
+	c.Assert(f, Not(IsNil))
 	c.Assert(err, IsNil)
 
-	err = LockFile(file)
+	fx, err := LockFile(file)
+	c.Assert(fx, IsNil)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "resource temporarily unavailable")
 
-	err = LockFile(file)
+	fx, err = LockFile(file)
+	c.Assert(fx, IsNil)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "resource temporarily unavailable")
 
-	err = UnlockFile(file)
+	err = UnlockFile(f)
 	c.Assert(err, IsNil)
 
-	err = LockFile(file)
+	f, err = LockFile(file)
 	c.Assert(err, IsNil)
 
-	err = UnlockFile(file)
+	err = UnlockFile(f)
 	c.Assert(err, IsNil)
 }
 

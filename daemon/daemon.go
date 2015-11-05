@@ -43,8 +43,8 @@ const (
 )
 
 var (
-	lock    string
-	logFile *os.File
+	lockFile *os.File
+	logFile  *os.File
 
 	log = logrus.WithFields(logrus.Fields{"pkg": "daemon"})
 )
@@ -180,6 +180,8 @@ func (s *daemon) updateIndex() error {
 }
 
 func daemonEnvironmentSetup(c *cli.Context) error {
+	var err error
+
 	root := c.String("root")
 	if root == "" {
 		return fmt.Errorf("Have to specific root directory")
@@ -188,9 +190,9 @@ func daemonEnvironmentSetup(c *cli.Context) error {
 		return fmt.Errorf("Invalid root directory:", err)
 	}
 
-	lock = filepath.Join(root, LOCKFILE)
-	if err := util.LockFile(lock); err != nil {
-		return fmt.Errorf("Failed to lock the file", err.Error())
+	lockPath := filepath.Join(root, LOCKFILE)
+	if lockFile, err = util.LockFile(lockPath); err != nil {
+		return fmt.Errorf("Failed to lock the file at %v: %v", lockPath, err.Error())
 	}
 
 	logrus.SetLevel(logrus.DebugLevel)
@@ -211,8 +213,8 @@ func daemonEnvironmentSetup(c *cli.Context) error {
 
 func environmentCleanup() {
 	log.Debug("Cleaning up environment...")
-	if lock != "" {
-		util.UnlockFile(lock)
+	if lockFile != nil {
+		util.UnlockFile(lockFile)
 	}
 	if logFile != nil {
 		logFile.Close()
