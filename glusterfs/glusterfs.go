@@ -2,11 +2,13 @@ package glusterfs
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/rancher"
 	"github.com/rancher/convoy/util"
 	"math/rand"
 	"path/filepath"
+	"strconv"
 	"sync"
 )
 
@@ -25,6 +27,10 @@ const (
 	GLUSTERFS_RANCHER_STACK           = "glusterfs.rancherstack"
 	GLUSTERFS_RANCHER_GLUSTER_SERVICE = "glusterfs.rancherservice"
 	GLUSTERFS_DEFAULT_VOLUME_POOL     = "glusterfs.defaultvolumepool"
+)
+
+var (
+	log = logrus.WithFields(logrus.Fields{"pkg": "devmapper"})
 )
 
 type Driver struct {
@@ -65,8 +71,10 @@ type Snapshot struct {
 
 type Volume struct {
 	UUID       string
+	Name       string
+	Path       string
 	MountPoint string
-	Snapshots  map[string]Snapshot
+	VolumePool string
 
 	configPath string
 }
@@ -146,9 +154,6 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 			RancherService:    service,
 			DefaultVolumePool: defaultVolumePool,
 		}
-		if err := util.ObjectSave(dev); err != nil {
-			return nil, err
-		}
 	}
 
 	serverIPs, err := rancher.GetIPsForServiceInStack(dev.RancherService, dev.RancherStack)
@@ -161,24 +166,22 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 		gVolumes: map[string]*GlusterFSVolume{},
 		Device:   *dev,
 	}
-	// We would always mount the default volume pool
-	if err := d.mountVolumePool(serverIPs, dev.DefaultVolumePool); err != nil {
-		return nil, err
-	}
-
-	return d, nil
-}
-
-func (d *Driver) mountVolumePool(serverIPs []string, volumePool string) error {
 	gVolume := &GlusterFSVolume{
-		UUID:       volumePool,
+		UUID:       dev.DefaultVolumePool,
 		ServerIPs:  serverIPs,
 		configPath: d.Root,
 	}
+	// We would always mount the default volume pool
+	// TODO: Also need to mount any existing volume's pool
 	if _, err := util.VolumeMount(gVolume, ""); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	d.gVolumes[d.DefaultVolumePool] = gVolume
+
+	if err := util.ObjectSave(dev); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
 func (d *Driver) Info() (map[string]string, error) {
@@ -191,7 +194,156 @@ func (d *Driver) Info() (map[string]string, error) {
 }
 
 func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
-	return nil, fmt.Errorf("Hasn't implemented yet")
+	return d, nil
+}
+
+func (d *Driver) blankVolume(id string) *Volume {
+	return &Volume{
+		configPath: d.Root,
+		UUID:       id,
+	}
+}
+
+func (d *Driver) CreateVolume(id string, opts map[string]string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volumeName := opts[convoydriver.OPT_VOLUME_NAME]
+	if volumeName == "" {
+		volumeName = "volume-" + id[:8]
+	}
+
+	volume := d.blankVolume(id)
+	exists, err := util.ObjectExists(volume)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("volume %v already exists", id)
+	}
+
+	gVolume := d.gVolumes[d.DefaultVolumePool]
+	volumePath := filepath.Join(gVolume.MountPoint, volumeName)
+	if util.VolumeMountPointDirectoryExists(gVolume, volumeName) {
+		log.Debugf("Found existing volume named %v, reuse it", volumeName)
+	} else if err := util.VolumeMountPointDirectoryCreate(gVolume, volumeName); err != nil {
+		return err
+	}
+	volume.Name = volumeName
+	volume.Path = volumePath
+
+	return util.ObjectSave(volume)
+}
+
+func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return err
+	}
+
+	if volume.MountPoint != "" {
+		return fmt.Errorf("Cannot delete volume %v. It is still mounted", id)
+	}
+	referenceOnly, _ := strconv.ParseBool(opts[convoydriver.OPT_REFERENCE_ONLY])
+	if !referenceOnly {
+		log.Debugf("Cleaning up volume %v", id)
+		gVolume := d.gVolumes[d.DefaultVolumePool]
+		if err := util.VolumeMountPointDirectoryRemove(gVolume, volume.Name); err != nil {
+			return err
+		}
+	}
+	return util.ObjectDelete(volume)
+}
+
+func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
+	}
+
+	specifiedPoint := opts[convoydriver.OPT_MOUNT_POINT]
+	if specifiedPoint != "" {
+		return "", fmt.Errorf("VFS doesn't support specified mount point")
+	}
+	if volume.MountPoint == "" {
+		volume.MountPoint = volume.Path
+	}
+	if err := util.ObjectSave(volume); err != nil {
+		return "", err
+	}
+	return volume.MountPoint, nil
+}
+
+func (d *Driver) UmountVolume(id string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return err
+	}
+
+	if volume.MountPoint != "" {
+		volume.MountPoint = ""
+	}
+	return util.ObjectSave(volume)
+}
+
+func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	volumeIDs, err := d.listVolumeIDs()
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]map[string]string{}
+	for _, id := range volumeIDs {
+		result[id], err = d.GetVolumeInfo(id)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
+}
+
+func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return nil, err
+	}
+
+	gVolume := d.gVolumes[volume.VolumePool]
+	if gVolume == nil {
+		return nil, fmt.Errorf("Cannot find volume pool %v", volume.VolumePool)
+	}
+	return map[string]string{
+		"Name": volume.Name,
+		"Path": volume.Path,
+		convoydriver.OPT_MOUNT_POINT: volume.MountPoint,
+		"GlusterFSVolume":            volume.VolumePool,
+		"GlusterFSServerIPs":         fmt.Sprintf("%v", gVolume.ServerIPs),
+	}, nil
+}
+
+func (d *Driver) MountPoint(id string) (string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	volume := d.blankVolume(id)
+	if err := util.ObjectLoad(volume); err != nil {
+		return "", err
+	}
+	return volume.MountPoint, nil
 }
 
 func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
@@ -200,11 +352,4 @@ func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
 
 func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
 	return nil, fmt.Errorf("Doesn't support backup operations")
-}
-
-func (d *Driver) blankVolume(id string) *Volume {
-	return &Volume{
-		configPath: d.Root,
-		UUID:       id,
-	}
 }
