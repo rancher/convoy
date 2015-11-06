@@ -21,6 +21,10 @@ func (v *HelperVolume) GetDevice() (string, error) {
 	return v.Device, nil
 }
 
+func (v *HelperVolume) GetMountOpts() []string {
+	return []string{}
+}
+
 func (v *HelperVolume) GenerateDefaultMountPoint() string {
 	return filepath.Join(testMountPath, v.UUID)
 }

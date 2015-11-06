@@ -20,6 +20,7 @@ var (
 /* Caller must implement VolumeHelper interface, and must have fields "UUID" and "MountPoint" */
 type VolumeHelper interface {
 	GetDevice() (string, error)
+	GetMountOpts() []string
 	GenerateDefaultMountPoint() string
 }
 
@@ -100,7 +101,7 @@ func getVolumeOps(obj interface{}) (VolumeHelper, error) {
 }
 
 func isMounted(dev, mountPoint string) bool {
-	output, err := callMount([]string{})
+	output, err := callMount([]string{}, []string{})
 	if err != nil {
 		return false
 	}
@@ -122,6 +123,7 @@ func VolumeMount(v interface{}, mountPoint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	opts := vol.GetMountOpts()
 	if mountPoint == "" {
 		mountPoint = vol.GenerateDefaultMountPoint()
 		if err := MkdirIfNotExists(mountPoint); err != nil {
@@ -136,8 +138,8 @@ func VolumeMount(v interface{}, mountPoint string) (string, error) {
 		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
 	}
 	if !isMounted(dev, mountPoint) {
-		log.Debugf("Volume %v is not mounted, mount it now to %v", getVolumeUUID(vol), mountPoint)
-		_, err = callMount([]string{dev, mountPoint})
+		log.Debugf("Volume %v is not mounted, mount it now to %v, with option %v", getVolumeUUID(vol), mountPoint, opts)
+		_, err = callMount(opts, []string{dev, mountPoint})
 		if err != nil {
 			return "", err
 		}
@@ -168,15 +170,16 @@ func VolumeUmount(v interface{}) error {
 	return nil
 }
 
-func callMount(args []string) (string, error) {
+func callMount(opts, args []string) (string, error) {
 	cmdName := MOUNT_BINARY
-	cmdArgs := args
+	cmdArgs := opts
+	cmdArgs = append(cmdArgs, args...)
 	if mountNamespaceFD != "" {
-		cmdArgs = []string{
+		newArgs := []string{
 			"--mount=" + mountNamespaceFD,
 			cmdName,
 		}
-		cmdArgs = append(cmdArgs, args...)
+		cmdArgs = append(newArgs, cmdArgs...)
 		cmdName = NSENTER_BINARY
 		log.Debugf("Mount in namespace %v", mountNamespaceFD)
 	}

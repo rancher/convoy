@@ -93,6 +93,10 @@ func (v *Volume) GetDevice() (string, error) {
 	return filepath.Join(DM_DIR, v.UUID), nil
 }
 
+func (v *Volume) GetMountOpts() []string {
+	return []string{}
+}
+
 func (v *Volume) GenerateDefaultMountPoint() string {
 	return filepath.Join(v.configPath, MOUNTS_DIR, v.UUID)
 }
