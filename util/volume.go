@@ -220,5 +220,6 @@ func InitMountNamespace(fd string) error {
 	}
 
 	mountNamespaceFD = fd
+	log.Debugf("Would mount volume in namespace %v", fd)
 	return nil
 }
