@@ -100,14 +100,14 @@ func getVolumeOps(obj interface{}) (VolumeHelper, error) {
 	return ops, nil
 }
 
-func isMounted(dev, mountPoint string) bool {
+func isMounted(mountPoint string) bool {
 	output, err := callMount([]string{}, []string{})
 	if err != nil {
 		return false
 	}
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
-		if strings.Contains(line, dev) && strings.Contains(line, mountPoint) {
+		if strings.Contains(line, mountPoint) {
 			return true
 		}
 	}
@@ -137,7 +137,7 @@ func VolumeMount(v interface{}, mountPoint string) (string, error) {
 	if existMount != "" && existMount != mountPoint {
 		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
 	}
-	if !isMounted(dev, mountPoint) {
+	if !isMounted(mountPoint) {
 		log.Debugf("Volume %v is not mounted, mount it now to %v, with option %v", getVolumeUUID(vol), mountPoint, opts)
 		_, err = callMount(opts, []string{dev, mountPoint})
 		if err != nil {
