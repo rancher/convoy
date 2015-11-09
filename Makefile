@@ -31,6 +31,8 @@ $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
 	./util/util.go ./util/config.go \
 	./util/volume.go ./util/index.go \
+	./rancher/metadata.go \
+	./glusterfs/glusterfs.go \
 	./logging/logging.go
 	go build $(FLAGS) -o $(CONVOY_EXEC_FILE)
 
