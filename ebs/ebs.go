@@ -202,7 +202,7 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos["DefaultVolumeType"] = d.DefaultVolumeType
 	infos["InstanceID"] = d.ebsService.InstanceID
 	infos["Region"] = d.ebsService.Region
-	infos["AvailablityZone"] = d.ebsService.AvailabilityZone
+	infos["AvailiablityZone"] = d.ebsService.AvailabilityZone
 	return infos, nil
 }
 
@@ -475,16 +475,16 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		iops = strconv.FormatInt(*ebsVolume.Iops, 10)
 	}
 	info := map[string]string{
-		"Device":          volume.Device,
-		"MountPoint":      volume.MountPoint,
-		"UUID":            volume.UUID,
-		"EBSVolumeID":     volume.EBSID,
-		"AvailablityZone": *ebsVolume.AvailabilityZone,
-		"CreatedTime":     (*ebsVolume.CreateTime).Format(time.RubyDate),
-		"Size":            strconv.FormatInt(*ebsVolume.Size*GB, 10),
-		"State":           *ebsVolume.State,
-		"Type":            *ebsVolume.VolumeType,
-		"IOPS":            iops,
+		"Device":           volume.Device,
+		"MountPoint":       volume.MountPoint,
+		"UUID":             volume.UUID,
+		"EBSVolumeID":      volume.EBSID,
+		"AvailiablityZone": *ebsVolume.AvailabilityZone,
+		"CreatedTime":      (*ebsVolume.CreateTime).Format(time.RubyDate),
+		"Size":             strconv.FormatInt(*ebsVolume.Size*GB, 10),
+		"State":            *ebsVolume.State,
+		"Type":             *ebsVolume.VolumeType,
+		"IOPS":             iops,
 	}
 	return info, nil
 }

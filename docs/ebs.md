@@ -35,7 +35,7 @@ Notice user would be billed for EBS volume and snapshots from Amazon.
 * `Device`: EBS block device location
 * `MountPoint`: Mount point of volume is mounted
 * `EBSVolumeID`: EBS volume ID of the volume.
-* `AvailablityZone`: Availability Zone of the volume. It has to be the same as instance.
+* `AvailiablityZone`: Availability Zone of the volume. It has to be the same as instance.
 * `CreatedTime`: Timestamp of EBS volume.
 * `Size`: EBS volume size, in bytes.
 * `State`: EBS volume state. Should be `InUse` when it's attached to the current instance.
