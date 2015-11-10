@@ -38,21 +38,17 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 		Device: dev,
 	}
 
-	m, err := VolumeMount(r, "")
+	m, err := VolumeMount(r, "", false)
 	c.Assert(err, IsNil)
 	c.Assert(strings.HasPrefix(m, testMountPath), Equals, true)
 	c.Assert(r.MountPoint, Equals, m)
 
-	m2, err := VolumeMount(r, "")
+	m2, err := VolumeMount(r, "", false)
 	c.Assert(err, IsNil)
 	c.Assert(m2, Equals, m)
 
-	newMountPoint := "/var/log/dmesg"
-	_, err = VolumeMount(r, newMountPoint)
-	c.Assert(err, ErrorMatches, "Specified mount point "+newMountPoint+" is not a directory")
-
-	newMountPoint = "/tmp/util/mnt"
-	_, err = VolumeMount(r, newMountPoint)
+	newMountPoint := "/tmp/util/mnt"
+	_, err = VolumeMount(r, newMountPoint, false)
 	c.Assert(err, ErrorMatches, "Volume "+r.UUID+" was already mounted at "+r.MountPoint+".*")
 
 	err = VolumeUmount(r)
@@ -63,7 +59,7 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(r.MountPoint, Equals, "")
 
-	m, err = VolumeMount(r, newMountPoint)
+	m, err = VolumeMount(r, newMountPoint, false)
 	c.Assert(err, IsNil)
 	c.Assert(m, Equals, newMountPoint)
 	c.Assert(r.MountPoint, Equals, newMountPoint)

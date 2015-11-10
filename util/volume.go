@@ -115,7 +115,7 @@ func isMounted(mountPoint string) bool {
 	return false
 }
 
-func VolumeMount(v interface{}, mountPoint string) (string, error) {
+func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error) {
 	vol, err := getVolumeOps(v)
 	if err != nil {
 		return "", err
@@ -131,15 +131,18 @@ func VolumeMount(v interface{}, mountPoint string) (string, error) {
 			return "", err
 		}
 	}
-	if st, err := os.Stat(mountPoint); err != nil || !st.IsDir() {
-		return "", fmt.Errorf("Specified mount point %v is not a directory", mountPoint)
+	if remount && isMounted(mountPoint) {
+		log.Debugf("Umount existing mountpoint %v", mountPoint)
+		if err := callUmount([]string{mountPoint}); err != nil {
+			return "", err
+		}
 	}
 	existMount := getVolumeMountPoint(vol)
 	if existMount != "" && existMount != mountPoint {
 		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
 	}
 	if !isMounted(mountPoint) {
-		log.Debugf("Volume %v is not mounted, mount it now to %v, with option %v", getVolumeUUID(vol), mountPoint, opts)
+		log.Debugf("Volume %v is being mounted it to %v, with option %v", getVolumeUUID(vol), mountPoint, opts)
 		_, err = callMount(opts, []string{dev, mountPoint})
 		if err != nil {
 			return "", err

@@ -173,7 +173,7 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 	}
 	// We would always mount the default volume pool
 	// TODO: Also need to mount any existing volume's pool
-	if _, err := util.VolumeMount(gVolume, ""); err != nil {
+	if _, err := util.VolumeMount(gVolume, "", true); err != nil {
 		return nil, err
 	}
 	d.gVolumes[d.DefaultVolumePool] = gVolume
