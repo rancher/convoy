@@ -32,7 +32,7 @@ func GetIPsForServiceInStack(serviceName, stackName string) ([]string, error) {
 		time.Sleep(RETRY_INTERVAL)
 	}
 	if containerName == "" {
-		return nil, fmt.Errorf("Cannot connect to Rancher metadata service")
+		return nil, fmt.Errorf("Rancher metadata service return empty for container name")
 	}
 	log.Debugf("Got Rancher metadata at %v, Convoy container name %v", RANCHER_METADATA_URL, containerName)
 
