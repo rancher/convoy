@@ -50,6 +50,8 @@ sudo convoy inspect db_vol
 ```
 Convoy would error out because it cannot find volume with name `db_vol` this time.
 
+Also, if you use `--rm` with `docker run`, all the volumes associated with the container would be deleted in the same way as executing `docker rm -v` when exit. See [Docker run reference](https://docs.docker.com/engine/reference/run/) for details.
+
 Notice the behavior of `docker rm -v` would be treated as `convoy delete` with  `-r/--reference` in Convoy, means for VFS/NFS or EBS, Convoy won't delete the real content of the volume, in case user want to reuse it in the future. You won't able to see volume in Convoy anymore, but the contents are still available on [local directory/NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete). And you can recreate Convoy volumes to associate with the volume directory in [VFS/NFS](https://github.com/rancher/convoy/blob/master/docs/vfs.md#create) or EBS volume in the case of [EBS](https://github.com/rancher/convoy/blob/master/docs/ebs.md#create).
 
 ### Docker volume subcommand
