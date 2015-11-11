@@ -231,6 +231,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 	volume.Name = volumeName
 	volume.Path = volumePath
+	volume.VolumePool = gVolume.UUID
 
 	return util.ObjectSave(volume)
 }
