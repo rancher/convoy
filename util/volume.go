@@ -125,11 +125,16 @@ func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error)
 		return "", err
 	}
 	opts := vol.GetMountOpts()
+	createMountpoint := false
 	if mountPoint == "" {
 		mountPoint = vol.GenerateDefaultMountPoint()
-		if err := MkdirIfNotExists(mountPoint); err != nil {
-			return "", err
-		}
+		// Create of directory cannot be done before umount, because it
+		// won't be recognized as a directory file when mounted sometime
+		createMountpoint = true
+	}
+	existMount := getVolumeMountPoint(vol)
+	if existMount != "" && existMount != mountPoint {
+		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
 	}
 	if remount && isMounted(mountPoint) {
 		log.Debugf("Umount existing mountpoint %v", mountPoint)
@@ -137,9 +142,10 @@ func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error)
 			return "", err
 		}
 	}
-	existMount := getVolumeMountPoint(vol)
-	if existMount != "" && existMount != mountPoint {
-		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
+	if createMountpoint {
+		if err := callMkdirIfNotExists(mountPoint); err != nil {
+			return "", err
+		}
 	}
 	if !isMounted(mountPoint) {
 		log.Debugf("Volume %v is being mounted it to %v, with option %v", getVolumeUUID(vol), mountPoint, opts)
@@ -171,6 +177,17 @@ func VolumeUmount(v interface{}) error {
 		}
 	}
 	setVolumeMountPoint(vol, "")
+	return nil
+}
+
+func callMkdirIfNotExists(dirName string) error {
+	cmdName := "mkdir"
+	cmdArgs := []string{"-p", dirName}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	_, err := Execute(cmdName, cmdArgs)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
