@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 )
@@ -20,6 +21,7 @@ var (
 /* Caller must implement VolumeHelper interface, and must have fields "UUID" and "MountPoint" */
 type VolumeHelper interface {
 	GetDevice() (string, error)
+	GetMountOpts() []string
 	GenerateDefaultMountPoint() string
 }
 
@@ -99,21 +101,21 @@ func getVolumeOps(obj interface{}) (VolumeHelper, error) {
 	return ops, nil
 }
 
-func isMounted(dev, mountPoint string) bool {
-	output, err := callMount([]string{})
+func isMounted(mountPoint string) bool {
+	output, err := callMount([]string{}, []string{})
 	if err != nil {
 		return false
 	}
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
-		if strings.Contains(line, dev) && strings.Contains(line, mountPoint) {
+		if strings.Contains(line, mountPoint) {
 			return true
 		}
 	}
 	return false
 }
 
-func VolumeMount(v interface{}, mountPoint string) (string, error) {
+func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error) {
 	vol, err := getVolumeOps(v)
 	if err != nil {
 		return "", err
@@ -122,22 +124,26 @@ func VolumeMount(v interface{}, mountPoint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	opts := vol.GetMountOpts()
 	if mountPoint == "" {
 		mountPoint = vol.GenerateDefaultMountPoint()
 		if err := MkdirIfNotExists(mountPoint); err != nil {
 			return "", err
 		}
 	}
-	if st, err := os.Stat(mountPoint); err != nil || !st.IsDir() {
-		return "", fmt.Errorf("Specified mount point %v is not a directory", mountPoint)
+	if remount && isMounted(mountPoint) {
+		log.Debugf("Umount existing mountpoint %v", mountPoint)
+		if err := callUmount([]string{mountPoint}); err != nil {
+			return "", err
+		}
 	}
 	existMount := getVolumeMountPoint(vol)
 	if existMount != "" && existMount != mountPoint {
 		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
 	}
-	if !isMounted(dev, mountPoint) {
-		log.Debugf("Volume %v is not mounted, mount it now to %v", getVolumeUUID(vol), mountPoint)
-		_, err = callMount([]string{dev, mountPoint})
+	if !isMounted(mountPoint) {
+		log.Debugf("Volume %v is being mounted it to %v, with option %v", getVolumeUUID(vol), mountPoint, opts)
+		_, err = callMount(opts, []string{dev, mountPoint})
 		if err != nil {
 			return "", err
 		}
@@ -168,18 +174,11 @@ func VolumeUmount(v interface{}) error {
 	return nil
 }
 
-func callMount(args []string) (string, error) {
+func callMount(opts, args []string) (string, error) {
 	cmdName := MOUNT_BINARY
-	cmdArgs := args
-	if mountNamespaceFD != "" {
-		cmdArgs = []string{
-			"--mount=" + mountNamespaceFD,
-			cmdName,
-		}
-		cmdArgs = append(cmdArgs, args...)
-		cmdName = NSENTER_BINARY
-		log.Debugf("Mount in namespace %v", mountNamespaceFD)
-	}
+	cmdArgs := opts
+	cmdArgs = append(cmdArgs, args...)
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
 	output, err := Execute(cmdName, cmdArgs)
 	if err != nil {
 		return "", err
@@ -190,15 +189,7 @@ func callMount(args []string) (string, error) {
 func callUmount(args []string) error {
 	cmdName := UMOUNT_BINARY
 	cmdArgs := args
-	if mountNamespaceFD != "" {
-		cmdArgs = []string{
-			"--mount=" + mountNamespaceFD,
-			cmdName,
-		}
-		cmdArgs = append(cmdArgs, args...)
-		cmdName = NSENTER_BINARY
-		log.Debugf("Umount in namespace %v", mountNamespaceFD)
-	}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
 	if _, err := Execute(cmdName, cmdArgs); err != nil {
 		return err
 	}
@@ -217,5 +208,84 @@ func InitMountNamespace(fd string) error {
 	}
 
 	mountNamespaceFD = fd
+	log.Debugf("Would mount volume in namespace %v", fd)
+	return nil
+}
+
+func updateMountNamespace(name string, args []string) (string, []string) {
+	if mountNamespaceFD == "" {
+		return name, args
+	}
+	cmdArgs := []string{
+		"--mount=" + mountNamespaceFD,
+		name,
+	}
+	cmdArgs = append(cmdArgs, args...)
+	cmdName := NSENTER_BINARY
+	log.Debugf("Execute in namespace %v: %v %v", mountNamespaceFD, cmdName, cmdArgs)
+	return cmdName, cmdArgs
+}
+
+func VolumeMountPointDirectoryExists(v interface{}, dirName string) bool {
+	vol, err := getVolumeOps(v)
+	if err != nil {
+		panic("BUG: VolumeMountPointDirectoryExists was called with invalid variable")
+	}
+	mp := getVolumeMountPoint(vol)
+	if mp == "" {
+		panic("BUG: VolumeMountPointDirectoryExists was called before volume mounted")
+	}
+	path := filepath.Join(mp, dirName)
+
+	cmdName := "stat"
+	cmdArgs := []string{"-c", "%F", path}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	output, err := Execute(cmdName, cmdArgs)
+	if err != nil {
+		return false
+	}
+	if strings.TrimSpace(output) == "directory" {
+		return true
+	}
+	return false
+}
+
+func VolumeMountPointDirectoryCreate(v interface{}, dirName string) error {
+	vol, err := getVolumeOps(v)
+	if err != nil {
+		panic("BUG: VolumeMountPointDirectoryCreate was called with invalid variable")
+	}
+	mp := getVolumeMountPoint(vol)
+	if mp == "" {
+		panic("BUG: VolumeMountPointDirectoryCreate was called before volume mounted")
+	}
+	path := filepath.Join(mp, dirName)
+
+	cmdName := "mkdir"
+	cmdArgs := []string{"-p", path}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	if _, err := Execute(cmdName, cmdArgs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func VolumeMountPointDirectoryRemove(v interface{}, dirName string) error {
+	vol, err := getVolumeOps(v)
+	if err != nil {
+		panic("BUG: VolumeMountPointDirectoryRemove was called with invalid variable")
+	}
+	mp := getVolumeMountPoint(vol)
+	if mp == "" {
+		panic("BUG: VolumeMountPointDirectoryRemove was called before volume mounted")
+	}
+	path := filepath.Join(mp, dirName)
+
+	cmdName := "rm"
+	cmdArgs := []string{"-rf", path}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	if _, err := Execute(cmdName, cmdArgs); err != nil {
+		return err
+	}
 	return nil
 }

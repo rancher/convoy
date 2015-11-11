@@ -92,6 +92,10 @@ func (v *Volume) GetDevice() (string, error) {
 	return v.Device, nil
 }
 
+func (v *Volume) GetMountOpts() []string {
+	return []string{}
+}
+
 func (v *Volume) GenerateDefaultMountPoint() string {
 	return filepath.Join(v.configPath, MOUNTS_DIR, v.UUID)
 }
@@ -419,7 +423,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		return "", err
 	}
 
-	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT])
+	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT], false)
 	if err != nil {
 		return "", err
 	}

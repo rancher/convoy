@@ -306,12 +306,12 @@ func Start(sockFile string, c *cli.Context) error {
 
 	s.daemonConfig = *config
 
+	if err := util.InitMountNamespace(s.MountNamespaceFD); err != nil {
+		return err
+	}
 	// driverOpts would be ignored by Convoy Drivers if config already exists
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	if err := s.initDrivers(driverOpts); err != nil {
-		return err
-	}
-	if err := util.InitMountNamespace(s.MountNamespaceFD); err != nil {
 		return err
 	}
 	if err := s.finializeInitialization(); err != nil {
