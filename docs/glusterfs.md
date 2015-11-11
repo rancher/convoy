@@ -5,8 +5,9 @@ GlusterFS is a popular distributed network filesystem. Convoy can leveage Gluste
 
 ## Requirement
 
-1. There are GlusterFS services running inside Rancher. It can be deployed by "GlusterFS" catalog in Rancher.
-2. Convoy container has been deployed as a container inside Rancher. It can be deployed by "Convoy-GlusterFS" catalog in Rancher.
+1. There are GlusterFS services running inside Rancher. It can be deployed using "GlusterFS" catalog in Rancher.
+2. Convoy container would be deployed as a container inside Rancher.
+  * Convoy can be deployed using "Convoy-GlusterFS" catalog in Rancher, then configuration can be done through in Rancher UI.
 
 ## Daemon Options
 ### Driver Name: `glusterfs`
