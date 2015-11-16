@@ -270,7 +270,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 
 	specifiedPoint := opts[convoydriver.OPT_MOUNT_POINT]
 	if specifiedPoint != "" {
-		return "", fmt.Errorf("VFS doesn't support specified mount point")
+		return "", fmt.Errorf("GlusterFS doesn't support specified mount point")
 	}
 	if volume.MountPoint == "" {
 		volume.MountPoint = volume.Path
