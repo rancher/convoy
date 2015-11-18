@@ -30,7 +30,7 @@ const (
 )
 
 var (
-	log = logrus.WithFields(logrus.Fields{"pkg": "devmapper"})
+	log = logrus.WithFields(logrus.Fields{"pkg": "glusterfs"})
 )
 
 type Driver struct {
