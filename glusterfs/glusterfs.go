@@ -319,7 +319,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		volume.MountPoint = volume.Path
 	}
 	if volume.PrepareForVM {
-		if err := util.MountPointPrepareForVM(volume.MountPoint, volume.Size); err != nil {
+		if err := util.MountPointPrepareImageFile(volume.MountPoint, volume.Size); err != nil {
 			return "", err
 		}
 	}

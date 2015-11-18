@@ -15,10 +15,15 @@ const (
 	NSENTER_BINARY = "nsenter"
 
 	IMAGE_FILE_NAME = "disk.img"
+	BLOCK_DEV_NAME  = "disk.dev"
 
 	FILE_TYPE_REGULAR     = "regular file"
 	FILE_TYPE_DIRECTORY   = "directory"
 	FILE_TYPE_BLOCKDEVICE = "block special file"
+
+	FILE_STAT_FORMAT_SIZE        = "%s"
+	FILE_STAT_FORMAT_TYPE        = "%F"
+	FILE_STAT_FORMAT_MAJOR_MINOR = "%t %T"
 )
 
 var (
@@ -250,9 +255,9 @@ func updateMountNamespace(name string, args []string) (string, []string) {
 	return cmdName, cmdArgs
 }
 
-func getFileType(file string) (string, error) {
+func getFileStat(file string, format string) (string, error) {
 	cmdName := "stat"
-	cmdArgs := []string{"-c", "%F", file}
+	cmdArgs := []string{"-c", format, file}
 	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
 	output, err := Execute(cmdName, cmdArgs)
 	if err != nil {
@@ -261,11 +266,16 @@ func getFileType(file string) (string, error) {
 	return strings.TrimSpace(output), nil
 }
 
+func getFileType(file string) (string, error) {
+	return getFileStat(file, FILE_STAT_FORMAT_TYPE)
+}
+
+func getDevMajorMinor(file string) (string, error) {
+	return getFileStat(file, FILE_STAT_FORMAT_MAJOR_MINOR)
+}
+
 func getFileSize(file string) (int64, error) {
-	cmdName := "stat"
-	cmdArgs := []string{"-c", "%s", file}
-	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
-	output, err := Execute(cmdName, cmdArgs)
+	output, err := getFileStat(file, FILE_STAT_FORMAT_SIZE)
 	if err != nil {
 		return 0, err
 	}
@@ -357,7 +367,7 @@ func prepareImage(dir string, size int64) error {
 	file := filepath.Join(dir, IMAGE_FILE_NAME)
 	fileType, err := getFileType(file)
 	if err == nil {
-		if fileType != "regular file" {
+		if fileType != FILE_TYPE_REGULAR {
 			return fmt.Errorf("The image is already exists at %v, but not a file? It's %v", file, fileType)
 		}
 		// File already exists, don't need to do anything
@@ -377,19 +387,73 @@ func prepareImage(dir string, size int64) error {
 	return nil
 }
 
-func MountPointPrepareForVM(mp string, size int64) error {
+func MountPointPrepareImageFile(mp string, size int64) error {
 	fileType, err := getFileType(mp)
 	if err != nil {
 		return err
 	}
-	if fileType == "directory" {
-		if err := prepareImage(mp, size); err != nil {
-			return err
+	if fileType != FILE_TYPE_DIRECTORY {
+		return fmt.Errorf("Cannot prepare image for invalid file with type '%v' at %v", fileType, mp)
+	}
+	if err := prepareImage(mp, size); err != nil {
+		return err
+	}
+	return nil
+}
+
+func makeBlockDeviceNode(file, major, minor string) error {
+	cmdName := "mknod"
+	cmdArgs := []string{
+		"-m=600",
+		file,
+		"b",
+		major,
+		minor,
+	}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	if _, err := Execute(cmdName, cmdArgs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func MountPointRemoveFile(file string) error {
+	cmdName := "rm"
+	cmdArgs := []string{
+		"-f",
+		file,
+	}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	if _, err := Execute(cmdName, cmdArgs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func MountPointPrepareBlockDevice(mp string, dev string) error {
+	file := filepath.Join(mp, BLOCK_DEV_NAME)
+	fileType, err := getFileType(file)
+	if err == nil {
+		if fileType != FILE_TYPE_BLOCKDEVICE {
+			return fmt.Errorf("The file is already exists at %v, but not a block device? It's %v", file, fileType)
 		}
-	} else if fileType == "block special file" {
-		return fmt.Errorf("Haven't support block file yet")
-	} else {
-		return fmt.Errorf("Invalid file with type '%v' at %v", fileType, mp)
+		// Old device should be cleaned up already, so it's a bug
+		log.Warnf("Old device wasn't cleaned up, clean it up now")
+		if err := MountPointRemoveFile(file); err != nil {
+			return fmt.Errorf("Fail to cleanup device file at %v", file)
+		}
+	}
+
+	mm, err := getFileStat(dev, FILE_STAT_FORMAT_MAJOR_MINOR)
+	if err != nil {
+		return err
+	}
+	log.Debugf("Create block device at %v with major minor as %v", file, mm)
+
+	major := strings.Split(mm, " ")[0]
+	minor := strings.Split(mm, " ")[1]
+	if err := makeBlockDeviceNode(file, major, minor); err != nil {
+		return err
 	}
 	return nil
 }

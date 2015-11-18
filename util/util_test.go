@@ -24,15 +24,19 @@ const (
 	testRoot  = "/tmp/util"
 	emptyFile = "/tmp/util/empty"
 	testImage = "test.img"
-	imageSize = 1 << 27
+	imageSize = int64(1 << 27)
 )
+
+func (s *TestSuite) createFile(file string, size int64) error {
+	return exec.Command("truncate", "-s", strconv.FormatInt(size, 10), file).Run()
+}
 
 func (s *TestSuite) SetUpSuite(c *C) {
 	err := exec.Command("mkdir", "-p", testRoot).Run()
 	c.Assert(err, IsNil)
 
 	s.imageFile = filepath.Join(testRoot, testImage)
-	err = exec.Command("dd", "if=/dev/zero", "of="+s.imageFile, "bs=4096", "count="+strconv.Itoa(imageSize/4096)).Run()
+	err = s.createFile(s.imageFile, imageSize)
 	c.Assert(err, IsNil)
 
 	err = exec.Command("mkfs.ext4", "-F", s.imageFile).Run()

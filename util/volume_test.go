@@ -15,6 +15,7 @@ type HelperVolume struct {
 
 const (
 	testMountPath = "/tmp/util/mnt"
+	devImage      = "dev.img"
 )
 
 func (v *HelperVolume) GetDevice() (string, error) {
@@ -70,15 +71,10 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 	err = VolumeMountPointDirectoryCreate(r, "test_dir")
 	c.Assert(err, IsNil)
 
-	// Prepare for directory
-	err = VolumePrepareForVM(r, 100000)
-	c.Assert(err, IsNil)
-
-	exists = VolumeMountPointFileExists(r, IMAGE_FILE_NAME, FILE_TYPE_REGULAR)
-	c.Assert(exists, Equals, true)
-
 	exists = VolumeMountPointFileExists(r, "test_dir", FILE_TYPE_DIRECTORY)
 	c.Assert(exists, Equals, true)
+
+	testVolumeVMSupport(r, s, c)
 
 	err = VolumeMountPointDirectoryRemove(r, "test_dir")
 	c.Assert(err, IsNil)
@@ -97,4 +93,42 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 func (s *TestSuite) TestVolumeHelperWithNamespace(c *C) {
 	InitMountNamespace("/proc/1/ns/mnt")
 	s.TestVolumeHelper(c)
+}
+
+func testVolumeVMSupport(r *HelperVolume, s *TestSuite, c *C) {
+	var err error
+
+	// Test image file
+	err = MountPointPrepareImageFile(r.MountPoint, imageSize)
+	c.Assert(err, IsNil)
+
+	exists := VolumeMountPointFileExists(r, IMAGE_FILE_NAME, FILE_TYPE_REGULAR)
+	c.Assert(exists, Equals, true)
+
+	imgFile := filepath.Join(r.MountPoint, IMAGE_FILE_NAME)
+	size, err := getFileSize(imgFile)
+	c.Assert(err, IsNil)
+	c.Assert(size, Equals, imageSize)
+
+	// Test image device
+	devFile := filepath.Join(testRoot, devImage)
+	err = s.createFile(devFile, imageSize)
+
+	originDev, err := AttachLoopbackDevice(devFile, false)
+	c.Assert(err, IsNil)
+
+	err = MountPointPrepareBlockDevice(r.MountPoint, originDev)
+	c.Assert(err, IsNil)
+
+	diskDev := filepath.Join(r.MountPoint, BLOCK_DEV_NAME)
+	fileType, err := getFileType(diskDev)
+	c.Assert(err, IsNil)
+	c.Assert(fileType, Equals, FILE_TYPE_BLOCKDEVICE)
+
+	err = MountPointRemoveFile(diskDev)
+	c.Assert(err, IsNil)
+
+	err = DetachLoopbackDevice(devFile, originDev)
+	c.Assert(err, IsNil)
+
 }
