@@ -82,6 +82,13 @@ func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 					return nil, err
 				}
 			}
+			prepareForVM := false
+			if request.Opts["vm"] != "" {
+				prepareForVM, err = strconv.ParseBool(request.Opts["vm"])
+				if err != nil {
+					return nil, err
+				}
+			}
 			request := &api.VolumeCreateRequest{
 				Name:           volumeName,
 				DriverName:     request.Opts["driver"],
@@ -89,6 +96,7 @@ func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 				BackupURL:      request.Opts["backup"],
 				DriverVolumeID: request.Opts["id"],
 				Type:           request.Opts["type"],
+				PrepareForVM:   prepareForVM,
 				IOPS:           int64(iops),
 			}
 			volume, err = s.processVolumeCreate(request)
