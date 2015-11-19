@@ -18,6 +18,7 @@ type VolumeCreateRequest struct {
 	DriverVolumeID string
 	Type           string
 	IOPS           int64
+	PrepareForVM   bool
 	Verbose        bool
 }
 

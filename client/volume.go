@@ -36,6 +36,10 @@ var (
 				Name:  "iops",
 				Usage: "IOPS if driver supports",
 			},
+			cli.BoolFlag{
+				Name:  "vm",
+				Usage: "Prepare volume for Rancher VM if driver supports",
+			},
 		},
 		Action: cmdVolumeCreate,
 	}
@@ -117,6 +121,7 @@ func doVolumeCreate(c *cli.Context) error {
 	driverVolumeID := c.String("id")
 	volumeType := c.String("type")
 	iops := c.Int("iops")
+	prepareForVM := c.Bool("vm")
 
 	request := &api.VolumeCreateRequest{
 		Name:           name,
@@ -126,6 +131,7 @@ func doVolumeCreate(c *cli.Context) error {
 		DriverVolumeID: driverVolumeID,
 		Type:           volumeType,
 		IOPS:           int64(iops),
+		PrepareForVM:   prepareForVM,
 		Verbose:        c.GlobalBool(verboseFlag),
 	}
 
