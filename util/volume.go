@@ -377,16 +377,7 @@ func prepareImage(dir string, size int64) error {
 	return nil
 }
 
-func VolumePrepareForVM(v interface{}, size int64) error {
-	vol, err := getVolumeOps(v)
-	if err != nil {
-		panic("BUG: VolumePrepareForVM was called with invalid variable")
-	}
-	mp := getVolumeMountPoint(vol)
-	if mp == "" {
-		panic("BUG: VolumePrepareForVM was called before volume mounted")
-	}
-
+func MountPointPrepareForVM(mp string, size int64) error {
 	fileType, err := getFileType(mp)
 	if err != nil {
 		return err

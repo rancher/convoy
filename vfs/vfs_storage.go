@@ -20,6 +20,9 @@ const (
 	CFG_POSTFIX       = ".json"
 
 	SNAPSHOT_PATH = "snapshots"
+
+	VFS_DEFAULT_VOLUME_SIZE = "vfs.defaultvolumesize"
+	DEFAULT_VOLUME_SIZE     = "100G"
 )
 
 type Driver struct {
@@ -36,8 +39,9 @@ func (d *Driver) Name() string {
 }
 
 type Device struct {
-	Root string
-	Path string
+	Root              string
+	Path              string
+	DefaultVolumeSize int64
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -54,10 +58,12 @@ type Snapshot struct {
 }
 
 type Volume struct {
-	UUID       string
-	Path       string
-	MountPoint string
-	Snapshots  map[string]Snapshot
+	UUID         string
+	Size         int64
+	Path         string
+	MountPoint   string
+	PrepareForVM bool
+	Snapshots    map[string]Snapshot
 
 	configPath string
 }
@@ -100,13 +106,32 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 		if err := util.MkdirIfNotExists(path); err != nil {
 			return nil, err
 		}
+
 		dev = &Device{
 			Root: root,
 			Path: path,
 		}
-		if err := util.ObjectSave(dev); err != nil {
-			return nil, err
+
+		if _, exists := config[VFS_DEFAULT_VOLUME_SIZE]; !exists {
+			config[VFS_DEFAULT_VOLUME_SIZE] = DEFAULT_VOLUME_SIZE
 		}
+		volumeSize, err := util.ParseSize(config[VFS_DEFAULT_VOLUME_SIZE])
+		if err != nil || volumeSize == 0 {
+			return nil, fmt.Errorf("Illegal default volume size specified")
+		}
+		dev.DefaultVolumeSize = volumeSize
+	}
+
+	// For upgrade case
+	if dev.DefaultVolumeSize == 0 {
+		dev.DefaultVolumeSize, err = util.ParseSize(DEFAULT_VOLUME_SIZE)
+		if err != nil || dev.DefaultVolumeSize == 0 {
+			return nil, fmt.Errorf("Illegal default volume size specified")
+		}
+	}
+
+	if err := util.ObjectSave(dev); err != nil {
+		return nil, err
 	}
 	d := &Driver{
 		mutex:  &sync.RWMutex{},
@@ -118,8 +143,9 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 
 func (d *Driver) Info() (map[string]string, error) {
 	return map[string]string{
-		"Root": d.Root,
-		"Path": d.Path,
+		"Root":              d.Root,
+		"Path":              d.Path,
+		"DefaultVolumeSize": strconv.FormatInt(d.DefaultVolumeSize, 10),
 	}, nil
 }
 
@@ -132,6 +158,14 @@ func (d *Driver) blankVolume(id string) *Volume {
 		configPath: d.Root,
 		UUID:       id,
 	}
+}
+
+func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64, error) {
+	size := opts[convoydriver.OPT_SIZE]
+	if size == "" || size == "0" {
+		size = strconv.FormatInt(defaultVolumeSize, 10)
+	}
+	return util.ParseSize(size)
 }
 
 func (d *Driver) CreateVolume(id string, opts map[string]string) error {
@@ -161,6 +195,17 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 	if exists {
 		return fmt.Errorf("volume %v already exists", id)
+	}
+
+	volume.PrepareForVM, err = strconv.ParseBool(opts[convoydriver.OPT_PREPARE_FOR_VM])
+	if err != nil {
+		return err
+	}
+	if volume.PrepareForVM {
+		volume.Size, err = d.getSize(opts, d.DefaultVolumeSize)
+		if err != nil {
+			return err
+		}
 	}
 
 	volumePath := filepath.Join(d.Path, volumeName)
@@ -221,6 +266,11 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	if volume.MountPoint == "" {
 		volume.MountPoint = volume.Path
 	}
+	if volume.PrepareForVM {
+		if err := util.MountPointPrepareForVM(volume.MountPoint, volume.Size); err != nil {
+			return "", err
+		}
+	}
 	if err := util.ObjectSave(volume); err != nil {
 		return "", err
 	}
@@ -269,9 +319,16 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		return nil, err
 	}
 
+	size := "0"
+	prepareForVM := strconv.FormatBool(volume.PrepareForVM)
+	if volume.PrepareForVM {
+		size = strconv.FormatInt(volume.Size, 10)
+	}
 	return map[string]string{
 		"Path": volume.Path,
-		convoydriver.OPT_MOUNT_POINT: volume.MountPoint,
+		convoydriver.OPT_MOUNT_POINT:    volume.MountPoint,
+		convoydriver.OPT_SIZE:           size,
+		convoydriver.OPT_PREPARE_FOR_VM: prepareForVM,
 	}, nil
 }
 
