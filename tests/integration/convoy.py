@@ -50,7 +50,7 @@ class VolumeManager:
 	return subprocess.check_output(self.base_cmdline + ["info"])
 
     def create_volume(self, size = "", name = "", backup = "", driver = "",
-                    volume_id = "", volume_type = "", iops = ""):
+                    volume_id = "", volume_type = "", iops = "", forvm = False):
         cmd = ["create"]
         if name != "":
             cmd = cmd + [name]
@@ -66,6 +66,8 @@ class VolumeManager:
             cmd = cmd + ["--type", volume_type]
         if iops != "":
             cmd = cmd + ["--iops", iops]
+        if forvm:
+            cmd = cmd + ["--vm"]
         data = subprocess.check_output(self.base_cmdline + cmd)
         return data.strip()
 

@@ -65,6 +65,8 @@ VOLUME_SIZE_6M = "6M"
 
 EBS_DEFAULT_VOLUME_TYPE = "standard"
 
+VM_IMAGE_FILE = "disk.img"
+
 data_dev = ""
 metadata_dev = ""
 
@@ -254,9 +256,9 @@ def cleanup_test():
         assert False
 
 def create_volume(size = "", name = "", backup = "", driver = "",
-            volume_id = "", volume_type = "", iops = ""):
+            volume_id = "", volume_type = "", iops = "", forvm = False):
     uuid = v.create_volume(size, name, backup, driver,
-                volume_id, volume_type, iops)
+                volume_id, volume_type, iops, forvm)
     if driver == "" or driver == DM:
         dm_cleanup_list.append(uuid)
     volume_cleanup_list.append(uuid)
@@ -288,16 +290,22 @@ def umount_volume(uuid, mount_dir):
     mount_cleanup_list.remove(mount_dir)
 
 def test_volume_crud():
-    volume_crud_test(DM)
-    volume_crud_test(VFS, False)
+    volume_crud_test(DM, vmTest = False)
+    volume_crud_test(VFS, sizeTest = False)
 
-def volume_crud_test(drv, sizeTest = True):
+def volume_crud_test(drv, sizeTest = True, vmTest = True):
     uuid1 = create_volume(driver=drv)
     uuid2 = create_volume(driver=drv)
 
     if sizeTest:
-        uuid3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
-        uuid4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
+        uuid3 = create_volume(VOLUME_SIZE_BIG, driver = drv)
+        uuid4 = create_volume(VOLUME_SIZE_SMALL, driver = drv)
+        delete_volume(uuid4)
+        delete_volume(uuid3)
+
+    if vmTest:
+        uuid3 = create_volume(driver = drv, forvm = True)
+        uuid4 = create_volume(driver = drv, forvm = True)
         delete_volume(uuid4)
         delete_volume(uuid3)
 
@@ -418,6 +426,21 @@ def volume_mount_test(drv):
     umount_volume(uuid, volume_mount_dir)
     assert not os.path.exists(test_file)
 
+    delete_volume(uuid)
+
+def test_volume_vm_mount():
+    volume_vm_test(VFS)
+
+def volume_vm_test(drv):
+    uuid = create_volume(driver = drv, size = VOLUME_SIZE_SMALL, forvm = True)
+    mount_dir = mount_volume(uuid)
+
+    image_filepath = os.path.join(mount_dir, VM_IMAGE_FILE)
+    assert os.path.exists(image_filepath)
+    size = os.stat(image_filepath).st_size
+    assert str(size) == VOLUME_SIZE_SMALL
+
+    umount_volume(uuid, mount_dir)
     delete_volume(uuid)
 
 def test_volume_list():
