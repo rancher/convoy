@@ -27,6 +27,9 @@ const (
 	GLUSTERFS_RANCHER_STACK           = "glusterfs.rancherstack"
 	GLUSTERFS_RANCHER_GLUSTER_SERVICE = "glusterfs.rancherservice"
 	GLUSTERFS_DEFAULT_VOLUME_POOL     = "glusterfs.defaultvolumepool"
+
+	GLUSTERFS_DEFAULT_VOLUME_SIZE = "glusterfs.defaultvolumesize"
+	DEFAULT_VOLUME_SIZE           = "100G"
 )
 
 var (
@@ -55,6 +58,7 @@ type Device struct {
 	RancherStack      string
 	RancherService    string
 	DefaultVolumePool string
+	DefaultVolumeSize int64
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -70,11 +74,13 @@ type Snapshot struct {
 }
 
 type Volume struct {
-	UUID       string
-	Name       string
-	Path       string
-	MountPoint string
-	VolumePool string
+	UUID         string
+	Name         string
+	Path         string
+	MountPoint   string
+	VolumePool   string
+	Size         int64
+	PrepareForVM bool
 
 	configPath string
 }
@@ -148,11 +154,28 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 			return nil, fmt.Errorf("Missing required parameter: %v", GLUSTERFS_DEFAULT_VOLUME_POOL)
 		}
 
+		if _, exists := config[GLUSTERFS_DEFAULT_VOLUME_SIZE]; !exists {
+			config[GLUSTERFS_DEFAULT_VOLUME_SIZE] = DEFAULT_VOLUME_SIZE
+		}
+		volumeSize, err := util.ParseSize(config[GLUSTERFS_DEFAULT_VOLUME_SIZE])
+		if err != nil || volumeSize == 0 {
+			return nil, fmt.Errorf("Illegal default volume size specified")
+		}
+		dev.DefaultVolumeSize = volumeSize
+
 		dev = &Device{
 			Root:              root,
 			RancherStack:      stack,
 			RancherService:    service,
 			DefaultVolumePool: defaultVolumePool,
+		}
+	}
+
+	// For upgrade case
+	if dev.DefaultVolumeSize == 0 {
+		dev.DefaultVolumeSize, err = util.ParseSize(DEFAULT_VOLUME_SIZE)
+		if err != nil || dev.DefaultVolumeSize == 0 {
+			return nil, fmt.Errorf("Illegal default volume size specified")
 		}
 	}
 
@@ -190,6 +213,7 @@ func (d *Driver) Info() (map[string]string, error) {
 		"RancherStack":      d.RancherStack,
 		"RancherService":    d.RancherService,
 		"DefaultVolumePool": d.DefaultVolumePool,
+		"DefaultVolumeSize": strconv.FormatInt(d.DefaultVolumeSize, 10),
 	}, nil
 }
 
@@ -202,6 +226,14 @@ func (d *Driver) blankVolume(id string) *Volume {
 		configPath: d.Root,
 		UUID:       id,
 	}
+}
+
+func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64, error) {
+	size := opts[convoydriver.OPT_SIZE]
+	if size == "" || size == "0" {
+		size = strconv.FormatInt(defaultVolumeSize, 10)
+	}
+	return util.ParseSize(size)
 }
 
 func (d *Driver) CreateVolume(id string, opts map[string]string) error {
@@ -220,6 +252,17 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 	if exists {
 		return fmt.Errorf("volume %v already exists", id)
+	}
+
+	volume.PrepareForVM, err = strconv.ParseBool(opts[convoydriver.OPT_PREPARE_FOR_VM])
+	if err != nil {
+		return err
+	}
+	if volume.PrepareForVM {
+		volume.Size, err = d.getSize(opts, d.DefaultVolumeSize)
+		if err != nil {
+			return err
+		}
 	}
 
 	gVolume := d.gVolumes[d.DefaultVolumePool]
@@ -275,6 +318,11 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	if volume.MountPoint == "" {
 		volume.MountPoint = volume.Path
 	}
+	if volume.PrepareForVM {
+		if err := util.MountPointPrepareForVM(volume.MountPoint, volume.Size); err != nil {
+			return "", err
+		}
+	}
 	if err := util.ObjectSave(volume); err != nil {
 		return "", err
 	}
@@ -327,12 +375,21 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	if gVolume == nil {
 		return nil, fmt.Errorf("Cannot find volume pool %v", volume.VolumePool)
 	}
+
+	size := "-1"
+	prepareForVM := strconv.FormatBool(volume.PrepareForVM)
+	if volume.PrepareForVM {
+		size = strconv.FormatInt(volume.Size, 10)
+	}
+
 	return map[string]string{
 		"Name": volume.Name,
 		"Path": volume.Path,
-		convoydriver.OPT_MOUNT_POINT: volume.MountPoint,
-		"GlusterFSVolume":            volume.VolumePool,
-		"GlusterFSServerIPs":         fmt.Sprintf("%v", gVolume.ServerIPs),
+		convoydriver.OPT_MOUNT_POINT:    volume.MountPoint,
+		convoydriver.OPT_SIZE:           size,
+		convoydriver.OPT_PREPARE_FOR_VM: prepareForVM,
+		"GlusterFSVolume":               volume.VolumePool,
+		"GlusterFSServerIPs":            fmt.Sprintf("%v", gVolume.ServerIPs),
 	}, nil
 }
 
