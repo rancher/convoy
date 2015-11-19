@@ -142,6 +142,6 @@ The devices would be called ```<datadev>```(e.g. ```/dev/loop0```) and ```<metad
 
 ##### Start server
 ```
-sudo convoy server --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
+sudo convoy daemon --drivers devicemapper --driver-opts dm.datadev=<datadev> --driver-opts dm.metadatadev=<metadatadev>
 ```
 * Device mapper default volume size is 100G. You can override it with e.g. ```--driver-opts dm.defaultvolumesize=10G``` as stated above.
