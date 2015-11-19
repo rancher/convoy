@@ -224,7 +224,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 	gVolume := d.gVolumes[d.DefaultVolumePool]
 	volumePath := filepath.Join(gVolume.MountPoint, volumeName)
-	if util.VolumeMountPointDirectoryExists(gVolume, volumeName) {
+	if util.VolumeMountPointFileExists(gVolume, volumeName, util.FILE_TYPE_DIRECTORY) {
 		log.Debugf("Found existing volume named %v, reuse it", volumeName)
 	} else if err := util.VolumeMountPointDirectoryCreate(gVolume, volumeName); err != nil {
 		return err

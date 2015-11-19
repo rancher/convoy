@@ -64,19 +64,26 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 	c.Assert(m, Equals, newMountPoint)
 	c.Assert(r.MountPoint, Equals, newMountPoint)
 
-	exists := VolumeMountPointDirectoryExists(r, "test_dir")
+	exists := VolumeMountPointFileExists(r, "test_dir", FILE_TYPE_DIRECTORY)
 	c.Assert(exists, Equals, false)
 
 	err = VolumeMountPointDirectoryCreate(r, "test_dir")
 	c.Assert(err, IsNil)
 
-	exists = VolumeMountPointDirectoryExists(r, "test_dir")
+	// Prepare for directory
+	err = VolumePrepareForVM(r, 100000)
+	c.Assert(err, IsNil)
+
+	exists = VolumeMountPointFileExists(r, IMAGE_FILE_NAME, FILE_TYPE_REGULAR)
+	c.Assert(exists, Equals, true)
+
+	exists = VolumeMountPointFileExists(r, "test_dir", FILE_TYPE_DIRECTORY)
 	c.Assert(exists, Equals, true)
 
 	err = VolumeMountPointDirectoryRemove(r, "test_dir")
 	c.Assert(err, IsNil)
 
-	exists = VolumeMountPointDirectoryExists(r, "test_dir")
+	exists = VolumeMountPointFileExists(r, "test_dir", FILE_TYPE_DIRECTORY)
 	c.Assert(exists, Equals, false)
 
 	err = VolumeUmount(r)
@@ -88,6 +95,6 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 }
 
 func (s *TestSuite) TestVolumeHelperWithNamespace(c *C) {
-	InitMountNamespace("/proc/host/1/ns/mnt")
+	InitMountNamespace("/proc/1/ns/mnt")
 	s.TestVolumeHelper(c)
 }

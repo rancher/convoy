@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -12,6 +13,12 @@ const (
 	MOUNT_BINARY   = "mount"
 	UMOUNT_BINARY  = "umount"
 	NSENTER_BINARY = "nsenter"
+
+	IMAGE_FILE_NAME = "disk.img"
+
+	FILE_TYPE_REGULAR     = "regular file"
+	FILE_TYPE_DIRECTORY   = "directory"
+	FILE_TYPE_BLOCKDEVICE = "block special file"
 )
 
 var (
@@ -243,7 +250,33 @@ func updateMountNamespace(name string, args []string) (string, []string) {
 	return cmdName, cmdArgs
 }
 
-func VolumeMountPointDirectoryExists(v interface{}, dirName string) bool {
+func getFileType(file string) (string, error) {
+	cmdName := "stat"
+	cmdArgs := []string{"-c", "%F", file}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	output, err := Execute(cmdName, cmdArgs)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(output), nil
+}
+
+func getFileSize(file string) (int64, error) {
+	cmdName := "stat"
+	cmdArgs := []string{"-c", "%s", file}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	output, err := Execute(cmdName, cmdArgs)
+	if err != nil {
+		return 0, err
+	}
+	size, err := strconv.ParseInt(strings.TrimSpace(output), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return size, nil
+}
+
+func VolumeMountPointFileExists(v interface{}, file string, expectType string) bool {
 	vol, err := getVolumeOps(v)
 	if err != nil {
 		panic("BUG: VolumeMountPointDirectoryExists was called with invalid variable")
@@ -252,18 +285,17 @@ func VolumeMountPointDirectoryExists(v interface{}, dirName string) bool {
 	if mp == "" {
 		panic("BUG: VolumeMountPointDirectoryExists was called before volume mounted")
 	}
-	path := filepath.Join(mp, dirName)
+	path := filepath.Join(mp, file)
 
-	cmdName := "stat"
-	cmdArgs := []string{"-c", "%F", path}
-	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
-	output, err := Execute(cmdName, cmdArgs)
+	fileType, err := getFileType(path)
 	if err != nil {
 		return false
 	}
-	if strings.TrimSpace(output) == "directory" {
+
+	if fileType == expectType {
 		return true
 	}
+	fmt.Println(fileType, expectType)
 	return false
 }
 
@@ -303,6 +335,70 @@ func VolumeMountPointDirectoryRemove(v interface{}, dirName string) error {
 	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
 	if _, err := Execute(cmdName, cmdArgs); err != nil {
 		return err
+	}
+	return nil
+}
+
+func createImage(file string, size int64) error {
+	cmdName := "truncate"
+	cmdArgs := []string{
+		"-s",
+		strconv.FormatInt(size, 10),
+		file,
+	}
+	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
+	if _, err := Execute(cmdName, cmdArgs); err != nil {
+		return err
+	}
+	return nil
+}
+
+func prepareImage(dir string, size int64) error {
+	file := filepath.Join(dir, IMAGE_FILE_NAME)
+	fileType, err := getFileType(file)
+	if err == nil {
+		if fileType != "regular file" {
+			return fmt.Errorf("The image is already exists at %v, but not a file? It's %v", file, fileType)
+		}
+		// File already exists, don't need to do anything
+		fileSize, err := getFileSize(file)
+		if err != nil {
+			return err
+		}
+		if fileSize != size {
+			log.Warnf("The existing image file size %v is different from specified size %v", fileSize, size)
+		}
+		return nil
+	}
+
+	if err := createImage(file, size); err != nil {
+		return err
+	}
+	return nil
+}
+
+func VolumePrepareForVM(v interface{}, size int64) error {
+	vol, err := getVolumeOps(v)
+	if err != nil {
+		panic("BUG: VolumePrepareForVM was called with invalid variable")
+	}
+	mp := getVolumeMountPoint(vol)
+	if mp == "" {
+		panic("BUG: VolumePrepareForVM was called before volume mounted")
+	}
+
+	fileType, err := getFileType(mp)
+	if err != nil {
+		return err
+	}
+	if fileType == "directory" {
+		if err := prepareImage(mp, size); err != nil {
+			return err
+		}
+	} else if fileType == "block special file" {
+		return fmt.Errorf("Haven't support block file yet")
+	} else {
+		return fmt.Errorf("Invalid file with type '%v' at %v", fileType, mp)
 	}
 	return nil
 }
