@@ -94,7 +94,7 @@
 		},
 		{
 			"ImportPath": "github.com/rancher/go-rancher-metadata/metadata",
-			"Rev": "476544c67d6faa4a34ab5c6a475d43ee90a59179"
+			"Rev": "3235034fa02c64bf78855c2673386260b5c43cc7"
 		},
 		{
 			"ImportPath": "github.com/tchap/go-patricia/patricia",

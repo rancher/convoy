@@ -7,19 +7,19 @@ type Stack struct {
 }
 
 type Service struct {
-	Name        string            `json:"name"`
-	StackName   string            `json:"stack_name"`
-	Kind        string            `json:"kind"`
-	Hostname    string            `json:"hostname"`
-	Vip         string            `json:"vip"`
-	CreateIndex string            `json:"create_index"`
-	ExternalIps []string          `json:"external_ips"`
-	Sidekicks   []string          `json:"sidekicks"`
-	Containers  []string          `json:"containers"`
-	Ports       []string          `json:"ports"`
-	Labels      map[string]string `json:"labels"`
-	Links       map[string]string `json:"links"`
-	Metadata    map[string]string `json:"metadata"`
+	Name        string                 `json:"name"`
+	StackName   string                 `json:"stack_name"`
+	Kind        string                 `json:"kind"`
+	Hostname    string                 `json:"hostname"`
+	Vip         string                 `json:"vip"`
+	CreateIndex string                 `json:"create_index"`
+	ExternalIps []string               `json:"external_ips"`
+	Sidekicks   []string               `json:"sidekicks"`
+	Containers  []string               `json:"containers"`
+	Ports       []string               `json:"ports"`
+	Labels      map[string]string      `json:"labels"`
+	Links       map[string]string      `json:"links"`
+	Metadata    map[string]interface{} `json:"metadata"`
 }
 
 type Container struct {
