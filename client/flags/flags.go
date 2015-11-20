@@ -16,7 +16,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:  "root",
-			Value: "/var/lib/convoy",
+			Value: "/var/lib/rancher/convoy",
 			Usage: "specific root directory of convoy, if configure file exists, daemon specific options would be ignored",
 		},
 		cli.StringSliceFlag{
