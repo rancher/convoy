@@ -127,7 +127,10 @@ type requestHandler func(version string, w http.ResponseWriter, r *http.Request,
 
 func makeHandlerFunc(method string, route string, version string, f requestHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Debugf("Calling: %v, %v, request: %v, %v", method, route, r.Method, r.RequestURI)
+		// Don't record volume list API call since it may used for polling
+		if route != "/volumes/list" {
+			log.Debugf("Calling: %v, %v, request: %v, %v", method, route, r.Method, r.RequestURI)
+		}
 
 		if strings.Contains(r.Header.Get("User-Agent"), "Convoy-Client/") {
 			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
