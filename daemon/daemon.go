@@ -195,7 +195,10 @@ func daemonEnvironmentSetup(c *cli.Context) error {
 		return fmt.Errorf("Failed to lock the file at %v: %v", lockPath, err.Error())
 	}
 
-	logrus.SetLevel(logrus.DebugLevel)
+	debug := c.GlobalBool("debug")
+	if debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 	logName := c.String("log")
 	if logName != "" {
 		logFile, err := os.OpenFile(logName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
