@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/convoydriver"
-	"github.com/rancher/convoy/rancher"
 	"github.com/rancher/convoy/util"
 	"math/rand"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -24,10 +24,8 @@ const (
 
 	MOUNTS_DIR = "mounts"
 
-	GLUSTERFS_RANCHER_STACK           = "glusterfs.rancherstack"
-	GLUSTERFS_RANCHER_GLUSTER_SERVICE = "glusterfs.rancherservice"
-	GLUSTERFS_DEFAULT_VOLUME_POOL     = "glusterfs.defaultvolumepool"
-
+	GLUSTERFS_SERVERS             = "glusterfs.servers"
+	GLUSTERFS_DEFAULT_VOLUME_POOL = "glusterfs.defaultvolumepool"
 	GLUSTERFS_DEFAULT_VOLUME_SIZE = "glusterfs.defaultvolumesize"
 	DEFAULT_VOLUME_SIZE           = "100G"
 )
@@ -52,11 +50,7 @@ func (d *Driver) Name() string {
 
 type Device struct {
 	Root              string
-	RancherURL        string
-	RancherAccessKey  string
-	RancherSecretKey  string
-	RancherStack      string
-	RancherService    string
+	Servers           []string
 	DefaultVolumePool string
 	DefaultVolumeSize int64
 }
@@ -88,17 +82,17 @@ type Volume struct {
 type GlusterFSVolume struct {
 	UUID       string // volume name in fact
 	MountPoint string
-	ServerIPs  []string
+	Servers    []string
 
 	configPath string
 }
 
 func (gv *GlusterFSVolume) GetDevice() (string, error) {
-	l := len(gv.ServerIPs)
-	if gv.ServerIPs == nil || len(gv.ServerIPs) == 0 {
+	l := len(gv.Servers)
+	if gv.Servers == nil || len(gv.Servers) == 0 {
 		return "", fmt.Errorf("No server IP provided for glusterfs")
 	}
-	ip := gv.ServerIPs[rand.Intn(l)]
+	ip := gv.Servers[rand.Intn(l)]
 	return ip + ":/" + gv.UUID, nil
 }
 
@@ -141,14 +135,18 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 			return nil, err
 		}
 
-		stack := config[GLUSTERFS_RANCHER_STACK]
-		if stack == "" {
-			return nil, fmt.Errorf("Missing required parameter: %v", GLUSTERFS_RANCHER_STACK)
+		serverList := config[GLUSTERFS_SERVERS]
+		if serverList == "" {
+			return nil, fmt.Errorf("Missing required parameter: %v", GLUSTERFS_SERVERS)
 		}
-		service := config[GLUSTERFS_RANCHER_GLUSTER_SERVICE]
-		if service == "" {
-			return nil, fmt.Errorf("Missing required parameter: %v", GLUSTERFS_RANCHER_GLUSTER_SERVICE)
+
+		servers := strings.Split(serverList, ",")
+		for _, server := range servers {
+			if !util.ValidNetworkAddr(server) {
+				return nil, fmt.Errorf("Invalid or unsolvable address: %v", server)
+			}
 		}
+
 		defaultVolumePool := config[GLUSTERFS_DEFAULT_VOLUME_POOL]
 		if defaultVolumePool == "" {
 			return nil, fmt.Errorf("Missing required parameter: %v", GLUSTERFS_DEFAULT_VOLUME_POOL)
@@ -165,8 +163,7 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 
 		dev = &Device{
 			Root:              root,
-			RancherStack:      stack,
-			RancherService:    service,
+			Servers:           servers,
 			DefaultVolumePool: defaultVolumePool,
 		}
 	}
@@ -179,11 +176,6 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 		}
 	}
 
-	serverIPs, err := rancher.GetIPsForServiceInStack(dev.RancherService, dev.RancherStack)
-	if err != nil {
-		return nil, err
-	}
-
 	d := &Driver{
 		mutex:    &sync.RWMutex{},
 		gVolumes: map[string]*GlusterFSVolume{},
@@ -191,7 +183,7 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 	}
 	gVolume := &GlusterFSVolume{
 		UUID:       dev.DefaultVolumePool,
-		ServerIPs:  serverIPs,
+		Servers:    dev.Servers,
 		configPath: d.Root,
 	}
 	// We would always mount the default volume pool
@@ -210,8 +202,7 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 func (d *Driver) Info() (map[string]string, error) {
 	return map[string]string{
 		"Root":              d.Root,
-		"RancherStack":      d.RancherStack,
-		"RancherService":    d.RancherService,
+		"GlusterFSServers":  fmt.Sprintf("%v", d.Servers),
 		"DefaultVolumePool": d.DefaultVolumePool,
 		"DefaultVolumeSize": strconv.FormatInt(d.DefaultVolumeSize, 10),
 	}, nil
@@ -389,7 +380,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		convoydriver.OPT_SIZE:           size,
 		convoydriver.OPT_PREPARE_FOR_VM: prepareForVM,
 		"GlusterFSVolume":               volume.VolumePool,
-		"GlusterFSServerIPs":            fmt.Sprintf("%v", gVolume.ServerIPs),
+		"GlusterFSServers":              fmt.Sprintf("%v", gVolume.Servers),
 	}, nil
 }
 

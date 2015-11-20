@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -382,4 +383,21 @@ func UnescapeURL(url string) string {
 	result := strings.Replace(url, "\\u0026", "&", 1)
 	result = strings.Replace(result, "u0026", "&", 1)
 	return result
+}
+
+func ValidNetworkAddr(addr string) bool {
+	//Is it a IP
+	ip := net.ParseIP(addr)
+	if ip != nil {
+		return true
+	}
+	//Or host
+	ips, err := net.LookupIP(addr)
+	if err != nil {
+		return false
+	}
+	if ips == nil || len(ips) == 0 {
+		return false
+	}
+	return true
 }

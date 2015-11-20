@@ -1,21 +1,13 @@
 # GlusterFS
 ## Introduction
 
-GlusterFS is a popular distributed network filesystem. Convoy can leveage GlusterFS to create volumes for Docker container, through integration with Rancher.
-
-## Requirement
-
-1. There are GlusterFS services running inside Rancher. It can be deployed using "GlusterFS" catalog in Rancher.
-2. Convoy container would be deployed as a container inside Rancher.
-  * Convoy can be deployed using "Convoy-GlusterFS" catalog in Rancher, then configuration can be done through in Rancher UI.
+GlusterFS is a popular distributed network filesystem. Convoy can leveage GlusterFS to create volumes for Docker container.
 
 ## Daemon Options
 ### Driver Name: `glusterfs`
 ### Driver options:
-#### `glusterfs.rancherstack`
-__Required__. The stack name of GlusterFS resides in Rancher
-#### `glusterfs.rancherservice`
-__Required__. The service name of GlusterFS resides in the Rancher stack
+#### `glusterfs.servers`
+__Required__. The server list of GlusterFS. Can be host name or IP address. Separate by "," without space. e.g. `10.1.1.2,10.1.1.3,10.1.1.4`
 #### `glusterfs.defaultvolumepool`
 __Required__. The default GlusterFS volume name which would be used to create container volumes. The GlusterFS volume would be used to create multiple container volumes.
 
@@ -37,13 +29,12 @@ __Required__. The default GlusterFS volume name which would be used to create co
 * `Path`: Directory where the volume stored.
 * `MountPoint`: Mount point of the volume if mounted.
 * `GlusterFSVolume`: The name of GlusterFS volume used to store this container volume.
-* `GlusterFSServerIPs`: The IPs of GlusterFS server for GlusterFS volume.
+* `GlusterFSServers`: The servers for GlusterFS volume.
 
 #### `info`
 `info` would provides following informations at `vfs` section:
 * `Root`: Convoy's GlusterFS config root directory.
-* `RancherStack`: The stack name of GlusterFS resides in Rancher.
-* `RancherService`: The service name of GlusterFS resides in the Rancher stack.
+* `GlusterFSServers`: The servers for GlusterFS volume.
 * `DefaultVolumePool`: The default GlusterFS volume name which would be used to create container volumes.
 
 #### Snapshot and Backup are not supported at this stage
