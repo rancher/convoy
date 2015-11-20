@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/rancher/convoy",
-	"GoVersion": "go1.4.2",
+	"GoVersion": "go1.4.3",
 	"Packages": [
 		"./..."
 	],
@@ -91,10 +91,6 @@
 		{
 			"ImportPath": "github.com/mcuadros/go-version",
 			"Rev": "d52711f8d6bea8dc01efafdb68ad95a4e2606630"
-		},
-		{
-			"ImportPath": "github.com/rancher/go-rancher-metadata/metadata",
-			"Rev": "3235034fa02c64bf78855c2673386260b5c43cc7"
 		},
 		{
 			"ImportPath": "github.com/tchap/go-patricia/patricia",
