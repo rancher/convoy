@@ -9,7 +9,7 @@ import (
 
 const (
 	// version of Convoy
-	VERSION = "0.4.1-dev"
+	VERSION = "0.4.1"
 )
 
 func cleanup() {
