@@ -387,11 +387,9 @@ func (c *Client) GetVolume(sfID int64, sfName string) (v SFVolume, err error) {
 	}
 	for _, vol := range volumes {
 		if sfID == vol.VolumeID {
-			log.Debugf("Found volume by ID: %v", vol)
 			v = vol
 			break
 		} else if sfName != "" && sfName == v.Name {
-			log.Debugf("Found volume by Name: %v", vol)
 			v = vol
 			break
 		}
@@ -436,8 +434,6 @@ func (c *Client) AttachVolume(volumeID int64, name string) (path, device string,
 		return
 	}
 
-	// Make sure it's not already attached
-	// NOTE(jdg): Just dealing with the base device here, ignoring partitions
 	path = path + c.SVIP + "-iscsi-" + v.Iqn + "-lun-0"
 	device = getDeviceFileFromIscsiPath(path)
 	if waitForPathToExist(path, 1) {
@@ -480,8 +476,7 @@ func (c *Client) AttachVolume(volumeID int64, name string) (path, device string,
 		log.Error("Failed to connect to iSCSI target (", tgt.Iqn, ")")
 		return
 	}
-	attachedPath := waitForPathToExist(path, 10)
-	if !attachedPath {
+	if waitForPathToExist(path, 10) == false {
 		log.Error("Failed to find connection after 10 seconds")
 		return
 	}
@@ -508,6 +503,37 @@ func (c *Client) DetachVolume(volumeID int64, name string) (err error) {
 	}
 	err = iscsiDisableDelete(tgt)
 	return
+}
+
+func (c *Client) GetIscsiDisk(identifier string) (device string) {
+	devices := getAllDisksByPath(identifier)
+	// First look for a part-1 with the specified identifier
+	// If we don't find one, we'll use the root device
+	for _, d := range devices {
+		if strings.Contains(d, "lun-0-part1") {
+			device = strings.Split(string(d), "../../")[1]
+			return "/dev/" + device
+		}
+	}
+	dName := strings.Split(string(devices[0]), "../../")[1]
+	return "/dev/" + dName
+}
+
+func getAllDisksByPath(identifier string) []string {
+	var devices []string
+	out, err := exec.Command("sudo", "ls", "-la", "/dev/disk/by-path/").Output()
+	if err != nil {
+		return nil
+	}
+	lines := strings.Split(string(out), "\n")
+	for _, l := range lines {
+		if identifier == "" {
+			devices = append(devices, l)
+		} else if strings.Contains(l, identifier) {
+			devices = append(devices, l)
+		}
+	}
+	return devices
 }
 
 func getDeviceFileFromIscsiPath(iscsiPath string) (devFile string) {

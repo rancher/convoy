@@ -29,9 +29,7 @@ const (
 	SF_DEFAULT_VOLUME_SIZE = "solidfire.defaultvolumesize"
 	SF_DEFAULT_VOLUME_TYPE = "solidfire.defaultvolumetype"
 
-	MOUNTS_DIR     = "mounts"
-	MOUNTS_BINARY  = "mount"
-	UNMOUNT_BINARY = "umount"
+	MOUNTS_DIR = "mounts"
 )
 
 type Device struct {
@@ -43,6 +41,7 @@ type Device struct {
 	SolidFireEndpoint           string
 	SolidFireSVIP               string
 	SolidFireVolumeTypes        map[string]QoS
+	SolidFireNoPartitions       bool
 }
 
 type Driver struct {
@@ -51,7 +50,7 @@ type Driver struct {
 }
 
 var (
-	log = logrus.WithFields(logrus.Fields{"pkg": "devmapper"})
+	log = logrus.WithFields(logrus.Fields{"pkg": "solidfire"})
 )
 
 func (v *Volume) ConfigFile() (string, error) {
@@ -119,7 +118,7 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 		if config[SF_DEFAULT_VOLUME_SIZE] == "" {
 			config[SF_DEFAULT_VOLUME_SIZE] = DEFAULT_VOLUME_SIZE
 		}
-		log.Error("parse sf default vol size")
+		log.Debug("parse sf default vol size")
 		size, err := util.ParseSize(config[SF_DEFAULT_VOLUME_SIZE])
 		if err != nil {
 			return nil, err
@@ -128,8 +127,12 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 			config[SF_DEFAULT_VOLUME_TYPE] = DEFAULT_VOLUME_TYPE
 		}
 		volumeType := config[SF_DEFAULT_VOLUME_TYPE]
-
-		log.Error("Try and set it")
+		if volumeType != "" {
+			if volumeTypeIsValid(volumeType, dev.SolidFireVolumeTypes) == true {
+				log.Warning("Invalid Volume Type specified as default (%v), setting default type to empty", volumeType)
+				volumeType = ""
+			}
+		}
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: size,
@@ -139,7 +142,6 @@ func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, err
 			return nil, err
 		}
 	}
-	log.Debugf("Gold type is: %v", dev.SolidFireVolumeTypes["Gold"])
 	client := NewClient(dev.SolidFireEndpoint, dev.SolidFireSVIP, dev.DefaultVolumeSize, dev.SolidFireDefaultAccountID)
 	d := &Driver{
 		Device: *dev,
@@ -159,17 +161,11 @@ func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
 	return d, nil
 }
 
-func checkVolumeType(volumeType string) error {
-	validVolumeType := map[string]bool{
-		"bronze":   true,
-		"silver":   true,
-		"gold":     true,
-		"platinum": true,
+func volumeTypeIsValid(vType string, driverTypeMap map[string]QoS) (isValid bool) {
+	if _, ok := driverTypeMap[vType]; ok {
+		return true
 	}
-	if !validVolumeType[volumeType] {
-		return fmt.Errorf("Invalid volume type %v", volumeType)
-	}
-	return nil
+	return false
 }
 
 type Volume struct {
@@ -243,8 +239,11 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 
 	vType := opts[convoydriver.OPT_VOLUME_TYPE]
-	if vType == "" {
-		vType = d.DefaultVolumeType
+	if vType != "" {
+		if volumeTypeIsValid(vType, d.SolidFireVolumeTypes) == true {
+			log.Warning("Invalid Volume Type specified (%v), ignoring Volume Type setting.", vType)
+			vType = ""
+		}
 	}
 
 	var qos QoS
@@ -287,7 +286,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 	format := true
 	path, dev, err := d.Client.AttachVolume(v.VolumeID, "")
-	volume.Device = dev
+	dev = d.Client.GetIscsiDisk(id)
 	if err != nil {
 		log.Errorf("Failed to attach volume: %v", err)
 		d.Client.DeleteVolume(v.VolumeID)
@@ -295,19 +294,31 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 	log.Debugf("Attached volume %v at disk %v as device %v", v.VolumeID, path, dev)
 	if format {
-		time.Sleep(5)
-		_, err := util.Execute("create_part", []string{dev})
-		if err != nil {
+		if d.SolidFireNoPartitions == false {
+			_, err := util.Execute("create_part", []string{dev})
+			if err != nil {
+				d.Client.DeleteVolume(v.VolumeID)
+				return err
+			}
+			path := path + "-part1"
+			if waitForPathToExist(path, 5) == false {
+				d.Client.DeleteVolume(v.VolumeID)
+				return generateError(logrus.Fields{
+					LOG_FIELD_VOLUME: id,
+				}, "Failed to find attached part-1 device at: %s", path)
+			}
+		}
+		dev = d.Client.GetIscsiDisk(id)
+		log.Debugf("Create ext4 FS on device: %s", dev)
+		if _, err := util.Execute("mkfs", []string{"-F", "-t", "ext4", dev}); err != nil {
 			d.Client.DeleteVolume(v.VolumeID)
 			return err
 		}
-		dev += "1"
-		if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
-			d.Client.DeleteVolume(v.VolumeID)
-			return err
-		}
-		volume.Device = dev
 	}
+	log.Debugf("Finally set volume.Device to: %s....", dev)
+	time.Sleep(10)
+	volume.Device = dev
+	volume.Path = path
 	volume.SFID = v.VolumeID
 	volume.Snapshots = make(map[string]Snapshot)
 	return util.ObjectSave(volume)
@@ -348,7 +359,6 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	}
 
 	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT], false)
-	// mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT])
 	if err != nil {
 		return "", err
 	}
