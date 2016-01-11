@@ -103,8 +103,6 @@ func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			return nil, fmt.Errorf("Cannot find volume %v", name)
 		}
 	}
 
@@ -150,6 +148,12 @@ func (s *daemon) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if volume == nil {
+		log.Infof("Couldn't find volume. Nothing to remove.")
+		dockerResponse(w, "", nil)
+		return
+	}
+
 	request := &api.VolumeDeleteRequest{
 		VolumeUUID: volume.UUID,
 		// By default we don't want to remove the volume because probably we're using NFS
@@ -177,6 +181,11 @@ func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if volume == nil {
+		dockerResponse(w, "", fmt.Errorf("Couldn't find volume."))
+		return
+	}
+
 	log.Debugf("Mount volume: %v (name %v) for docker", volume.UUID, volume.Name)
 
 	mountPoint, err := s.processVolumeMount(volume, &api.VolumeMountRequest{})
@@ -200,6 +209,12 @@ func (s *daemon) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if volume == nil {
+		log.Infof("Couldn't find volume. Nothing to unmount.")
+		dockerResponse(w, "", nil)
+		return
+	}
+
 	log.Debugf("Unmount volume: %v (name %v) for docker", volume.UUID, volume.Name)
 
 	if err := s.processVolumeUmount(volume); err != nil {
@@ -219,6 +234,11 @@ func (s *daemon) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 	volume, err := s.getDockerVolume(r, false)
 	if err != nil {
 		dockerResponse(w, "", err)
+		return
+	}
+
+	if volume == nil {
+		dockerResponse(w, "", fmt.Errorf("Couldn't find volume."))
 		return
 	}
 
