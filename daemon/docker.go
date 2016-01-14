@@ -154,17 +154,21 @@ func (s *daemon) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := &api.VolumeDeleteRequest{
-		VolumeUUID: volume.UUID,
-		// By default we don't want to remove the volume because probably we're using NFS
-		ReferenceOnly: true,
-	}
-	if err := s.processVolumeDelete(request); err != nil {
-		dockerResponse(w, "", err)
-		return
-	}
+	if s.IgnoreDockerDelete {
+		log.Debugf("Ignoring remove volume %v (name %v) for docker", volume.UUID, volume.Name)
+	} else {
+		request := &api.VolumeDeleteRequest{
+			VolumeUUID: volume.UUID,
+			// By default we don't want to remove the volume because probably we're using NFS
+			ReferenceOnly: true,
+		}
+		if err := s.processVolumeDelete(request); err != nil {
+			dockerResponse(w, "", err)
+			return
+		}
 
-	log.Debugf("Removed volume %v (name %v) for docker", volume.UUID, volume.Name)
+		log.Debugf("Removed volume %v (name %v) for docker", volume.UUID, volume.Name)
+	}
 
 	dockerResponse(w, "", nil)
 }
