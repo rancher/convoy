@@ -113,7 +113,7 @@ func sendRequestAndPrint(method, request string, data interface{}) error {
 }
 
 func cmdNotFound(c *cli.Context, command string) {
-	panic(fmt.Errorf("Unrecognized command", command))
+	panic(fmt.Errorf("Unrecognized command: %s", command))
 }
 
 // NewCli would generate Convoy CLI
