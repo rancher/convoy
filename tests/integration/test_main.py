@@ -1,21 +1,20 @@
 #!/usr/bin/python
 
-import subprocess
-import os
 import json
+import os
 import pytest
-import uuid
-import time
-import sys
-import threading
 import shutil
+import subprocess
+import threading
+import time
+import uuid
 
 from convoy import VolumeManager
 
 TEST_ROOT = "/tmp/convoy_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "convoy")
 PID_FILE = os.path.join(TEST_ROOT, "convoy.pid")
-LOG_FILE= os.path.join(TEST_ROOT, "convoy.log")
+LOG_FILE = os.path.join(TEST_ROOT, "convoy.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
 CONTAINER_NAME = "convoy-test"
@@ -39,8 +38,8 @@ VFS_VOLUME_PATH = os.path.join(TEST_ROOT, "vfs-volumes")
 
 EBS = "ebs"
 
-ENV_TEST_AWS_REGION     = "CONVOY_TEST_AWS_REGION"
-ENV_TEST_AWS_BUCKET     = "CONVOY_TEST_AWS_BUCKET"
+ENV_TEST_AWS_REGION = "CONVOY_TEST_AWS_REGION"
+ENV_TEST_AWS_BUCKET = "CONVOY_TEST_AWS_BUCKET"
 S3_PATH = "test/volume/"
 
 DD_BLOCK_SIZE = 4096
@@ -77,26 +76,34 @@ volume_cleanup_list = []
 test_ebs = False
 test_container = False
 
+v = None
+
+
 def create_empty_file(filepath, size):
     subprocess.check_call(["truncate", "-s", str(size), filepath])
     assert os.path.exists(filepath)
 
+
 def attach_loopback_dev(filepath):
     dev = subprocess.check_output(["losetup", "-v", "-f",
-            filepath]).strip().split(" ")[3]
+                                   filepath]).strip().split(" ")[3]
     assert dev.startswith("/dev/loop")
     return dev
 
+
 def detach_loopback_dev(dev):
     subprocess.check_output(["losetup", "-d", dev])
+
 
 def mount_dev(dev, mountpoint):
     subprocess.check_call(["mount", dev, mountpoint])
     mount_cleanup_list.append(mountpoint)
 
+
 def umount_dev(mountpoint):
     subprocess.check_call(["umount", mountpoint])
     mount_cleanup_list.remove(mountpoint)
+
 
 def setup_module():
     global test_ebs
@@ -106,7 +113,7 @@ def setup_module():
     test_container = pytest.config.getoption("container")
 
     if os.path.exists(TEST_ROOT):
-	subprocess.check_call(["rm", "-rf", TEST_ROOT])
+        subprocess.check_call(["rm", "-rf", TEST_ROOT])
 
     os.makedirs(TEST_ROOT)
     assert os.path.exists(TEST_ROOT)
@@ -138,23 +145,25 @@ def setup_module():
         "--log", LOG_FILE,
         "--drivers=" + DM,
         "--driver-opts", "dm.datadev=" + data_dev,
-	"--driver-opts", "dm.metadatadev=" + metadata_dev,
-	"--driver-opts", "dm.thinpoolname=" + POOL_NAME,
+        "--driver-opts", "dm.metadatadev=" + metadata_dev,
+        "--driver-opts", "dm.thinpoolname=" + POOL_NAME,
         "--driver-opts", "dm.defaultvolumesize=" + DEFAULT_VOLUME_SIZE,
         "--drivers=" + VFS,
         "--driver-opts", "vfs.path=" + VFS_VOLUME_PATH]
     if test_ebs:
         cmdline += ["--drivers=ebs",
-                "--driver-opts",
-                "ebs.defaultvolumesize=" + DEFAULT_VOLUME_SIZE,
-                "--driver-opts",
-                "ebs.defaultvolumetype=" + EBS_DEFAULT_VOLUME_TYPE]
+                    "--driver-opts",
+                    "ebs.defaultvolumesize=" + DEFAULT_VOLUME_SIZE,
+                    "--driver-opts",
+                    "ebs.defaultvolumetype=" + EBS_DEFAULT_VOLUME_TYPE]
     if test_container:
-        v.start_server_container(CONTAINER_NAME, CFG_ROOT, TEST_ROOT, CONTAINER, cmdline)
+        v.start_server_container(CONTAINER_NAME, CFG_ROOT,
+                                 TEST_ROOT, CONTAINER, cmdline)
     else:
         v.start_server(PID_FILE, cmdline)
     dm_cleanup_list.append(POOL_NAME)
     wait_for_daemon()
+
 
 def detach_all_lodev(keyword):
     output = subprocess.check_output(["losetup", "-a"])
@@ -163,51 +172,55 @@ def detach_all_lodev(keyword):
         if line.find(keyword) != -1:
             detach_loopback_dev(line.split(":")[0].strip())
 
+
 def teardown_module():
     if test_container:
         code = v.stop_server_container(CONTAINER_NAME)
     else:
         code = v.stop_server(PID_FILE)
     if code != 0:
-        print "Something wrong when tearing down, continuing with code ", code
+        print("Something wrong when tearing down, continuing with code ", code)
 
     while mount_cleanup_list:
         code = subprocess.call(["umount", mount_cleanup_list.pop()])
         if code != 0:
-            print "Something wrong when tearing down, continuing with code", code
+            print("Something wrong when tearing down, continuing with code",
+                  code)
     while dm_cleanup_list:
         code = subprocess.call(["dmsetup", "remove", "--retry",
-            dm_cleanup_list.pop()])
+                               dm_cleanup_list.pop()])
         if code != 0:
-            print "Something wrong when tearing down, continuing with code ", code
+            print("Something wrong when tearing down, continuing with code ",
+                  code)
 
     code = subprocess.call(["dmsetup", "remove", "--retry", POOL_NAME])
     if code != 0:
-        print "Something wrong when tearing down, continuing with code ", code
+        print("Something wrong when tearing down, continuing with code ", code)
 
     code = subprocess.call(["losetup", "-d", data_dev, metadata_dev])
     if code != 0:
-        print "Something wrong when tearing down, continuing with code", code
+        print("Something wrong when tearing down, continuing with code", code)
 
     detach_all_lodev(TEST_ROOT)
+
 
 def wait_for_daemon():
     while True:
         try:
-                data = v.server_info()
-                break
+            data = v.server_info()
+            break
         except subprocess.CalledProcessError:
-                print "Fail to communicate with daemon"
-                check_result = 0
-                if test_container:
-                    check_result = v.check_server_container(CONTAINER_NAME)
-                else:
-                    check_result = v.check_server(PID_FILE)
-                if check_result != 0:
-                    print "Server failed to start"
-                    teardown_module()
-                    assert False
-                time.sleep(1)
+            print("Fail to communicate with daemon")
+            check_result = 0
+            if test_container:
+                check_result = v.check_server_container(CONTAINER_NAME)
+            else:
+                check_result = v.check_server(PID_FILE)
+            if check_result != 0:
+                print("Server failed to start")
+                teardown_module()
+                assert False
+            time.sleep(1)
 
     info = json.loads(data)
     success = True
@@ -220,22 +233,29 @@ def wait_for_daemon():
         success = bool(success and info[DM]["Root"] == DM_ROOT)
         success = bool(success and info[DM]["DataDevice"] == data_dev)
         success = bool(success and info[DM]["MetadataDevice"] == metadata_dev)
-        success = bool(success and info[DM]["ThinpoolDevice"] == os.path.join(DM_DIR, POOL_NAME))
-        success = bool(success and info[DM]["ThinpoolSize"] == str(DATA_DEVICE_SIZE))
-        success = bool(success and info[DM]["ThinpoolBlockSize"] == str(DM_BLOCK_SIZE))
-        success = bool(success and info[DM]["DefaultVolumeSize"] == DEFAULT_VOLUME_SIZE)
+        success = bool(success and info[DM]["ThinpoolDevice"] ==
+                       os.path.join(DM_DIR, POOL_NAME))
+        success = bool(success and info[DM]["ThinpoolSize"] ==
+                       str(DATA_DEVICE_SIZE))
+        success = bool(success and info[DM]["ThinpoolBlockSize"] ==
+                       str(DM_BLOCK_SIZE))
+        success = bool(success and info[DM]["DefaultVolumeSize"] ==
+                       DEFAULT_VOLUME_SIZE)
         success = bool(success and info[VFS]["Root"] == VFS_ROOT)
         success = bool(success and info[VFS]["Path"] == VFS_VOLUME_PATH)
         if test_ebs:
-            success = bool(success and info[EBS]["DefaultVolumeSize"] == DEFAULT_VOLUME_SIZE)
-            success = bool(success and info[EBS]["DefaultVolumeType"] == EBS_DEFAULT_VOLUME_TYPE)
+            success = bool(success and info[EBS]["DefaultVolumeSize"] ==
+                           DEFAULT_VOLUME_SIZE)
+            success = bool(success and info[EBS]["DefaultVolumeType"] ==
+                           EBS_DEFAULT_VOLUME_TYPE)
 
-    except:
+    except Exception:
         success = False
 
     if not success:
         teardown_module()
         assert False
+
 
 @pytest.yield_fixture(autouse=True)
 def cleanup_test():
@@ -249,22 +269,24 @@ def cleanup_test():
         v = volume_cleanup_list.pop()
         try:
             delete_volume(v)
-        except:
-            print "Failed to delete volume ", v
+        except Exception:
+            print("Failed to delete volume ", v)
     if len(leftover_volumes) != 0:
-        print leftover_volumes
+        print(leftover_volumes)
         assert False
 
-def create_volume(size = "", name = "", backup = "", driver = "",
-            volume_id = "", volume_type = "", iops = "", forvm = False):
+
+def create_volume(size="", name="", backup="", driver="",
+                  volume_id="", volume_type="", iops="", forvm=False):
     uuid = v.create_volume(size, name, backup, driver,
-                volume_id, volume_type, iops, forvm)
+                           volume_id, volume_type, iops, forvm)
     if driver == "" or driver == DM:
         dm_cleanup_list.append(uuid)
     volume_cleanup_list.append(uuid)
     return uuid
 
-def delete_volume(uuid, name = "", ref_only = False):
+
+def delete_volume(uuid, name="", ref_only=False):
     if name == "":
         v.delete_volume(uuid, ref_only)
     else:
@@ -275,62 +297,72 @@ def delete_volume(uuid, name = "", ref_only = False):
         pass
     volume_cleanup_list.remove(uuid)
 
+
 def mount_volume_with_path(uuid):
     mount_dir = v.mount_volume_with_path(uuid)
     mount_cleanup_list.append(mount_dir)
     return mount_dir
+
 
 def mount_volume(uuid):
     mount_dir = v.mount_volume(uuid)
     mount_cleanup_list.append(mount_dir)
     return mount_dir
 
+
 def umount_volume(uuid, mount_dir):
     v.umount_volume(uuid)
     mount_cleanup_list.remove(mount_dir)
 
-def test_volume_crud():
-    volume_crud_test(DM, vmTest = False)
-    volume_crud_test(VFS, sizeTest = False)
 
-def volume_crud_test(drv, sizeTest = True, vmTest = True):
+def test_volume_crud():
+    volume_crud_test(DM, vmTest=False)
+    volume_crud_test(VFS, sizeTest=False)
+
+
+def volume_crud_test(drv, sizeTest=True, vmTest=True):
     uuid1 = create_volume(driver=drv)
     uuid2 = create_volume(driver=drv)
 
     if sizeTest:
-        uuid3 = create_volume(VOLUME_SIZE_BIG, driver = drv)
-        uuid4 = create_volume(VOLUME_SIZE_SMALL, driver = drv)
+        uuid3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
+        uuid4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
         delete_volume(uuid4)
         delete_volume(uuid3)
 
     if vmTest:
-        uuid3 = create_volume(driver = drv, forvm = True)
-        uuid4 = create_volume(driver = drv, forvm = True)
+        uuid3 = create_volume(driver=drv, forvm=True)
+        uuid4 = create_volume(driver=drv, forvm=True)
         delete_volume(uuid4)
         delete_volume(uuid3)
 
     delete_volume(uuid2, uuid2[:6])
     delete_volume(uuid1)
 
+
 @pytest.mark.skipif(not pytest.config.getoption("ebs"),
-        reason="--ebs was not specified")
+                    reason="--ebs was not specified")
 def test_ebs_volume_crud():
-    # need to test volume type and create volume from existed EBS volume feature
     uuid1 = create_volume(driver=EBS)
-    uuid2 = create_volume(size=VOLUME_SIZE_SMALL, driver=EBS, volume_type="gp2")
-    uuid3 = create_volume(size=VOLUME_SIZE_IOPS, driver=EBS, volume_type="io1",
-                    iops="100")
+    uuid2 = create_volume(size=VOLUME_SIZE_SMALL,
+                          driver=EBS,
+                          volume_type="gp2")
+    uuid3 = create_volume(size=VOLUME_SIZE_IOPS,
+                          driver=EBS,
+                          volume_type="io1",
+                          iops="100")
 
     volume3 = v.inspect_volume(uuid3)
     ebs_volume_id3 = volume3["DriverInfo"]["EBSVolumeID"]
 
-    delete_volume(uuid3, ref_only = True)
+    delete_volume(uuid3, ref_only=True)
 
     uuid3 = create_volume(driver=EBS, volume_id=ebs_volume_id3)
 
     delete_volume(uuid3)
     delete_volume(uuid2)
     delete_volume(uuid1)
+
 
 def test_vfs_delete_volume_ref_only():
     uuid = create_volume(driver=VFS)
@@ -339,18 +371,20 @@ def test_vfs_delete_volume_ref_only():
 
     assert os.path.exists(path)
     filename = "testfile"
-    test_file = os.path.join(path,filename)
+    test_file = os.path.join(path, filename)
     with open(test_file, "w") as f:
-	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
+        subprocess.check_call(["echo", "This is volume test file"], stdout=f)
     assert os.path.exists(test_file)
 
-    delete_volume(uuid, ref_only = True)
+    delete_volume(uuid, ref_only=True)
     assert os.path.exists(test_file)
     os.remove(test_file)
+
 
 def test_volume_name():
     volume_name_test(DM)
     volume_name_test(VFS)
+
 
 def volume_name_test(drv):
     vol_name1 = "vol1"
@@ -362,10 +396,10 @@ def volume_name_test(drv):
     assert vols[vol_uuid]["CreatedTime"] != ""
 
     with pytest.raises(subprocess.CalledProcessError):
-        new_uuid = create_volume(name=vol_name1, driver=drv)
+        create_volume(name=vol_name1, driver=drv)
 
     with pytest.raises(subprocess.CalledProcessError):
-        new_uuid = create_volume(driver="randomdriver")
+        create_volume(driver="randomdriver")
 
     delete_volume(vol_uuid, vol_name1)
     vols = v.list_volumes()
@@ -383,18 +417,20 @@ def volume_name_test(drv):
     delete_volume(vol_uuid1, vol_name1)
     delete_volume(vol_uuid2, vol_name2)
 
+
 def mount_volume_and_create_file(uuid, filename):
     # with format
     volume_mount_dir = mount_volume(uuid)
 
-    test_file = os.path.join(volume_mount_dir,filename)
+    test_file = os.path.join(volume_mount_dir, filename)
     with open(test_file, "w") as f:
-	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
+        subprocess.check_call(["echo", "This is volume test file"], stdout=f)
     assert os.path.exists(test_file)
 
     umount_volume(uuid, volume_mount_dir)
     # Doesn't work with current VFS implmentation, since it won't really mount
-    #assert not os.path.exists(test_file)
+    # assert not os.path.exists(test_file)
+
 
 def test_volume_mount():
     volume_mount_test(DM)
@@ -402,6 +438,7 @@ def test_volume_mount():
         volume_mount_test(EBS)
     # skip the vfs mount test because we only pass the original volume path as
     # mount path, not really done any mount work now
+
 
 def volume_mount_test(drv):
     uuid = create_volume(driver=drv)
@@ -428,11 +465,13 @@ def volume_mount_test(drv):
 
     delete_volume(uuid)
 
+
 def test_volume_vm_mount():
     volume_vm_test(VFS)
 
+
 def volume_vm_test(drv):
-    uuid = create_volume(driver = drv, size = VOLUME_SIZE_SMALL, forvm = True)
+    uuid = create_volume(driver=drv, size=VOLUME_SIZE_SMALL, forvm=True)
     mount_dir = mount_volume(uuid)
 
     image_filepath = os.path.join(mount_dir, VM_IMAGE_FILE)
@@ -443,30 +482,32 @@ def volume_vm_test(drv):
     umount_volume(uuid, mount_dir)
     delete_volume(uuid)
 
+
 def test_volume_list():
     volume_list_driver_test(DM)
     volume_list_driver_test(VFS, False)
     if test_ebs:
         volume_list_driver_test(EBS)
 
-def volume_list_driver_test(drv, check_size = True):
+
+def volume_list_driver_test(drv, check_size=True):
     volumes = v.list_volumes()
     assert len(volumes) == 0
 
     uuid1 = create_volume(driver=drv)
     uuid2 = create_volume(driver=drv)
     if check_size:
-	uuid3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
-	uuid4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
+        uuid3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
+        uuid4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
 
     volume = v.inspect_volume(uuid1)
     assert volume["UUID"] == uuid1
     if check_size:
-	assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
+        assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
     volume = v.inspect_volume(uuid2)
     assert volume["UUID"] == uuid2
     if check_size:
-	assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
+        assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
 
     if check_size:
         volumes = v.list_volumes()
@@ -475,15 +516,17 @@ def volume_list_driver_test(drv, check_size = True):
         assert volumes[uuid3]["DriverInfo"]["Size"] == VOLUME_SIZE_BIG_Bytes
         assert volumes[uuid4]["DriverInfo"]["Size"] == VOLUME_SIZE_SMALL
 
-	delete_volume(uuid4)
-	delete_volume(uuid3)
+        delete_volume(uuid4)
+        delete_volume(uuid3)
 
     delete_volume(uuid2)
     delete_volume(uuid1)
 
+
 def test_snapshot_crud():
     snapshot_crud_test(DM)
     snapshot_crud_test(VFS)
+
 
 def snapshot_crud_test(driver):
     volume_uuid = create_volume(VOLUME_SIZE_SMALL, name="vol1", driver=driver)
@@ -501,11 +544,14 @@ def snapshot_crud_test(driver):
 
     v.delete_snapshot(snap1)
     v.delete_snapshot(snap2[:6])
+    v.delete_snapshot(snap3)
     delete_volume(volume_uuid)
+
 
 def test_snapshot_name():
     snapshot_name_test(DM)
     snapshot_name_test(VFS)
+
 
 def snapshot_name_test(driver):
     volume_uuid = create_volume(VOLUME_SIZE_SMALL, driver=driver)
@@ -520,17 +566,21 @@ def snapshot_name_test(driver):
     assert s["CreatedTime"] != ""
 
     with pytest.raises(subprocess.CalledProcessError):
-	    new_uuid = v.create_snapshot(volume_uuid, name=snap1_name)
+        v.create_snapshot(volume_uuid, name=snap1_name)
 
     v.delete_snapshot(snap1_uuid)
     delete_volume(volume_uuid)
+
 
 def test_snapshot_list():
     snapshot_list_test(DM)
     snapshot_list_test(VFS, False)
 
-def snapshot_list_test(driver, check_size = True):
-    volume1_uuid = create_volume(VOLUME_SIZE_SMALL, name = "volume1", driver=driver)
+
+def snapshot_list_test(driver, check_size=True):
+    volume1_uuid = create_volume(VOLUME_SIZE_SMALL,
+                                 name="volume1",
+                                 driver=driver)
     volume2_uuid = create_volume(VOLUME_SIZE_BIG, driver=driver)
 
     with pytest.raises(subprocess.CalledProcessError):
@@ -588,15 +638,16 @@ def snapshot_list_test(driver, check_size = True):
     delete_volume(volume2_uuid)
     delete_volume(volume1_uuid)
 
+
 @pytest.mark.skipif(not pytest.config.getoption("ebs"),
-        reason="--ebs was not specified")
+                    reason="--ebs was not specified")
 def test_ebs_snapshot_backup():
-    volume_uuid = create_volume(size = VOLUME_SIZE_SMALL, name = "ebs_volume", driver=EBS)
+    volume_uuid = create_volume(size=VOLUME_SIZE_SMALL,
+                                name="ebs_volume",
+                                driver=EBS)
 
     mount_volume_and_create_file(volume_uuid, "test-vol1-v1")
-
     snap1_uuid = v.create_snapshot("ebs_volume", "snap1")
-
     volume = v.inspect_volume("ebs_volume")
     snap1 = v.inspect_snapshot("snap1")
     assert snap1["UUID"] == snap1_uuid
@@ -604,7 +655,8 @@ def test_ebs_snapshot_backup():
     assert snap1["VolumeName"] == "ebs_volume"
     assert snap1["Name"] == "snap1"
     assert str(snap1["DriverInfo"]["Size"]) == VOLUME_SIZE_SMALL
-    assert snap1["DriverInfo"]["EBSVolumeID"] == volume["DriverInfo"]["EBSVolumeID"]
+    assert (snap1["DriverInfo"]["EBSVolumeID"] ==
+            volume["DriverInfo"]["EBSVolumeID"])
     assert snap1["DriverInfo"]["Size"] == volume["DriverInfo"]["Size"]
 
     backup_url = v.create_backup(snap1_uuid)
@@ -617,25 +669,29 @@ def test_ebs_snapshot_backup():
     v.delete_snapshot("snap1")
     delete_volume(volume_uuid)
 
+
 def create_delete_volume():
-    uuid = v.create_volume(size = VOLUME_SIZE_6M)
+    uuid = v.create_volume(size=VOLUME_SIZE_6M)
     snap = v.create_snapshot(uuid)
     v.delete_snapshot(snap)
     v.delete_volume(uuid)
+
 
 # uses default driver which is device mapper
 def test_create_volume_in_parallel():
     threads = []
     for i in range(TEST_THREAD_COUNT):
-        threads.append(threading.Thread(target = create_delete_volume))
+        threads.append(threading.Thread(target=create_delete_volume))
         threads[i].start()
 
     for i in range(TEST_THREAD_COUNT):
         threads[i].join()
 
+
 def test_create_volume_in_sequence():
     for i in range(TEST_LOOP_COUNT):
-	create_delete_volume()
+        create_delete_volume()
+
 
 def compress_volume(volume_uuid):
     mountpoint = mount_volume(volume_uuid)
@@ -644,11 +700,12 @@ def compress_volume(volume_uuid):
     umount_volume(volume_uuid, mountpoint)
     return zipfile + ".zip"
 
+
 def get_volume_checksum(volume_uuid, driver):
     f = ""
     if driver == VFS:
         f = compress_volume(volume_uuid)
-    else: # DM/EBS
+    else:  # DM/EBS
         f = v.inspect_volume(volume_uuid)["DriverInfo"]["Device"]
     output = subprocess.check_output(["sha512sum", f]).decode()
 
@@ -656,10 +713,12 @@ def get_volume_checksum(volume_uuid, driver):
         os.remove(f)
     return output.split(" ")[0]
 
+
 def check_restore(origin_vol, restored_vol, driver):
     volume_checksum = get_volume_checksum(origin_vol, driver)
     restore_checksum = get_volume_checksum(restored_vol, driver)
     assert volume_checksum == restore_checksum
+
 
 def test_backup_create_restore_only():
     process_restore_with_original_removed(VFS, VFS_DEST)
@@ -667,8 +726,9 @@ def test_backup_create_restore_only():
     if test_ebs:
         process_restore_with_original_removed(EBS)
 
-def process_restore_with_original_removed(driver, dest = ""):
-    volume1_uuid = create_volume(size = VOLUME_SIZE_BIG, driver = driver)
+
+def process_restore_with_original_removed(driver, dest=""):
+    volume1_uuid = create_volume(size=VOLUME_SIZE_BIG, driver=driver)
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid)
     bak = v.create_backup(snap1_vol1_uuid, dest)
@@ -676,25 +736,30 @@ def process_restore_with_original_removed(driver, dest = ""):
     delete_volume(volume1_uuid)
 
     if driver == DM:
-        #cannot specify different size with backup
+        # cannot specify different size with backup
         with pytest.raises(subprocess.CalledProcessError):
-	    res_volume1_uuid = create_volume(VOLUME_SIZE_SMALL, "res-vol1", bak,
-                    driver = driver)
+            res_volume1_uuid = create_volume(VOLUME_SIZE_SMALL,
+                                             "res-vol1",
+                                             bak,
+                                             driver=driver)
 
-    res_volume1_uuid = create_volume(name = "res-vol1", backup = bak, driver =
-            driver)
+    res_volume1_uuid = create_volume(name="res-vol1",
+                                     backup=bak,
+                                     driver=driver)
     res_volume1_checksum = get_volume_checksum(res_volume1_uuid, driver)
     assert res_volume1_checksum == volume1_checksum
     delete_volume(res_volume1_uuid)
 
     v.delete_backup(bak)
 
+
 def test_duplicate_backup():
     process_duplicate_backup_test(VFS_DEST, VFS)
     process_duplicate_backup_test(VFS_DEST, DM)
 
+
 def process_duplicate_backup_test(dest, driver):
-    volume_uuid = create_volume(size = VOLUME_SIZE_BIG, driver = driver)
+    volume_uuid = create_volume(size=VOLUME_SIZE_BIG, driver=driver)
     mount_volume_and_create_file(volume_uuid, "volume_snap_test")
     snap_uuid = v.create_snapshot(volume_uuid)
     volume_checksum = get_volume_checksum(volume_uuid, driver)
@@ -702,14 +767,14 @@ def process_duplicate_backup_test(dest, driver):
     bak1 = v.create_backup(snap_uuid, dest)
     bak2 = v.create_backup(snap_uuid, dest)
 
-    res2 = create_volume(backup = bak2, driver = driver)
-    res2_checksum = get_volume_checksum(res2, driver = driver)
+    res2 = create_volume(backup=bak2, driver=driver)
+    res2_checksum = get_volume_checksum(res2, driver=driver)
     assert res2_checksum == volume_checksum
 
     v.delete_backup(bak2)
 
-    res1 = create_volume(backup = bak1, driver = driver)
-    res1_checksum = get_volume_checksum(res1, driver = driver)
+    res1 = create_volume(backup=bak1, driver=driver)
+    res1_checksum = get_volume_checksum(res1, driver=driver)
     assert res1_checksum == volume_checksum
 
     v.delete_backup(bak1)
@@ -717,37 +782,44 @@ def process_duplicate_backup_test(dest, driver):
     delete_volume(res1)
     delete_volume(volume_uuid)
 
+
 def test_vfs_objectstore():
     vfs_objectstore_test(VFS)
     vfs_objectstore_test(DM)
 
+
 def vfs_objectstore_test(driver):
     process_objectstore_test(VFS_DEST, driver)
 
+
 @pytest.mark.skipif(not pytest.config.getoption("s3"),
-        reason="--s3 was not specified")
+                    reason="--s3 was not specified")
 def test_s3_objectstore():
     s3_objectstore_test(VFS)
     s3_objectstore_test(DM)
+
 
 def s3_objectstore_test(driver):
     process_objectstore_test(get_s3_dest(), driver)
     process_objectstore_test(get_s3_dest(S3_PATH), driver)
 
-def get_s3_dest(path = ""):
+
+def get_s3_dest(path=""):
     region = os.environ[ENV_TEST_AWS_REGION]
     bucket = os.environ[ENV_TEST_AWS_BUCKET]
     return "s3://" + bucket + "@" + region + "/" + path
 
+
 def unescape_url(url):
-    return url.replace("\\u0026", "&").replace("u0026","&")
+    return url.replace("\\u0026", "&").replace("u0026", "&")
+
 
 def process_objectstore_test(dest, driver):
-    #make sure objectstore is empty
+    # make sure objectstore is empty
     backups = v.list_backup(dest)
     assert len(backups) == 0
 
-    #add volume to objectstore
+    # add volume to objectstore
     volume1_uuid = create_volume(VOLUME_SIZE_BIG, "volume1", driver=driver)
     volume1 = v.inspect_volume("volume1")
     volume2_uuid = create_volume(VOLUME_SIZE_SMALL, "volume2", driver=driver)
@@ -755,7 +827,7 @@ def process_objectstore_test(dest, driver):
     with pytest.raises(subprocess.CalledProcessError):
         backups = v.list_backup(dest, volume1_uuid)
 
-    #first snapshots
+    # first snapshots
     snap1_vol1_uuid = v.create_snapshot(volume1_uuid, "snap1_vol1")
     snap1_vol1 = v.inspect_snapshot("snap1_vol1")
     snap1_vol1_bak = v.create_backup("snap1_vol1", dest)
@@ -789,7 +861,7 @@ def process_objectstore_test(dest, driver):
     snap1_vol2_uuid = v.create_snapshot(volume2_uuid, "snap1_vol2")
     snap1_vol2_bak = v.create_backup("snap1_vol2", dest)
 
-    #list snapshots
+    # list snapshots
     backups = v.list_backup(dest, volume2_uuid)
     assert len(backups) == 1
 
@@ -797,7 +869,7 @@ def process_objectstore_test(dest, driver):
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
-    #second snapshots
+    # second snapshots
     mount_volume_and_create_file(volume1_uuid, "test-vol1-v1")
     snap2_vol1_uuid = v.create_snapshot(volume1_uuid)
     snap2_vol1_bak = v.create_backup(snap2_vol1_uuid, dest)
@@ -806,57 +878,67 @@ def process_objectstore_test(dest, driver):
     snap2_vol2_uuid = v.create_snapshot(volume2_uuid)
     snap2_vol2_bak = v.create_backup(snap2_vol2_uuid, dest)
 
-    #list snapshots again
+    # list snapshots again
     backups = v.list_backup(dest)
     assert len(backups) == 4
     assert backups[unescape_url(snap1_vol1_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap1_vol1_bak)]["VolumeUUID"] == volume1_uuid
-    assert backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] == snap1_vol1_uuid
+    assert (backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] ==
+            snap1_vol1_uuid)
     assert backups[unescape_url(snap2_vol1_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap2_vol1_bak)]["VolumeUUID"] == volume1_uuid
-    assert backups[unescape_url(snap2_vol1_bak)]["SnapshotUUID"] == snap2_vol1_uuid
+    assert (backups[unescape_url(snap2_vol1_bak)]["SnapshotUUID"] ==
+            snap2_vol1_uuid)
     assert backups[unescape_url(snap1_vol2_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap1_vol2_bak)]["VolumeUUID"] == volume2_uuid
-    assert backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] == snap1_vol2_uuid
+    assert (backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] ==
+            snap1_vol2_uuid)
     assert backups[unescape_url(snap2_vol2_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap2_vol2_bak)]["VolumeUUID"] == volume2_uuid
-    assert backups[unescape_url(snap2_vol2_bak)]["SnapshotUUID"] == snap2_vol2_uuid
+    assert (backups[unescape_url(snap2_vol2_bak)]["SnapshotUUID"] ==
+            snap2_vol2_uuid)
 
     backups = v.list_backup(dest, volume1_uuid)
     assert len(backups) == 2
     assert backups[unescape_url(snap1_vol1_bak)]["VolumeUUID"] == volume1_uuid
-    assert backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] == snap1_vol1_uuid
+    assert (backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] ==
+            snap1_vol1_uuid)
     assert backups[unescape_url(snap2_vol1_bak)]["VolumeUUID"] == volume1_uuid
-    assert backups[unescape_url(snap2_vol1_bak)]["SnapshotUUID"] == snap2_vol1_uuid
+    assert (backups[unescape_url(snap2_vol1_bak)]["SnapshotUUID"] ==
+            snap2_vol1_uuid)
 
     backups = v.list_backup(dest, volume2_uuid)
     assert len(backups) == 2
     assert backups[unescape_url(snap1_vol2_bak)]["VolumeUUID"] == volume2_uuid
-    assert backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] == snap1_vol2_uuid
+    assert (backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] ==
+            snap1_vol2_uuid)
     assert backups[unescape_url(snap2_vol2_bak)]["VolumeUUID"] == volume2_uuid
-    assert backups[unescape_url(snap2_vol2_bak)]["SnapshotUUID"] == snap2_vol2_uuid
+    assert (backups[unescape_url(snap2_vol2_bak)]["SnapshotUUID"] ==
+            snap2_vol2_uuid)
 
-    #restore snapshot
-    res_volume1_uuid = create_volume(name = "res-vol1", backup = snap2_vol1_bak,
-            driver=driver)
+    # restore snapshot
+    res_volume1_uuid = create_volume(name="res-vol1", backup=snap2_vol1_bak,
+                                     driver=driver)
     check_restore(volume1_uuid, res_volume1_uuid, driver)
 
-    res_volume2_uuid = create_volume(backup = snap2_vol2_bak, driver=driver)
+    res_volume2_uuid = create_volume(backup=snap2_vol2_bak, driver=driver)
     check_restore(volume2_uuid, res_volume2_uuid, driver)
 
-    #remove snapshots from objectstore
+    # remove snapshots from objectstore
     v.delete_backup(snap2_vol1_bak)
     v.delete_backup(snap2_vol2_bak)
 
-    #list snapshots again
+    # list snapshots again
     backups = v.list_backup(dest)
     assert len(backups) == 2
     assert backups[unescape_url(snap1_vol1_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap1_vol1_bak)]["VolumeUUID"] == volume1_uuid
-    assert backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] == snap1_vol1_uuid
+    assert (backups[unescape_url(snap1_vol1_bak)]["SnapshotUUID"] ==
+            snap1_vol1_uuid)
     assert backups[unescape_url(snap1_vol2_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap1_vol2_bak)]["VolumeUUID"] == volume2_uuid
-    assert backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] == snap1_vol2_uuid
+    assert (backups[unescape_url(snap1_vol2_bak)]["SnapshotUUID"] ==
+            snap1_vol2_uuid)
 
     backups = v.list_backup(dest, volume1_uuid)
     assert len(backups) == 1
@@ -882,7 +964,7 @@ def process_objectstore_test(dest, driver):
     assert backup["VolumeUUID"] == volume2_uuid
     assert backup["SnapshotUUID"] == snap1_vol2_uuid
 
-    #remove snapshots from objectstore
+    # remove snapshots from objectstore
     v.delete_backup(snap1_vol2_bak)
     v.delete_backup(snap1_vol1_bak)
 
@@ -896,12 +978,13 @@ def process_objectstore_test(dest, driver):
     delete_volume(res_volume1_uuid)
     delete_volume(res_volume2_uuid)
 
+
 def test_cross_restore_error_checking():
     vfs_vol_uuid = create_volume(driver=VFS)
     vfs_snap_uuid = v.create_snapshot(vfs_vol_uuid)
     vfs_backup = v.create_backup(vfs_snap_uuid, VFS_DEST)
 
-    dm_vol_uuid = create_volume(size = VOLUME_SIZE_SMALL, driver=DM)
+    dm_vol_uuid = create_volume(size=VOLUME_SIZE_SMALL, driver=DM)
     dm_snap_uuid = v.create_snapshot(dm_vol_uuid)
     dm_backup = v.create_backup(dm_snap_uuid, VFS_DEST)
 
@@ -918,4 +1001,3 @@ def test_cross_restore_error_checking():
     delete_volume(vfs_res)
     delete_volume(dm_vol_uuid)
     delete_volume(dm_res)
-
