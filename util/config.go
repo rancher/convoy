@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
 	"reflect"
-	"strings"
 )
 
 func LoadConfig(fileName string, v interface{}) error {
@@ -65,19 +66,19 @@ func RemoveConfig(fileName string) error {
 	return nil
 }
 
-func ListConfigIDs(path, prefix, suffix string) ([]string, error) {
-	out, err := Execute("find", []string{path,
-		"-maxdepth", "1",
-		"-name", prefix + "*" + suffix,
-		"-printf", "%f "})
+func ListConfigIDs(root, prefix, suffix string) ([]string, error) {
+	pattern := path.Join(root, fmt.Sprintf("%s*%s", prefix, suffix))
+	out, err := filepath.Glob(pattern)
 	if err != nil {
-		return []string{}, nil
+		return nil, err
 	}
 	if len(out) == 0 {
 		return []string{}, nil
 	}
-	fileResult := strings.Split(strings.TrimSpace(string(out)), " ")
-	return ExtractUUIDs(fileResult, prefix, suffix)
+	for i := range out {
+		out[i] = path.Base(out[i])
+	}
+	return ExtractUUIDs(out, prefix, suffix)
 }
 
 type ObjectOperations interface {

@@ -1,0 +1,68 @@
+replica:
+  scale: 2
+  metadata:
+    longhorn:
+      volume_name: $VOLUME_NAME
+      volume_size: $VOLUME_SIZE
+      slab_size: $SLAB_SIZE
+  labels:
+    io.rancher.sidekicks: replica-health
+    io.rancher.container.hostname_override: container_name
+    io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+    io.rancher.scheduler.affinity:container_soft: $CONVOY_CONTAINER
+  image: ibuildthecloud/infra
+  volumes:
+  - /volumes
+  - /home/darren/src/infra/debug/apps:/apps
+  - /home/darren/src/longhorn-agent:/agent
+  command: /agent/start-replica.sh
+  links:
+  - controller
+  health_check:
+    healthy_threshold: 1
+    interval: 2000
+    port: 8199
+    recreate_on_quorum_strategy_config:
+      quorum: 1
+    request_line: GET /replica/status HTTP/1.0
+    response_timeout: 2000
+    strategy: recreateOnQuorum
+    unhealthy_threshold: 2
+
+replica-health:
+  image: ibuildthecloud/infra
+  net: container:replica
+  volumes:
+  - /home/darren/src/infra/debug/apps:/apps
+  - /home/darren/src/longhorn-agent:/agent
+  command: /agent/start-replica-health.sh
+
+
+controller:
+  labels:
+    io.rancher.scheduler.affinity:container: $CONVOY_CONTAINER
+    io.rancher.sidekicks: controller-health
+  health_check:
+    healthy_threshold: 1
+    interval: 2000
+    port: 8199
+    request_line: GET /controller/status HTTP/1.0
+    response_timeout: 2000
+    strategy: none
+    unhealthy_threshold: 2
+  image: ibuildthecloud/infra
+  privileged: true
+  volumes:
+  - /dev:/host/dev
+  - /lib/modules:/lib/modules:ro
+  - /home/darren/src/infra/debug/apps:/apps
+  - /home/darren/src/longhorn-agent:/agent
+  command: /agent/start-controller.sh
+   
+controller-health:
+  image: ibuildthecloud/infra
+  net: container:controller
+  volumes: 
+  - /home/darren/src/infra/debug/apps:/apps
+  - /home/darren/src/longhorn-agent:/agent
+  command: /agent/start-controller-health.sh

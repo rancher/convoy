@@ -33,5 +33,9 @@ var (
 			Name:  "mnt-ns",
 			Usage: "Specify mount namespace file descriptor if user don't want to mount in current namespace. Support by Device Mapper and EBS",
 		},
+		cli.BoolFlag{
+			Name:  "ignore-docker-delete",
+			Usage: "Do not delete volumes when told to by Docker",
+		},
 	}
 )

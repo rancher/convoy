@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/rancher/convoy",
-	"GoVersion": "go1.4.3",
+	"GoVersion": "go1.5.2",
 	"Packages": [
 		"./..."
 	],
@@ -8,7 +8,7 @@
 		{
 			"ImportPath": "code.google.com/p/go-uuid/uuid",
 			"Comment": "null-15",
-			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
+			"Rev": "'35bc42037350f0078e3c974c6ea690f1926603ab'"
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
@@ -89,8 +89,21 @@
 			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
 		},
 		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Rev": "c66b764651cdca39f42d263b07a507c6e8b58ee9"
+		},
+		{
 			"ImportPath": "github.com/mcuadros/go-version",
 			"Rev": "d52711f8d6bea8dc01efafdb68ad95a4e2606630"
+		},
+		{
+			"ImportPath": "github.com/rancher/go-rancher-metadata/metadata",
+			"Rev": "593dcecf7122b25df7ad5d0d3d73fdbcc8bee3be"
+		},
+		{
+			"ImportPath": "github.com/rancher/go-rancher/client",
+			"Comment": "v0.1.0-128-ga1a6017",
+			"Rev": "a1a60172da70a2d3f324da3b0c392b79f75fb91b"
 		},
 		{
 			"ImportPath": "github.com/tchap/go-patricia/patricia",

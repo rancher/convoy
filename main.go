@@ -25,6 +25,6 @@ func main() {
 	cli := client.NewCli(VERSION)
 	err := cli.Run(os.Args)
 	if err != nil {
-		panic(fmt.Errorf("Error when executing command", err.Error()))
+		panic(fmt.Errorf("Error when executing command: %v", err))
 	}
 }

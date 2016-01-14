@@ -2,13 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
-	"github.com/docker/docker/pkg/truncindex"
-	"github.com/gorilla/mux"
-	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/convoydriver"
-	"github.com/rancher/convoy/util"
 	"net"
 	"net/http"
 	"os"
@@ -17,6 +10,14 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/codegangsta/cli"
+	"github.com/docker/docker/pkg/truncindex"
+	"github.com/gorilla/mux"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/convoydriver"
+	"github.com/rancher/convoy/util"
 
 	. "github.com/rancher/convoy/logging"
 )
@@ -50,10 +51,11 @@ var (
 )
 
 type daemonConfig struct {
-	Root             string
-	DriverList       []string
-	DefaultDriver    string
-	MountNamespaceFD string
+	Root               string
+	DriverList         []string
+	DefaultDriver      string
+	MountNamespaceFD   string
+	IgnoreDockerDelete bool
 }
 
 func (c *daemonConfig) ConfigFile() (string, error) {
@@ -305,6 +307,7 @@ func Start(sockFile string, c *cli.Context) error {
 
 		config.DriverList = driverList
 		config.DefaultDriver = driverList[0]
+		config.IgnoreDockerDelete = c.Bool("ignore-docker-delete")
 	}
 
 	s.daemonConfig = *config
