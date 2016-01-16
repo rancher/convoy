@@ -215,7 +215,7 @@ func CheckUUID(uuid string) error {
 	return nil
 }
 func ValidateName(name string) bool {
-	validName := regexp.MustCompile(`^[0-9a-z_.\-]+$`)
+	validName := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]+$`)
 	return validName.MatchString(name)
 }
 
