@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"io/ioutil"
 	"strconv"
@@ -23,7 +24,7 @@ var (
 )
 
 type ebsService struct {
-	metadataClient *ec2metadata.Client
+	metadataClient *ec2metadata.EC2Metadata
 	ec2Client      *ec2.EC2
 
 	InstanceID       string
@@ -88,7 +89,7 @@ func NewEBSService() (*ebsService, error) {
 	}
 
 	config := aws.NewConfig().WithRegion(s.Region)
-	s.ec2Client = ec2.New(config)
+	s.ec2Client = ec2.New(session.New(), config)
 
 	return s, nil
 }
@@ -388,7 +389,7 @@ func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snap
 	}
 	ec2Client := s.ec2Client
 	if region != s.Region {
-		ec2Client = ec2.New(aws.NewConfig().WithRegion(region))
+		ec2Client = ec2.New(session.New(), aws.NewConfig().WithRegion(region))
 	}
 	snapshots, err := ec2Client.DescribeSnapshots(params)
 	if err != nil {
@@ -443,7 +444,7 @@ func (s *ebsService) DeleteSnapshotWithRegion(snapshotID, region string) error {
 	}
 	ec2Client := s.ec2Client
 	if region != s.Region {
-		ec2Client = ec2.New(aws.NewConfig().WithRegion(region))
+		ec2Client = ec2.New(session.New(), aws.NewConfig().WithRegion(region))
 	}
 	_, err := ec2Client.DeleteSnapshot(params)
 	return parseAwsError(err)

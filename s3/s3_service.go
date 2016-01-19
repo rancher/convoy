@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"io"
 )
@@ -14,7 +15,7 @@ type S3Service struct {
 }
 
 func (s *S3Service) New() (*s3.S3, error) {
-	return s3.New(&aws.Config{Region: &s.Region}), nil
+	return s3.New(session.New(), &aws.Config{Region: &s.Region}), nil
 }
 
 func (s *S3Service) Close() {
