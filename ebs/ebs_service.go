@@ -68,7 +68,7 @@ func NewEBSService() (*ebsService, error) {
 	var err error
 
 	s := &ebsService{}
-	s.metadataClient = ec2metadata.New(nil)
+	s.metadataClient = ec2metadata.New(session.New())
 	if !s.isEC2Instance() {
 		return nil, fmt.Errorf("Not running on an EC2 instance")
 	}
