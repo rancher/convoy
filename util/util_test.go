@@ -185,7 +185,7 @@ func (s *TestSuite) TestValidateUUID(c *C) {
 
 func (s *TestSuite) TestValidateName(c *C) {
 	c.Assert(ValidateName(""), Equals, false)
-	c.Assert(ValidateName("_09123a."), Equals, true)
+	c.Assert(ValidateName("_09123a."), Equals, false)
 	c.Assert(ValidateName("ubuntu14.04_v1"), Equals, true)
 	c.Assert(ValidateName("123/456.a"), Equals, false)
 	c.Assert(ValidateName("a.\t"), Equals, false)
