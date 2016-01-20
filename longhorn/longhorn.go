@@ -73,10 +73,11 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Volume struct {
-	UUID       string
-	Size       int64
-	Name       string
-	MountPoint string
+	UUID         string
+	Size         int64
+	Name         string
+	MountPoint   string
+	PrepareForVM bool
 
 	configPath string
 }
@@ -111,6 +112,10 @@ func (v *Volume) ConfigFile() (string, error) {
 
 func (v *Volume) GetDevice() (string, error) {
 	return fmt.Sprintf(DEV_DIR, v.Name), nil
+}
+
+func (v *Volume) GetMountOpts() []string {
+	return []string{}
 }
 
 func (v *Volume) GenerateDefaultMountPoint() string {
@@ -241,6 +246,11 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	volume := d.blankVolume(id)
 	volume.Size = size
 	volume.Name = opts["VolumeName"]
+	volume.PrepareForVM, err = strconv.ParseBool(opts[convoydriver.OPT_PREPARE_FOR_VM])
+	if err != nil {
+		return err
+	}
+
 	stack := volume.Stack(d)
 
 	if err := d.doCreateVolume(volume, stack, id, opts); err != nil {
@@ -323,6 +333,12 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		return "", err
 	}
 
+	if volume.PrepareForVM {
+		if err := util.MountPointPrepareImageFile(mountPoint, volume.Size); err != nil {
+			return "", err
+		}
+	}
+
 	if err := util.ObjectSave(volume); err != nil {
 		return "", err
 	}
@@ -358,6 +374,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}
 	return map[string]string{
 		"Size": strconv.FormatInt(volume.Size, 10),
+		convoydriver.OPT_PREPARE_FOR_VM: strconv.FormatBool(volume.PrepareForVM),
 	}, nil
 }
 

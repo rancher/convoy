@@ -215,7 +215,7 @@ func CheckUUID(uuid string) error {
 	return nil
 }
 func ValidateName(name string) bool {
-	validName := regexp.MustCompile(`^[0-9a-z_.\-]+$`)
+	validName := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]+$`)
 	return validName.MatchString(name)
 }
 
@@ -280,7 +280,25 @@ func CheckBinaryVersion(binaryName, minVersion string, args []string) error {
 }
 
 func Execute(binary string, args []string) (string, error) {
-	output, err := exec.Command(binary, args...).CombinedOutput()
+	var output []byte
+	var err error
+	cmd := exec.Command(binary, args...)
+	done := make(chan struct{})
+
+	go func() {
+		output, err = cmd.CombinedOutput()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Minute):
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
+		return "", fmt.Errorf("Timeout executing: %v %v, output %v, error %v", binary, args, string(output), err)
+	}
+
 	if err != nil {
 		return "", fmt.Errorf("Failed to execute: %v %v, output %v, error %v", binary, args, string(output), err)
 	}

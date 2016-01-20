@@ -1,5 +1,5 @@
 replica:
-  scale: 2
+  scale: 3
   metadata:
     longhorn:
       volume_name: $VOLUME_NAME
@@ -10,12 +10,10 @@ replica:
     io.rancher.container.hostname_override: container_name
     io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
     io.rancher.scheduler.affinity:container_soft: $CONVOY_CONTAINER
-  image: ibuildthecloud/infra
+  image: rancher/longhorn:v0.0.1
   volumes:
   - /volumes
-  - /home/darren/src/infra/debug/apps:/apps
-  - /home/darren/src/longhorn-agent:/agent
-  command: /agent/start-replica.sh
+  command: start-replica.sh
   links:
   - controller
   health_check:
@@ -30,12 +28,9 @@ replica:
     unhealthy_threshold: 2
 
 replica-health:
-  image: ibuildthecloud/infra
+  image: rancher/longhorn:v0.0.1
   net: container:replica
-  volumes:
-  - /home/darren/src/infra/debug/apps:/apps
-  - /home/darren/src/longhorn-agent:/agent
-  command: /agent/start-replica-health.sh
+  command: start-replica-health.sh
 
 
 controller:
@@ -50,19 +45,14 @@ controller:
     response_timeout: 2000
     strategy: none
     unhealthy_threshold: 2
-  image: ibuildthecloud/infra
+  image: rancher/longhorn:v0.0.1
   privileged: true
   volumes:
   - /dev:/host/dev
   - /lib/modules:/lib/modules:ro
-  - /home/darren/src/infra/debug/apps:/apps
-  - /home/darren/src/longhorn-agent:/agent
-  command: /agent/start-controller.sh
+  command: start-controller.sh
    
 controller-health:
-  image: ibuildthecloud/infra
+  image: rancher/longhorn:v0.0.1
   net: container:controller
-  volumes: 
-  - /home/darren/src/infra/debug/apps:/apps
-  - /home/darren/src/longhorn-agent:/agent
-  command: /agent/start-controller-health.sh
+  command: start-controller-health.sh
