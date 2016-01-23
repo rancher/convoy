@@ -122,8 +122,8 @@ func createRouter(s *daemon) *mux.Router {
 func (s *daemon) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	info := fmt.Sprintf("Handler not found: %v %v", r.Method, r.RequestURI)
 	log.Errorf(info)
-	w.Write([]byte(info))
 	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte(info))
 }
 
 type requestHandler func(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error
