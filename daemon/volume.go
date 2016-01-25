@@ -256,7 +256,8 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		return nil, err
 	}
 
-	mountPoint, err := volOps.MountPoint(volume.UUID)
+	opts := map[string]string{}
+	mountPoint, err := volOps.MountPoint(volume.UUID, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -486,13 +487,14 @@ func (s *daemon) processVolumeUmount(volume *Volume) error {
 		return err
 	}
 
+	opts := map[string]string{}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_UMOUNT,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: volume.UUID,
 	}).Debug()
-	if err := volOps.UmountVolume(volume.UUID); err != nil {
+	if err := volOps.UmountVolume(volume.UUID, opts); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -511,13 +513,14 @@ func (s *daemon) getVolumeMountPoint(volume *Volume) (string, error) {
 		return "", err
 	}
 
+	opts := map[string]string{}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_MOUNTPOINT,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
 		LOG_FIELD_VOLUME: volume.UUID,
 	}).Debug()
-	mountPoint, err := volOps.MountPoint(volume.UUID)
+	mountPoint, err := volOps.MountPoint(volume.UUID, opts)
 	if err != nil {
 		return "", err
 	}

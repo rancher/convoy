@@ -755,7 +755,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return mountPoint, nil
 }
 
-func (d *Driver) UmountVolume(id string) error {
+func (d *Driver) UmountVolume(id string, opts map[string]string) error {
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -772,7 +772,7 @@ func (d *Driver) UmountVolume(id string) error {
 	return nil
 }
 
-func (d *Driver) MountPoint(id string) (string, error) {
+func (d *Driver) MountPoint(id string, opts map[string]string) (string, error) {
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err

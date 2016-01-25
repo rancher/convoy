@@ -320,7 +320,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return volume.MountPoint, nil
 }
 
-func (d *Driver) UmountVolume(id string) error {
+func (d *Driver) UmountVolume(id string, opts map[string]string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -384,7 +384,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}, nil
 }
 
-func (d *Driver) MountPoint(id string) (string, error) {
+func (d *Driver) MountPoint(id string, opts map[string]string) (string, error) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
