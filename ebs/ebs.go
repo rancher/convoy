@@ -270,7 +270,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 
 	//EBS volume ID
-	volumeID := opts[convoydriver.OPT_VOLUME_ID]
+	volumeID := opts[convoydriver.OPT_VOLUME_DRIVER_ID]
 	backupURL := opts[convoydriver.OPT_BACKUP_URL]
 	if backupURL != "" && volumeID != "" {
 		return fmt.Errorf("Cannot specify both backup and EBS volume ID")

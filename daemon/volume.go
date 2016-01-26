@@ -104,13 +104,13 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	opts := map[string]string{
-		convoydriver.OPT_SIZE:           strconv.FormatInt(request.Size, 10),
-		convoydriver.OPT_BACKUP_URL:     util.UnescapeURL(request.BackupURL),
-		convoydriver.OPT_VOLUME_NAME:    request.Name,
-		convoydriver.OPT_VOLUME_ID:      request.DriverVolumeID,
-		convoydriver.OPT_VOLUME_TYPE:    request.Type,
-		convoydriver.OPT_VOLUME_IOPS:    strconv.FormatInt(request.IOPS, 10),
-		convoydriver.OPT_PREPARE_FOR_VM: strconv.FormatBool(request.PrepareForVM),
+		convoydriver.OPT_SIZE:             strconv.FormatInt(request.Size, 10),
+		convoydriver.OPT_BACKUP_URL:       util.UnescapeURL(request.BackupURL),
+		convoydriver.OPT_VOLUME_NAME:      request.Name,
+		convoydriver.OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
+		convoydriver.OPT_VOLUME_TYPE:      request.Type,
+		convoydriver.OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
+		convoydriver.OPT_PREPARE_FOR_VM:   strconv.FormatBool(request.PrepareForVM),
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
