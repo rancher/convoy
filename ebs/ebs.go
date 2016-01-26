@@ -4,7 +4,6 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net/url"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
@@ -101,7 +101,7 @@ func (v *Volume) GenerateDefaultMountPoint() string {
 }
 
 func init() {
-	convoydriver.Register(DRIVER_NAME, Init)
+	Register(DRIVER_NAME, Init)
 }
 
 func generateError(fields logrus.Fields, format string, v ...interface{}) error {
@@ -140,7 +140,7 @@ func (d *Driver) remountVolumes() error {
 	return err
 }
 
-func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
+func Init(root string, config map[string]string) (ConvoyDriver, error) {
 	ebsService, err := NewEBSService()
 	if err != nil {
 		return nil, err
@@ -210,12 +210,12 @@ func (d *Driver) Info() (map[string]string, error) {
 	return infos, nil
 }
 
-func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
+func (d *Driver) VolumeOps() (VolumeOperations, error) {
 	return d, nil
 }
 
 func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64, error) {
-	size := opts[convoydriver.OPT_SIZE]
+	size := opts[OPT_SIZE]
 	if size == "" || size == "0" {
 		size = strconv.FormatInt(defaultVolumeSize, 10)
 	}
@@ -227,15 +227,15 @@ func (d *Driver) getTypeAndIOPS(opts map[string]string) (string, int64, error) {
 		iops int64
 		err  error
 	)
-	volumeType := opts[convoydriver.OPT_VOLUME_TYPE]
+	volumeType := opts[OPT_VOLUME_TYPE]
 	if volumeType == "" {
 		volumeType = d.DefaultVolumeType
 	}
 	if err := checkVolumeType(volumeType); err != nil {
 		return "", 0, err
 	}
-	if opts[convoydriver.OPT_VOLUME_IOPS] != "" {
-		iops, err = strconv.ParseInt(opts[convoydriver.OPT_VOLUME_IOPS], 10, 64)
+	if opts[OPT_VOLUME_IOPS] != "" {
+		iops, err = strconv.ParseInt(opts[OPT_VOLUME_IOPS], 10, 64)
 		if err != nil {
 			return "", 0, err
 		}
@@ -270,14 +270,14 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 
 	//EBS volume ID
-	volumeID := opts[convoydriver.OPT_VOLUME_DRIVER_ID]
-	backupURL := opts[convoydriver.OPT_BACKUP_URL]
+	volumeID := opts[OPT_VOLUME_DRIVER_ID]
+	backupURL := opts[OPT_BACKUP_URL]
 	if backupURL != "" && volumeID != "" {
 		return fmt.Errorf("Cannot specify both backup and EBS volume ID")
 	}
 
 	newTags := map[string]string{
-		"Name":             opts[convoydriver.OPT_VOLUME_NAME],
+		"Name":             opts[OPT_VOLUME_NAME],
 		"ConvoyVolumeUUID": id,
 	}
 	if volumeID != "" {
@@ -396,7 +396,7 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 		return err
 	}
 
-	referenceOnly, _ := strconv.ParseBool(opts[convoydriver.OPT_REFERENCE_ONLY])
+	referenceOnly, _ := strconv.ParseBool(opts[OPT_REFERENCE_ONLY])
 	if err := d.ebsService.DetachVolume(volume.EBSID); err != nil {
 		if !referenceOnly {
 			return err
@@ -423,7 +423,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		return "", err
 	}
 
-	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT], false)
+	mountPoint, err := util.VolumeMount(volume, opts[OPT_MOUNT_POINT], false)
 	if err != nil {
 		return "", err
 	}
@@ -511,7 +511,7 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	return volumes, nil
 }
 
-func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
+func (d *Driver) SnapshotOps() (SnapshotOperations, error) {
 	return d, nil
 }
 
@@ -530,9 +530,14 @@ func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *
 	return &snap, volume, nil
 }
 
-func (d *Driver) CreateSnapshot(id, volumeID string) error {
+func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	if err != nil {
+		return err
+	}
 
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
@@ -570,9 +575,14 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteSnapshot(id, volumeID string) error {
+func (d *Driver) DeleteSnapshot(id string, opts map[string]string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	if err != nil {
+		return err
+	}
 
 	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
@@ -584,9 +594,14 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) GetSnapshotInfo(id, volumeID string) (map[string]string, error) {
+func (d *Driver) GetSnapshotInfo(id string, opts map[string]string) (map[string]string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	if err != nil {
+		return nil, err
+	}
 
 	snapshot, _, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
@@ -637,7 +652,9 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 			return nil, err
 		}
 		for snapshotID := range volume.Snapshots {
-			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, volumeID)
+			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, map[string]string{
+				OPT_VOLUME_UUID: volumeID,
+			})
 			if err != nil {
 				return nil, err
 			}
@@ -646,7 +663,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 	return snapshots, nil
 }
 
-func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
+func (d *Driver) BackupOps() (BackupOperations, error) {
 	return d, nil
 }
 

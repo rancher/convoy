@@ -377,3 +377,11 @@ func ValidNetworkAddr(addr string) bool {
 	}
 	return true
 }
+
+func GetFieldFromOpts(name string, opts map[string]string) (string, error) {
+	value, exists := opts[name]
+	if !exists {
+		return "", fmt.Errorf("Cannot find field named %v in options", name)
+	}
+	return value, nil
+}

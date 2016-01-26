@@ -55,9 +55,9 @@ Convoy Driver want to operate snapshots must implement this interface.
 */
 type SnapshotOperations interface {
 	Name() string
-	CreateSnapshot(id, volumeID string) error
-	DeleteSnapshot(id, volumeID string) error
-	GetSnapshotInfo(id, volumeID string) (map[string]string, error)
+	CreateSnapshot(id string, opts map[string]string) error
+	DeleteSnapshot(id string, opts map[string]string) error
+	GetSnapshotInfo(id string, opts map[string]string) (map[string]string, error)
 	ListSnapshot(opts map[string]string) (map[string]map[string]string, error)
 }
 

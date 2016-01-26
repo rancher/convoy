@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/convoy/util"
 	"net/http"
 
+	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
@@ -62,7 +63,7 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_SNAPSHOT: uuid,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := snapOps.CreateSnapshot(uuid, volumeUUID); err != nil {
+	if err := snapOps.CreateSnapshot(uuid, map[string]string{OPT_VOLUME_UUID: volumeUUID}); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -116,7 +117,7 @@ func (s *daemon) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map
 	if err != nil {
 		return nil, err
 	}
-	driverInfo, err := snapOps.GetSnapshotInfo(snapshotUUID, volume.UUID)
+	driverInfo, err := snapOps.GetSnapshotInfo(snapshotUUID, map[string]string{OPT_VOLUME_UUID: volume.UUID})
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := snapOps.DeleteSnapshot(snapshotUUID, volumeUUID); err != nil {
+	if err := snapOps.DeleteSnapshot(snapshotUUID, map[string]string{OPT_VOLUME_UUID: volumeUUID}); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
