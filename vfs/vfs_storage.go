@@ -411,6 +411,10 @@ func (d *Driver) GetSnapshotInfo(id string, opts map[string]string) (map[string]
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
+	return d.getSnapshotInfo(id, opts)
+}
+
+func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]string, error) {
 	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
 	if err != nil {
 		return nil, err
@@ -457,7 +461,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 			return nil, err
 		}
 		for snapshotID := range volume.Snapshots {
-			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, map[string]string{
+			snapshots[snapshotID], err = d.getSnapshotInfo(snapshotID, map[string]string{
 				OPT_VOLUME_UUID: volumeID,
 			})
 			if err != nil {
