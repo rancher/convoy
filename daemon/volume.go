@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net/http"
 	"path/filepath"
 	"strconv"
 
+	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
@@ -29,7 +29,6 @@ type Volume struct {
 type Snapshot struct {
 	UUID        string
 	VolumeUUID  string
-	Name        string
 	CreatedTime string
 }
 
@@ -104,13 +103,13 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}
 
 	opts := map[string]string{
-		convoydriver.OPT_SIZE:             strconv.FormatInt(request.Size, 10),
-		convoydriver.OPT_BACKUP_URL:       util.UnescapeURL(request.BackupURL),
-		convoydriver.OPT_VOLUME_NAME:      request.Name,
-		convoydriver.OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
-		convoydriver.OPT_VOLUME_TYPE:      request.Type,
-		convoydriver.OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
-		convoydriver.OPT_PREPARE_FOR_VM:   strconv.FormatBool(request.PrepareForVM),
+		OPT_SIZE:             strconv.FormatInt(request.Size, 10),
+		OPT_BACKUP_URL:       util.UnescapeURL(request.BackupURL),
+		OPT_VOLUME_NAME:      request.Name,
+		OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
+		OPT_VOLUME_TYPE:      request.Type,
+		OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
+		OPT_PREPARE_FOR_VM:   strconv.FormatBool(request.PrepareForVM),
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
@@ -206,13 +205,16 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 		return fmt.Errorf("Cannot find volume %s", uuid)
 	}
 
+	// In the case of snapshot is not supported, snapshots would be nil
+	snapshots, _ := s.listSnapshotDriverInfos(volume)
+
 	volOps, err := s.getVolumeOpsForVolume(volume)
 	if err != nil {
 		return err
 	}
 
 	opts := map[string]string{
-		convoydriver.OPT_REFERENCE_ONLY: strconv.FormatBool(request.ReferenceOnly),
+		OPT_REFERENCE_ONLY: strconv.FormatBool(request.ReferenceOnly),
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
@@ -237,13 +239,15 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 			return err
 		}
 	}
-	for _, snapshot := range volume.Snapshots {
-		if err := s.UUIDIndex.Delete(snapshot.UUID); err != nil {
-			return err
-		}
-		if snapshot.Name != "" {
-			if err := s.NameUUIDIndex.Delete(snapshot.Name); err != nil {
+	if snapshots != nil {
+		for snapshotUUID, snapshot := range snapshots {
+			if err := s.UUIDIndex.Delete(snapshotUUID); err != nil {
 				return err
+			}
+			if snapshot[OPT_SNAPSHOT_NAME] != "" {
+				if err := s.NameUUIDIndex.Delete(snapshot[OPT_SNAPSHOT_NAME]); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -281,7 +285,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		}
 		resp.Snapshots[uuid] = api.SnapshotResponse{
 			UUID:        uuid,
-			Name:        snapshot.Name,
+			Name:        driverInfo[OPT_SNAPSHOT_NAME],
 			CreatedTime: snapshot.CreatedTime,
 			DriverInfo:  driverInfo,
 		}
@@ -437,7 +441,7 @@ func (s *daemon) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 	}
 
 	opts := map[string]string{
-		convoydriver.OPT_MOUNT_POINT: request.MountPoint,
+		OPT_MOUNT_POINT: request.MountPoint,
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,

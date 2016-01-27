@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/objectstore"
 	"github.com/rancher/convoy/util"
 	"net/http"
 	"net/url"
 	"strings"
 
+	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
@@ -25,7 +25,7 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	request.URL = util.UnescapeURL(request.URL)
 
 	opts := map[string]string{
-		convoydriver.OPT_VOLUME_UUID: request.VolumeUUID,
+		OPT_VOLUME_UUID: request.VolumeUUID,
 	}
 	result := make(map[string]map[string]string)
 	for _, driver := range s.ConvoyDrivers {
@@ -101,12 +101,17 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
+	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	if err != nil {
+		return err
+	}
+
 	opts := map[string]string{
-		convoydriver.OPT_VOLUME_NAME:           volume.Name,
-		convoydriver.OPT_FILESYSTEM:            volume.FileSystem,
-		convoydriver.OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
-		convoydriver.OPT_SNAPSHOT_NAME:         volume.Snapshots[snapshotUUID].Name,
-		convoydriver.OPT_SNAPSHOT_CREATED_TIME: volume.Snapshots[snapshotUUID].CreatedTime,
+		OPT_VOLUME_NAME:           volume.Name,
+		OPT_FILESYSTEM:            volume.FileSystem,
+		OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
+		OPT_SNAPSHOT_NAME:         snapshot[OPT_SNAPSHOT_NAME],
+		OPT_SNAPSHOT_CREATED_TIME: volume.Snapshots[snapshotUUID].CreatedTime,
 	}
 
 	log.WithFields(logrus.Fields{
@@ -177,7 +182,7 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-func (s *daemon) getBackupOpsForBackup(requestURL string) (convoydriver.BackupOperations, error) {
+func (s *daemon) getBackupOpsForBackup(requestURL string) (BackupOperations, error) {
 	driverName := ""
 
 	if _, err := objectstore.GetObjectStoreDriver(requestURL); err == nil {

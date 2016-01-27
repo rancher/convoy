@@ -57,6 +57,7 @@ func (dev *Device) ConfigFile() (string, error) {
 
 type Snapshot struct {
 	UUID       string
+	Name       string
 	VolumeUUID string
 	EBSID      string
 }
@@ -539,6 +540,11 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 		return err
 	}
 
+	snapshotName, err := util.GetFieldFromOpts(OPT_SNAPSHOT_NAME, opts)
+	if err != nil {
+		return err
+	}
+
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -568,6 +574,7 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 
 	snapshot = Snapshot{
 		UUID:       id,
+		Name:       snapshotName,
 		VolumeUUID: volumeID,
 		EBSID:      ebsSnapshotID,
 	}
@@ -618,13 +625,14 @@ func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]
 	}
 
 	info := map[string]string{
-		"UUID":          id,
-		"VolumeUUID":    volumeID,
-		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
-		"EBSVolumeID":   *ebsSnapshot.VolumeId,
-		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
-		"Size":          strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-		"State":         *ebsSnapshot.State,
+		"UUID":            id,
+		OPT_SNAPSHOT_NAME: snapshot.Name,
+		"VolumeUUID":      volumeID,
+		"EBSSnapshotID":   *ebsSnapshot.SnapshotId,
+		"EBSVolumeID":     *ebsSnapshot.VolumeId,
+		"StartTime":       (*ebsSnapshot.StartTime).Format(time.RubyDate),
+		"Size":            strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
+		"State":           *ebsSnapshot.State,
 	}
 
 	return info, nil
@@ -639,7 +647,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 		err       error
 	)
 	snapshots := make(map[string]map[string]string)
-	specifiedVolumeID := opts["VolumeID"]
+	specifiedVolumeID, _ := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
 	if specifiedVolumeID != "" {
 		volumeIDs = []string{
 			specifiedVolumeID,

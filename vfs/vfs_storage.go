@@ -54,6 +54,7 @@ func (dev *Device) ConfigFile() (string, error) {
 
 type Snapshot struct {
 	UUID       string
+	Name       string
 	VolumeUUID string
 	FilePath   string
 }
@@ -361,6 +362,11 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 		return err
 	}
 
+	snapshotName, err := util.GetFieldFromOpts(OPT_SNAPSHOT_NAME, opts)
+	if err != nil {
+		return err
+	}
+
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -377,6 +383,7 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	}
 	volume.Snapshots[id] = Snapshot{
 		UUID:       id,
+		Name:       snapshotName,
 		VolumeUUID: volumeID,
 		FilePath:   snapFile,
 	}
@@ -429,9 +436,10 @@ func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]
 		return nil, fmt.Errorf("Snapshot %v doesn't exists for volume %v", id, volumeID)
 	}
 	return map[string]string{
-		"UUID":       snapshot.UUID,
-		"VolumeUUID": snapshot.VolumeUUID,
-		"FilePath":   snapshot.FilePath,
+		"UUID":            snapshot.UUID,
+		OPT_SNAPSHOT_NAME: snapshot.Name,
+		"VolumeUUID":      snapshot.VolumeUUID,
+		"FilePath":        snapshot.FilePath,
 	}, nil
 }
 
@@ -444,7 +452,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 		err       error
 	)
 	snapshots := make(map[string]map[string]string)
-	specifiedVolumeID := opts["VolumeID"]
+	specifiedVolumeID, _ := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
 	if specifiedVolumeID != "" {
 		volumeIDs = []string{
 			specifiedVolumeID,

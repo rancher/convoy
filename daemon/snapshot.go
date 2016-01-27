@@ -55,6 +55,10 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	}
 
 	uuid := uuid.New()
+	opts := map[string]string{
+		OPT_VOLUME_UUID:   volumeUUID,
+		OPT_SNAPSHOT_NAME: snapshotName,
+	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
@@ -63,7 +67,7 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_SNAPSHOT: uuid,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := snapOps.CreateSnapshot(uuid, map[string]string{OPT_VOLUME_UUID: volumeUUID}); err != nil {
+	if err := snapOps.CreateSnapshot(uuid, opts); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -77,7 +81,6 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	snapshot := Snapshot{
 		UUID:        uuid,
 		VolumeUUID:  volumeUUID,
-		Name:        snapshotName,
 		CreatedTime: util.Now(),
 	}
 	//TODO: error handling
@@ -88,8 +91,8 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	if err := s.SnapshotVolumeIndex.Add(snapshot.UUID, volume.UUID); err != nil {
 		return err
 	}
-	if snapshot.Name != "" {
-		if err := s.NameUUIDIndex.Add(snapshot.Name, snapshot.UUID); err != nil {
+	if snapshotName != "" {
+		if err := s.NameUUIDIndex.Add(snapshotName, snapshot.UUID); err != nil {
 			return err
 		}
 	}
@@ -104,7 +107,7 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		return writeResponseOutput(w, api.SnapshotResponse{
 			UUID:        snapshot.UUID,
 			VolumeUUID:  snapshot.VolumeUUID,
-			Name:        snapshot.Name,
+			Name:        snapshotName,
 			CreatedTime: snapshot.CreatedTime,
 			DriverInfo:  driverInfo,
 		})
@@ -123,6 +126,21 @@ func (s *daemon) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map
 	}
 	driverInfo["Driver"] = snapOps.Name()
 	return driverInfo, nil
+}
+
+func (s *daemon) listSnapshotDriverInfos(volume *Volume) (map[string]map[string]string, error) {
+	snapOps, err := s.getSnapshotOpsForVolume(volume)
+	if err != nil {
+		return nil, err
+	}
+	opts := map[string]string{
+		OPT_VOLUME_UUID: volume.UUID,
+	}
+	snapshots, err := snapOps.ListSnapshot(opts)
+	if err != nil {
+		return nil, err
+	}
+	return snapshots, nil
 }
 
 func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -152,6 +170,12 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		return err
 	}
 
+	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	if err != nil {
+		return err
+	}
+	snapshotName := snapshot[OPT_SNAPSHOT_NAME]
+
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_DELETE,
@@ -170,16 +194,15 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
-	snapshot := volume.Snapshots[snapshotUUID]
 	//TODO: error handling
-	if err := s.UUIDIndex.Delete(snapshot.UUID); err != nil {
+	if err := s.UUIDIndex.Delete(snapshotUUID); err != nil {
 		return err
 	}
 	if err := s.SnapshotVolumeIndex.Delete(snapshotUUID); err != nil {
 		return err
 	}
-	if snapshot.Name != "" {
-		if err := s.NameUUIDIndex.Delete(snapshot.Name); err != nil {
+	if snapshotName != "" {
+		if err := s.NameUUIDIndex.Delete(snapshotName); err != nil {
 			return err
 		}
 	}
@@ -208,7 +231,8 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	if volume == nil {
 		return fmt.Errorf("cannot find volume %v", volumeUUID)
 	}
-	if _, exists := volume.Snapshots[snapshotUUID]; !exists {
+	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	if err != nil {
 		return fmt.Errorf("cannot find snapshot %v of volume %v", snapshotUUID, volumeUUID)
 	}
 
@@ -222,7 +246,7 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 		VolumeUUID:      volume.UUID,
 		VolumeName:      volume.Name,
 		VolumeCreatedAt: volume.CreatedTime,
-		Name:            volume.Snapshots[snapshotUUID].Name,
+		Name:            snapshot[OPT_SNAPSHOT_NAME],
 		CreatedTime:     volume.Snapshots[snapshotUUID].CreatedTime,
 		DriverInfo:      driverInfo,
 	}
