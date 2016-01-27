@@ -18,7 +18,6 @@ type Volume struct {
 	UUID        string
 	Name        string
 	DriverName  string
-	FileSystem  string
 	CreatedTime string
 
 	configPath string
@@ -125,7 +124,6 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		UUID:        volumeUUID,
 		Name:        volumeName,
 		DriverName:  driverName,
-		FileSystem:  "ext4",
 		CreatedTime: util.Now(),
 	}
 	if err := s.saveVolume(volume); err != nil {

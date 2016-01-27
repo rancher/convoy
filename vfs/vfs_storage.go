@@ -500,7 +500,6 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 		UUID:        volumeID,
 		Name:        opts[OPT_VOLUME_NAME],
 		Driver:      d.Name(),
-		FileSystem:  opts[OPT_FILESYSTEM],
 		CreatedTime: opts[OPT_VOLUME_CREATED_TIME],
 	}
 	objSnapshot := &objectstore.Snapshot{

@@ -4,8 +4,6 @@ import subprocess
 import os
 import json
 
-EXT4_FS = "ext4"
-
 class VolumeManager:
     def __init__(self, base_cmdline, mount_root):
         self.base_cmdline = base_cmdline

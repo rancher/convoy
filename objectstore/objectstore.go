@@ -12,7 +12,6 @@ type Volume struct {
 	Name           string
 	Driver         string
 	Size           int64
-	FileSystem     string
 	CreatedTime    string
 	LastBackupUUID string
 }
