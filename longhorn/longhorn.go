@@ -246,7 +246,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 	volume := d.blankVolume(id)
 	volume.Size = size
-	volume.Name = opts["VolumeName"]
+	volume.Name = opts[OPT_VOLUME_NAME]
 	volume.PrepareForVM, err = strconv.ParseBool(opts[OPT_PREPARE_FOR_VM])
 	volume.CreatedTime = util.Now()
 	if err != nil {
@@ -378,6 +378,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"Size":                  strconv.FormatInt(volume.Size, 10),
 		OPT_PREPARE_FOR_VM:      strconv.FormatBool(volume.PrepareForVM),
 		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
+		OPT_VOLUME_NAME:         volume.Name,
 	}, nil
 }
 

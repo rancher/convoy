@@ -64,6 +64,7 @@ type Snapshot struct {
 
 type Volume struct {
 	UUID       string
+	Name       string
 	EBSID      string
 	Device     string
 	MountPoint string
@@ -261,6 +262,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
+	volumeName := opts[OPT_VOLUME_NAME]
 	volume := d.blankVolume(id)
 	exists, err := util.ObjectExists(volume)
 	if err != nil {
@@ -372,6 +374,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	log.Debugf("Attached EBS volume %v to %v", volumeID, dev)
 
 	volume.EBSID = volumeID
+	volume.Name = volumeName
 	volume.Device = dev
 	volume.Snapshots = make(map[string]Snapshot)
 	if snapshot != nil {
@@ -485,6 +488,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"UUID":                  volume.UUID,
 		"EBSVolumeID":           volume.EBSID,
 		"AvailiablityZone":      *ebsVolume.AvailabilityZone,
+		OPT_VOLUME_NAME:         volume.Name,
 		OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
 		"Size":                  strconv.FormatInt(*ebsVolume.Size*GB, 10),
 		"State":                 *ebsVolume.State,

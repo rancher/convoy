@@ -16,7 +16,6 @@ import (
 
 type Volume struct {
 	UUID       string
-	Name       string
 	DriverName string
 
 	configPath string
@@ -95,7 +94,7 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	opts := map[string]string{
 		OPT_SIZE:             strconv.FormatInt(request.Size, 10),
 		OPT_BACKUP_URL:       util.UnescapeURL(request.BackupURL),
-		OPT_VOLUME_NAME:      request.Name,
+		OPT_VOLUME_NAME:      volumeName,
 		OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
 		OPT_VOLUME_TYPE:      request.Type,
 		OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
@@ -121,17 +120,23 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 
 	volume := &Volume{
 		UUID:       volumeUUID,
-		Name:       volumeName,
 		DriverName: driverName,
 	}
+
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := s.saveVolume(volume); err != nil {
 		return nil, err
 	}
 	if err := s.UUIDIndex.Add(volume.UUID); err != nil {
 		return nil, err
 	}
-	if volume.Name != "" {
-		if err := s.NameUUIDIndex.Add(volume.Name, volume.UUID); err != nil {
+
+	if driverInfo[OPT_VOLUME_NAME] != "" {
+		if err := s.NameUUIDIndex.Add(driverInfo[OPT_VOLUME_NAME], volume.UUID); err != nil {
 			return nil, err
 		}
 	}
@@ -159,7 +164,7 @@ func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	if request.Verbose {
 		return writeResponseOutput(w, api.VolumeResponse{
 			UUID:        volume.UUID,
-			Name:        volume.Name,
+			Name:        driverInfo[OPT_VOLUME_NAME],
 			Driver:      volume.DriverName,
 			CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
 			DriverInfo:  driverInfo,
@@ -200,6 +205,11 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 		return err
 	}
 
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		return err
+	}
+
 	opts := map[string]string{
 		OPT_REFERENCE_ONLY: strconv.FormatBool(request.ReferenceOnly),
 	}
@@ -221,8 +231,8 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 	if err := s.UUIDIndex.Delete(volume.UUID); err != nil {
 		return err
 	}
-	if volume.Name != "" {
-		if err := s.NameUUIDIndex.Delete(volume.Name); err != nil {
+	if driverInfo[OPT_VOLUME_NAME] != "" {
+		if err := s.NameUUIDIndex.Delete(driverInfo[OPT_VOLUME_NAME]); err != nil {
 			return err
 		}
 	}
@@ -258,7 +268,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	}
 	resp := &api.VolumeResponse{
 		UUID:        volume.UUID,
-		Name:        volume.Name,
+		Name:        driverInfo[OPT_VOLUME_NAME],
 		Driver:      volume.DriverName,
 		MountPoint:  mountPoint,
 		CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],

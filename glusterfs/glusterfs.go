@@ -372,7 +372,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}
 
 	return map[string]string{
-		"Name":                  volume.Name,
+		OPT_VOLUME_NAME:         volume.Name,
 		"Path":                  volume.Path,
 		OPT_MOUNT_POINT:         volume.MountPoint,
 		OPT_SIZE:                size,

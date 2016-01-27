@@ -62,6 +62,7 @@ type Snapshot struct {
 
 type Volume struct {
 	UUID         string
+	Name         string
 	Size         int64
 	Path         string
 	MountPoint   string
@@ -219,6 +220,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	volume.Path = volumePath
 	volume.CreatedTime = util.Now()
 	volume.Snapshots = make(map[string]Snapshot)
+	volume.Name = volumeName
 
 	if backupURL != "" {
 		file, err := objectstore.RestoreSingleFileBackup(backupURL, volumePath)
@@ -334,6 +336,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		OPT_MOUNT_POINT:         volume.MountPoint,
 		OPT_SIZE:                size,
 		OPT_PREPARE_FOR_VM:      prepareForVM,
+		OPT_VOLUME_NAME:         volume.Name,
 		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
 	}, nil
 }

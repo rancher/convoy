@@ -162,8 +162,12 @@ func (s *daemon) updateIndex() error {
 		if volume == nil {
 			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
 		}
-		if volume.Name != "" {
-			if err := s.NameUUIDIndex.Add(volume.Name, volume.UUID); err != nil {
+		driverInfo, err := s.getVolumeDriverInfo(volume)
+		if err != nil {
+			return err
+		}
+		if driverInfo[OPT_VOLUME_NAME] != "" {
+			if err := s.NameUUIDIndex.Add(OPT_VOLUME_NAME, volume.UUID); err != nil {
 				return err
 			}
 		}

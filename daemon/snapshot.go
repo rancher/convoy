@@ -240,7 +240,7 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	resp := api.SnapshotResponse{
 		UUID:            snapshotUUID,
 		VolumeUUID:      volume.UUID,
-		VolumeName:      volume.Name,
+		VolumeName:      volumeDriverInfo[OPT_VOLUME_NAME],
 		VolumeCreatedAt: volumeDriverInfo[OPT_VOLUME_CREATED_TIME],
 		Name:            snapshot[OPT_SNAPSHOT_NAME],
 		CreatedTime:     snapshot[OPT_SNAPSHOT_CREATED_TIME],

@@ -66,6 +66,7 @@ type Driver struct {
 
 type Volume struct {
 	UUID        string
+	Name        string
 	DevID       int
 	Size        int64
 	Base        string
@@ -391,6 +392,8 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		size int64
 		err  error
 	)
+	volumeName := opts[OPT_VOLUME_NAME]
+
 	backupURL := opts[OPT_BACKUP_URL]
 	if backupURL != "" {
 		objVolume, err := objectstore.LoadVolume(backupURL)
@@ -474,6 +477,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 
 	volume.DevID = devID
+	volume.Name = volumeName
 	volume.Size = size
 	volume.CreatedTime = util.Now()
 	volume.Snapshots = make(map[string]Snapshot)
@@ -816,6 +820,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	result := map[string]string{
 		"DevID":                 strconv.Itoa(volume.DevID),
 		"Device":                dev,
+		OPT_VOLUME_NAME:         volume.Name,
 		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
 		OPT_MOUNT_POINT:         volume.MountPoint,
 		OPT_SIZE:                strconv.FormatInt(volume.Size, 10),
@@ -837,8 +842,8 @@ func (d *Driver) GetSnapshotInfo(id string, opts map[string]string) (map[string]
 		"UUID":                    id,
 		OPT_SNAPSHOT_NAME:         snapshot.Name,
 		OPT_SNAPSHOT_CREATED_TIME: snapshot.CreatedTime,
-		"VolumeUUID":              volumeID,
 		OPT_SIZE:                  strconv.FormatInt(volume.Size, 10),
+		"VolumeUUID":              volumeID,
 		"DevID":                   strconv.Itoa(snapshot.DevID),
 	}
 	log.Debug("Output result %v", result)

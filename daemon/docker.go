@@ -7,6 +7,8 @@ import (
 	"github.com/rancher/convoy/util"
 	"net/http"
 	"strconv"
+
+	. "github.com/rancher/convoy/convoydriver"
 )
 
 type pluginInfo struct {
@@ -131,7 +133,13 @@ func (s *daemon) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Found volume %v (name %v) for docker", volume.UUID, volume.Name)
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
+	log.Debugf("Found volume %v (name %v) for docker", volume.UUID, driverInfo[OPT_VOLUME_NAME])
 
 	dockerResponse(w, "", nil)
 }
@@ -154,8 +162,14 @@ func (s *daemon) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
 	if s.IgnoreDockerDelete {
-		log.Debugf("Ignoring remove volume %v (name %v) for docker", volume.UUID, volume.Name)
+		log.Debugf("Ignoring remove volume %v (name %v) for docker", volume.UUID, driverInfo[OPT_VOLUME_NAME])
 	} else {
 		request := &api.VolumeDeleteRequest{
 			VolumeUUID: volume.UUID,
@@ -167,7 +181,7 @@ func (s *daemon) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Debugf("Removed volume %v (name %v) for docker", volume.UUID, volume.Name)
+		log.Debugf("Removed volume %v (name %v) for docker", volume.UUID, driverInfo[OPT_VOLUME_NAME])
 	}
 
 	dockerResponse(w, "", nil)
@@ -190,7 +204,13 @@ func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Mount volume: %v (name %v) for docker", volume.UUID, volume.Name)
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
+	log.Debugf("Mount volume: %v (name %v) for docker", volume.UUID, driverInfo[OPT_VOLUME_NAME])
 
 	mountPoint, err := s.processVolumeMount(volume, &api.VolumeMountRequest{})
 	if err != nil {
@@ -219,7 +239,13 @@ func (s *daemon) dockerUnmountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Unmount volume: %v (name %v) for docker", volume.UUID, volume.Name)
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
+	log.Debugf("Unmount volume: %v (name %v) for docker", volume.UUID, driverInfo[OPT_VOLUME_NAME])
 
 	if err := s.processVolumeUmount(volume); err != nil {
 		dockerResponse(w, "", err)
@@ -246,12 +272,18 @@ func (s *daemon) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	driverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
 	mountPoint, err := s.getVolumeMountPoint(volume)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
-	log.Debugf("Volume: %v (name %v) is mounted at %v for docker", volume.UUID, volume.Name, mountPoint)
+	log.Debugf("Volume: %v (name %v) is mounted at %v for docker", volume.UUID, driverInfo[OPT_VOLUME_NAME], mountPoint)
 
 	dockerResponse(w, mountPoint, nil)
 }
