@@ -66,6 +66,7 @@ type Volume struct {
 	Path         string
 	MountPoint   string
 	PrepareForVM bool
+	CreatedTime  string
 	Snapshots    map[string]Snapshot
 
 	configPath string
@@ -216,6 +217,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		return err
 	}
 	volume.Path = volumePath
+	volume.CreatedTime = util.Now()
 	volume.Snapshots = make(map[string]Snapshot)
 
 	if backupURL != "" {
@@ -328,10 +330,11 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		size = strconv.FormatInt(volume.Size, 10)
 	}
 	return map[string]string{
-		"Path":             volume.Path,
-		OPT_MOUNT_POINT:    volume.MountPoint,
-		OPT_SIZE:           size,
-		OPT_PREPARE_FOR_VM: prepareForVM,
+		"Path":                  volume.Path,
+		OPT_MOUNT_POINT:         volume.MountPoint,
+		OPT_SIZE:                size,
+		OPT_PREPARE_FOR_VM:      prepareForVM,
+		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
 	}, nil
 }
 

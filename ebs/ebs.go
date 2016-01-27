@@ -480,16 +480,16 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		iops = strconv.FormatInt(*ebsVolume.Iops, 10)
 	}
 	info := map[string]string{
-		"Device":           volume.Device,
-		"MountPoint":       volume.MountPoint,
-		"UUID":             volume.UUID,
-		"EBSVolumeID":      volume.EBSID,
-		"AvailiablityZone": *ebsVolume.AvailabilityZone,
-		"CreatedTime":      (*ebsVolume.CreateTime).Format(time.RubyDate),
-		"Size":             strconv.FormatInt(*ebsVolume.Size*GB, 10),
-		"State":            *ebsVolume.State,
-		"Type":             *ebsVolume.VolumeType,
-		"IOPS":             iops,
+		"Device":                volume.Device,
+		"MountPoint":            volume.MountPoint,
+		"UUID":                  volume.UUID,
+		"EBSVolumeID":           volume.EBSID,
+		"AvailiablityZone":      *ebsVolume.AvailabilityZone,
+		OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
+		"Size":                  strconv.FormatInt(*ebsVolume.Size*GB, 10),
+		"State":                 *ebsVolume.State,
+		"Type":                  *ebsVolume.VolumeType,
+		"IOPS":                  iops,
 	}
 	return info, nil
 }

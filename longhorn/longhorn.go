@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"github.com/rancher/go-rancher-metadata/metadata"
 
+	. "github.com/rancher/convoy/convoydriver"
 	rancherClient "github.com/rancher/go-rancher/client"
 )
 
@@ -78,6 +78,7 @@ type Volume struct {
 	Name         string
 	MountPoint   string
 	PrepareForVM bool
+	CreatedTime  string
 
 	configPath string
 }
@@ -130,7 +131,7 @@ func (d *Driver) blankVolume(id string) *Volume {
 }
 
 func init() {
-	convoydriver.Register(DRIVER_NAME, Init)
+	Register(DRIVER_NAME, Init)
 }
 
 func override(existing, newValue string) string {
@@ -140,7 +141,7 @@ func override(existing, newValue string) string {
 	return existing
 }
 
-func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
+func Init(root string, config map[string]string) (ConvoyDriver, error) {
 	dev := &Device{
 		Root: root,
 	}
@@ -230,12 +231,12 @@ func (d *Driver) Info() (map[string]string, error) {
 	}, nil
 }
 
-func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
+func (d *Driver) VolumeOps() (VolumeOperations, error) {
 	return d, nil
 }
 
 func (d *Driver) CreateVolume(id string, opts map[string]string) error {
-	size, err := util.ParseSize(opts[convoydriver.OPT_SIZE])
+	size, err := util.ParseSize(opts[OPT_SIZE])
 	if err != nil {
 		return err
 	}
@@ -246,7 +247,8 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	volume := d.blankVolume(id)
 	volume.Size = size
 	volume.Name = opts["VolumeName"]
-	volume.PrepareForVM, err = strconv.ParseBool(opts[convoydriver.OPT_PREPARE_FOR_VM])
+	volume.PrepareForVM, err = strconv.ParseBool(opts[OPT_PREPARE_FOR_VM])
+	volume.CreatedTime = util.Now()
 	if err != nil {
 		return err
 	}
@@ -306,7 +308,7 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 		return fmt.Errorf("Cannot delete volume %v. It is still mounted", id)
 	}
 
-	referenceOnly, _ := strconv.ParseBool(opts[convoydriver.OPT_REFERENCE_ONLY])
+	referenceOnly, _ := strconv.ParseBool(opts[OPT_REFERENCE_ONLY])
 	if !referenceOnly {
 		log.Debugf("Deleting stack for volume %v", id)
 		if err := volume.Stack(d).Delete(); err != nil {
@@ -328,7 +330,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		return "", err
 	}
 
-	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT], false)
+	mountPoint, err := util.VolumeMount(volume, opts[OPT_MOUNT_POINT], false)
 	if err != nil {
 		return "", err
 	}
@@ -373,8 +375,9 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		return nil, err
 	}
 	return map[string]string{
-		"Size": strconv.FormatInt(volume.Size, 10),
-		convoydriver.OPT_PREPARE_FOR_VM: strconv.FormatBool(volume.PrepareForVM),
+		"Size":                  strconv.FormatInt(volume.Size, 10),
+		OPT_PREPARE_FOR_VM:      strconv.FormatBool(volume.PrepareForVM),
+		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
 	}, nil
 }
 
@@ -400,10 +403,10 @@ func (device *Device) listVolumeIDs() ([]string, error) {
 	return util.ListConfigIDs(device.Root, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
-func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
+func (d *Driver) SnapshotOps() (SnapshotOperations, error) {
 	return nil, fmt.Errorf("Longhorn doesn't support snapshot ops")
 }
 
-func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
+func (d *Driver) BackupOps() (BackupOperations, error) {
 	return nil, fmt.Errorf("Longhorn doesn't support backup ops")
 }

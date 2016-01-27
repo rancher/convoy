@@ -101,6 +101,11 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
+	volumeInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		return err
+	}
+
 	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
 	if err != nil {
 		return err
@@ -108,7 +113,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 
 	opts := map[string]string{
 		OPT_VOLUME_NAME:           volume.Name,
-		OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
+		OPT_VOLUME_CREATED_TIME:   volumeInfo[OPT_VOLUME_CREATED_TIME],
 		OPT_SNAPSHOT_NAME:         snapshot[OPT_SNAPSHOT_NAME],
 		OPT_SNAPSHOT_CREATED_TIME: snapshot[OPT_SNAPSHOT_CREATED_TIME],
 	}

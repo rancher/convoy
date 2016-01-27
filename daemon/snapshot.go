@@ -221,6 +221,12 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	if volume == nil {
 		return fmt.Errorf("cannot find volume %v", volumeUUID)
 	}
+
+	volumeDriverInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		return err
+	}
+
 	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
 	if err != nil {
 		return fmt.Errorf("cannot find snapshot %v of volume %v", snapshotUUID, volumeUUID)
@@ -235,7 +241,7 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 		UUID:            snapshotUUID,
 		VolumeUUID:      volume.UUID,
 		VolumeName:      volume.Name,
-		VolumeCreatedAt: volume.CreatedTime,
+		VolumeCreatedAt: volumeDriverInfo[OPT_VOLUME_CREATED_TIME],
 		Name:            snapshot[OPT_SNAPSHOT_NAME],
 		CreatedTime:     snapshot[OPT_SNAPSHOT_CREATED_TIME],
 		DriverInfo:      driverInfo,

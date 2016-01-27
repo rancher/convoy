@@ -65,12 +65,13 @@ type Driver struct {
 }
 
 type Volume struct {
-	UUID       string
-	DevID      int
-	Size       int64
-	Base       string
-	MountPoint string
-	Snapshots  map[string]Snapshot
+	UUID        string
+	DevID       int
+	Size        int64
+	Base        string
+	MountPoint  string
+	CreatedTime string
+	Snapshots   map[string]Snapshot
 
 	configPath string
 }
@@ -474,6 +475,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 	volume.DevID = devID
 	volume.Size = size
+	volume.CreatedTime = util.Now()
 	volume.Snapshots = make(map[string]Snapshot)
 	if err := util.ObjectSave(volume); err != nil {
 		return err
@@ -812,10 +814,11 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		return nil, err
 	}
 	result := map[string]string{
-		"DevID":         strconv.Itoa(volume.DevID),
-		"Device":        dev,
-		OPT_MOUNT_POINT: volume.MountPoint,
-		OPT_SIZE:        strconv.FormatInt(volume.Size, 10),
+		"DevID":                 strconv.Itoa(volume.DevID),
+		"Device":                dev,
+		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
+		OPT_MOUNT_POINT:         volume.MountPoint,
+		OPT_SIZE:                strconv.FormatInt(volume.Size, 10),
 	}
 	return result, nil
 }

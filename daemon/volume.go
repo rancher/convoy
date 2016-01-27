@@ -15,10 +15,9 @@ import (
 )
 
 type Volume struct {
-	UUID        string
-	Name        string
-	DriverName  string
-	CreatedTime string
+	UUID       string
+	Name       string
+	DriverName string
 
 	configPath string
 }
@@ -121,10 +120,9 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	}).Debug("Created volume")
 
 	volume := &Volume{
-		UUID:        volumeUUID,
-		Name:        volumeName,
-		DriverName:  driverName,
-		CreatedTime: util.Now(),
+		UUID:       volumeUUID,
+		Name:       volumeName,
+		DriverName: driverName,
 	}
 	if err := s.saveVolume(volume); err != nil {
 		return nil, err
@@ -163,7 +161,7 @@ func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 			UUID:        volume.UUID,
 			Name:        volume.Name,
 			Driver:      volume.DriverName,
-			CreatedTime: volume.CreatedTime,
+			CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
 			DriverInfo:  driverInfo,
 			Snapshots:   map[string]api.SnapshotResponse{},
 		})
@@ -263,7 +261,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		Name:        volume.Name,
 		Driver:      volume.DriverName,
 		MountPoint:  mountPoint,
-		CreatedTime: volume.CreatedTime,
+		CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
 		DriverInfo:  driverInfo,
 		Snapshots:   make(map[string]api.SnapshotResponse),
 	}
