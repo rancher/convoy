@@ -15,20 +15,13 @@ import (
 )
 
 type Volume struct {
-	UUID         string
-	Name         string
-	DriverName   string
-	FileSystem   string
-	CreatedTime  string
-	PrepareForVM bool
-	Snapshots    map[string]Snapshot
+	UUID        string
+	Name        string
+	DriverName  string
+	FileSystem  string
+	CreatedTime string
 
 	configPath string
-}
-
-type Snapshot struct {
-	UUID       string
-	VolumeUUID string
 }
 
 func (v *Volume) ConfigFile() (string, error) {
@@ -134,7 +127,6 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		DriverName:  driverName,
 		FileSystem:  "ext4",
 		CreatedTime: util.Now(),
-		Snapshots:   make(map[string]Snapshot),
 	}
 	if err := s.saveVolume(volume); err != nil {
 		return nil, err
@@ -277,16 +269,18 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		DriverInfo:  driverInfo,
 		Snapshots:   make(map[string]api.SnapshotResponse),
 	}
-	for uuid := range volume.Snapshots {
-		driverInfo, err := s.getSnapshotDriverInfo(uuid, volume)
-		if err != nil {
-			return nil, err
-		}
+	snapshots, err := s.listSnapshotDriverInfos(volume)
+	if err != nil {
+		//snapshot doesn't exists
+		return resp, nil
+	}
+	for uuid, snapshot := range snapshots {
+		snapshot["Driver"] = volOps.Name()
 		resp.Snapshots[uuid] = api.SnapshotResponse{
 			UUID:        uuid,
-			Name:        driverInfo[OPT_SNAPSHOT_NAME],
-			CreatedTime: driverInfo[OPT_SNAPSHOT_CREATED_TIME],
-			DriverInfo:  driverInfo,
+			Name:        snapshot[OPT_SNAPSHOT_NAME],
+			CreatedTime: snapshot[OPT_SNAPSHOT_CREATED_TIME],
+			DriverInfo:  snapshot,
 		}
 	}
 	return resp, nil

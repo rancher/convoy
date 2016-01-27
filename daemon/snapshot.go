@@ -17,8 +17,8 @@ func (s *daemon) snapshotExists(volumeUUID, snapshotUUID string) bool {
 	if volume == nil {
 		return false
 	}
-	_, exists := volume.Snapshots[snapshotUUID]
-	return exists
+	_, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	return err == nil
 }
 
 func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -78,41 +78,32 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
-	snapshot := Snapshot{
-		UUID:       uuid,
-		VolumeUUID: volumeUUID,
-	}
-
 	//TODO: error handling
-	volume.Snapshots[uuid] = snapshot
-	if err := s.UUIDIndex.Add(snapshot.UUID); err != nil {
+	if err := s.UUIDIndex.Add(uuid); err != nil {
 		return err
 	}
-	if err := s.SnapshotVolumeIndex.Add(snapshot.UUID, volume.UUID); err != nil {
+	if err := s.SnapshotVolumeIndex.Add(uuid, volume.UUID); err != nil {
 		return err
 	}
 	if snapshotName != "" {
-		if err := s.NameUUIDIndex.Add(snapshotName, snapshot.UUID); err != nil {
+		if err := s.NameUUIDIndex.Add(snapshotName, uuid); err != nil {
 			return err
 		}
 	}
-	if err := s.saveVolume(volume); err != nil {
-		return err
-	}
-	driverInfo, err := s.getSnapshotDriverInfo(snapshot.UUID, volume)
+	driverInfo, err := s.getSnapshotDriverInfo(uuid, volume)
 	if err != nil {
 		return err
 	}
 	if request.Verbose {
 		return writeResponseOutput(w, api.SnapshotResponse{
-			UUID:        snapshot.UUID,
-			VolumeUUID:  snapshot.VolumeUUID,
+			UUID:        uuid,
+			VolumeUUID:  volume.UUID,
 			Name:        driverInfo[OPT_SNAPSHOT_NAME],
 			CreatedTime: driverInfo[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  driverInfo,
 		})
 	}
-	return writeStringResponse(w, snapshot.UUID)
+	return writeStringResponse(w, uuid)
 }
 
 func (s *daemon) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map[string]string, error) {
@@ -206,8 +197,7 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 			return err
 		}
 	}
-	delete(volume.Snapshots, snapshotUUID)
-	return s.saveVolume(volume)
+	return nil
 }
 
 func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {

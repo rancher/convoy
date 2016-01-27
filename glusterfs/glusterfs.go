@@ -62,11 +62,6 @@ func (dev *Device) ConfigFile() (string, error) {
 	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
 }
 
-type Snapshot struct {
-	UUID       string
-	VolumeUUID string
-}
-
 type Volume struct {
 	UUID         string
 	Name         string
