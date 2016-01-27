@@ -625,14 +625,14 @@ func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]
 	}
 
 	info := map[string]string{
-		"UUID":            id,
-		OPT_SNAPSHOT_NAME: snapshot.Name,
-		"VolumeUUID":      volumeID,
-		"EBSSnapshotID":   *ebsSnapshot.SnapshotId,
-		"EBSVolumeID":     *ebsSnapshot.VolumeId,
-		"StartTime":       (*ebsSnapshot.StartTime).Format(time.RubyDate),
-		"Size":            strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-		"State":           *ebsSnapshot.State,
+		"UUID":                    id,
+		OPT_SNAPSHOT_NAME:         snapshot.Name,
+		"VolumeUUID":              volumeID,
+		"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
+		"EBSVolumeID":             *ebsSnapshot.VolumeId,
+		OPT_SNAPSHOT_CREATED_TIME: (*ebsSnapshot.StartTime).Format(time.RubyDate),
+		OPT_SIZE:                  strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
+		"State":                   *ebsSnapshot.State,
 	}
 
 	return info, nil

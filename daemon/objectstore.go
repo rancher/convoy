@@ -111,7 +111,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		OPT_FILESYSTEM:            volume.FileSystem,
 		OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
 		OPT_SNAPSHOT_NAME:         snapshot[OPT_SNAPSHOT_NAME],
-		OPT_SNAPSHOT_CREATED_TIME: volume.Snapshots[snapshotUUID].CreatedTime,
+		OPT_SNAPSHOT_CREATED_TIME: snapshot[OPT_SNAPSHOT_CREATED_TIME],
 	}
 
 	log.WithFields(logrus.Fields{

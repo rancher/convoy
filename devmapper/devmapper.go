@@ -76,9 +76,10 @@ type Volume struct {
 }
 
 type Snapshot struct {
-	Name      string
-	DevID     int
-	Activated bool
+	Name        string
+	CreatedTime string
+	DevID       int
+	Activated   bool
 }
 
 func (v *Volume) ConfigFile() (string, error) {
@@ -622,9 +623,10 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	log.Debugf("Created snapshot device")
 
 	snapshot = Snapshot{
-		Name:      snapshotName,
-		DevID:     devID,
-		Activated: false,
+		Name:        snapshotName,
+		CreatedTime: util.Now(),
+		DevID:       devID,
+		Activated:   false,
 	}
 	volume.Snapshots[id] = snapshot
 
@@ -829,11 +831,12 @@ func (d *Driver) GetSnapshotInfo(id string, opts map[string]string) (map[string]
 		return nil, err
 	}
 	result := map[string]string{
-		"UUID":            id,
-		"VolumeUUID":      volumeID,
-		OPT_SNAPSHOT_NAME: snapshot.Name,
-		"DevID":           strconv.Itoa(snapshot.DevID),
-		"Size":            strconv.FormatInt(volume.Size, 10),
+		"UUID":                    id,
+		OPT_SNAPSHOT_NAME:         snapshot.Name,
+		OPT_SNAPSHOT_CREATED_TIME: snapshot.CreatedTime,
+		"VolumeUUID":              volumeID,
+		OPT_SIZE:                  strconv.FormatInt(volume.Size, 10),
+		"DevID":                   strconv.Itoa(snapshot.DevID),
 	}
 	log.Debug("Output result %v", result)
 	return result, nil

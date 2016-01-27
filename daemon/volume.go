@@ -27,9 +27,8 @@ type Volume struct {
 }
 
 type Snapshot struct {
-	UUID        string
-	VolumeUUID  string
-	CreatedTime string
+	UUID       string
+	VolumeUUID string
 }
 
 func (v *Volume) ConfigFile() (string, error) {
@@ -278,7 +277,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		DriverInfo:  driverInfo,
 		Snapshots:   make(map[string]api.SnapshotResponse),
 	}
-	for uuid, snapshot := range volume.Snapshots {
+	for uuid := range volume.Snapshots {
 		driverInfo, err := s.getSnapshotDriverInfo(uuid, volume)
 		if err != nil {
 			return nil, err
@@ -286,7 +285,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		resp.Snapshots[uuid] = api.SnapshotResponse{
 			UUID:        uuid,
 			Name:        driverInfo[OPT_SNAPSHOT_NAME],
-			CreatedTime: snapshot.CreatedTime,
+			CreatedTime: driverInfo[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  driverInfo,
 		}
 	}

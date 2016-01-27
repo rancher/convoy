@@ -53,10 +53,11 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Snapshot struct {
-	UUID       string
-	Name       string
-	VolumeUUID string
-	FilePath   string
+	UUID        string
+	Name        string
+	CreatedTime string
+	VolumeUUID  string
+	FilePath    string
 }
 
 type Volume struct {
@@ -382,10 +383,11 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 		return err
 	}
 	volume.Snapshots[id] = Snapshot{
-		UUID:       id,
-		Name:       snapshotName,
-		VolumeUUID: volumeID,
-		FilePath:   snapFile,
+		UUID:        id,
+		Name:        snapshotName,
+		CreatedTime: util.Now(),
+		VolumeUUID:  volumeID,
+		FilePath:    snapFile,
 	}
 	return util.ObjectSave(volume)
 }
@@ -436,10 +438,11 @@ func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]
 		return nil, fmt.Errorf("Snapshot %v doesn't exists for volume %v", id, volumeID)
 	}
 	return map[string]string{
-		"UUID":            snapshot.UUID,
-		OPT_SNAPSHOT_NAME: snapshot.Name,
-		"VolumeUUID":      snapshot.VolumeUUID,
-		"FilePath":        snapshot.FilePath,
+		"UUID":                    snapshot.UUID,
+		OPT_SNAPSHOT_NAME:         snapshot.Name,
+		OPT_SNAPSHOT_CREATED_TIME: snapshot.CreatedTime,
+		"VolumeUUID":              snapshot.VolumeUUID,
+		"FilePath":                snapshot.FilePath,
 	}, nil
 }
 

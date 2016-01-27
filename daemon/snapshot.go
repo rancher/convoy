@@ -79,10 +79,10 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	}).Debug()
 
 	snapshot := Snapshot{
-		UUID:        uuid,
-		VolumeUUID:  volumeUUID,
-		CreatedTime: util.Now(),
+		UUID:       uuid,
+		VolumeUUID: volumeUUID,
 	}
+
 	//TODO: error handling
 	volume.Snapshots[uuid] = snapshot
 	if err := s.UUIDIndex.Add(snapshot.UUID); err != nil {
@@ -107,8 +107,8 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		return writeResponseOutput(w, api.SnapshotResponse{
 			UUID:        snapshot.UUID,
 			VolumeUUID:  snapshot.VolumeUUID,
-			Name:        snapshotName,
-			CreatedTime: snapshot.CreatedTime,
+			Name:        driverInfo[OPT_SNAPSHOT_NAME],
+			CreatedTime: driverInfo[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  driverInfo,
 		})
 	}
@@ -247,7 +247,7 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 		VolumeName:      volume.Name,
 		VolumeCreatedAt: volume.CreatedTime,
 		Name:            snapshot[OPT_SNAPSHOT_NAME],
-		CreatedTime:     volume.Snapshots[snapshotUUID].CreatedTime,
+		CreatedTime:     snapshot[OPT_SNAPSHOT_CREATED_TIME],
 		DriverInfo:      driverInfo,
 	}
 	data, err := api.ResponseOutput(resp)
