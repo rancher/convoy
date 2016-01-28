@@ -38,22 +38,22 @@ type SnapshotCreateRequest struct {
 }
 
 type SnapshotDeleteRequest struct {
-	SnapshotUUID string
+	SnapshotName string
 }
 
 type SnapshotInspectRequest struct {
-	SnapshotUUID string
+	SnapshotName string
 }
 
 type BackupListRequest struct {
 	URL          string
 	VolumeUUID   string
-	SnapshotUUID string
+	SnapshotName string
 }
 
 type BackupCreateRequest struct {
 	URL          string
-	SnapshotUUID string
+	SnapshotName string
 	Verbose      bool
 }
 

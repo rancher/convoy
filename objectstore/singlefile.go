@@ -42,14 +42,13 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		LOG_FIELD_REASON:   LOG_REASON_START,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshot.UUID,
+		LOG_FIELD_SNAPSHOT: snapshot.Name,
 		LOG_FIELD_FILEPATH: filePath,
 	}).Debug("Creating backup")
 
 	backup := &Backup{
 		UUID:              uuid.New(),
 		VolumeUUID:        volume.UUID,
-		SnapshotUUID:      snapshot.UUID,
 		SnapshotName:      snapshot.Name,
 		SnapshotCreatedAt: snapshot.CreatedTime,
 	}
@@ -68,7 +67,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshot.UUID,
+		LOG_FIELD_SNAPSHOT: snapshot.Name,
 	}).Debug("Created backup")
 
 	return encodeBackupURL(backup.UUID, volume.UUID, destURL), nil

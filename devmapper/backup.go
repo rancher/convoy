@@ -134,8 +134,7 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 		CreatedTime: opts[convoydriver.OPT_VOLUME_CREATED_TIME],
 	}
 	objSnapshot := &objectstore.Snapshot{
-		UUID:        snapshotID,
-		Name:        opts[convoydriver.OPT_SNAPSHOT_NAME],
+		Name:        snapshotID,
 		CreatedTime: opts[convoydriver.OPT_SNAPSHOT_CREATED_TIME],
 	}
 	return objectstore.CreateDeltaBlockBackup(objVolume, objSnapshot, destURL, d)

@@ -360,16 +360,12 @@ func (d *Driver) getSnapshotFilePath(snapshotID, volumeID string) string {
 	return filepath.Join(d.Root, SNAPSHOT_PATH, volumeID+"_"+snapshotID+".tar.gz")
 }
 
-func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
+func (d *Driver) CreateSnapshot(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
-	if err != nil {
-		return err
-	}
-
-	snapshotName, err := util.GetFieldFromOpts(OPT_SNAPSHOT_NAME, opts)
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return err
 	}
@@ -389,8 +385,7 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 		return err
 	}
 	volume.Snapshots[id] = Snapshot{
-		UUID:        id,
-		Name:        snapshotName,
+		Name:        id,
 		CreatedTime: util.Now(),
 		VolumeUUID:  volumeID,
 		FilePath:    snapFile,
@@ -398,15 +393,18 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteSnapshot(id string, opts map[string]string) error {
+func (d *Driver) DeleteSnapshot(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return err
 	}
+	return d.deleteSnapshot(req.Name, volumeID)
+}
 
+func (d *Driver) deleteSnapshot(id, volumeID string) error {
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -422,19 +420,19 @@ func (d *Driver) DeleteSnapshot(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) GetSnapshotInfo(id string, opts map[string]string) (map[string]string, error) {
+func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	return d.getSnapshotInfo(id, opts)
-}
-
-func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]string, error) {
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return nil, err
 	}
 
+	return d.getSnapshotInfo(req.Name, volumeID)
+}
+
+func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error) {
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
 		return nil, err
@@ -444,7 +442,6 @@ func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]
 		return nil, fmt.Errorf("Snapshot %v doesn't exists for volume %v", id, volumeID)
 	}
 	return map[string]string{
-		"UUID":                    snapshot.UUID,
 		OPT_SNAPSHOT_NAME:         snapshot.Name,
 		OPT_SNAPSHOT_CREATED_TIME: snapshot.CreatedTime,
 		"VolumeUUID":              snapshot.VolumeUUID,
@@ -478,9 +475,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 			return nil, err
 		}
 		for snapshotID := range volume.Snapshots {
-			snapshots[snapshotID], err = d.getSnapshotInfo(snapshotID, map[string]string{
-				OPT_VOLUME_UUID: volumeID,
-			})
+			snapshots[snapshotID], err = d.getSnapshotInfo(snapshotID, volumeID)
 			if err != nil {
 				return nil, err
 			}
@@ -509,8 +504,7 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 		CreatedTime: opts[OPT_VOLUME_CREATED_TIME],
 	}
 	objSnapshot := &objectstore.Snapshot{
-		UUID:        snapshotID,
-		Name:        opts[OPT_SNAPSHOT_NAME],
+		Name:        snapshotID,
 		CreatedTime: opts[OPT_SNAPSHOT_CREATED_TIME],
 	}
 	return objectstore.CreateSingleFileBackup(objVolume, objSnapshot, snapshot.FilePath, destURL)

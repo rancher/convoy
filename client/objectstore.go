@@ -113,14 +113,14 @@ func doBackupCreate(c *cli.Context) error {
 		return err
 	}
 
-	snapshotUUID, err := getOrRequestUUID(c, "", true)
+	snapshotName, err := getName(c, "", true)
 	if err != nil {
 		return err
 	}
 
 	request := &api.BackupCreateRequest{
 		URL:          destURL,
-		SnapshotUUID: snapshotUUID,
+		SnapshotName: snapshotName,
 		Verbose:      c.GlobalBool(verboseFlag),
 	}
 

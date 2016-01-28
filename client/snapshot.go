@@ -76,13 +76,13 @@ func cmdSnapshotDelete(c *cli.Context) {
 
 func doSnapshotDelete(c *cli.Context) error {
 	var err error
-	uuid, err := getOrRequestUUID(c, "", true)
+	snapshotName, err := getName(c, "", true)
 	if err != nil {
 		return err
 	}
 
 	request := &api.SnapshotDeleteRequest{
-		SnapshotUUID: uuid,
+		SnapshotName: snapshotName,
 	}
 	url := "/snapshots/"
 	return sendRequestAndPrint("DELETE", url, request)
@@ -97,13 +97,13 @@ func cmdSnapshotInspect(c *cli.Context) {
 func doSnapshotInspect(c *cli.Context) error {
 	var err error
 
-	uuid, err := getOrRequestUUID(c, "", true)
+	snapshotName, err := getName(c, "", true)
 	if err != nil {
 		return err
 	}
 
 	request := &api.SnapshotInspectRequest{
-		SnapshotUUID: uuid,
+		SnapshotName: snapshotName,
 	}
 	url := "/snapshots/"
 	return sendRequestAndPrint("GET", url, request)

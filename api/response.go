@@ -27,11 +27,10 @@ type VolumeResponse struct {
 }
 
 type SnapshotResponse struct {
-	UUID            string
+	Name            string
 	VolumeUUID      string `json:",omitempty"`
 	VolumeName      string `json:",omitempty"`
 	VolumeCreatedAt string `json:",omitempty"`
-	Name            string
 	CreatedTime     string
 	DriverInfo      map[string]string
 }

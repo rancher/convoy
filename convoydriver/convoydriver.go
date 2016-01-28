@@ -34,6 +34,11 @@ type ConvoyDriver interface {
 	BackupOps() (BackupOperations, error)
 }
 
+type Request struct {
+	Name    string
+	Options map[string]string
+}
+
 /*
 VolumeOperations is Convoy Driver volume related operations interface. Any
 Convoy Driver must implement this interface.
@@ -55,9 +60,9 @@ Convoy Driver want to operate snapshots must implement this interface.
 */
 type SnapshotOperations interface {
 	Name() string
-	CreateSnapshot(id string, opts map[string]string) error
-	DeleteSnapshot(id string, opts map[string]string) error
-	GetSnapshotInfo(id string, opts map[string]string) (map[string]string, error)
+	CreateSnapshot(req Request) error
+	DeleteSnapshot(req Request) error
+	GetSnapshotInfo(req Request) (map[string]string, error)
 	ListSnapshot(opts map[string]string) (map[string]map[string]string, error)
 }
 

@@ -1,7 +1,6 @@
 package ebs
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/util"
@@ -56,7 +55,6 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Snapshot struct {
-	UUID       string
 	Name       string
 	VolumeUUID string
 	EBSID      string
@@ -256,7 +254,6 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		err        error
 		volumeSize int64
 		format     bool
-		snapshot   *Snapshot
 	)
 
 	d.mutex.Lock()
@@ -311,11 +308,6 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		ebsSnapshot, err := d.ebsService.GetSnapshot(ebsSnapshotID)
 		if err != nil {
 			return err
-		}
-		snapshot = &Snapshot{
-			UUID:       uuid.New(),
-			VolumeUUID: id,
-			EBSID:      ebsSnapshotID,
 		}
 
 		snapshotVolumeSize := *ebsSnapshot.VolumeSize * GB
@@ -377,9 +369,6 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	volume.Name = volumeName
 	volume.Device = dev
 	volume.Snapshots = make(map[string]Snapshot)
-	if snapshot != nil {
-		volume.Snapshots[snapshot.UUID] = *snapshot
-	}
 
 	// We don't format existing or snapshot restored volume
 	if format {
@@ -535,16 +524,12 @@ func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *
 	return &snap, volume, nil
 }
 
-func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
+func (d *Driver) CreateSnapshot(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
-	if err != nil {
-		return err
-	}
-
-	snapshotName, err := util.GetFieldFromOpts(OPT_SNAPSHOT_NAME, opts)
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return err
 	}
@@ -563,7 +548,7 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 
 	tags := map[string]string{
 		"ConvoyVolumeUUID":   volumeID,
-		"ConvoySnapshotUUID": id,
+		"ConvoySnapshotName": id,
 	}
 	request := &CreateSnapshotRequest{
 		VolumeID:    volume.EBSID,
@@ -577,8 +562,7 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	log.Debugf("Creating snapshot %v(%v) of volume %v(%v)", id, ebsSnapshotID, volumeID, volume.EBSID)
 
 	snapshot = Snapshot{
-		UUID:       id,
-		Name:       snapshotName,
+		Name:       id,
 		VolumeUUID: volumeID,
 		EBSID:      ebsSnapshotID,
 	}
@@ -586,11 +570,12 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteSnapshot(id string, opts map[string]string) error {
+func (d *Driver) DeleteSnapshot(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return err
 	}
@@ -605,19 +590,20 @@ func (d *Driver) DeleteSnapshot(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) GetSnapshotInfo(id string, opts map[string]string) (map[string]string, error) {
+func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	return d.getSnapshotInfo(id, opts)
-}
-
-func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]string, error) {
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return nil, err
 	}
 
+	return d.getSnapshotInfo(id, volumeID)
+}
+
+func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error) {
 	snapshot, _, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
 		return nil, err
@@ -629,7 +615,6 @@ func (d *Driver) getSnapshotInfo(id string, opts map[string]string) (map[string]
 	}
 
 	info := map[string]string{
-		"UUID":                    id,
 		OPT_SNAPSHOT_NAME:         snapshot.Name,
 		"VolumeUUID":              volumeID,
 		"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
@@ -668,9 +653,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 			return nil, err
 		}
 		for snapshotID := range volume.Snapshots {
-			snapshots[snapshotID], err = d.getSnapshotInfo(snapshotID, map[string]string{
-				OPT_VOLUME_UUID: volumeID,
-			})
+			snapshots[snapshotID], err = d.getSnapshotInfo(snapshotID, volumeID)
 			if err != nil {
 				return nil, err
 			}

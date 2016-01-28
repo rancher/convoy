@@ -59,7 +59,7 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 
 	lastBackupUUID := volume.LastBackupUUID
 
-	var lastSnapshotUUID string
+	var lastSnapshotName string
 	var lastBackup *Backup
 	if lastBackupUUID != "" {
 		lastBackup, err = loadBackup(lastBackupUUID, volume.UUID, bsDriver)
@@ -67,19 +67,19 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 			return "", err
 		}
 
-		lastSnapshotUUID = lastBackup.SnapshotUUID
-		if lastSnapshotUUID == snapshot.UUID {
+		lastSnapshotName = lastBackup.SnapshotName
+		if lastSnapshotName == snapshot.Name {
 			//Generate full snapshot if the snapshot has been backed up last time
-			lastSnapshotUUID = ""
+			lastSnapshotName = ""
 			log.Debug("Would create full snapshot metadata")
-		} else if !deltaOps.HasSnapshot(lastSnapshotUUID, volume.UUID) {
+		} else if !deltaOps.HasSnapshot(lastSnapshotName, volume.UUID) {
 			// It's possible that the snapshot in objectstore doesn't exist
 			// in local storage
-			lastSnapshotUUID = ""
+			lastSnapshotName = ""
 			log.WithFields(logrus.Fields{
 				LOG_FIELD_REASON:   LOG_REASON_FALLBACK,
 				LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-				LOG_FIELD_SNAPSHOT: lastSnapshotUUID,
+				LOG_FIELD_SNAPSHOT: lastSnapshotName,
 				LOG_FIELD_VOLUME:   volume.UUID,
 			}).Debug("Cannot find last snapshot in local storage, would process with full backup")
 		}
@@ -89,10 +89,10 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		LOG_FIELD_REASON:        LOG_REASON_START,
 		LOG_FIELD_OBJECT:        LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_EVENT:         LOG_EVENT_COMPARE,
-		LOG_FIELD_SNAPSHOT:      snapshot.UUID,
-		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotUUID,
+		LOG_FIELD_SNAPSHOT:      snapshot.Name,
+		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotName,
 	}).Debug("Generating snapshot changed blocks metadata")
-	delta, err := deltaOps.CompareSnapshot(snapshot.UUID, lastSnapshotUUID, volume.UUID)
+	delta, err := deltaOps.CompareSnapshot(snapshot.Name, lastSnapshotName, volume.UUID)
 	if err != nil {
 		return "", err
 	}
@@ -103,35 +103,35 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		LOG_FIELD_REASON:        LOG_REASON_COMPLETE,
 		LOG_FIELD_OBJECT:        LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_EVENT:         LOG_EVENT_COMPARE,
-		LOG_FIELD_SNAPSHOT:      snapshot.UUID,
-		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotUUID,
+		LOG_FIELD_SNAPSHOT:      snapshot.Name,
+		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotName,
 	}).Debug("Generated snapshot changed blocks metadata")
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_START,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshot.UUID,
+		LOG_FIELD_SNAPSHOT: snapshot.Name,
 	}).Debug("Creating backup")
 
 	deltaBackup := &Backup{
 		UUID:         uuid.New(),
 		VolumeUUID:   volume.UUID,
-		SnapshotUUID: snapshot.UUID,
+		SnapshotName: snapshot.Name,
 		Blocks:       []BlockMapping{},
 	}
-	if err := deltaOps.OpenSnapshot(snapshot.UUID, volume.UUID); err != nil {
+	if err := deltaOps.OpenSnapshot(snapshot.Name, volume.UUID); err != nil {
 		return "", err
 	}
-	defer deltaOps.CloseSnapshot(snapshot.UUID, volume.UUID)
+	defer deltaOps.CloseSnapshot(snapshot.Name, volume.UUID)
 	mCounts := len(delta.Mappings)
 	for m, d := range delta.Mappings {
 		block := make([]byte, DEFAULT_BLOCK_SIZE)
 		blkCounts := d.Size / delta.BlockSize
 		for i := int64(0); i < blkCounts; i++ {
 			offset := d.Offset + i*delta.BlockSize
-			log.Debugf("Backup for %v: segment %v/%v, blocks %v/%v", snapshot.UUID, m+1, mCounts, i+1, blkCounts)
-			err := deltaOps.ReadSnapshot(snapshot.UUID, volume.UUID, offset, block)
+			log.Debugf("Backup for %v: segment %v/%v, blocks %v/%v", snapshot.Name, m+1, mCounts, i+1, blkCounts)
+			err := deltaOps.ReadSnapshot(snapshot.Name, volume.UUID, offset, block)
 			if err != nil {
 				return "", err
 			}
@@ -169,7 +169,7 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshot.UUID,
+		LOG_FIELD_SNAPSHOT: snapshot.Name,
 	}).Debug("Created snapshot changed blocks")
 
 	backup := mergeSnapshotMap(deltaBackup, lastBackup)
@@ -196,7 +196,7 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 	backup := &Backup{
 		UUID:         deltaBackup.UUID,
 		VolumeUUID:   deltaBackup.VolumeUUID,
-		SnapshotUUID: deltaBackup.SnapshotUUID,
+		SnapshotName: deltaBackup.SnapshotName,
 		Blocks:       []BlockMapping{},
 	}
 	var d, l int

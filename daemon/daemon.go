@@ -156,21 +156,20 @@ func (s *daemon) updateIndex() error {
 		if err := s.UUIDIndex.Add(uuid); err != nil {
 			return err
 		}
-		if volume[OPT_VOLUME_NAME] != "" {
-			if err := s.NameUUIDIndex.Add(volume[OPT_VOLUME_NAME], uuid); err != nil {
+		volumeName := volume[OPT_VOLUME_NAME]
+		if volumeName != "" {
+			if err := s.NameUUIDIndex.Add(volumeName, uuid); err != nil {
 				return err
 			}
 		}
 		snapshots, err := s.listSnapshotDriverInfos(s.getVolume(uuid))
 		if err == nil {
-			for snapshotID, content := range snapshots {
+			for snapshotID, _ := range snapshots {
 				if err := s.SnapshotVolumeIndex.Add(snapshotID, uuid); err != nil {
 					return err
 				}
-				if content[OPT_SNAPSHOT_NAME] != "" {
-					if err := s.NameUUIDIndex.Add(content[OPT_SNAPSHOT_NAME], snapshotID); err != nil {
-						return err
-					}
+				if err := s.NameUUIDIndex.Add(snapshotID, "exists"); err != nil {
+					return err
 				}
 			}
 		}

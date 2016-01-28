@@ -17,7 +17,6 @@ type Volume struct {
 }
 
 type Snapshot struct {
-	UUID        string
 	Name        string
 	CreatedTime string
 }
@@ -26,7 +25,6 @@ type Backup struct {
 	UUID              string
 	Driver            string
 	VolumeUUID        string
-	SnapshotUUID      string
 	SnapshotName      string
 	SnapshotCreatedAt string
 	CreatedTime       string
@@ -148,7 +146,6 @@ func fillBackupInfo(backup *Backup, volume *Volume, destURL string) map[string]s
 		"VolumeName":        volume.Name,
 		"VolumeSize":        strconv.FormatInt(volume.Size, 10),
 		"VolumeCreatedAt":   volume.CreatedTime,
-		"SnapshotUUID":      backup.SnapshotUUID,
 		"SnapshotName":      backup.SnapshotName,
 		"SnapshotCreatedAt": backup.SnapshotCreatedAt,
 		"CreatedTime":       backup.CreatedTime,

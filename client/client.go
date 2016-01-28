@@ -198,6 +198,27 @@ func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error)
 	return requestUUID(id)
 }
 
+func getName(c *cli.Context, key string, required bool) (string, error) {
+	var err error
+	var name string
+	if key == "" {
+		name = c.Args().First()
+	} else {
+		name, err = util.GetFlag(c, key, required, err)
+		if err != nil {
+			return "", err
+		}
+	}
+	if name == "" && !required {
+		return "", nil
+	}
+
+	if err := util.CheckName(name); err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
 func requestUUID(id string) (string, error) {
 	// Identify by name
 	v := url.Values{}

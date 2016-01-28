@@ -85,14 +85,14 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	}
 	request.URL = util.UnescapeURL(request.URL)
 
-	snapshotUUID := request.SnapshotUUID
-	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
+	snapshotName := request.SnapshotName
+	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotName)
 	if volumeUUID == "" {
-		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotUUID)
+		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotName)
 	}
 
-	if !s.snapshotExists(volumeUUID, snapshotUUID) {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
+	if !s.snapshotExists(volumeUUID, snapshotName) {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotName, volumeUUID)
 	}
 
 	volume := s.getVolume(volumeUUID)
@@ -106,7 +106,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	snapshot, err := s.getSnapshotDriverInfo(snapshotName, volume)
 	if err != nil {
 		return err
 	}
@@ -122,12 +122,12 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
-	backupURL, err := backupOps.CreateBackup(snapshotUUID, volumeUUID, request.URL, opts)
+	backupURL, err := backupOps.CreateBackup(snapshotName, volumeUUID, request.URL, opts)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
 		LOG_FIELD_VOLUME:   volumeUUID,
 		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,

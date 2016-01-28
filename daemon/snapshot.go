@@ -12,12 +12,12 @@ import (
 	. "github.com/rancher/convoy/logging"
 )
 
-func (s *daemon) snapshotExists(volumeUUID, snapshotUUID string) bool {
+func (s *daemon) snapshotExists(volumeUUID, snapshotName string) bool {
 	volume := s.getVolume(volumeUUID)
 	if volume == nil {
 		return false
 	}
-	_, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	_, err := s.getSnapshotDriverInfo(snapshotName, volume)
 	return err == nil
 }
 
@@ -62,63 +62,66 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		return err
 	}
 
-	opts := map[string]string{
-		OPT_VOLUME_UUID:   volumeUUID,
-		OPT_SNAPSHOT_NAME: snapshotName,
+	req := Request{
+		Name: snapshotName,
+		Options: map[string]string{
+			OPT_VOLUME_UUID:   volumeUUID,
+			OPT_SNAPSHOT_NAME: snapshotName,
+		},
 	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := snapOps.CreateSnapshot(snapshotUUID, opts); err != nil {
+	if err := snapOps.CreateSnapshot(req); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
 	//TODO: error handling
-	if err := s.UUIDIndex.Add(snapshotUUID); err != nil {
+	if err := s.SnapshotVolumeIndex.Add(snapshotName, volume.UUID); err != nil {
 		return err
 	}
-	if err := s.SnapshotVolumeIndex.Add(snapshotUUID, volume.UUID); err != nil {
+	if err := s.NameUUIDIndex.Add(snapshotName, "exists"); err != nil {
 		return err
 	}
-	if snapshotName != "" {
-		if err := s.NameUUIDIndex.Add(snapshotName, snapshotUUID); err != nil {
-			return err
-		}
-	}
-	driverInfo, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	driverInfo, err := s.getSnapshotDriverInfo(snapshotName, volume)
 	if err != nil {
 		return err
 	}
 	if request.Verbose {
 		return writeResponseOutput(w, api.SnapshotResponse{
-			UUID:        snapshotUUID,
-			VolumeUUID:  volume.UUID,
 			Name:        driverInfo[OPT_SNAPSHOT_NAME],
+			VolumeUUID:  volume.UUID,
 			CreatedTime: driverInfo[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  driverInfo,
 		})
 	}
-	return writeStringResponse(w, snapshotUUID)
+	return writeStringResponse(w, snapshotName)
 }
 
-func (s *daemon) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map[string]string, error) {
+func (s *daemon) getSnapshotDriverInfo(snapshotName string, volume *Volume) (map[string]string, error) {
 	snapOps, err := s.getSnapshotOpsForVolume(volume)
 	if err != nil {
 		return nil, err
 	}
-	driverInfo, err := snapOps.GetSnapshotInfo(snapshotUUID, map[string]string{OPT_VOLUME_UUID: volume.UUID})
+	req := Request{
+		Name: snapshotName,
+		Options: map[string]string{
+			OPT_VOLUME_UUID: volume.UUID,
+		},
+	}
+	driverInfo, err := snapOps.GetSnapshotInfo(req)
 	if err != nil {
 		return nil, err
 	}
@@ -149,18 +152,18 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
-	snapshotUUID := request.SnapshotUUID
-	if err := util.CheckUUID(snapshotUUID); err != nil {
+	snapshotName := request.SnapshotName
+	if err := util.CheckName(snapshotName); err != nil {
 		return err
 	}
-	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
+	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotName)
 	if volumeUUID == "" {
-		return fmt.Errorf("cannot find volume for snapshot %v", snapshotUUID)
+		return fmt.Errorf("cannot find volume for snapshot %v", snapshotName)
 	}
 
 	volume := s.getVolume(volumeUUID)
-	if !s.snapshotExists(volumeUUID, snapshotUUID) {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
+	if !s.snapshotExists(volumeUUID, snapshotName) {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotName, volumeUUID)
 	}
 
 	snapOps, err := s.getSnapshotOpsForVolume(volume)
@@ -168,41 +171,36 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		return err
 	}
 
-	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
-	if err != nil {
-		return err
+	req := Request{
+		Name: snapshotName,
+		Options: map[string]string{
+			OPT_VOLUME_UUID: volumeUUID,
+		},
 	}
-	snapshotName := snapshot[OPT_SNAPSHOT_NAME]
-
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := snapOps.DeleteSnapshot(snapshotUUID, map[string]string{OPT_VOLUME_UUID: volumeUUID}); err != nil {
+	if err := snapOps.DeleteSnapshot(req); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
 	//TODO: error handling
-	if err := s.UUIDIndex.Delete(snapshotUUID); err != nil {
+	if err := s.SnapshotVolumeIndex.Delete(snapshotName); err != nil {
 		return err
 	}
-	if err := s.SnapshotVolumeIndex.Delete(snapshotUUID); err != nil {
+	if err := s.NameUUIDIndex.Delete(snapshotName); err != nil {
 		return err
-	}
-	if snapshotName != "" {
-		if err := s.NameUUIDIndex.Delete(snapshotName); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -215,13 +213,13 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	if err := decodeRequest(r, request); err != nil {
 		return err
 	}
-	snapshotUUID := request.SnapshotUUID
-	if err := util.CheckUUID(snapshotUUID); err != nil {
+	snapshotName := request.SnapshotName
+	if err := util.CheckName(snapshotName); err != nil {
 		return err
 	}
-	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
+	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotName)
 	if volumeUUID == "" {
-		return fmt.Errorf("cannot find volume for snapshot %v", snapshotUUID)
+		return fmt.Errorf("cannot find volume for snapshot %v", snapshotName)
 	}
 
 	volume := s.getVolume(volumeUUID)
@@ -234,22 +232,21 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 		return err
 	}
 
-	snapshot, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	snapshot, err := s.getSnapshotDriverInfo(snapshotName, volume)
 	if err != nil {
-		return fmt.Errorf("cannot find snapshot %v of volume %v", snapshotUUID, volumeUUID)
+		return fmt.Errorf("cannot find snapshot %v of volume %v", snapshotName, volumeUUID)
 	}
 
-	driverInfo, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
+	driverInfo, err := s.getSnapshotDriverInfo(snapshotName, volume)
 	if err != nil {
 		return err
 	}
 
 	resp := api.SnapshotResponse{
-		UUID:            snapshotUUID,
+		Name:            snapshot[OPT_SNAPSHOT_NAME],
 		VolumeUUID:      volume.UUID,
 		VolumeName:      volumeDriverInfo[OPT_VOLUME_NAME],
 		VolumeCreatedAt: volumeDriverInfo[OPT_VOLUME_CREATED_TIME],
-		Name:            snapshot[OPT_SNAPSHOT_NAME],
 		CreatedTime:     snapshot[OPT_SNAPSHOT_CREATED_TIME],
 		DriverInfo:      driverInfo,
 	}

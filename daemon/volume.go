@@ -213,14 +213,9 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 		}
 	}
 	if snapshots != nil {
-		for snapshotUUID, snapshot := range snapshots {
-			if err := s.UUIDIndex.Delete(snapshotUUID); err != nil {
+		for snapshotName := range snapshots {
+			if err := s.NameUUIDIndex.Delete(snapshotName); err != nil {
 				return err
-			}
-			if snapshot[OPT_SNAPSHOT_NAME] != "" {
-				if err := s.NameUUIDIndex.Delete(snapshot[OPT_SNAPSHOT_NAME]); err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -259,7 +254,6 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	for uuid, snapshot := range snapshots {
 		snapshot["Driver"] = volOps.Name()
 		resp.Snapshots[uuid] = api.SnapshotResponse{
-			UUID:        uuid,
 			Name:        snapshot[OPT_SNAPSHOT_NAME],
 			CreatedTime: snapshot[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  snapshot,

@@ -534,13 +534,11 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 		return fmt.Errorf("Cannot delete volume %s, it hasn't been umounted", id)
 	}
 	if len(volume.Snapshots) != 0 {
-		for snapshotUUID := range volume.Snapshots {
-			if err = d.DeleteSnapshot(snapshotUUID, map[string]string{
-				OPT_VOLUME_UUID: volume.UUID,
-			}); err != nil {
+		for snapshotID := range volume.Snapshots {
+			if err = d.deleteSnapshot(snapshotID, volume.UUID); err != nil {
 				return generateError(logrus.Fields{
 					LOG_FIELD_VOLUME:   volume.UUID,
-					LOG_FIELD_SNAPSHOT: snapshotUUID,
+					LOG_FIELD_SNAPSHOT: snapshotID,
 				}, "cannot remove an snapshot of volume, as part of deletion of volume")
 			}
 		}
@@ -583,15 +581,11 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	return volumes, nil
 }
 
-func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
+func (d *Driver) CreateSnapshot(req Request) error {
 	var err error
 
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
-	if err != nil {
-		return err
-	}
-
-	snapshotName, err := util.GetFieldFromOpts(OPT_SNAPSHOT_NAME, opts)
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return err
 	}
@@ -610,7 +604,7 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 		return generateError(logrus.Fields{
 			LOG_FIELD_VOLUME:   volumeID,
 			LOG_FIELD_SNAPSHOT: id,
-		}, "Already has snapshot with uuid")
+		}, "Already has snapshot with name")
 	}
 
 	log.WithFields(logrus.Fields{
@@ -629,7 +623,7 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	log.Debugf("Created snapshot device")
 
 	snapshot = Snapshot{
-		Name:        snapshotName,
+		Name:        id,
 		CreatedTime: util.Now(),
 		DevID:       devID,
 		Activated:   false,
@@ -642,12 +636,17 @@ func (d *Driver) CreateSnapshot(id string, opts map[string]string) error {
 	return nil
 }
 
-func (d *Driver) DeleteSnapshot(id string, opts map[string]string) error {
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+func (d *Driver) DeleteSnapshot(req Request) error {
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return err
 	}
 
+	return d.deleteSnapshot(id, volumeID)
+}
+
+func (d *Driver) deleteSnapshot(id, volumeID string) error {
 	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
 		return err
@@ -828,12 +827,16 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	return result, nil
 }
 
-func (d *Driver) GetSnapshotInfo(id string, opts map[string]string) (map[string]string, error) {
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
 	if err != nil {
 		return nil, err
 	}
+	return d.getSnapshotInfo(id, volumeID)
+}
 
+func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error) {
 	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
 		return nil, err
@@ -873,9 +876,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 			return nil, err
 		}
 		for snapshotID := range volume.Snapshots {
-			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, map[string]string{
-				OPT_VOLUME_UUID: volumeID,
-			})
+			snapshots[snapshotID], err = d.getSnapshotInfo(snapshotID, volumeID)
 			if err != nil {
 				return nil, err
 			}
