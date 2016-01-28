@@ -33,6 +33,8 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	if err := util.CheckUUID(volumeUUID); err != nil {
 		return err
 	}
+
+	snapshotUUID := uuid.New()
 	snapshotName := request.Name
 	if snapshotName != "" {
 		if err := util.CheckName(snapshotName); err != nil {
@@ -41,6 +43,12 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		existUUID := s.NameUUIDIndex.Get(snapshotName)
 		if existUUID != "" {
 			return fmt.Errorf("Snapshot name %v already associated with %v", snapshotName, existUUID)
+		}
+	} else {
+		snapshotName = "snapshot-" + snapshotUUID[:8]
+		for s.NameUUIDIndex.Get(snapshotName) != "" {
+			snapshotUUID = uuid.New()
+			snapshotName = "snapshot-" + snapshotUUID[:8]
 		}
 	}
 
@@ -54,7 +62,6 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		return err
 	}
 
-	uuid := uuid.New()
 	opts := map[string]string{
 		OPT_VOLUME_UUID:   volumeUUID,
 		OPT_SNAPSHOT_NAME: snapshotName,
@@ -64,46 +71,46 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
-	if err := snapOps.CreateSnapshot(uuid, opts); err != nil {
+	if err := snapOps.CreateSnapshot(snapshotUUID, opts); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: uuid,
+		LOG_FIELD_SNAPSHOT: snapshotUUID,
 		LOG_FIELD_VOLUME:   volumeUUID,
 	}).Debug()
 
 	//TODO: error handling
-	if err := s.UUIDIndex.Add(uuid); err != nil {
+	if err := s.UUIDIndex.Add(snapshotUUID); err != nil {
 		return err
 	}
-	if err := s.SnapshotVolumeIndex.Add(uuid, volume.UUID); err != nil {
+	if err := s.SnapshotVolumeIndex.Add(snapshotUUID, volume.UUID); err != nil {
 		return err
 	}
 	if snapshotName != "" {
-		if err := s.NameUUIDIndex.Add(snapshotName, uuid); err != nil {
+		if err := s.NameUUIDIndex.Add(snapshotName, snapshotUUID); err != nil {
 			return err
 		}
 	}
-	driverInfo, err := s.getSnapshotDriverInfo(uuid, volume)
+	driverInfo, err := s.getSnapshotDriverInfo(snapshotUUID, volume)
 	if err != nil {
 		return err
 	}
 	if request.Verbose {
 		return writeResponseOutput(w, api.SnapshotResponse{
-			UUID:        uuid,
+			UUID:        snapshotUUID,
 			VolumeUUID:  volume.UUID,
 			Name:        driverInfo[OPT_SNAPSHOT_NAME],
 			CreatedTime: driverInfo[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  driverInfo,
 		})
 	}
-	return writeStringResponse(w, uuid)
+	return writeStringResponse(w, snapshotUUID)
 }
 
 func (s *daemon) getSnapshotDriverInfo(snapshotUUID string, volume *Volume) (map[string]string, error) {
