@@ -78,7 +78,7 @@ func ListConfigIDs(root, prefix, suffix string) ([]string, error) {
 	for i := range out {
 		out[i] = path.Base(out[i])
 	}
-	return ExtractUUIDs(out, prefix, suffix)
+	return ExtractNames(out, prefix, suffix)
 }
 
 type ObjectOperations interface {

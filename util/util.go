@@ -385,3 +385,19 @@ func GetFieldFromOpts(name string, opts map[string]string) (string, error) {
 	}
 	return value, nil
 }
+
+func ExtractNames(names []string, prefix, suffix string) ([]string, error) {
+	result := []string{}
+	for i := range names {
+		f := names[i]
+		// Remove additional slash if exists
+		f = strings.TrimLeft(f, "/")
+		f = strings.TrimPrefix(f, prefix)
+		f = strings.TrimSuffix(f, suffix)
+		if !ValidateName(f) {
+			return nil, fmt.Errorf("Invalid name %v was processed to extract name with prefix %v surfix %v", names[i], prefix, suffix)
+		}
+		result = append(result, f)
+	}
+	return result, nil
+}
