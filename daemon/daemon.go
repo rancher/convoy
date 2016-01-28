@@ -23,8 +23,9 @@ import (
 )
 
 type daemon struct {
-	Router              *mux.Router
-	ConvoyDrivers       map[string]ConvoyDriver
+	Router        *mux.Router
+	ConvoyDrivers map[string]ConvoyDriver
+
 	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
@@ -150,28 +151,17 @@ func makeHandlerFunc(method string, route string, version string, f requestHandl
 }
 
 func (s *daemon) updateIndex() error {
-	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
-	if err != nil {
-		return err
-	}
-	for _, uuid := range volumeUUIDs {
-		volume := s.loadVolume(uuid)
+	volumes := s.getVolumeList()
+	for uuid, volume := range volumes {
 		if err := s.UUIDIndex.Add(uuid); err != nil {
 			return err
 		}
-		if volume == nil {
-			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
-		}
-		driverInfo, err := s.getVolumeDriverInfo(volume)
-		if err != nil {
-			return err
-		}
-		if driverInfo[OPT_VOLUME_NAME] != "" {
-			if err := s.NameUUIDIndex.Add(OPT_VOLUME_NAME, volume.UUID); err != nil {
+		if volume[OPT_VOLUME_NAME] != "" {
+			if err := s.NameUUIDIndex.Add(volume[OPT_VOLUME_NAME], uuid); err != nil {
 				return err
 			}
 		}
-		snapshots, err := s.listSnapshotDriverInfos(volume)
+		snapshots, err := s.listSnapshotDriverInfos(s.getVolume(uuid))
 		if err == nil {
 			for snapshotID, content := range snapshots {
 				if err := s.SnapshotVolumeIndex.Add(snapshotID, uuid); err != nil {

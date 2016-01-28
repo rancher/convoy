@@ -63,7 +63,7 @@ func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 	)
 	if util.ValidateName(name) {
 		volumeName = name
-		volume = s.loadVolumeByName(name)
+		volume = s.getVolumeByName(name)
 	} else {
 		// Not valid UUID or name
 		return nil, fmt.Errorf("Invalid volume %s. Must be only contains 0-9, a-z, dash(-), underscore(_) and dot(.)", name)

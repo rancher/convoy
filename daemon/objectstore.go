@@ -95,7 +95,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
 
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	backupOps, err := s.getBackupOpsForVolume(volume)
 	if err != nil {
 		return err

@@ -13,7 +13,7 @@ import (
 )
 
 func (s *daemon) snapshotExists(volumeUUID, snapshotUUID string) bool {
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	if volume == nil {
 		return false
 	}
@@ -44,7 +44,7 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		}
 	}
 
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
@@ -151,7 +151,7 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 		return fmt.Errorf("cannot find volume for snapshot %v", snapshotUUID)
 	}
 
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	if !s.snapshotExists(volumeUUID, snapshotUUID) {
 		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
 	}
@@ -217,7 +217,7 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 		return fmt.Errorf("cannot find volume for snapshot %v", snapshotUUID)
 	}
 
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("cannot find volume %v", volumeUUID)
 	}

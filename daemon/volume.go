@@ -7,7 +7,6 @@ import (
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/util"
 	"net/http"
-	"path/filepath"
 	"strconv"
 
 	. "github.com/rancher/convoy/convoydriver"
@@ -17,55 +16,33 @@ import (
 type Volume struct {
 	UUID       string
 	DriverName string
-
-	configPath string
 }
 
-func (v *Volume) ConfigFile() (string, error) {
-	if v.UUID == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
-	}
-	if v.configPath == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume config path")
-	}
-	return filepath.Join(v.configPath, VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
-}
-
-func (s *daemon) loadVolume(uuid string) *Volume {
-	volume := &Volume{
-		UUID:       uuid,
-		configPath: s.Root,
-	}
-	if err := util.ObjectLoad(volume); err != nil {
-		log.Errorf("Fail to load volume! %v", err)
+func (s *daemon) getVolume(uuid string) *Volume {
+	driver, err := s.getDriverForVolume(uuid)
+	if err != nil {
 		return nil
 	}
-	return volume
+
+	return &Volume{
+		UUID:       uuid,
+		DriverName: driver.Name(),
+	}
 }
 
-func (s *daemon) saveVolume(volume *Volume) error {
-	volume.configPath = s.Root
-	return util.ObjectSave(volume)
-}
-
-func (s *daemon) deleteVolume(volume *Volume) error {
-	volume.configPath = s.Root
-	return util.ObjectDelete(volume)
-}
-
-func (s *daemon) loadVolumeByName(name string) *Volume {
+func (s *daemon) getVolumeByName(name string) *Volume {
 	uuid := s.NameUUIDIndex.Get(name)
 	if uuid == "" {
 		return nil
 	}
-	return s.loadVolume(uuid)
+	return s.getVolume(uuid)
 }
 
 func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
 	volumeName := request.Name
 	driverName := request.DriverName
 
-	existedVolume := s.loadVolumeByName(volumeName)
+	existedVolume := s.getVolumeByName(volumeName)
 	if existedVolume != nil {
 		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
 	}
@@ -128,9 +105,6 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		return nil, err
 	}
 
-	if err := s.saveVolume(volume); err != nil {
-		return nil, err
-	}
 	if err := s.UUIDIndex.Add(volume.UUID); err != nil {
 		return nil, err
 	}
@@ -192,7 +166,8 @@ func (s *daemon) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 
 func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 	uuid := request.VolumeUUID
-	volume := s.loadVolume(uuid)
+
+	volume := s.getVolume(uuid)
 	if volume == nil {
 		return fmt.Errorf("Cannot find volume %s", uuid)
 	}
@@ -209,6 +184,7 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 	if err != nil {
 		return err
 	}
+	volumeName := driverInfo[OPT_VOLUME_NAME]
 
 	opts := map[string]string{
 		OPT_REFERENCE_ONLY: strconv.FormatBool(request.ReferenceOnly),
@@ -231,8 +207,8 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 	if err := s.UUIDIndex.Delete(volume.UUID); err != nil {
 		return err
 	}
-	if driverInfo[OPT_VOLUME_NAME] != "" {
-		if err := s.NameUUIDIndex.Delete(driverInfo[OPT_VOLUME_NAME]); err != nil {
+	if volumeName != "" {
+		if err := s.NameUUIDIndex.Delete(volumeName); err != nil {
 			return err
 		}
 	}
@@ -248,7 +224,7 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 			}
 		}
 	}
-	return s.deleteVolume(volume)
+	return nil
 }
 
 func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
@@ -295,13 +271,10 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 func (s *daemon) listVolume() ([]byte, error) {
 	resp := make(map[string]api.VolumeResponse)
 
-	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
-	if err != nil {
-		return nil, err
-	}
+	volumes := s.getVolumeList()
 
-	for _, uuid := range volumeUUIDs {
-		volume := s.loadVolume(uuid)
+	for uuid, _ := range volumes {
+		volume := s.getVolume(uuid)
 		if volume == nil {
 			return nil, fmt.Errorf("Volume list changed for volume %v", uuid)
 		}
@@ -339,21 +312,7 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 
 	var data []byte
 	if driverSpecific == "1" {
-		result := make(map[string]map[string]string)
-		for _, driver := range s.ConvoyDrivers {
-			volOps, err := driver.VolumeOps()
-			if err != nil {
-				break
-			}
-			volumes, err := volOps.ListVolume(map[string]string{})
-			if err != nil {
-				break
-			}
-			for k, v := range volumes {
-				v["Driver"] = driver.Name()
-				result[k] = v
-			}
-		}
+		result := s.getVolumeList()
 		data, err = api.ResponseOutput(&result)
 	} else {
 		data, err = s.listVolume()
@@ -366,7 +325,7 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 }
 
 func (s *daemon) inspectVolume(volumeUUID string) ([]byte, error) {
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	if volume == nil {
 		return nil, fmt.Errorf("Cannot find volume %v", volumeUUID)
 	}
@@ -414,7 +373,7 @@ func (s *daemon) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 	if err := util.CheckUUID(volumeUUID); err != nil {
 		return err
 	}
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
@@ -476,7 +435,7 @@ func (s *daemon) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 	if err := util.CheckUUID(volumeUUID); err != nil {
 		return err
 	}
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeUUID)
 	if volume == nil {
 		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
 	}
@@ -562,4 +521,41 @@ func (s *daemon) doRequestUUID(version string, w http.ResponseWriter, r *http.Re
 		resp.UUID = uuid
 	}
 	return writeResponseOutput(w, resp)
+}
+
+func (s *daemon) getDriverForVolume(volumeID string) (ConvoyDriver, error) {
+	for _, driver := range s.ConvoyDrivers {
+		volOps, err := driver.VolumeOps()
+		if err != nil {
+			continue
+		}
+		if volOps == nil {
+			panic(fmt.Errorf("Driver %v incorrectly reports VolumeOperations implemented",
+				driver.Name()))
+		}
+		if _, err := volOps.GetVolumeInfo(volumeID); err != nil {
+			continue
+		}
+		return driver, nil
+	}
+	return nil, fmt.Errorf("Cannot find driver for volume %v", volumeID)
+}
+
+func (s *daemon) getVolumeList() map[string]map[string]string {
+	result := make(map[string]map[string]string)
+	for _, driver := range s.ConvoyDrivers {
+		volOps, err := driver.VolumeOps()
+		if err != nil {
+			break
+		}
+		volumes, err := volOps.ListVolume(map[string]string{})
+		if err != nil {
+			break
+		}
+		for k, v := range volumes {
+			v["Driver"] = driver.Name()
+			result[k] = v
+		}
+	}
+	return result
 }
