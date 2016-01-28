@@ -25,7 +25,7 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	request.URL = util.UnescapeURL(request.URL)
 
 	opts := map[string]string{
-		OPT_VOLUME_UUID: request.VolumeUUID,
+		OPT_VOLUME_NAME: request.VolumeName,
 	}
 	result := make(map[string]map[string]string)
 	for _, driver := range s.ConvoyDrivers {
@@ -86,16 +86,16 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	request.URL = util.UnescapeURL(request.URL)
 
 	snapshotName := request.SnapshotName
-	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotName)
-	if volumeUUID == "" {
+	volumeName := s.SnapshotVolumeIndex.Get(snapshotName)
+	if volumeName == "" {
 		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotName)
 	}
 
-	if !s.snapshotExists(volumeUUID, snapshotName) {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotName, volumeUUID)
+	if !s.snapshotExists(volumeName, snapshotName) {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotName, volumeName)
 	}
 
-	volume := s.getVolume(volumeUUID)
+	volume := s.getVolume(volumeName)
 	backupOps, err := s.getBackupOpsForVolume(volume)
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	opts := map[string]string{
-		OPT_VOLUME_NAME:           volumeInfo[OPT_VOLUME_NAME],
+		OPT_VOLUME_NAME:           volumeName,
 		OPT_VOLUME_CREATED_TIME:   volumeInfo[OPT_VOLUME_CREATED_TIME],
 		OPT_SNAPSHOT_CREATED_TIME: snapshot[OPT_SNAPSHOT_CREATED_TIME],
 	}
@@ -122,11 +122,11 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: snapshotName,
-		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_VOLUME:   volumeName,
 		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
-	backupURL, err := backupOps.CreateBackup(snapshotName, volumeUUID, request.URL, opts)
+	backupURL, err := backupOps.CreateBackup(snapshotName, volumeName, request.URL, opts)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
 		LOG_FIELD_SNAPSHOT: snapshotName,
-		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_VOLUME:   volumeName,
 		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()

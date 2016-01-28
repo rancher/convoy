@@ -64,7 +64,6 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Volume struct {
-	UUID         string
 	Name         string
 	Path         string
 	MountPoint   string
@@ -102,16 +101,16 @@ func (gv *GlusterFSVolume) GenerateDefaultMountPoint() string {
 }
 
 func (v *Volume) ConfigFile() (string, error) {
-	if v.UUID == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
+	if v.Name == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume name")
 	}
 	if v.configPath == "" {
 		return "", fmt.Errorf("BUG: Invalid empty volume config path")
 	}
-	return filepath.Join(v.configPath, DRIVER_CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
+	return filepath.Join(v.configPath, DRIVER_CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
 
-func (device *Device) listVolumeIDs() ([]string, error) {
+func (device *Device) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(device.Root, DRIVER_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
@@ -209,10 +208,10 @@ func (d *Driver) VolumeOps() (VolumeOperations, error) {
 	return d, nil
 }
 
-func (d *Driver) blankVolume(id string) *Volume {
+func (d *Driver) blankVolume(name string) *Volume {
 	return &Volume{
 		configPath: d.Root,
-		UUID:       id,
+		Name:       name,
 	}
 }
 
@@ -224,14 +223,12 @@ func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64
 	return util.ParseSize(size)
 }
 
-func (d *Driver) CreateVolume(id string, opts map[string]string) error {
+func (d *Driver) CreateVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	volumeName := opts[OPT_VOLUME_NAME]
-	if volumeName == "" {
-		volumeName = "volume-" + id[:8]
-	}
+	id := req.Name
+	opts := req.Options
 
 	volume := d.blankVolume(id)
 	exists, err := util.ObjectExists(volume)
@@ -254,13 +251,13 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 
 	gVolume := d.gVolumes[d.DefaultVolumePool]
-	volumePath := filepath.Join(gVolume.MountPoint, volumeName)
-	if util.VolumeMountPointFileExists(gVolume, volumeName, util.FILE_TYPE_DIRECTORY) {
-		log.Debugf("Found existing volume named %v, reuse it", volumeName)
-	} else if err := util.VolumeMountPointDirectoryCreate(gVolume, volumeName); err != nil {
+	volumePath := filepath.Join(gVolume.MountPoint, id)
+	if util.VolumeMountPointFileExists(gVolume, id, util.FILE_TYPE_DIRECTORY) {
+		log.Debugf("Found existing volume named %v, reuse it", id)
+	} else if err := util.VolumeMountPointDirectoryCreate(gVolume, id); err != nil {
 		return err
 	}
-	volume.Name = volumeName
+	volume.Name = id
 	volume.Path = volumePath
 	volume.VolumePool = gVolume.UUID
 	volume.CreatedTime = util.Now()
@@ -268,9 +265,12 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
+func (d *Driver) DeleteVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
+	opts := req.Options
 
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
@@ -291,9 +291,12 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	return util.ObjectDelete(volume)
 }
 
-func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountVolume(req Request) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
+	opts := req.Options
 
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
@@ -318,9 +321,11 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return volume.MountPoint, nil
 }
 
-func (d *Driver) UmountVolume(id string, opts map[string]string) error {
+func (d *Driver) UmountVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
 
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
@@ -337,7 +342,7 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
-	volumeIDs, err := d.listVolumeIDs()
+	volumeIDs, err := d.listVolumeNames()
 	if err != nil {
 		return nil, err
 	}
@@ -383,9 +388,11 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	}, nil
 }
 
-func (d *Driver) MountPoint(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountPoint(req Request) (string, error) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
+
+	id := req.Name
 
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {

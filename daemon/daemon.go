@@ -13,7 +13,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/util"
@@ -29,14 +28,10 @@ type daemon struct {
 	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
-	UUIDIndex           *truncindex.TruncIndex
 	daemonConfig
 }
 
 const (
-	KEY_VOLUME_UUID   = "volume-uuid"
-	KEY_SNAPSHOT_UUID = "snapshot-uuid"
-
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
 
@@ -71,7 +66,6 @@ func createRouter(s *daemon) *mux.Router {
 	m := map[string]map[string]requestHandler{
 		"GET": {
 			"/info":            s.doInfo,
-			"/uuid":            s.doRequestUUID,
 			"/volumes/list":    s.doVolumeList,
 			"/volumes/":        s.doVolumeInspect,
 			"/snapshots/":      s.doSnapshotInspect,
@@ -152,20 +146,14 @@ func makeHandlerFunc(method string, route string, version string, f requestHandl
 
 func (s *daemon) updateIndex() error {
 	volumes := s.getVolumeList()
-	for uuid, volume := range volumes {
-		if err := s.UUIDIndex.Add(uuid); err != nil {
+	for name := range volumes {
+		if err := s.NameUUIDIndex.Add(name, "exists"); err != nil {
 			return err
 		}
-		volumeName := volume[OPT_VOLUME_NAME]
-		if volumeName != "" {
-			if err := s.NameUUIDIndex.Add(volumeName, uuid); err != nil {
-				return err
-			}
-		}
-		snapshots, err := s.listSnapshotDriverInfos(s.getVolume(uuid))
+		snapshots, err := s.listSnapshotDriverInfos(s.getVolume(name))
 		if err == nil {
 			for snapshotID, _ := range snapshots {
-				if err := s.SnapshotVolumeIndex.Add(snapshotID, uuid); err != nil {
+				if err := s.SnapshotVolumeIndex.Add(snapshotID, name); err != nil {
 					return err
 				}
 				if err := s.NameUUIDIndex.Add(snapshotID, "exists"); err != nil {
@@ -227,7 +215,6 @@ func environmentCleanup() {
 func (s *daemon) finializeInitialization() error {
 	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
-	s.UUIDIndex = truncindex.NewTruncIndex([]string{})
 	s.GlobalLock = &sync.RWMutex{}
 
 	s.updateIndex()

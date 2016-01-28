@@ -45,12 +45,12 @@ Convoy Driver must implement this interface.
 */
 type VolumeOperations interface {
 	Name() string
-	CreateVolume(id string, opts map[string]string) error
-	DeleteVolume(id string, opts map[string]string) error
-	MountVolume(id string, opts map[string]string) (string, error)
-	UmountVolume(id string, opts map[string]string) error
-	MountPoint(id string, opts map[string]string) (string, error)
-	GetVolumeInfo(id string) (map[string]string, error)
+	CreateVolume(req Request) error
+	DeleteVolume(req Request) error
+	MountVolume(req Request) (string, error)
+	UmountVolume(req Request) error
+	MountPoint(req Request) (string, error)
+	GetVolumeInfo(name string) (map[string]string, error)
 	ListVolume(opts map[string]string) (map[string]map[string]string, error)
 }
 
@@ -84,7 +84,6 @@ const (
 	OPT_MOUNT_POINT           = "MountPoint"
 	OPT_SIZE                  = "Size"
 	OPT_FORMAT                = "Format"
-	OPT_VOLUME_UUID           = "VolumeUUID"
 	OPT_VOLUME_NAME           = "VolumeName"
 	OPT_VOLUME_DRIVER_ID      = "VolumeDriverID"
 	OPT_VOLUME_TYPE           = "VolumeType"

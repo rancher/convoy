@@ -14,45 +14,34 @@ import (
 )
 
 type Volume struct {
-	UUID       string
+	Name       string
 	DriverName string
 }
 
-func (s *daemon) getVolume(uuid string) *Volume {
-	driver, err := s.getDriverForVolume(uuid)
+func (s *daemon) getVolume(name string) *Volume {
+	driver, err := s.getDriverForVolume(name)
 	if err != nil {
 		return nil
 	}
 
 	return &Volume{
-		UUID:       uuid,
+		Name:       name,
 		DriverName: driver.Name(),
 	}
-}
-
-func (s *daemon) getVolumeByName(name string) *Volume {
-	uuid := s.NameUUIDIndex.Get(name)
-	if uuid == "" {
-		return nil
-	}
-	return s.getVolume(uuid)
 }
 
 func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
 	volumeName := request.Name
 	driverName := request.DriverName
 
-	existedVolume := s.getVolumeByName(volumeName)
-	if existedVolume != nil {
-		return nil, fmt.Errorf("Volume name %v already associate locally with volume %v ", volumeName, existedVolume.UUID)
-	}
-
-	volumeUUID := uuid.New()
 	if volumeName == "" {
-		volumeName = "volume-" + volumeUUID[:8]
+		volumeName = "volume-" + uuid.New()[:8]
 		for s.NameUUIDIndex.Get(volumeName) != "" {
-			volumeUUID = uuid.New()
-			volumeName = "volume-" + volumeUUID[:8]
+			volumeName = "volume-" + uuid.New()[:8]
+		}
+	} else {
+		if s.NameUUIDIndex.Get(volumeName) != "" {
+			return nil, fmt.Errorf("Volume %v already exists ", volumeName)
 		}
 	}
 
@@ -68,51 +57,42 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		return nil, err
 	}
 
-	opts := map[string]string{
-		OPT_SIZE:             strconv.FormatInt(request.Size, 10),
-		OPT_BACKUP_URL:       util.UnescapeURL(request.BackupURL),
-		OPT_VOLUME_NAME:      volumeName,
-		OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
-		OPT_VOLUME_TYPE:      request.Type,
-		OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
-		OPT_PREPARE_FOR_VM:   strconv.FormatBool(request.PrepareForVM),
+	req := Request{
+		Name: volumeName,
+		Options: map[string]string{
+			OPT_SIZE:             strconv.FormatInt(request.Size, 10),
+			OPT_BACKUP_URL:       util.UnescapeURL(request.BackupURL),
+			OPT_VOLUME_NAME:      volumeName,
+			OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
+			OPT_VOLUME_TYPE:      request.Type,
+			OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
+			OPT_PREPARE_FOR_VM:   strconv.FormatBool(request.PrepareForVM),
+		},
 	}
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:      LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:       LOG_EVENT_CREATE,
-		LOG_FIELD_OBJECT:      LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:      volumeUUID,
-		LOG_FIELD_VOLUME_NAME: volumeName,
-		LOG_FIELD_OPTS:        opts,
+		LOG_FIELD_REASON: LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
+		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
+		LOG_FIELD_VOLUME: volumeName,
+		LOG_FIELD_OPTS:   req.Options,
 	}).Debug()
-	if err := volOps.CreateVolume(volumeUUID, opts); err != nil {
+	if err := volOps.CreateVolume(req); err != nil {
 		return nil, err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:  LOG_EVENT_CREATE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: volumeUUID,
+		LOG_FIELD_VOLUME: volumeName,
 	}).Debug("Created volume")
 
 	volume := &Volume{
-		UUID:       volumeUUID,
+		Name:       volumeName,
 		DriverName: driverName,
 	}
 
-	driverInfo, err := s.getVolumeDriverInfo(volume)
-	if err != nil {
+	if err := s.NameUUIDIndex.Add(volumeName, "exists"); err != nil {
 		return nil, err
-	}
-
-	if err := s.UUIDIndex.Add(volume.UUID); err != nil {
-		return nil, err
-	}
-
-	if driverInfo[OPT_VOLUME_NAME] != "" {
-		if err := s.NameUUIDIndex.Add(driverInfo[OPT_VOLUME_NAME], volume.UUID); err != nil {
-			return nil, err
-		}
 	}
 	return volume, nil
 }
@@ -137,15 +117,14 @@ func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	}
 	if request.Verbose {
 		return writeResponseOutput(w, api.VolumeResponse{
-			UUID:        volume.UUID,
-			Name:        driverInfo[OPT_VOLUME_NAME],
+			Name:        volume.Name,
 			Driver:      volume.DriverName,
 			CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
 			DriverInfo:  driverInfo,
 			Snapshots:   map[string]api.SnapshotResponse{},
 		})
 	}
-	return writeStringResponse(w, volume.UUID)
+	return writeStringResponse(w, volume.Name)
 }
 
 func (s *daemon) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
@@ -157,7 +136,7 @@ func (s *daemon) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	if err := util.CheckUUID(request.VolumeUUID); err != nil {
+	if err := util.CheckName(request.VolumeName); err != nil {
 		return err
 	}
 
@@ -165,11 +144,11 @@ func (s *daemon) doVolumeDelete(version string, w http.ResponseWriter, r *http.R
 }
 
 func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
-	uuid := request.VolumeUUID
+	name := request.VolumeName
 
-	volume := s.getVolume(uuid)
+	volume := s.getVolume(name)
 	if volume == nil {
-		return fmt.Errorf("Cannot find volume %s", uuid)
+		return fmt.Errorf("Cannot find volume %s", name)
 	}
 
 	// In the case of snapshot is not supported, snapshots would be nil
@@ -180,37 +159,29 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 		return err
 	}
 
-	driverInfo, err := s.getVolumeDriverInfo(volume)
-	if err != nil {
-		return err
-	}
-	volumeName := driverInfo[OPT_VOLUME_NAME]
-
-	opts := map[string]string{
-		OPT_REFERENCE_ONLY: strconv.FormatBool(request.ReferenceOnly),
+	req := Request{
+		Name: name,
+		Options: map[string]string{
+			OPT_REFERENCE_ONLY: strconv.FormatBool(request.ReferenceOnly),
+		},
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: uuid,
+		LOG_FIELD_VOLUME: name,
 	}).Debug()
-	if err := volOps.DeleteVolume(uuid, opts); err != nil {
+	if err := volOps.DeleteVolume(req); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:  LOG_EVENT_DELETE,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: uuid,
+		LOG_FIELD_VOLUME: name,
 	}).Debug()
-	if err := s.UUIDIndex.Delete(volume.UUID); err != nil {
+	if err := s.NameUUIDIndex.Delete(volume.Name); err != nil {
 		return err
-	}
-	if volumeName != "" {
-		if err := s.NameUUIDIndex.Delete(volumeName); err != nil {
-			return err
-		}
 	}
 	if snapshots != nil {
 		for snapshotName := range snapshots {
@@ -228,8 +199,11 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		return nil, err
 	}
 
-	opts := map[string]string{}
-	mountPoint, err := volOps.MountPoint(volume.UUID, opts)
+	req := Request{
+		Name:    volume.Name,
+		Options: map[string]string{},
+	}
+	mountPoint, err := volOps.MountPoint(req)
 	if err != nil {
 		return nil, err
 	}
@@ -238,8 +212,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		return nil, err
 	}
 	resp := &api.VolumeResponse{
-		UUID:        volume.UUID,
-		Name:        driverInfo[OPT_VOLUME_NAME],
+		Name:        volume.Name,
 		Driver:      volume.DriverName,
 		MountPoint:  mountPoint,
 		CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
@@ -267,16 +240,16 @@ func (s *daemon) listVolume() ([]byte, error) {
 
 	volumes := s.getVolumeList()
 
-	for uuid, _ := range volumes {
-		volume := s.getVolume(uuid)
+	for name, _ := range volumes {
+		volume := s.getVolume(name)
 		if volume == nil {
-			return nil, fmt.Errorf("Volume list changed for volume %v", uuid)
+			return nil, fmt.Errorf("Volume list changed for volume %v", name)
 		}
 		r, err := s.listVolumeInfo(volume)
 		if err != nil {
 			return nil, err
 		}
-		resp[uuid] = *r
+		resp[name] = *r
 	}
 
 	return api.ResponseOutput(resp)
@@ -287,7 +260,7 @@ func (s *daemon) getVolumeDriverInfo(volume *Volume) (map[string]string, error) 
 	if err != nil {
 		return nil, err
 	}
-	driverInfo, err := volOps.GetVolumeInfo(volume.UUID)
+	driverInfo, err := volOps.GetVolumeInfo(volume.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -318,10 +291,10 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	return err
 }
 
-func (s *daemon) inspectVolume(volumeUUID string) ([]byte, error) {
-	volume := s.getVolume(volumeUUID)
+func (s *daemon) inspectVolume(name string) ([]byte, error) {
+	volume := s.getVolume(name)
 	if volume == nil {
-		return nil, fmt.Errorf("Cannot find volume %v", volumeUUID)
+		return nil, fmt.Errorf("Cannot find volume %v", name)
 	}
 	resp, err := s.listVolumeInfo(volume)
 	if err != nil {
@@ -339,12 +312,12 @@ func (s *daemon) doVolumeInspect(version string, w http.ResponseWriter, r *http.
 		return err
 	}
 
-	volumeUUID := request.VolumeUUID
-	if err := util.CheckUUID(volumeUUID); err != nil {
+	name := request.VolumeName
+	if err := util.CheckName(name); err != nil {
 		return err
 	}
 
-	data, err := s.inspectVolume(volumeUUID)
+	data, err := s.inspectVolume(name)
 	if err != nil {
 		return err
 	}
@@ -363,13 +336,13 @@ func (s *daemon) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 		return err
 	}
 
-	volumeUUID := request.VolumeUUID
-	if err := util.CheckUUID(volumeUUID); err != nil {
+	volumeName := request.VolumeName
+	if err := util.CheckName(volumeName); err != nil {
 		return err
 	}
-	volume := s.getVolume(volumeUUID)
+	volume := s.getVolume(volumeName)
 	if volume == nil {
-		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+		return fmt.Errorf("volume %v doesn't exist", volumeName)
 	}
 
 	mountPoint, err := s.processVolumeMount(volume, request)
@@ -379,7 +352,7 @@ func (s *daemon) doVolumeMount(version string, w http.ResponseWriter, r *http.Re
 
 	if request.Verbose {
 		return writeResponseOutput(w, api.VolumeResponse{
-			UUID:       volumeUUID,
+			Name:       volumeName,
 			MountPoint: mountPoint,
 		})
 	}
@@ -392,17 +365,20 @@ func (s *daemon) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 		return "", err
 	}
 
-	opts := map[string]string{
-		OPT_MOUNT_POINT: request.MountPoint,
+	req := Request{
+		Name: volume.Name,
+		Options: map[string]string{
+			OPT_MOUNT_POINT: request.MountPoint,
+		},
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_MOUNT,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: volume.UUID,
-		LOG_FIELD_OPTS:   opts,
+		LOG_FIELD_VOLUME: volume.Name,
+		LOG_FIELD_OPTS:   req.Options,
 	}).Debug()
-	mountPoint, err := volOps.MountVolume(volume.UUID, opts)
+	mountPoint, err := volOps.MountVolume(req)
 	if err != nil {
 		return "", err
 	}
@@ -410,7 +386,7 @@ func (s *daemon) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:      LOG_EVENT_LIST,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volume.UUID,
+		LOG_FIELD_VOLUME:     volume.Name,
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 	}).Debug()
 	return mountPoint, nil
@@ -425,13 +401,13 @@ func (s *daemon) doVolumeUmount(version string, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	volumeUUID := request.VolumeUUID
-	if err := util.CheckUUID(volumeUUID); err != nil {
+	volumeName := request.VolumeName
+	if err := util.CheckName(volumeName); err != nil {
 		return err
 	}
-	volume := s.getVolume(volumeUUID)
+	volume := s.getVolume(volumeName)
 	if volume == nil {
-		return fmt.Errorf("volume %v doesn't exist", volumeUUID)
+		return fmt.Errorf("volume %v doesn't exist", volumeName)
 	}
 
 	return s.processVolumeUmount(volume)
@@ -443,21 +419,24 @@ func (s *daemon) processVolumeUmount(volume *Volume) error {
 		return err
 	}
 
-	opts := map[string]string{}
+	req := Request{
+		Name:    volume.Name,
+		Options: map[string]string{},
+	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_UMOUNT,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: volume.UUID,
+		LOG_FIELD_VOLUME: volume.Name,
 	}).Debug()
-	if err := volOps.UmountVolume(volume.UUID, opts); err != nil {
+	if err := volOps.UmountVolume(req); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:  LOG_EVENT_UMOUNT,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: volume.UUID,
+		LOG_FIELD_VOLUME: volume.Name,
 	}).Debug()
 
 	return nil
@@ -469,14 +448,18 @@ func (s *daemon) getVolumeMountPoint(volume *Volume) (string, error) {
 		return "", err
 	}
 
-	opts := map[string]string{}
+	req := Request{
+		Name:    volume.Name,
+		Options: map[string]string{},
+	}
+
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON: LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:  LOG_EVENT_MOUNTPOINT,
 		LOG_FIELD_OBJECT: LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME: volume.UUID,
+		LOG_FIELD_VOLUME: volume.Name,
 	}).Debug()
-	mountPoint, err := volOps.MountPoint(volume.UUID, opts)
+	mountPoint, err := volOps.MountPoint(req)
 	if err != nil {
 		return "", err
 	}
@@ -484,40 +467,14 @@ func (s *daemon) getVolumeMountPoint(volume *Volume) (string, error) {
 		LOG_FIELD_REASON:     LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:      LOG_EVENT_MOUNTPOINT,
 		LOG_FIELD_OBJECT:     LOG_OBJECT_VOLUME,
-		LOG_FIELD_VOLUME:     volume.UUID,
+		LOG_FIELD_VOLUME:     volume.Name,
 		LOG_FIELD_MOUNTPOINT: mountPoint,
 	}).Debug()
 
 	return mountPoint, nil
 }
 
-func (s *daemon) doRequestUUID(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	var err error
-	key, err := util.GetName(r, api.KEY_NAME, true, err)
-	if err != nil {
-		return err
-	}
-
-	var uuid string
-	resp := &api.UUIDResponse{}
-
-	if util.ValidateName(key) {
-		// It's probably a name
-		uuid = s.NameUUIDIndex.Get(key)
-	}
-
-	if uuid == "" {
-		// No luck with name, let's try uuid index
-		uuid, _ = s.UUIDIndex.Get(key)
-	}
-
-	if uuid != "" {
-		resp.UUID = uuid
-	}
-	return writeResponseOutput(w, resp)
-}
-
-func (s *daemon) getDriverForVolume(volumeID string) (ConvoyDriver, error) {
+func (s *daemon) getDriverForVolume(id string) (ConvoyDriver, error) {
 	for _, driver := range s.ConvoyDrivers {
 		volOps, err := driver.VolumeOps()
 		if err != nil {
@@ -527,12 +484,12 @@ func (s *daemon) getDriverForVolume(volumeID string) (ConvoyDriver, error) {
 			panic(fmt.Errorf("Driver %v incorrectly reports VolumeOperations implemented",
 				driver.Name()))
 		}
-		if _, err := volOps.GetVolumeInfo(volumeID); err != nil {
+		if _, err := volOps.GetVolumeInfo(id); err != nil {
 			continue
 		}
 		return driver, nil
 	}
-	return nil, fmt.Errorf("Cannot find driver for volume %v", volumeID)
+	return nil, fmt.Errorf("Cannot find driver for volume %v", id)
 }
 
 func (s *daemon) getVolumeList() map[string]map[string]string {

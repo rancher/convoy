@@ -20,7 +20,7 @@ type BackupFile struct {
 
 func getSingleFileBackupFilePath(sfBackup *Backup) string {
 	backupFileName := sfBackup.UUID + ".bak"
-	return filepath.Join(getVolumePath(sfBackup.VolumeUUID), BACKUP_FILES_DIRECTORY, backupFileName)
+	return filepath.Join(getVolumePath(sfBackup.VolumeName), BACKUP_FILES_DIRECTORY, backupFileName)
 }
 
 func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destURL string) (string, error) {
@@ -33,7 +33,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		return "", err
 	}
 
-	volume, err = loadVolume(volume.UUID, driver)
+	volume, err = loadVolume(volume.Name, driver)
 	if err != nil {
 		return "", err
 	}
@@ -48,7 +48,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 
 	backup := &Backup{
 		UUID:              uuid.New(),
-		VolumeUUID:        volume.UUID,
+		VolumeName:        volume.Name,
 		SnapshotName:      snapshot.Name,
 		SnapshotCreatedAt: snapshot.CreatedTime,
 	}
@@ -70,7 +70,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		LOG_FIELD_SNAPSHOT: snapshot.Name,
 	}).Debug("Created backup")
 
-	return encodeBackupURL(backup.UUID, volume.UUID, destURL), nil
+	return encodeBackupURL(backup.UUID, volume.Name, destURL), nil
 }
 
 func RestoreSingleFileBackup(backupURL, path string) (string, error) {
@@ -79,19 +79,19 @@ func RestoreSingleFileBackup(backupURL, path string) (string, error) {
 		return "", err
 	}
 
-	srcBackupUUID, srcVolumeUUID, err := decodeBackupURL(backupURL)
+	srcBackupUUID, srcVolumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := loadVolume(srcVolumeUUID, driver); err != nil {
+	if _, err := loadVolume(srcVolumeName, driver); err != nil {
 		return "", generateError(logrus.Fields{
-			LOG_FIELD_VOLUME:     srcVolumeUUID,
+			LOG_FIELD_VOLUME:     srcVolumeName,
 			LOG_FIELD_BACKUP_URL: backupURL,
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
-	backup, err := loadBackup(srcBackupUUID, srcVolumeUUID, driver)
+	backup, err := loadBackup(srcBackupUUID, srcVolumeName, driver)
 	if err != nil {
 		return "", err
 	}
@@ -110,17 +110,17 @@ func DeleteSingleFileBackup(backupURL string) error {
 		return err
 	}
 
-	backupUUID, volumeUUID, err := decodeBackupURL(backupURL)
+	backupUUID, volumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return err
 	}
 
-	_, err = loadVolume(volumeUUID, driver)
+	_, err = loadVolume(volumeName, driver)
 	if err != nil {
-		return fmt.Errorf("Cannot find volume %v in objectstore", volumeUUID, err)
+		return fmt.Errorf("Cannot find volume %v in objectstore", volumeName, err)
 	}
 
-	backup, err := loadBackup(backupUUID, volumeUUID, driver)
+	backup, err := loadBackup(backupUUID, volumeName, driver)
 	if err != nil {
 		return err
 	}

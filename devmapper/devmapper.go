@@ -65,7 +65,6 @@ type Driver struct {
 }
 
 type Volume struct {
-	UUID        string
 	Name        string
 	DevID       int
 	Size        int64
@@ -85,17 +84,17 @@ type Snapshot struct {
 }
 
 func (v *Volume) ConfigFile() (string, error) {
-	if v.UUID == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
+	if v.Name == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume name")
 	}
 	if v.configPath == "" {
 		return "", fmt.Errorf("BUG: Invalid empty volume config path")
 	}
-	return filepath.Join(v.configPath, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
+	return filepath.Join(v.configPath, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
 
 func (v *Volume) GetDevice() (string, error) {
-	return filepath.Join(DM_DIR, v.UUID), nil
+	return filepath.Join(DM_DIR, v.Name), nil
 }
 
 func (v *Volume) GetMountOpts() []string {
@@ -103,7 +102,7 @@ func (v *Volume) GetMountOpts() []string {
 }
 
 func (v *Volume) GenerateDefaultMountPoint() string {
-	return filepath.Join(v.configPath, MOUNTS_DIR, v.UUID)
+	return filepath.Join(v.configPath, MOUNTS_DIR, v.Name)
 }
 
 type Device struct {
@@ -138,14 +137,14 @@ func init() {
 	Register(DRIVER_NAME, Init)
 }
 
-func (device *Device) listVolumeIDs() ([]string, error) {
+func (device *Device) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(device.Root, DEVMAPPER_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
-func (d *Driver) blankVolume(id string) *Volume {
+func (d *Driver) blankVolume(name string) *Volume {
 	return &Volume{
 		configPath: d.Root,
-		UUID:       id,
+		Name:       name,
 	}
 }
 
@@ -213,7 +212,7 @@ func (d *Driver) activatePool() error {
 	}
 	log.Debug("Reinitialized the existing pool ", dev.ThinpoolDevice)
 
-	volumeIDs, err := dev.listVolumeIDs()
+	volumeIDs, err := dev.listVolumeNames()
 	if err != nil {
 		return err
 	}
@@ -251,19 +250,23 @@ func (logger *DMLogger) DMLog(level int, file string, line int, dmError int, mes
 }
 
 func (d *Driver) remountVolumes() error {
-	volumeIDs, err := d.listVolumeIDs()
+	volumeIDs, err := d.listVolumeNames()
 	if err != nil {
 		return err
 	}
-	for _, uuid := range volumeIDs {
-		volume := d.blankVolume(uuid)
+	for _, id := range volumeIDs {
+		volume := d.blankVolume(id)
 		if err := util.ObjectLoad(volume); err != nil {
 			return err
 		}
 		if volume.MountPoint == "" {
 			continue
 		}
-		if _, err := d.MountVolume(uuid, map[string]string{}); err != nil {
+		req := Request{
+			Name:    id,
+			Options: map[string]string{},
+		}
+		if _, err := d.MountVolume(req); err != nil {
 			return err
 		}
 	}
@@ -387,12 +390,13 @@ func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64
 	return util.ParseSize(size)
 }
 
-func (d *Driver) CreateVolume(id string, opts map[string]string) error {
+func (d *Driver) CreateVolume(req Request) error {
 	var (
 		size int64
 		err  error
 	)
-	volumeName := opts[OPT_VOLUME_NAME]
+	id := req.Name
+	opts := req.Options
 
 	backupURL := opts[OPT_BACKUP_URL]
 	if backupURL != "" {
@@ -477,7 +481,7 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 
 	volume.DevID = devID
-	volume.Name = volumeName
+	volume.Name = id
 	volume.Size = size
 	volume.CreatedTime = util.Now()
 	volume.Snapshots = make(map[string]Snapshot)
@@ -523,8 +527,10 @@ func (d *Driver) removeDevice(name string) error {
 	return nil
 }
 
-func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
+func (d *Driver) DeleteVolume(req Request) error {
 	var err error
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -535,9 +541,9 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	}
 	if len(volume.Snapshots) != 0 {
 		for snapshotID := range volume.Snapshots {
-			if err = d.deleteSnapshot(snapshotID, volume.UUID); err != nil {
+			if err = d.deleteSnapshot(snapshotID, volume.Name); err != nil {
 				return generateError(logrus.Fields{
-					LOG_FIELD_VOLUME:   volume.UUID,
+					LOG_FIELD_VOLUME:   volume.Name,
 					LOG_FIELD_SNAPSHOT: snapshotID,
 				}, "cannot remove an snapshot of volume, as part of deletion of volume")
 			}
@@ -568,12 +574,12 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 
 func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]string, error) {
 	volumes := make(map[string]map[string]string)
-	volumeIDs, err := d.listVolumeIDs()
+	volumeIDs, err := d.listVolumeNames()
 	if err != nil {
 		return nil, err
 	}
-	for _, uuid := range volumeIDs {
-		volumes[uuid], err = d.GetVolumeInfo(uuid)
+	for _, id := range volumeIDs {
+		volumes[id], err = d.GetVolumeInfo(id)
 		if err != nil {
 			return nil, err
 		}
@@ -585,7 +591,7 @@ func (d *Driver) CreateSnapshot(req Request) error {
 	var err error
 
 	id := req.Name
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
 	if err != nil {
 		return err
 	}
@@ -638,7 +644,7 @@ func (d *Driver) CreateSnapshot(req Request) error {
 
 func (d *Driver) DeleteSnapshot(req Request) error {
 	id := req.Name
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
 	if err != nil {
 		return err
 	}
@@ -718,7 +724,7 @@ func removePool(poolName string) error {
 func (d *Driver) deactivatePool() error {
 	dev := d.Device
 
-	volumeIDs, err := dev.listVolumeIDs()
+	volumeIDs, err := dev.listVolumeNames()
 	if err != nil {
 		return err
 	}
@@ -764,7 +770,10 @@ func (d *Driver) GetVolumeDevice(id string) (string, error) {
 	return volume.GetDevice()
 }
 
-func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountVolume(req Request) (string, error) {
+	id := req.Name
+	opts := req.Options
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
@@ -782,7 +791,9 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return mountPoint, nil
 }
 
-func (d *Driver) UmountVolume(id string, opts map[string]string) error {
+func (d *Driver) UmountVolume(req Request) error {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -799,7 +810,9 @@ func (d *Driver) UmountVolume(id string, opts map[string]string) error {
 	return nil
 }
 
-func (d *Driver) MountPoint(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountPoint(req Request) (string, error) {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
@@ -829,7 +842,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 
 func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
 	id := req.Name
-	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_UUID, req.Options)
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -859,13 +872,13 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 		err       error
 	)
 	snapshots := make(map[string]map[string]string)
-	specifiedVolumeID, _ := util.GetFieldFromOpts(OPT_VOLUME_UUID, opts)
+	specifiedVolumeID, _ := util.GetFieldFromOpts(OPT_VOLUME_NAME, opts)
 	if specifiedVolumeID != "" {
 		volumeIDs = []string{
 			specifiedVolumeID,
 		}
 	} else {
-		volumeIDs, err = d.listVolumeIDs()
+		volumeIDs, err = d.listVolumeNames()
 		if err != nil {
 			return nil, err
 		}

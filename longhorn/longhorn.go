@@ -73,7 +73,6 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Volume struct {
-	UUID         string
 	Size         int64
 	Name         string
 	MountPoint   string
@@ -102,13 +101,13 @@ func (v *Volume) Stack(driver *Driver) *Stack {
 }
 
 func (v *Volume) ConfigFile() (string, error) {
-	if v.UUID == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
+	if v.Name == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume name")
 	}
 	if v.configPath == "" {
 		return "", fmt.Errorf("BUG: Invalid empty volume config path")
 	}
-	return filepath.Join(v.configPath, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
+	return filepath.Join(v.configPath, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
 
 func (v *Volume) GetDevice() (string, error) {
@@ -123,10 +122,10 @@ func (v *Volume) GenerateDefaultMountPoint() string {
 	return filepath.Join(v.configPath, MOUNTS_DIR, v.Name)
 }
 
-func (d *Driver) blankVolume(id string) *Volume {
+func (d *Driver) blankVolume(name string) *Volume {
 	return &Volume{
 		configPath: d.Root,
-		UUID:       id,
+		Name:       name,
 	}
 }
 
@@ -235,7 +234,10 @@ func (d *Driver) VolumeOps() (VolumeOperations, error) {
 	return d, nil
 }
 
-func (d *Driver) CreateVolume(id string, opts map[string]string) error {
+func (d *Driver) CreateVolume(req Request) error {
+	id := req.Name
+	opts := req.Options
+
 	size, err := util.ParseSize(opts[OPT_SIZE])
 	if err != nil {
 		return err
@@ -297,7 +299,10 @@ func (d *Driver) doCreateVolume(volume *Volume, stack *Stack, id string, opts ma
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
+func (d *Driver) DeleteVolume(req Request) error {
+	id := req.Name
+	opts := req.Options
+
 	volume := d.blankVolume(id)
 
 	if err := util.ObjectLoad(volume); err != nil {
@@ -319,7 +324,10 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	return util.ObjectDelete(volume)
 }
 
-func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountVolume(req Request) (string, error) {
+	id := req.Name
+	opts := req.Options
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
@@ -348,7 +356,9 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return mountPoint, nil
 }
 
-func (d *Driver) UmountVolume(id string, opts map[string]string) error {
+func (d *Driver) UmountVolume(req Request) error {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -361,7 +371,9 @@ func (d *Driver) UmountVolume(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) MountPoint(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountPoint(req Request) (string, error) {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err

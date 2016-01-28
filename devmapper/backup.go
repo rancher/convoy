@@ -127,8 +127,7 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 	}
 
 	objVolume := &objectstore.Volume{
-		UUID:        volumeID,
-		Name:        opts[convoydriver.OPT_VOLUME_NAME],
+		Name:        volumeID,
 		Driver:      d.Name(),
 		Size:        volume.Size,
 		CreatedTime: opts[convoydriver.OPT_VOLUME_CREATED_TIME],
@@ -163,5 +162,5 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 }
 
 func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
-	return objectstore.List(opts[convoydriver.OPT_VOLUME_UUID], destURL, d.Name())
+	return objectstore.List(opts[convoydriver.OPT_VOLUME_NAME], destURL, d.Name())
 }

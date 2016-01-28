@@ -51,7 +51,7 @@ func cmdSnapshotCreate(c *cli.Context) {
 func doSnapshotCreate(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, "", true)
+	volumeName, err := getName(c, "", true)
 	snapshotName, err := util.GetName(c, "name", false, err)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func doSnapshotCreate(c *cli.Context) error {
 
 	request := &api.SnapshotCreateRequest{
 		Name:       snapshotName,
-		VolumeUUID: volumeUUID,
+		VolumeName: volumeName,
 		Verbose:    c.GlobalBool(verboseFlag),
 	}
 

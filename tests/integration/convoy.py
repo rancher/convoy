@@ -132,10 +132,10 @@ class VolumeManager:
     def delete_backup(self, backup):
 	subprocess.check_call(self.base_cmdline + ["backup", "delete", backup])
 
-    def list_backup(self, dest, volume_uuid = ""):
+    def list_backup(self, dest, volume_name = ""):
         cmd = ["backup", "list", dest]
-        if volume_uuid != "":
-		cmd += ["--volume-uuid", volume_uuid]
+        if volume_name != "":
+		cmd += ["--volume-name", volume_name]
 	data = subprocess.check_output(self.base_cmdline + cmd)
         backups = json.loads(data)
         return backups
