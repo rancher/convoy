@@ -53,7 +53,6 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Snapshot struct {
-	UUID        string
 	Name        string
 	CreatedTime string
 	VolumeUUID  string

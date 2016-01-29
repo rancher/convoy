@@ -251,10 +251,10 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		//snapshot doesn't exists
 		return resp, nil
 	}
-	for uuid, snapshot := range snapshots {
+	for name, snapshot := range snapshots {
 		snapshot["Driver"] = volOps.Name()
-		resp.Snapshots[uuid] = api.SnapshotResponse{
-			Name:        snapshot[OPT_SNAPSHOT_NAME],
+		resp.Snapshots[name] = api.SnapshotResponse{
+			Name:        name,
 			CreatedTime: snapshot[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  snapshot,
 		}

@@ -65,8 +65,7 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	req := Request{
 		Name: snapshotName,
 		Options: map[string]string{
-			OPT_VOLUME_UUID:   volumeUUID,
-			OPT_SNAPSHOT_NAME: snapshotName,
+			OPT_VOLUME_UUID: volumeUUID,
 		},
 	}
 
@@ -101,7 +100,7 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 	}
 	if request.Verbose {
 		return writeResponseOutput(w, api.SnapshotResponse{
-			Name:        driverInfo[OPT_SNAPSHOT_NAME],
+			Name:        snapshotName,
 			VolumeUUID:  volume.UUID,
 			CreatedTime: driverInfo[OPT_SNAPSHOT_CREATED_TIME],
 			DriverInfo:  driverInfo,
@@ -243,7 +242,7 @@ func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *htt
 	}
 
 	resp := api.SnapshotResponse{
-		Name:            snapshot[OPT_SNAPSHOT_NAME],
+		Name:            snapshotName,
 		VolumeUUID:      volume.UUID,
 		VolumeName:      volumeDriverInfo[OPT_VOLUME_NAME],
 		VolumeCreatedAt: volumeDriverInfo[OPT_VOLUME_CREATED_TIME],
