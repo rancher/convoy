@@ -12,10 +12,7 @@ import (
 )
 
 const (
-	OBJECTSTORE_BASE       = "convoy-objectstore"
-	VOLUME_SEPARATE_LAYER1 = 2
-	VOLUME_SEPARATE_LAYER2 = 4
-
+	OBJECTSTORE_BASE     = "convoy-objectstore"
 	VOLUME_DIRECTORY     = "volumes"
 	VOLUME_CONFIG_FILE   = "volume.cfg"
 	BACKUP_DIRECTORY     = "backups"
@@ -86,9 +83,7 @@ func volumeExists(volumeUUID string, driver ObjectStoreDriver) bool {
 }
 
 func getVolumePath(volumeUUID string) string {
-	volumeLayer1 := volumeUUID[0:VOLUME_SEPARATE_LAYER1]
-	volumeLayer2 := volumeUUID[VOLUME_SEPARATE_LAYER1:VOLUME_SEPARATE_LAYER2]
-	return filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeUUID)
+	return filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY, volumeUUID)
 }
 
 func getVolumeFilePath(volumeUUID string) string {
@@ -101,25 +96,13 @@ func getVolumeUUIDs(driver ObjectStoreDriver) ([]string, error) {
 	uuids := []string{}
 
 	volumePathBase := filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY)
-	lv1Dirs, err := driver.List(volumePathBase)
+	volumeDirs, err := driver.List(volumePathBase)
 	// Directory doesn't exist
 	if err != nil {
 		return uuids, nil
 	}
-	for _, lv1 := range lv1Dirs {
-		lv1Path := filepath.Join(volumePathBase, lv1)
-		lv2Dirs, err := driver.List(lv1Path)
-		if err != nil {
-			return nil, err
-		}
-		for _, lv2 := range lv2Dirs {
-			lv2Path := filepath.Join(lv1Path, lv2)
-			volumeUUIDs, err := driver.List(lv2Path)
-			if err != nil {
-				return nil, err
-			}
-			uuids = append(uuids, volumeUUIDs...)
-		}
+	for _, volume := range volumeDirs {
+		uuids = append(uuids, volume)
 	}
 	return uuids, nil
 }
