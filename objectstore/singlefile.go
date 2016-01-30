@@ -1,7 +1,6 @@
 package objectstore
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/util"
@@ -19,7 +18,7 @@ type BackupFile struct {
 }
 
 func getSingleFileBackupFilePath(sfBackup *Backup) string {
-	backupFileName := sfBackup.UUID + ".bak"
+	backupFileName := sfBackup.Name + ".bak"
 	return filepath.Join(getVolumePath(sfBackup.VolumeName), BACKUP_FILES_DIRECTORY, backupFileName)
 }
 
@@ -47,7 +46,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 	}).Debug("Creating backup")
 
 	backup := &Backup{
-		UUID:              uuid.New(),
+		Name:              util.GenerateName("backup"),
 		VolumeName:        volume.Name,
 		SnapshotName:      snapshot.Name,
 		SnapshotCreatedAt: snapshot.CreatedTime,
@@ -70,7 +69,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		LOG_FIELD_SNAPSHOT: snapshot.Name,
 	}).Debug("Created backup")
 
-	return encodeBackupURL(backup.UUID, volume.Name, destURL), nil
+	return encodeBackupURL(backup.Name, volume.Name, destURL), nil
 }
 
 func RestoreSingleFileBackup(backupURL, path string) (string, error) {
@@ -79,7 +78,7 @@ func RestoreSingleFileBackup(backupURL, path string) (string, error) {
 		return "", err
 	}
 
-	srcBackupUUID, srcVolumeName, err := decodeBackupURL(backupURL)
+	srcBackupName, srcVolumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return "", err
 	}
@@ -91,7 +90,7 @@ func RestoreSingleFileBackup(backupURL, path string) (string, error) {
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
-	backup, err := loadBackup(srcBackupUUID, srcVolumeName, driver)
+	backup, err := loadBackup(srcBackupName, srcVolumeName, driver)
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +109,7 @@ func DeleteSingleFileBackup(backupURL string) error {
 		return err
 	}
 
-	backupUUID, volumeName, err := decodeBackupURL(backupURL)
+	backupName, volumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return err
 	}
@@ -120,7 +119,7 @@ func DeleteSingleFileBackup(backupURL string) error {
 		return fmt.Errorf("Cannot find volume %v in objectstore", volumeName, err)
 	}
 
-	backup, err := loadBackup(backupUUID, volumeName, driver)
+	backup, err := loadBackup(backupName, volumeName, driver)
 	if err != nil {
 		return err
 	}

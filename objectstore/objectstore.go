@@ -12,7 +12,7 @@ type Volume struct {
 	Driver         string
 	Size           int64
 	CreatedTime    string
-	LastBackupUUID string
+	LastBackupName string
 }
 
 type Snapshot struct {
@@ -21,7 +21,7 @@ type Snapshot struct {
 }
 
 type Backup struct {
-	UUID              string
+	Name              string
 	Driver            string
 	VolumeName        string
 	SnapshotName      string
@@ -61,10 +61,10 @@ func removeVolume(volumeName string, driver ObjectStoreDriver) error {
 	return nil
 }
 
-func encodeBackupURL(backupUUID, volumeName, destURL string) string {
+func encodeBackupURL(backupName, volumeName, destURL string) string {
 	v := url.Values{}
 	v.Add("volume", volumeName)
-	v.Add("backup", backupUUID)
+	v.Add("backup", backupName)
 	return destURL + "?" + v.Encode()
 }
 
@@ -75,11 +75,11 @@ func decodeBackupURL(backupURL string) (string, string, error) {
 	}
 	v := u.Query()
 	volumeName := v.Get("volume")
-	backupUUID := v.Get("backup")
-	if !util.ValidateName(volumeName) || !util.ValidateUUID(backupUUID) {
-		return "", "", fmt.Errorf("Invalid UUID parsed, got %v and %v", backupUUID, volumeName)
+	backupName := v.Get("backup")
+	if !util.ValidateName(volumeName) || !util.ValidateName(backupName) {
+		return "", "", fmt.Errorf("Invalid name parsed, got %v and %v", backupName, volumeName)
 	}
-	return backupUUID, volumeName, nil
+	return backupName, volumeName, nil
 }
 
 func addListVolume(resp map[string]map[string]string, volumeName string, driver ObjectStoreDriver, storageDriverName string) error {
@@ -87,7 +87,7 @@ func addListVolume(resp map[string]map[string]string, volumeName string, driver 
 		return fmt.Errorf("Invalid empty volume Name")
 	}
 
-	backupUUIDs, err := getBackupUUIDsForVolume(volumeName, driver)
+	backupNames, err := getBackupNamesForVolume(volumeName, driver)
 	if err != nil {
 		return err
 	}
@@ -101,8 +101,8 @@ func addListVolume(resp map[string]map[string]string, volumeName string, driver 
 		return nil
 	}
 
-	for _, backupUUID := range backupUUIDs {
-		backup, err := loadBackup(backupUUID, volumeName, driver)
+	for _, backupName := range backupNames {
+		backup, err := loadBackup(backupName, volumeName, driver)
 		if err != nil {
 			return err
 		}
@@ -138,8 +138,8 @@ func List(volumeName, destURL, storageDriverName string) (map[string]map[string]
 
 func fillBackupInfo(backup *Backup, volume *Volume, destURL string) map[string]string {
 	return map[string]string{
-		"BackupUUID":        backup.UUID,
-		"BackupURL":         encodeBackupURL(backup.UUID, backup.VolumeName, destURL),
+		"BackupName":        backup.Name,
+		"BackupURL":         encodeBackupURL(backup.Name, backup.VolumeName, destURL),
 		"DriverName":        volume.Driver,
 		"VolumeName":        backup.VolumeName,
 		"VolumeSize":        strconv.FormatInt(volume.Size, 10),
@@ -155,7 +155,7 @@ func GetBackupInfo(backupURL string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	backupUUID, volumeName, err := decodeBackupURL(backupURL)
+	backupName, volumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func GetBackupInfo(backupURL string) (map[string]string, error) {
 		return nil, err
 	}
 
-	backup, err := loadBackup(backupUUID, volumeName, driver)
+	backup, err := loadBackup(backupName, volumeName, driver)
 	if err != nil {
 		return nil, err
 	}

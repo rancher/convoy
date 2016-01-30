@@ -1,7 +1,6 @@
 package objectstore
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/convoydriver"
@@ -57,12 +56,12 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		return "", err
 	}
 
-	lastBackupUUID := volume.LastBackupUUID
+	lastBackupName := volume.LastBackupName
 
 	var lastSnapshotName string
 	var lastBackup *Backup
-	if lastBackupUUID != "" {
-		lastBackup, err = loadBackup(lastBackupUUID, volume.Name, bsDriver)
+	if lastBackupName != "" {
+		lastBackup, err = loadBackup(lastBackupName, volume.Name, bsDriver)
 		if err != nil {
 			return "", err
 		}
@@ -115,7 +114,7 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 	}).Debug("Creating backup")
 
 	deltaBackup := &Backup{
-		UUID:         uuid.New(),
+		Name:         util.GenerateName("backup"),
 		VolumeName:   volume.Name,
 		SnapshotName: snapshot.Name,
 		Blocks:       []BlockMapping{},
@@ -181,12 +180,12 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		return "", err
 	}
 
-	volume.LastBackupUUID = backup.UUID
+	volume.LastBackupName = backup.Name
 	if err := saveVolume(volume, bsDriver); err != nil {
 		return "", err
 	}
 
-	return encodeBackupURL(backup.UUID, volume.Name, destURL), nil
+	return encodeBackupURL(backup.Name, volume.Name, destURL), nil
 }
 
 func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
@@ -194,7 +193,7 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 		return deltaBackup
 	}
 	backup := &Backup{
-		UUID:         deltaBackup.UUID,
+		Name:         deltaBackup.Name,
 		VolumeName:   deltaBackup.VolumeName,
 		SnapshotName: deltaBackup.SnapshotName,
 		Blocks:       []BlockMapping{},
@@ -232,7 +231,7 @@ func RestoreDeltaBlockBackup(backupURL, volDevName string) error {
 		return err
 	}
 
-	srcBackupUUID, srcVolumeName, err := decodeBackupURL(backupURL)
+	srcBackupName, srcVolumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return err
 	}
@@ -250,7 +249,7 @@ func RestoreDeltaBlockBackup(backupURL, volDevName string) error {
 	}
 	defer volDev.Close()
 
-	backup, err := loadBackup(srcBackupUUID, srcVolumeName, bsDriver)
+	backup, err := loadBackup(srcBackupName, srcVolumeName, bsDriver)
 	if err != nil {
 		return err
 	}
@@ -259,7 +258,7 @@ func RestoreDeltaBlockBackup(backupURL, volDevName string) error {
 		LOG_FIELD_REASON:      LOG_REASON_START,
 		LOG_FIELD_EVENT:       LOG_EVENT_RESTORE,
 		LOG_FIELD_OBJECT:      LOG_FIELD_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT:    srcBackupUUID,
+		LOG_FIELD_SNAPSHOT:    srcBackupName,
 		LOG_FIELD_ORIN_VOLUME: srcVolumeName,
 		LOG_FIELD_VOLUME_DEV:  volDevName,
 		LOG_FIELD_BACKUP_URL:  backupURL,
@@ -294,7 +293,7 @@ func DeleteDeltaBlockBackup(backupURL string) error {
 		return err
 	}
 
-	backupUUID, volumeName, err := decodeBackupURL(backupURL)
+	backupName, volumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return err
 	}
@@ -304,7 +303,7 @@ func DeleteDeltaBlockBackup(backupURL string) error {
 		return fmt.Errorf("Cannot find volume %v in objectstore", volumeName, err)
 	}
 
-	backup, err := loadBackup(backupUUID, volumeName, bsDriver)
+	backup, err := loadBackup(backupName, volumeName, bsDriver)
 	if err != nil {
 		return err
 	}
@@ -318,18 +317,18 @@ func DeleteDeltaBlockBackup(backupURL string) error {
 		return err
 	}
 
-	if backup.UUID == v.LastBackupUUID {
-		v.LastBackupUUID = ""
+	if backup.Name == v.LastBackupName {
+		v.LastBackupName = ""
 		if err := saveVolume(v, bsDriver); err != nil {
 			return err
 		}
 	}
 
-	backupUUIDs, err := getBackupUUIDsForVolume(volumeName, bsDriver)
+	backupNames, err := getBackupNamesForVolume(volumeName, bsDriver)
 	if err != nil {
 		return err
 	}
-	if len(backupUUIDs) == 0 {
+	if len(backupNames) == 0 {
 		log.Debugf("No snapshot existed for the volume %v, removing volume", volumeName)
 		if err := removeVolume(volumeName, bsDriver); err != nil {
 			log.Warningf("Failed to remove volume %v due to: %v", volumeName, err.Error())
@@ -338,8 +337,8 @@ func DeleteDeltaBlockBackup(backupURL string) error {
 	}
 
 	log.Debug("GC started")
-	for _, backupUUID := range backupUUIDs {
-		backup, err := loadBackup(backupUUID, volumeName, bsDriver)
+	for _, backupName := range backupNames {
+		backup, err := loadBackup(backupName, volumeName, bsDriver)
 		if err != nil {
 			return err
 		}
@@ -368,7 +367,7 @@ func DeleteDeltaBlockBackup(backupURL string) error {
 	log.Debug("Removed unused blocks for volume ", volumeName)
 
 	log.Debug("GC completed")
-	log.Debug("Removed objectstore backup ", backupUUID)
+	log.Debug("Removed objectstore backup ", backupName)
 
 	return nil
 }
