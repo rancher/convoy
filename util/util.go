@@ -7,10 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
-	"github.com/mcuadros/go-version"
-	"golang.org/x/sys/unix"
 	"io"
 	"io/ioutil"
 	"net"
@@ -21,6 +17,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"code.google.com/p/go-uuid/uuid"
+	"github.com/Sirupsen/logrus"
+	"github.com/codegangsta/cli"
+	"github.com/mcuadros/go-version"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -400,4 +402,9 @@ func ExtractNames(names []string, prefix, suffix string) ([]string, error) {
 		result = append(result, f)
 	}
 	return result, nil
+}
+
+func GenerateName(prefix string) string {
+	suffix := strings.Replace(uuid.New(), "-", "", -1)
+	return prefix + "-" + suffix[:16]
 }

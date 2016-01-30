@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
@@ -38,21 +37,19 @@ func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http
 		return fmt.Errorf("volume %v doesn't exist", volumeName)
 	}
 
-	snapshotUUID := uuid.New()
 	snapshotName := request.Name
 	if snapshotName != "" {
 		if err := util.CheckName(snapshotName); err != nil {
 			return err
 		}
-		existUUID := s.NameUUIDIndex.Get(snapshotName)
-		if existUUID != "" {
-			return fmt.Errorf("Snapshot name %v already associated with %v", snapshotName, existUUID)
+		existName := s.NameUUIDIndex.Get(snapshotName)
+		if existName != "" {
+			return fmt.Errorf("Snapshot name %v already exists", snapshotName)
 		}
 	} else {
-		snapshotName = "snapshot-" + snapshotUUID[:8]
+		snapshotName = util.GenerateName("snapshot")
 		for s.NameUUIDIndex.Get(snapshotName) != "" {
-			snapshotUUID = uuid.New()
-			snapshotName = "snapshot-" + snapshotUUID[:8]
+			snapshotName = util.GenerateName("snapshot")
 		}
 	}
 

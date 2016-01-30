@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
@@ -35,9 +34,9 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	driverName := request.DriverName
 
 	if volumeName == "" {
-		volumeName = "volume-" + uuid.New()[:8]
+		volumeName = util.GenerateName("volume")
 		for s.NameUUIDIndex.Get(volumeName) != "" {
-			volumeName = "volume-" + uuid.New()[:8]
+			volumeName = util.GenerateName("volume")
 		}
 	} else {
 		if s.NameUUIDIndex.Get(volumeName) != "" {
