@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -25,7 +24,6 @@ type daemon struct {
 	Router        *mux.Router
 	ConvoyDrivers map[string]ConvoyDriver
 
-	GlobalLock          *sync.RWMutex
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
 	daemonConfig
@@ -215,7 +213,6 @@ func environmentCleanup() {
 func (s *daemon) finializeInitialization() error {
 	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
-	s.GlobalLock = &sync.RWMutex{}
 
 	s.updateIndex()
 	return nil

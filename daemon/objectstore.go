@@ -15,9 +15,6 @@ import (
 )
 
 func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	request := &api.BackupListRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -52,9 +49,6 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 }
 
 func (s *daemon) doBackupInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	request := &api.BackupListRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -151,9 +145,6 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 }
 
 func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	request := &api.BackupDeleteRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err

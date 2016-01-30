@@ -60,7 +60,8 @@ const (
 )
 
 type Driver struct {
-	Mutex *sync.Mutex
+	mutex      *sync.RWMutex
+	devIDMutex *sync.Mutex
 	Device
 }
 
@@ -296,8 +297,9 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			return nil, err
 		}
 		d := &Driver{
-			Mutex:  &sync.Mutex{},
-			Device: *dev,
+			mutex:      &sync.RWMutex{},
+			devIDMutex: &sync.Mutex{},
+			Device:     *dev,
 		}
 		if err := d.activatePool(); err != nil {
 			return nil, err
@@ -342,8 +344,9 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		return nil, err
 	}
 	d := &Driver{
-		Mutex:  &sync.Mutex{},
-		Device: *dev,
+		mutex:      &sync.RWMutex{},
+		devIDMutex: &sync.Mutex{},
+		Device:     *dev,
 	}
 	return d, nil
 }
@@ -371,8 +374,8 @@ func (d *Driver) Name() string {
 }
 
 func (d *Driver) allocateDevID() (int, error) {
-	d.Mutex.Lock()
-	defer d.Mutex.Unlock()
+	d.devIDMutex.Lock()
+	defer d.devIDMutex.Unlock()
 
 	d.LastDevID++
 	log.Debug("Current devID ", d.LastDevID)
@@ -391,6 +394,9 @@ func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64
 }
 
 func (d *Driver) CreateVolume(req Request) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	var (
 		size int64
 		err  error
@@ -529,6 +535,10 @@ func (d *Driver) removeDevice(name string) error {
 
 func (d *Driver) DeleteVolume(req Request) error {
 	var err error
+
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	id := req.Name
 
 	volume := d.blankVolume(id)
@@ -573,6 +583,9 @@ func (d *Driver) DeleteVolume(req Request) error {
 }
 
 func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
 	volumes := make(map[string]map[string]string)
 	volumeIDs, err := d.listVolumeNames()
 	if err != nil {
@@ -589,6 +602,9 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 
 func (d *Driver) CreateSnapshot(req Request) error {
 	var err error
+
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	id := req.Name
 	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
@@ -643,6 +659,9 @@ func (d *Driver) CreateSnapshot(req Request) error {
 }
 
 func (d *Driver) DeleteSnapshot(req Request) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	id := req.Name
 	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
 	if err != nil {
@@ -771,6 +790,9 @@ func (d *Driver) GetVolumeDevice(id string) (string, error) {
 }
 
 func (d *Driver) MountVolume(req Request) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	id := req.Name
 	opts := req.Options
 
@@ -792,6 +814,9 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 }
 
 func (d *Driver) UmountVolume(req Request) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	id := req.Name
 
 	volume := d.blankVolume(id)
@@ -811,6 +836,9 @@ func (d *Driver) UmountVolume(req Request) error {
 }
 
 func (d *Driver) MountPoint(req Request) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	id := req.Name
 
 	volume := d.blankVolume(id)
@@ -821,6 +849,9 @@ func (d *Driver) MountPoint(req Request) (string, error) {
 }
 
 func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return nil, err
@@ -841,6 +872,9 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 }
 
 func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
 	id := req.Name
 	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
 	if err != nil {
@@ -871,6 +905,9 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 		volumeIDs []string
 		err       error
 	)
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
 	snapshots := make(map[string]map[string]string)
 	specifiedVolumeID, _ := util.GetFieldFromOpts(OPT_VOLUME_NAME, opts)
 	if specifiedVolumeID != "" {

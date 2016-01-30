@@ -21,9 +21,6 @@ func (s *daemon) snapshotExists(volumeName, snapshotName string) bool {
 }
 
 func (s *daemon) doSnapshotCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	request := &api.SnapshotCreateRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -140,9 +137,6 @@ func (s *daemon) listSnapshotDriverInfos(volume *Volume) (map[string]map[string]
 }
 
 func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	request := &api.SnapshotDeleteRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -201,9 +195,6 @@ func (s *daemon) doSnapshotDelete(version string, w http.ResponseWriter, r *http
 }
 
 func (s *daemon) doSnapshotInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	request := &api.SnapshotInspectRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err

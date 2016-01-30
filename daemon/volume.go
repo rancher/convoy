@@ -97,9 +97,6 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 }
 
 func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	request := &api.VolumeCreateRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -127,9 +124,6 @@ func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 }
 
 func (s *daemon) doVolumeDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	request := &api.VolumeDeleteRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -268,9 +262,6 @@ func (s *daemon) getVolumeDriverInfo(volume *Volume) (map[string]string, error) 
 }
 
 func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	driverSpecific, err := util.GetFlag(r, "driver", false, nil)
 	if err != nil {
 		return err
@@ -303,9 +294,6 @@ func (s *daemon) inspectVolume(name string) ([]byte, error) {
 }
 
 func (s *daemon) doVolumeInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	request := &api.VolumeInspectRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -325,9 +313,6 @@ func (s *daemon) doVolumeInspect(version string, w http.ResponseWriter, r *http.
 }
 
 func (s *daemon) doVolumeMount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	var err error
 
 	request := &api.VolumeMountRequest{}
@@ -392,9 +377,6 @@ func (s *daemon) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 }
 
 func (s *daemon) doVolumeUmount(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	request := &api.VolumeUmountRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
