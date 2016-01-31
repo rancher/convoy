@@ -10,7 +10,7 @@ replica:
     io.rancher.container.hostname_override: container_name
     io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
     io.rancher.scheduler.affinity:container_soft: $CONVOY_CONTAINER
-  image: rancher/longhorn:v0.0.1
+  image: rancher/longhorn:v0.0.2
   volumes:
   - /volumes
   command: start-replica.sh
@@ -28,7 +28,7 @@ replica:
     unhealthy_threshold: 2
 
 replica-health:
-  image: rancher/longhorn:v0.0.1
+  image: rancher/longhorn:v0.0.2
   net: container:replica
   command: start-replica-health.sh
 
@@ -45,7 +45,7 @@ controller:
     response_timeout: 2000
     strategy: none
     unhealthy_threshold: 2
-  image: rancher/longhorn:v0.0.1
+  image: rancher/longhorn:v0.0.2
   privileged: true
   volumes:
   - /dev:/host/dev
@@ -53,6 +53,6 @@ controller:
   command: start-controller.sh
    
 controller-health:
-  image: rancher/longhorn:v0.0.1
+  image: rancher/longhorn:v0.0.2
   net: container:controller
   command: start-controller-health.sh
