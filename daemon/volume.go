@@ -233,7 +233,7 @@ func (s *daemon) listVolume() ([]byte, error) {
 
 	volumes := s.getVolumeList()
 
-	for name, _ := range volumes {
+	for name := range volumes {
 		volume := s.getVolume(name)
 		if volume == nil {
 			return nil, fmt.Errorf("Volume list changed for volume %v", name)

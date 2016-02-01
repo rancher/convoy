@@ -150,7 +150,7 @@ func (s *daemon) updateIndex() error {
 		}
 		snapshots, err := s.listSnapshotDriverInfos(s.getVolume(name))
 		if err == nil {
-			for snapshotID, _ := range snapshots {
+			for snapshotID := range snapshots {
 				if err := s.SnapshotVolumeIndex.Add(snapshotID, name); err != nil {
 					return err
 				}
