@@ -1,10 +1,8 @@
 package ebs
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"net/url"
 	"path/filepath"
@@ -14,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
@@ -56,13 +55,13 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Snapshot struct {
-	UUID       string
-	VolumeUUID string
+	Name       string
+	VolumeName string
 	EBSID      string
 }
 
 type Volume struct {
-	UUID       string
+	Name       string
 	EBSID      string
 	Device     string
 	MountPoint string
@@ -71,21 +70,21 @@ type Volume struct {
 	configPath string
 }
 
-func (d *Driver) blankVolume(id string) *Volume {
+func (d *Driver) blankVolume(name string) *Volume {
 	return &Volume{
 		configPath: d.Root,
-		UUID:       id,
+		Name:       name,
 	}
 }
 
 func (v *Volume) ConfigFile() (string, error) {
-	if v.UUID == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
+	if v.Name == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume name")
 	}
 	if v.configPath == "" {
 		return "", fmt.Errorf("BUG: Invalid empty volume config path")
 	}
-	return filepath.Join(v.configPath, CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
+	return filepath.Join(v.configPath, CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
 
 func (v *Volume) GetDevice() (string, error) {
@@ -97,11 +96,11 @@ func (v *Volume) GetMountOpts() []string {
 }
 
 func (v *Volume) GenerateDefaultMountPoint() string {
-	return filepath.Join(v.configPath, MOUNTS_DIR, v.UUID)
+	return filepath.Join(v.configPath, MOUNTS_DIR, v.Name)
 }
 
 func init() {
-	convoydriver.Register(DRIVER_NAME, Init)
+	Register(DRIVER_NAME, Init)
 }
 
 func generateError(fields logrus.Fields, format string, v ...interface{}) error {
@@ -121,26 +120,30 @@ func checkVolumeType(volumeType string) error {
 }
 
 func (d *Driver) remountVolumes() error {
-	volumeIDs, err := d.listVolumeIDs()
+	volumeIDs, err := d.listVolumeNames()
 	if err != nil {
 		return err
 	}
-	for _, uuid := range volumeIDs {
-		volume := d.blankVolume(uuid)
+	for _, id := range volumeIDs {
+		volume := d.blankVolume(id)
 		if err := util.ObjectLoad(volume); err != nil {
 			return err
 		}
 		if volume.MountPoint == "" {
 			continue
 		}
-		if _, err := d.MountVolume(uuid, map[string]string{}); err != nil {
+		req := Request{
+			Name:    id,
+			Options: map[string]string{},
+		}
+		if _, err := d.MountVolume(req); err != nil {
 			return err
 		}
 	}
 	return err
 }
 
-func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
+func Init(root string, config map[string]string) (ConvoyDriver, error) {
 	ebsService, err := NewEBSService()
 	if err != nil {
 		return nil, err
@@ -210,12 +213,12 @@ func (d *Driver) Info() (map[string]string, error) {
 	return infos, nil
 }
 
-func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
+func (d *Driver) VolumeOps() (VolumeOperations, error) {
 	return d, nil
 }
 
 func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int64) (int64, error) {
-	size := opts[convoydriver.OPT_SIZE]
+	size := opts[OPT_SIZE]
 	if size == "" || size == "0" {
 		size = strconv.FormatInt(defaultVolumeSize, 10)
 	}
@@ -227,15 +230,15 @@ func (d *Driver) getTypeAndIOPS(opts map[string]string) (string, int64, error) {
 		iops int64
 		err  error
 	)
-	volumeType := opts[convoydriver.OPT_VOLUME_TYPE]
+	volumeType := opts[OPT_VOLUME_TYPE]
 	if volumeType == "" {
 		volumeType = d.DefaultVolumeType
 	}
 	if err := checkVolumeType(volumeType); err != nil {
 		return "", 0, err
 	}
-	if opts[convoydriver.OPT_VOLUME_IOPS] != "" {
-		iops, err = strconv.ParseInt(opts[convoydriver.OPT_VOLUME_IOPS], 10, 64)
+	if opts[OPT_VOLUME_IOPS] != "" {
+		iops, err = strconv.ParseInt(opts[OPT_VOLUME_IOPS], 10, 64)
 		if err != nil {
 			return "", 0, err
 		}
@@ -249,16 +252,18 @@ func (d *Driver) getTypeAndIOPS(opts map[string]string) (string, int64, error) {
 	return volumeType, iops, nil
 }
 
-func (d *Driver) CreateVolume(id string, opts map[string]string) error {
+func (d *Driver) CreateVolume(req Request) error {
 	var (
 		err        error
 		volumeSize int64
 		format     bool
-		snapshot   *Snapshot
 	)
 
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
+	opts := req.Options
 
 	volume := d.blankVolume(id)
 	exists, err := util.ObjectExists(volume)
@@ -270,15 +275,14 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 
 	//EBS volume ID
-	volumeID := opts[convoydriver.OPT_VOLUME_ID]
-	backupURL := opts[convoydriver.OPT_BACKUP_URL]
+	volumeID := opts[OPT_VOLUME_DRIVER_ID]
+	backupURL := opts[OPT_BACKUP_URL]
 	if backupURL != "" && volumeID != "" {
 		return fmt.Errorf("Cannot specify both backup and EBS volume ID")
 	}
 
 	newTags := map[string]string{
-		"Name":             opts[convoydriver.OPT_VOLUME_NAME],
-		"ConvoyVolumeUUID": id,
+		"Name": id,
 	}
 	if volumeID != "" {
 		ebsVolume, err := d.ebsService.GetVolume(volumeID)
@@ -308,11 +312,6 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 		ebsSnapshot, err := d.ebsService.GetSnapshot(ebsSnapshotID)
 		if err != nil {
 			return err
-		}
-		snapshot = &Snapshot{
-			UUID:       uuid.New(),
-			VolumeUUID: id,
-			EBSID:      ebsSnapshotID,
 		}
 
 		snapshotVolumeSize := *ebsSnapshot.VolumeSize * GB
@@ -370,12 +369,10 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	}
 	log.Debugf("Attached EBS volume %v to %v", volumeID, dev)
 
+	volume.Name = id
 	volume.EBSID = volumeID
 	volume.Device = dev
 	volume.Snapshots = make(map[string]Snapshot)
-	if snapshot != nil {
-		volume.Snapshots[snapshot.UUID] = *snapshot
-	}
 
 	// We don't format existing or snapshot restored volume
 	if format {
@@ -387,16 +384,19 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
+func (d *Driver) DeleteVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
+	opts := req.Options
 
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
 
-	referenceOnly, _ := strconv.ParseBool(opts[convoydriver.OPT_REFERENCE_ONLY])
+	referenceOnly, _ := strconv.ParseBool(opts[OPT_REFERENCE_ONLY])
 	if err := d.ebsService.DetachVolume(volume.EBSID); err != nil {
 		if !referenceOnly {
 			return err
@@ -417,13 +417,16 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	return util.ObjectDelete(volume)
 }
 
-func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountVolume(req Request) (string, error) {
+	id := req.Name
+	opts := req.Options
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
 
-	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT], false)
+	mountPoint, err := util.VolumeMount(volume, opts[OPT_MOUNT_POINT], false)
 	if err != nil {
 		return "", err
 	}
@@ -435,7 +438,9 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return mountPoint, nil
 }
 
-func (d *Driver) UmountVolume(id string) error {
+func (d *Driver) UmountVolume(req Request) error {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -452,7 +457,9 @@ func (d *Driver) UmountVolume(id string) error {
 	return nil
 }
 
-func (d *Driver) MountPoint(id string) (string, error) {
+func (d *Driver) MountPoint(req Request) (string, error) {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
@@ -479,26 +486,26 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		iops = strconv.FormatInt(*ebsVolume.Iops, 10)
 	}
 	info := map[string]string{
-		"Device":           volume.Device,
-		"MountPoint":       volume.MountPoint,
-		"UUID":             volume.UUID,
-		"EBSVolumeID":      volume.EBSID,
-		"AvailiablityZone": *ebsVolume.AvailabilityZone,
-		"CreatedTime":      (*ebsVolume.CreateTime).Format(time.RubyDate),
-		"Size":             strconv.FormatInt(*ebsVolume.Size*GB, 10),
-		"State":            *ebsVolume.State,
-		"Type":             *ebsVolume.VolumeType,
-		"IOPS":             iops,
+		"Device":                volume.Device,
+		"MountPoint":            volume.MountPoint,
+		"EBSVolumeID":           volume.EBSID,
+		"AvailiablityZone":      *ebsVolume.AvailabilityZone,
+		OPT_VOLUME_NAME:         id,
+		OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
+		"Size":                  strconv.FormatInt(*ebsVolume.Size*GB, 10),
+		"State":                 *ebsVolume.State,
+		"Type":                  *ebsVolume.VolumeType,
+		"IOPS":                  iops,
 	}
 	return info, nil
 }
 
-func (d *Driver) listVolumeIDs() ([]string, error) {
+func (d *Driver) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(d.Root, CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]string, error) {
 	volumes := make(map[string]map[string]string)
-	volumeIDs, err := d.listVolumeIDs()
+	volumeIDs, err := d.listVolumeNames()
 	if err != nil {
 		return nil, err
 	}
@@ -511,7 +518,7 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	return volumes, nil
 }
 
-func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
+func (d *Driver) SnapshotOps() (SnapshotOperations, error) {
 	return d, nil
 }
 
@@ -530,9 +537,15 @@ func (d *Driver) getSnapshotAndVolume(snapshotID, volumeID string) (*Snapshot, *
 	return &snap, volume, nil
 }
 
-func (d *Driver) CreateSnapshot(id, volumeID string) error {
+func (d *Driver) CreateSnapshot(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
+	if err != nil {
+		return err
+	}
 
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
@@ -547,8 +560,8 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	}
 
 	tags := map[string]string{
-		"ConvoyVolumeUUID":   volumeID,
-		"ConvoySnapshotUUID": id,
+		"ConvoyVolumeName":   volumeID,
+		"ConvoySnapshotName": id,
 	}
 	request := &CreateSnapshotRequest{
 		VolumeID:    volume.EBSID,
@@ -562,17 +575,23 @@ func (d *Driver) CreateSnapshot(id, volumeID string) error {
 	log.Debugf("Creating snapshot %v(%v) of volume %v(%v)", id, ebsSnapshotID, volumeID, volume.EBSID)
 
 	snapshot = Snapshot{
-		UUID:       id,
-		VolumeUUID: volumeID,
+		Name:       id,
+		VolumeName: volumeID,
 		EBSID:      ebsSnapshotID,
 	}
 	volume.Snapshots[id] = snapshot
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteSnapshot(id, volumeID string) error {
+func (d *Driver) DeleteSnapshot(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
+	if err != nil {
+		return err
+	}
 
 	snapshot, volume, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
@@ -584,9 +603,22 @@ func (d *Driver) DeleteSnapshot(id, volumeID string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) GetSnapshotInfo(id, volumeID string) (map[string]string, error) {
+func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
+
+	id := req.Name
+	volumeID, err := util.GetFieldFromOpts(OPT_VOLUME_NAME, req.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	return d.getSnapshotInfo(id, volumeID)
+}
+
+func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error) {
+	// Snapshot on EBS can be removed by DeleteBackup
+	removed := false
 
 	snapshot, _, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
@@ -595,17 +627,26 @@ func (d *Driver) GetSnapshotInfo(id, volumeID string) (map[string]string, error)
 
 	ebsSnapshot, err := d.ebsService.GetSnapshot(snapshot.EBSID)
 	if err != nil {
-		return nil, err
+		removed = true
 	}
 
-	info := map[string]string{
-		"UUID":          id,
-		"VolumeUUID":    volumeID,
-		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
-		"EBSVolumeID":   *ebsSnapshot.VolumeId,
-		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
-		"Size":          strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-		"State":         *ebsSnapshot.State,
+	info := map[string]string{}
+	if !removed {
+		info = map[string]string{
+			OPT_SNAPSHOT_NAME:         snapshot.Name,
+			"VolumeName":              volumeID,
+			"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
+			"EBSVolumeID":             *ebsSnapshot.VolumeId,
+			OPT_SNAPSHOT_CREATED_TIME: (*ebsSnapshot.StartTime).Format(time.RubyDate),
+			OPT_SIZE:                  strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
+			"State":                   *ebsSnapshot.State,
+		}
+	} else {
+		info = map[string]string{
+			OPT_SNAPSHOT_NAME: snapshot.Name,
+			"VolumeName":      volumeID,
+			"State":           "removed",
+		}
 	}
 
 	return info, nil
@@ -620,13 +661,13 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 		err       error
 	)
 	snapshots := make(map[string]map[string]string)
-	specifiedVolumeID := opts["VolumeID"]
+	specifiedVolumeID, _ := util.GetFieldFromOpts(OPT_VOLUME_NAME, opts)
 	if specifiedVolumeID != "" {
 		volumeIDs = []string{
 			specifiedVolumeID,
 		}
 	} else {
-		volumeIDs, err = d.listVolumeIDs()
+		volumeIDs, err = d.listVolumeNames()
 		if err != nil {
 			return nil, err
 		}
@@ -637,7 +678,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 			return nil, err
 		}
 		for snapshotID := range volume.Snapshots {
-			snapshots[snapshotID], err = d.GetSnapshotInfo(snapshotID, volumeID)
+			snapshots[snapshotID], err = d.getSnapshotInfo(snapshotID, volumeID)
 			if err != nil {
 				return nil, err
 			}
@@ -646,7 +687,7 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 	return snapshots, nil
 }
 
-func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
+func (d *Driver) BackupOps() (BackupOperations, error) {
 	return d, nil
 }
 

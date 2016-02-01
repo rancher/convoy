@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
@@ -11,7 +10,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 )
@@ -176,46 +174,23 @@ func initClient(c *cli.Context) error {
 	return nil
 }
 
-func getOrRequestUUID(c *cli.Context, key string, required bool) (string, error) {
+func getName(c *cli.Context, key string, required bool) (string, error) {
 	var err error
-	var id string
+	var name string
 	if key == "" {
-		id = c.Args().First()
+		name = c.Args().First()
 	} else {
-		id, err = util.GetFlag(c, key, required, err)
+		name, err = util.GetFlag(c, key, required, err)
 		if err != nil {
 			return "", err
 		}
 	}
-	if id == "" && !required {
+	if name == "" && !required {
 		return "", nil
 	}
 
-	if util.ValidateUUID(id) {
-		return id, nil
-	}
-
-	return requestUUID(id)
-}
-
-func requestUUID(id string) (string, error) {
-	// Identify by name
-	v := url.Values{}
-	v.Set(api.KEY_NAME, id)
-
-	request := "/uuid?" + v.Encode()
-	rc, err := sendRequest("GET", request, nil)
-	if err != nil {
+	if err := util.CheckName(name); err != nil {
 		return "", err
 	}
-	defer rc.Close()
-
-	resp := &api.UUIDResponse{}
-	if err := json.NewDecoder(rc).Decode(resp); err != nil {
-		return "", err
-	}
-	if resp.UUID == "" {
-		return "", fmt.Errorf("Cannot find volume with name or id %v", id)
-	}
-	return resp.UUID, nil
+	return name, nil
 }

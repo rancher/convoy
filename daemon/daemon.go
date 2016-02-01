@@ -8,34 +8,28 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
-	"github.com/docker/docker/pkg/truncindex"
 	"github.com/gorilla/mux"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 
+	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
 type daemon struct {
-	Router              *mux.Router
-	ConvoyDrivers       map[string]convoydriver.ConvoyDriver
-	GlobalLock          *sync.RWMutex
+	Router        *mux.Router
+	ConvoyDrivers map[string]ConvoyDriver
+
 	NameUUIDIndex       *util.Index
 	SnapshotVolumeIndex *util.Index
-	UUIDIndex           *truncindex.TruncIndex
 	daemonConfig
 }
 
 const (
-	KEY_VOLUME_UUID   = "volume-uuid"
-	KEY_SNAPSHOT_UUID = "snapshot-uuid"
-
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_POSTFIX       = ".json"
 
@@ -70,7 +64,6 @@ func createRouter(s *daemon) *mux.Router {
 	m := map[string]map[string]requestHandler{
 		"GET": {
 			"/info":            s.doInfo,
-			"/uuid":            s.doRequestUUID,
 			"/volumes/list":    s.doVolumeList,
 			"/volumes/":        s.doVolumeInspect,
 			"/snapshots/":      s.doSnapshotInspect,
@@ -150,32 +143,18 @@ func makeHandlerFunc(method string, route string, version string, f requestHandl
 }
 
 func (s *daemon) updateIndex() error {
-	volumeUUIDs, err := util.ListConfigIDs(s.Root, VOLUME_CFG_PREFIX, CFG_POSTFIX)
-	if err != nil {
-		return err
-	}
-	for _, uuid := range volumeUUIDs {
-		volume := s.loadVolume(uuid)
-		if err := s.UUIDIndex.Add(uuid); err != nil {
+	volumes := s.getVolumeList()
+	for name := range volumes {
+		if err := s.NameUUIDIndex.Add(name, "exists"); err != nil {
 			return err
 		}
-		if volume == nil {
-			return fmt.Errorf("Volume list changed for volume %v, something is wrong", uuid)
-		}
-		if volume.Name != "" {
-			if err := s.NameUUIDIndex.Add(volume.Name, volume.UUID); err != nil {
-				return err
-			}
-		}
-		for snapshotUUID, snapshot := range volume.Snapshots {
-			if err := s.UUIDIndex.Add(snapshotUUID); err != nil {
-				return err
-			}
-			if err := s.SnapshotVolumeIndex.Add(snapshotUUID, uuid); err != nil {
-				return err
-			}
-			if snapshot.Name != "" {
-				if err := s.NameUUIDIndex.Add(snapshot.Name, snapshot.UUID); err != nil {
+		snapshots, err := s.listSnapshotDriverInfos(s.getVolume(name))
+		if err == nil {
+			for snapshotID := range snapshots {
+				if err := s.SnapshotVolumeIndex.Add(snapshotID, name); err != nil {
+					return err
+				}
+				if err := s.NameUUIDIndex.Add(snapshotID, "exists"); err != nil {
 					return err
 				}
 			}
@@ -234,8 +213,6 @@ func environmentCleanup() {
 func (s *daemon) finializeInitialization() error {
 	s.NameUUIDIndex = util.NewIndex()
 	s.SnapshotVolumeIndex = util.NewIndex()
-	s.UUIDIndex = truncindex.NewTruncIndex([]string{})
-	s.GlobalLock = &sync.RWMutex{}
 
 	s.updateIndex()
 	return nil
@@ -251,7 +228,7 @@ func (s *daemon) initDrivers(driverOpts map[string]string) error {
 			"driver_opts":    driverOpts,
 		}).Debug()
 
-		driver, err := convoydriver.GetDriver(driverName, s.Root, driverOpts)
+		driver, err := GetDriver(driverName, s.Root, driverOpts)
 		if err != nil {
 			return err
 		}
@@ -277,7 +254,7 @@ func Start(sockFile string, c *cli.Context) error {
 
 	root := c.String("root")
 	s := &daemon{
-		ConvoyDrivers: make(map[string]convoydriver.ConvoyDriver),
+		ConvoyDrivers: make(map[string]ConvoyDriver),
 	}
 	config := &daemonConfig{
 		Root: root,
@@ -369,7 +346,7 @@ func Start(sockFile string, c *cli.Context) error {
 	return nil
 }
 
-func (s *daemon) getDriver(driverName string) (convoydriver.ConvoyDriver, error) {
+func (s *daemon) getDriver(driverName string) (ConvoyDriver, error) {
 	driver, exists := s.ConvoyDrivers[driverName]
 	if !exists {
 		return nil, fmt.Errorf("Cannot find driver %s", driverName)
@@ -377,7 +354,7 @@ func (s *daemon) getDriver(driverName string) (convoydriver.ConvoyDriver, error)
 	return driver, nil
 }
 
-func (s *daemon) getVolumeOpsForVolume(volume *Volume) (convoydriver.VolumeOperations, error) {
+func (s *daemon) getVolumeOpsForVolume(volume *Volume) (VolumeOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err
@@ -385,7 +362,7 @@ func (s *daemon) getVolumeOpsForVolume(volume *Volume) (convoydriver.VolumeOpera
 	return driver.VolumeOps()
 }
 
-func (s *daemon) getSnapshotOpsForVolume(volume *Volume) (convoydriver.SnapshotOperations, error) {
+func (s *daemon) getSnapshotOpsForVolume(volume *Volume) (SnapshotOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err
@@ -393,7 +370,7 @@ func (s *daemon) getSnapshotOpsForVolume(volume *Volume) (convoydriver.SnapshotO
 	return driver.SnapshotOps()
 }
 
-func (s *daemon) getBackupOpsForVolume(volume *Volume) (convoydriver.BackupOperations, error) {
+func (s *daemon) getBackupOpsForVolume(volume *Volume) (BackupOperations, error) {
 	driver, err := s.getDriver(volume.DriverName)
 	if err != nil {
 		return nil, err

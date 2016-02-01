@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/util"
 	"github.com/rancher/go-rancher-metadata/metadata"
 
+	. "github.com/rancher/convoy/convoydriver"
 	rancherClient "github.com/rancher/go-rancher/client"
 )
 
@@ -73,11 +73,11 @@ func (dev *Device) ConfigFile() (string, error) {
 }
 
 type Volume struct {
-	UUID         string
 	Size         int64
 	Name         string
 	MountPoint   string
 	PrepareForVM bool
+	CreatedTime  string
 
 	configPath string
 }
@@ -101,13 +101,13 @@ func (v *Volume) Stack(driver *Driver) *Stack {
 }
 
 func (v *Volume) ConfigFile() (string, error) {
-	if v.UUID == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume UUID")
+	if v.Name == "" {
+		return "", fmt.Errorf("BUG: Invalid empty volume name")
 	}
 	if v.configPath == "" {
 		return "", fmt.Errorf("BUG: Invalid empty volume config path")
 	}
-	return filepath.Join(v.configPath, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX+v.UUID+CFG_POSTFIX), nil
+	return filepath.Join(v.configPath, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
 
 func (v *Volume) GetDevice() (string, error) {
@@ -122,15 +122,15 @@ func (v *Volume) GenerateDefaultMountPoint() string {
 	return filepath.Join(v.configPath, MOUNTS_DIR, v.Name)
 }
 
-func (d *Driver) blankVolume(id string) *Volume {
+func (d *Driver) blankVolume(name string) *Volume {
 	return &Volume{
 		configPath: d.Root,
-		UUID:       id,
+		Name:       name,
 	}
 }
 
 func init() {
-	convoydriver.Register(DRIVER_NAME, Init)
+	Register(DRIVER_NAME, Init)
 }
 
 func override(existing, newValue string) string {
@@ -140,7 +140,7 @@ func override(existing, newValue string) string {
 	return existing
 }
 
-func Init(root string, config map[string]string) (convoydriver.ConvoyDriver, error) {
+func Init(root string, config map[string]string) (ConvoyDriver, error) {
 	dev := &Device{
 		Root: root,
 	}
@@ -230,12 +230,15 @@ func (d *Driver) Info() (map[string]string, error) {
 	}, nil
 }
 
-func (d *Driver) VolumeOps() (convoydriver.VolumeOperations, error) {
+func (d *Driver) VolumeOps() (VolumeOperations, error) {
 	return d, nil
 }
 
-func (d *Driver) CreateVolume(id string, opts map[string]string) error {
-	size, err := util.ParseSize(opts[convoydriver.OPT_SIZE])
+func (d *Driver) CreateVolume(req Request) error {
+	id := req.Name
+	opts := req.Options
+
+	size, err := util.ParseSize(opts[OPT_SIZE])
 	if err != nil {
 		return err
 	}
@@ -245,8 +248,9 @@ func (d *Driver) CreateVolume(id string, opts map[string]string) error {
 
 	volume := d.blankVolume(id)
 	volume.Size = size
-	volume.Name = opts["VolumeName"]
-	volume.PrepareForVM, err = strconv.ParseBool(opts[convoydriver.OPT_PREPARE_FOR_VM])
+	volume.Name = opts[OPT_VOLUME_NAME]
+	volume.PrepareForVM, err = strconv.ParseBool(opts[OPT_PREPARE_FOR_VM])
+	volume.CreatedTime = util.Now()
 	if err != nil {
 		return err
 	}
@@ -295,7 +299,10 @@ func (d *Driver) doCreateVolume(volume *Volume, stack *Stack, id string, opts ma
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
+func (d *Driver) DeleteVolume(req Request) error {
+	id := req.Name
+	opts := req.Options
+
 	volume := d.blankVolume(id)
 
 	if err := util.ObjectLoad(volume); err != nil {
@@ -306,7 +313,7 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 		return fmt.Errorf("Cannot delete volume %v. It is still mounted", id)
 	}
 
-	referenceOnly, _ := strconv.ParseBool(opts[convoydriver.OPT_REFERENCE_ONLY])
+	referenceOnly, _ := strconv.ParseBool(opts[OPT_REFERENCE_ONLY])
 	if !referenceOnly {
 		log.Debugf("Deleting stack for volume %v", id)
 		if err := volume.Stack(d).Delete(); err != nil {
@@ -317,7 +324,10 @@ func (d *Driver) DeleteVolume(id string, opts map[string]string) error {
 	return util.ObjectDelete(volume)
 }
 
-func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) {
+func (d *Driver) MountVolume(req Request) (string, error) {
+	id := req.Name
+	opts := req.Options
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
@@ -328,7 +338,7 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 		return "", err
 	}
 
-	mountPoint, err := util.VolumeMount(volume, opts[convoydriver.OPT_MOUNT_POINT], false)
+	mountPoint, err := util.VolumeMount(volume, opts[OPT_MOUNT_POINT], false)
 	if err != nil {
 		return "", err
 	}
@@ -346,7 +356,9 @@ func (d *Driver) MountVolume(id string, opts map[string]string) (string, error) 
 	return mountPoint, nil
 }
 
-func (d *Driver) UmountVolume(id string) error {
+func (d *Driver) UmountVolume(req Request) error {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
@@ -359,7 +371,9 @@ func (d *Driver) UmountVolume(id string) error {
 	return util.ObjectSave(volume)
 }
 
-func (d *Driver) MountPoint(id string) (string, error) {
+func (d *Driver) MountPoint(req Request) (string, error) {
+	id := req.Name
+
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
@@ -373,8 +387,10 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		return nil, err
 	}
 	return map[string]string{
-		"Size": strconv.FormatInt(volume.Size, 10),
-		convoydriver.OPT_PREPARE_FOR_VM: strconv.FormatBool(volume.PrepareForVM),
+		"Size":                  strconv.FormatInt(volume.Size, 10),
+		OPT_PREPARE_FOR_VM:      strconv.FormatBool(volume.PrepareForVM),
+		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
+		OPT_VOLUME_NAME:         volume.Name,
 	}, nil
 }
 
@@ -400,10 +416,10 @@ func (device *Device) listVolumeIDs() ([]string, error) {
 	return util.ListConfigIDs(device.Root, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
-func (d *Driver) SnapshotOps() (convoydriver.SnapshotOperations, error) {
+func (d *Driver) SnapshotOps() (SnapshotOperations, error) {
 	return nil, fmt.Errorf("Longhorn doesn't support snapshot ops")
 }
 
-func (d *Driver) BackupOps() (convoydriver.BackupOperations, error) {
+func (d *Driver) BackupOps() (BackupOperations, error) {
 	return nil, fmt.Errorf("Longhorn doesn't support backup ops")
 }

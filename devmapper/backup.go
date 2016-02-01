@@ -54,6 +54,7 @@ func (d *Driver) CompareSnapshot(id, compareID, volumeID string) (*metadata.Mapp
 	if err != nil {
 		return nil, err
 	}
+
 	return mapping, err
 }
 
@@ -121,28 +122,31 @@ func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) er
 }
 
 func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
 
 	objVolume := &objectstore.Volume{
-		UUID:        volumeID,
-		Name:        opts[convoydriver.OPT_VOLUME_NAME],
+		Name:        volumeID,
 		Driver:      d.Name(),
 		Size:        volume.Size,
-		FileSystem:  opts[convoydriver.OPT_FILESYSTEM],
 		CreatedTime: opts[convoydriver.OPT_VOLUME_CREATED_TIME],
 	}
 	objSnapshot := &objectstore.Snapshot{
-		UUID:        snapshotID,
-		Name:        opts[convoydriver.OPT_SNAPSHOT_NAME],
+		Name:        snapshotID,
 		CreatedTime: opts[convoydriver.OPT_SNAPSHOT_CREATED_TIME],
 	}
 	return objectstore.CreateDeltaBlockBackup(objVolume, objSnapshot, destURL, d)
 }
 
 func (d *Driver) DeleteBackup(backupURL string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	objVolume, err := objectstore.LoadVolume(backupURL)
 	if err != nil {
 		return err
@@ -154,6 +158,9 @@ func (d *Driver) DeleteBackup(backupURL string) error {
 }
 
 func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
 	objVolume, err := objectstore.LoadVolume(backupURL)
 	if err != nil {
 		return nil, err
@@ -165,5 +172,8 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 }
 
 func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
-	return objectstore.List(opts[convoydriver.OPT_VOLUME_UUID], destURL, d.Name())
+	d.mutex.RLock()
+	defer d.mutex.RUnlock()
+
+	return objectstore.List(opts[convoydriver.OPT_VOLUME_NAME], destURL, d.Name())
 }

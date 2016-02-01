@@ -1,7 +1,6 @@
 package objectstore
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/util"
@@ -19,8 +18,8 @@ type BackupFile struct {
 }
 
 func getSingleFileBackupFilePath(sfBackup *Backup) string {
-	backupFileName := sfBackup.UUID + ".bak"
-	return filepath.Join(getVolumePath(sfBackup.VolumeUUID), BACKUP_FILES_DIRECTORY, backupFileName)
+	backupFileName := sfBackup.Name + ".bak"
+	return filepath.Join(getVolumePath(sfBackup.VolumeName), BACKUP_FILES_DIRECTORY, backupFileName)
 }
 
 func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destURL string) (string, error) {
@@ -33,7 +32,7 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		return "", err
 	}
 
-	volume, err = loadVolume(volume.UUID, driver)
+	volume, err = loadVolume(volume.Name, driver)
 	if err != nil {
 		return "", err
 	}
@@ -42,14 +41,13 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		LOG_FIELD_REASON:   LOG_REASON_START,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshot.UUID,
+		LOG_FIELD_SNAPSHOT: snapshot.Name,
 		LOG_FIELD_FILEPATH: filePath,
 	}).Debug("Creating backup")
 
 	backup := &Backup{
-		UUID:              uuid.New(),
-		VolumeUUID:        volume.UUID,
-		SnapshotUUID:      snapshot.UUID,
+		Name:              util.GenerateName("backup"),
+		VolumeName:        volume.Name,
 		SnapshotName:      snapshot.Name,
 		SnapshotCreatedAt: snapshot.CreatedTime,
 	}
@@ -68,10 +66,10 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshot.UUID,
+		LOG_FIELD_SNAPSHOT: snapshot.Name,
 	}).Debug("Created backup")
 
-	return encodeBackupURL(backup.UUID, volume.UUID, destURL), nil
+	return encodeBackupURL(backup.Name, volume.Name, destURL), nil
 }
 
 func RestoreSingleFileBackup(backupURL, path string) (string, error) {
@@ -80,19 +78,19 @@ func RestoreSingleFileBackup(backupURL, path string) (string, error) {
 		return "", err
 	}
 
-	srcBackupUUID, srcVolumeUUID, err := decodeBackupURL(backupURL)
+	srcBackupName, srcVolumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := loadVolume(srcVolumeUUID, driver); err != nil {
+	if _, err := loadVolume(srcVolumeName, driver); err != nil {
 		return "", generateError(logrus.Fields{
-			LOG_FIELD_VOLUME:     srcVolumeUUID,
+			LOG_FIELD_VOLUME:     srcVolumeName,
 			LOG_FIELD_BACKUP_URL: backupURL,
 		}, "Volume doesn't exist in objectstore: %v", err)
 	}
 
-	backup, err := loadBackup(srcBackupUUID, srcVolumeUUID, driver)
+	backup, err := loadBackup(srcBackupName, srcVolumeName, driver)
 	if err != nil {
 		return "", err
 	}
@@ -111,17 +109,17 @@ func DeleteSingleFileBackup(backupURL string) error {
 		return err
 	}
 
-	backupUUID, volumeUUID, err := decodeBackupURL(backupURL)
+	backupName, volumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return err
 	}
 
-	_, err = loadVolume(volumeUUID, driver)
+	_, err = loadVolume(volumeName, driver)
 	if err != nil {
-		return fmt.Errorf("Cannot find volume %v in objectstore", volumeUUID, err)
+		return fmt.Errorf("Cannot find volume %v in objectstore", volumeName, err)
 	}
 
-	backup, err := loadBackup(backupUUID, volumeUUID, driver)
+	backup, err := loadBackup(backupName, volumeName, driver)
 	if err != nil {
 		return err
 	}

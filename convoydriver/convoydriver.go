@@ -34,18 +34,23 @@ type ConvoyDriver interface {
 	BackupOps() (BackupOperations, error)
 }
 
+type Request struct {
+	Name    string
+	Options map[string]string
+}
+
 /*
 VolumeOperations is Convoy Driver volume related operations interface. Any
 Convoy Driver must implement this interface.
 */
 type VolumeOperations interface {
 	Name() string
-	CreateVolume(id string, opts map[string]string) error
-	DeleteVolume(id string, opts map[string]string) error
-	MountVolume(id string, opts map[string]string) (string, error)
-	UmountVolume(id string) error
-	MountPoint(id string) (string, error)
-	GetVolumeInfo(id string) (map[string]string, error)
+	CreateVolume(req Request) error
+	DeleteVolume(req Request) error
+	MountVolume(req Request) (string, error)
+	UmountVolume(req Request) error
+	MountPoint(req Request) (string, error)
+	GetVolumeInfo(name string) (map[string]string, error)
 	ListVolume(opts map[string]string) (map[string]map[string]string, error)
 }
 
@@ -55,9 +60,9 @@ Convoy Driver want to operate snapshots must implement this interface.
 */
 type SnapshotOperations interface {
 	Name() string
-	CreateSnapshot(id, volumeID string) error
-	DeleteSnapshot(id, volumeID string) error
-	GetSnapshotInfo(id, volumeID string) (map[string]string, error)
+	CreateSnapshot(req Request) error
+	DeleteSnapshot(req Request) error
+	GetSnapshotInfo(req Request) (map[string]string, error)
 	ListSnapshot(opts map[string]string) (map[string]map[string]string, error)
 }
 
@@ -79,15 +84,13 @@ const (
 	OPT_MOUNT_POINT           = "MountPoint"
 	OPT_SIZE                  = "Size"
 	OPT_FORMAT                = "Format"
-	OPT_VOLUME_UUID           = "VolumeUUID"
 	OPT_VOLUME_NAME           = "VolumeName"
-	OPT_VOLUME_ID             = "VolumeDriverID"
+	OPT_VOLUME_DRIVER_ID      = "VolumeDriverID"
 	OPT_VOLUME_TYPE           = "VolumeType"
 	OPT_VOLUME_IOPS           = "VolumeIOPS"
 	OPT_VOLUME_CREATED_TIME   = "VolumeCreatedAt"
 	OPT_SNAPSHOT_NAME         = "SnapshotName"
 	OPT_SNAPSHOT_CREATED_TIME = "SnapshotCreatedAt"
-	OPT_FILESYSTEM            = "FileSystem"
 	OPT_BACKUP_URL            = "BackupURL"
 	OPT_REFERENCE_ONLY        = "ReferenceOnly"
 	OPT_PREPARE_FOR_VM        = "PrepareForVM"

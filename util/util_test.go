@@ -3,6 +3,7 @@ package util
 import (
 	"code.google.com/p/go-uuid/uuid"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,33 +50,6 @@ func (s *TestSuite) SetUpSuite(c *C) {
 func (s *TestSuite) TearDownSuite(c *C) {
 	err := exec.Command("rm", "-rf", testRoot).Run()
 	c.Assert(err, IsNil)
-}
-
-func (s *TestSuite) TestExtractUUIDs(c *C) {
-	prefix := "prefix_"
-	suffix := ".suffix"
-	counts := 10
-	uuids := make([]string, counts)
-	names := make([]string, counts)
-	for i := 0; i < counts; i++ {
-		uuids[i] = uuid.New()
-		names[i] = prefix + uuids[i] + suffix
-	}
-
-	result, err := ExtractUUIDs(names, "prefix_", ".suffix")
-	c.Assert(err, Equals, nil)
-	for i := 0; i < counts; i++ {
-		c.Assert(result[i], Equals, uuids[i])
-	}
-
-	names[0] = "/" + names[0]
-	result, err = ExtractUUIDs(names, "prefix_", ".suffix")
-	c.Assert(err, Equals, nil)
-	c.Assert(result[0], Equals, uuids[0])
-
-	names[0] = "prefix_dd_xx.suffix"
-	result, err = ExtractUUIDs(names, "prefix_", ".suffix")
-	c.Assert(err, ErrorMatches, "Invalid name.*")
 }
 
 func (s *TestSuite) TestListConfigIDs(c *C) {
@@ -173,14 +147,6 @@ func (s *TestSuite) TestLoopDevice(c *C) {
 
 	err = DetachLoopbackDevice("/tmp", "/dev/loop0")
 	c.Assert(err, Not(IsNil))
-}
-
-func (s *TestSuite) TestValidateUUID(c *C) {
-	c.Assert(ValidateUUID(""), Equals, false)
-	c.Assert(ValidateUUID("123"), Equals, false)
-	c.Assert(ValidateUUID("asdf"), Equals, false)
-	c.Assert(ValidateUUID("f997529d-904f-4fbc-8ba2-6d296b74470a"), Equals, true)
-	c.Assert(ValidateUUID("00000000-0000-0000-0000-000000000000"), Equals, true)
 }
 
 func (s *TestSuite) TestValidateName(c *C) {
@@ -337,4 +303,54 @@ func (s *TestSuite) TestCompressDir(c *C) {
 	c.Assert(data, DeepEquals, data2)
 	err = file2.Close()
 	c.Assert(err, IsNil)
+}
+
+var (
+	firstLetters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	letters      = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+	nameLength   = 32
+)
+
+func GenerateRandString() string {
+	r := make([]rune, nameLength)
+	r[0] = firstLetters[rand.Intn(len(firstLetters))]
+	for i := 1; i < nameLength; i++ {
+		r[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(r)
+}
+
+func (s *TestSuite) TestExtractNames(c *C) {
+	prefix := "prefix_"
+	suffix := ".suffix"
+	counts := 10
+	names := make([]string, counts)
+	files := make([]string, counts)
+	for i := 0; i < counts; i++ {
+		names[i] = GenerateRandString()
+		files[i] = prefix + names[i] + suffix
+	}
+
+	result, err := ExtractNames(files, "prefix_", ".suffix")
+	c.Assert(err, Equals, nil)
+	for i := 0; i < counts; i++ {
+		c.Assert(result[i], Equals, names[i])
+	}
+
+	files[0] = "/" + files[0]
+	result, err = ExtractNames(files, "prefix_", ".suffix")
+	c.Assert(err, Equals, nil)
+	c.Assert(result[0], Equals, names[0])
+
+	files[0] = "prefix_.dd_xx.suffix"
+	result, err = ExtractNames(files, "prefix_", ".suffix")
+	c.Assert(err, ErrorMatches, "Invalid name.*")
+
+	files[0] = "prefix_-dd_xx.suffix"
+	result, err = ExtractNames(files, "prefix_", ".suffix")
+	c.Assert(err, ErrorMatches, "Invalid name.*")
+
+	files[0] = "prefix__dd_xx.suffix"
+	result, err = ExtractNames(files, "prefix_", ".suffix")
+	c.Assert(err, ErrorMatches, "Invalid name.*")
 }

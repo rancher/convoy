@@ -30,8 +30,8 @@ var (
 		Usage: "list backups in objectstore: list <dest>",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "volume-uuid",
-				Usage: "uuid of volume",
+				Name:  "volume-name",
+				Usage: "name of volume",
 			},
 		},
 		Action: cmdBackupList,
@@ -65,14 +65,14 @@ func doBackupList(c *cli.Context) error {
 	var err error
 
 	destURL, err := util.GetFlag(c, "", true, err)
-	volumeUUID, err := util.GetUUID(c, "volume-uuid", false, err)
+	volumeName, err := util.GetName(c, "volume-name", false, err)
 	if err != nil {
 		return err
 	}
 
 	request := &api.BackupListRequest{
 		URL:        destURL,
-		VolumeUUID: volumeUUID,
+		VolumeName: volumeName,
 	}
 	url := "/backups/list"
 	return sendRequestAndPrint("GET", url, request)
@@ -113,14 +113,14 @@ func doBackupCreate(c *cli.Context) error {
 		return err
 	}
 
-	snapshotUUID, err := getOrRequestUUID(c, "", true)
+	snapshotName, err := getName(c, "", true)
 	if err != nil {
 		return err
 	}
 
 	request := &api.BackupCreateRequest{
 		URL:          destURL,
-		SnapshotUUID: snapshotUUID,
+		SnapshotName: snapshotName,
 		Verbose:      c.GlobalBool(verboseFlag),
 	}
 

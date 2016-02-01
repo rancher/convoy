@@ -149,13 +149,13 @@ func cmdVolumeDelete(c *cli.Context) {
 func doVolumeDelete(c *cli.Context) error {
 	var err error
 
-	uuid, err := getOrRequestUUID(c, "", true)
+	name, err := getName(c, "", true)
 	if err != nil {
 		return err
 	}
 
 	request := &api.VolumeDeleteRequest{
-		VolumeUUID:    uuid,
+		VolumeName:    name,
 		ReferenceOnly: c.Bool("reference"),
 	}
 
@@ -189,13 +189,13 @@ func cmdVolumeInspect(c *cli.Context) {
 func doVolumeInspect(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, "", true)
+	volumeName, err := getName(c, "", true)
 	if err != nil {
 		return err
 	}
 
 	request := &api.VolumeInspectRequest{
-		VolumeUUID: volumeUUID,
+		VolumeName: volumeName,
 	}
 	url := "/volumes/"
 	return sendRequestAndPrint("GET", url, request)
@@ -210,14 +210,14 @@ func cmdVolumeMount(c *cli.Context) {
 func doVolumeMount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, "", true)
+	volumeName, err := getName(c, "", true)
 	mountPoint, err := util.GetFlag(c, "mountpoint", false, err)
 	if err != nil {
 		return err
 	}
 
 	request := &api.VolumeMountRequest{
-		VolumeUUID: volumeUUID,
+		VolumeName: volumeName,
 		MountPoint: mountPoint,
 		Verbose:    c.GlobalBool(verboseFlag),
 	}
@@ -235,13 +235,13 @@ func cmdVolumeUmount(c *cli.Context) {
 func doVolumeUmount(c *cli.Context) error {
 	var err error
 
-	volumeUUID, err := getOrRequestUUID(c, "", true)
+	volumeName, err := getName(c, "", true)
 	if err != nil {
 		return err
 	}
 
 	request := &api.VolumeUmountRequest{
-		VolumeUUID: volumeUUID,
+		VolumeName: volumeName,
 	}
 	url := "/volumes/umount"
 	return sendRequestAndPrint("POST", url, request)

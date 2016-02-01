@@ -12,10 +12,7 @@ import (
 )
 
 const (
-	OBJECTSTORE_BASE       = "convoy-objectstore"
-	VOLUME_SEPARATE_LAYER1 = 2
-	VOLUME_SEPARATE_LAYER2 = 4
-
+	OBJECTSTORE_BASE     = "convoy-objectstore"
 	VOLUME_DIRECTORY     = "volumes"
 	VOLUME_CONFIG_FILE   = "volume.cfg"
 	BACKUP_DIRECTORY     = "backups"
@@ -80,53 +77,39 @@ func saveConfigInObjectStore(filePath string, driver ObjectStoreDriver, v interf
 	return nil
 }
 
-func volumeExists(volumeUUID string, driver ObjectStoreDriver) bool {
-	volumeFile := getVolumeFilePath(volumeUUID)
+func volumeExists(volumeName string, driver ObjectStoreDriver) bool {
+	volumeFile := getVolumeFilePath(volumeName)
 	return driver.FileExists(volumeFile)
 }
 
-func getVolumePath(volumeUUID string) string {
-	volumeLayer1 := volumeUUID[0:VOLUME_SEPARATE_LAYER1]
-	volumeLayer2 := volumeUUID[VOLUME_SEPARATE_LAYER1:VOLUME_SEPARATE_LAYER2]
-	return filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY, volumeLayer1, volumeLayer2, volumeUUID)
+func getVolumePath(volumeName string) string {
+	return filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY, volumeName)
 }
 
-func getVolumeFilePath(volumeUUID string) string {
-	volumePath := getVolumePath(volumeUUID)
+func getVolumeFilePath(volumeName string) string {
+	volumePath := getVolumePath(volumeName)
 	volumeCfg := VOLUME_CONFIG_FILE
 	return filepath.Join(volumePath, volumeCfg)
 }
 
-func getVolumeUUIDs(driver ObjectStoreDriver) ([]string, error) {
+func getVolumeNames(driver ObjectStoreDriver) ([]string, error) {
 	uuids := []string{}
 
 	volumePathBase := filepath.Join(OBJECTSTORE_BASE, VOLUME_DIRECTORY)
-	lv1Dirs, err := driver.List(volumePathBase)
+	volumeDirs, err := driver.List(volumePathBase)
 	// Directory doesn't exist
 	if err != nil {
 		return uuids, nil
 	}
-	for _, lv1 := range lv1Dirs {
-		lv1Path := filepath.Join(volumePathBase, lv1)
-		lv2Dirs, err := driver.List(lv1Path)
-		if err != nil {
-			return nil, err
-		}
-		for _, lv2 := range lv2Dirs {
-			lv2Path := filepath.Join(lv1Path, lv2)
-			volumeUUIDs, err := driver.List(lv2Path)
-			if err != nil {
-				return nil, err
-			}
-			uuids = append(uuids, volumeUUIDs...)
-		}
+	for _, volume := range volumeDirs {
+		uuids = append(uuids, volume)
 	}
 	return uuids, nil
 }
 
-func loadVolume(volumeUUID string, driver ObjectStoreDriver) (*Volume, error) {
+func loadVolume(volumeName string, driver ObjectStoreDriver) (*Volume, error) {
 	v := &Volume{}
-	file := getVolumeFilePath(volumeUUID)
+	file := getVolumeFilePath(volumeName)
 	if err := loadConfigInObjectStore(file, driver, v); err != nil {
 		return nil, err
 	}
@@ -134,47 +117,47 @@ func loadVolume(volumeUUID string, driver ObjectStoreDriver) (*Volume, error) {
 }
 
 func saveVolume(v *Volume, driver ObjectStoreDriver) error {
-	file := getVolumeFilePath(v.UUID)
+	file := getVolumeFilePath(v.Name)
 	if err := saveConfigInObjectStore(file, driver, v); err != nil {
 		return err
 	}
 	return nil
 }
 
-func getBackupUUIDsForVolume(volumeUUID string, driver ObjectStoreDriver) ([]string, error) {
+func getBackupNamesForVolume(volumeName string, driver ObjectStoreDriver) ([]string, error) {
 	result := []string{}
-	fileList, err := driver.List(getBackupPath(volumeUUID))
+	fileList, err := driver.List(getBackupPath(volumeName))
 	if err != nil {
 		// path doesn't exist
 		return result, nil
 	}
-	return util.ExtractUUIDs(fileList, BACKUP_CONFIG_PREFIX, CFG_SUFFIX)
+	return util.ExtractNames(fileList, BACKUP_CONFIG_PREFIX, CFG_SUFFIX)
 }
 
-func getBackupPath(volumeUUID string) string {
-	return filepath.Join(getVolumePath(volumeUUID), BACKUP_DIRECTORY) + "/"
+func getBackupPath(volumeName string) string {
+	return filepath.Join(getVolumePath(volumeName), BACKUP_DIRECTORY) + "/"
 }
 
-func getBackupConfigPath(backupUUID, volumeUUID string) string {
-	path := getBackupPath(volumeUUID)
-	fileName := getBackupConfigName(backupUUID)
+func getBackupConfigPath(backupName, volumeName string) string {
+	path := getBackupPath(volumeName)
+	fileName := getBackupConfigName(backupName)
 	return filepath.Join(path, fileName)
 }
 
-func backupExists(backupUUID, volumeUUID string, bsDriver ObjectStoreDriver) bool {
-	return bsDriver.FileExists(getBackupConfigPath(backupUUID, volumeUUID))
+func backupExists(backupName, volumeName string, bsDriver ObjectStoreDriver) bool {
+	return bsDriver.FileExists(getBackupConfigPath(backupName, volumeName))
 }
 
-func loadBackup(backupUUID, volumeUUID string, bsDriver ObjectStoreDriver) (*Backup, error) {
+func loadBackup(backupName, volumeName string, bsDriver ObjectStoreDriver) (*Backup, error) {
 	backup := &Backup{}
-	if err := loadConfigInObjectStore(getBackupConfigPath(backupUUID, volumeUUID), bsDriver, backup); err != nil {
+	if err := loadConfigInObjectStore(getBackupConfigPath(backupName, volumeName), bsDriver, backup); err != nil {
 		return nil, err
 	}
 	return backup, nil
 }
 
 func saveBackup(backup *Backup, bsDriver ObjectStoreDriver) error {
-	filePath := getBackupConfigPath(backup.UUID, backup.VolumeUUID)
+	filePath := getBackupConfigPath(backup.Name, backup.VolumeName)
 	if bsDriver.FileExists(filePath) {
 		log.Warnf("Snapshot configuration file %v already exists, would remove it\n", filePath)
 		if err := bsDriver.Remove(filePath); err != nil {
@@ -188,7 +171,7 @@ func saveBackup(backup *Backup, bsDriver ObjectStoreDriver) error {
 }
 
 func removeBackup(backup *Backup, bsDriver ObjectStoreDriver) error {
-	filePath := getBackupConfigPath(backup.UUID, backup.VolumeUUID)
+	filePath := getBackupConfigPath(backup.Name, backup.VolumeName)
 	if err := bsDriver.Remove(filePath); err != nil {
 		return err
 	}

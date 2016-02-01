@@ -4,20 +4,17 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/objectstore"
 	"github.com/rancher/convoy/util"
 	"net/http"
 	"net/url"
 	"strings"
 
+	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
 func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	request := &api.BackupListRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -25,7 +22,7 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 	request.URL = util.UnescapeURL(request.URL)
 
 	opts := map[string]string{
-		convoydriver.OPT_VOLUME_UUID: request.VolumeUUID,
+		OPT_VOLUME_NAME: request.VolumeName,
 	}
 	result := make(map[string]map[string]string)
 	for _, driver := range s.ConvoyDrivers {
@@ -52,9 +49,6 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 }
 
 func (s *daemon) doBackupInspect(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	request := &api.BackupListRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -85,40 +79,48 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	}
 	request.URL = util.UnescapeURL(request.URL)
 
-	snapshotUUID := request.SnapshotUUID
-	volumeUUID := s.SnapshotVolumeIndex.Get(snapshotUUID)
-	if volumeUUID == "" {
-		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotUUID)
+	snapshotName := request.SnapshotName
+	volumeName := s.SnapshotVolumeIndex.Get(snapshotName)
+	if volumeName == "" {
+		return fmt.Errorf("Cannot find volume of snapshot %v", snapshotName)
 	}
 
-	if !s.snapshotExists(volumeUUID, snapshotUUID) {
-		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotUUID, volumeUUID)
+	if !s.snapshotExists(volumeName, snapshotName) {
+		return fmt.Errorf("snapshot %v of volume %v doesn't exist", snapshotName, volumeName)
 	}
 
-	volume := s.loadVolume(volumeUUID)
+	volume := s.getVolume(volumeName)
 	backupOps, err := s.getBackupOpsForVolume(volume)
 	if err != nil {
 		return err
 	}
 
+	volumeInfo, err := s.getVolumeDriverInfo(volume)
+	if err != nil {
+		return err
+	}
+
+	snapshot, err := s.getSnapshotDriverInfo(snapshotName, volume)
+	if err != nil {
+		return err
+	}
+
 	opts := map[string]string{
-		convoydriver.OPT_VOLUME_NAME:           volume.Name,
-		convoydriver.OPT_FILESYSTEM:            volume.FileSystem,
-		convoydriver.OPT_VOLUME_CREATED_TIME:   volume.CreatedTime,
-		convoydriver.OPT_SNAPSHOT_NAME:         volume.Snapshots[snapshotUUID].Name,
-		convoydriver.OPT_SNAPSHOT_CREATED_TIME: volume.Snapshots[snapshotUUID].CreatedTime,
+		OPT_VOLUME_NAME:           volumeName,
+		OPT_VOLUME_CREATED_TIME:   volumeInfo[OPT_VOLUME_CREATED_TIME],
+		OPT_SNAPSHOT_CREATED_TIME: snapshot[OPT_SNAPSHOT_CREATED_TIME],
 	}
 
 	log.WithFields(logrus.Fields{
 		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
-		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
+		LOG_FIELD_VOLUME:   volumeName,
 		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
-	backupURL, err := backupOps.CreateBackup(snapshotUUID, volumeUUID, request.URL, opts)
+	backupURL, err := backupOps.CreateBackup(snapshotName, volumeName, request.URL, opts)
 	if err != nil {
 		return err
 	}
@@ -126,8 +128,8 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
 		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
 		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotUUID,
-		LOG_FIELD_VOLUME:   volumeUUID,
+		LOG_FIELD_SNAPSHOT: snapshotName,
+		LOG_FIELD_VOLUME:   volumeName,
 		LOG_FIELD_DRIVER:   backupOps.Name(),
 		LOG_FIELD_DEST_URL: request.URL,
 	}).Debug()
@@ -143,9 +145,6 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 }
 
 func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.Lock()
-	defer s.GlobalLock.Unlock()
-
 	request := &api.BackupDeleteRequest{}
 	if err := decodeRequest(r, request); err != nil {
 		return err
@@ -177,7 +176,7 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-func (s *daemon) getBackupOpsForBackup(requestURL string) (convoydriver.BackupOperations, error) {
+func (s *daemon) getBackupOpsForBackup(requestURL string) (BackupOperations, error) {
 	driverName := ""
 
 	if _, err := objectstore.GetObjectStoreDriver(requestURL); err == nil {

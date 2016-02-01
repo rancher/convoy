@@ -30,7 +30,7 @@ var (
 	mountNamespaceFD = ""
 )
 
-/* Caller must implement VolumeHelper interface, and must have fields "UUID" and "MountPoint" */
+/* Caller must implement VolumeHelper interface, and must have fields "Name" and "MountPoint" */
 type VolumeHelper interface {
 	GetDevice() (string, error)
 	GetMountOpts() []string
@@ -64,9 +64,9 @@ func setFieldString(obj interface{}, field string, value string) error {
 	return nil
 }
 
-func getVolumeUUID(v VolumeHelper) string {
+func getVolumeName(v VolumeHelper) string {
 	// We should already pass the test in getVolumeOps
-	value, err := getFieldString(v, "UUID")
+	value, err := getFieldString(v, "Name")
 	if err != nil {
 		panic(err)
 	}
@@ -94,7 +94,7 @@ func getVolumeOps(obj interface{}) (VolumeHelper, error) {
 	if reflect.TypeOf(obj).Kind() != reflect.Ptr {
 		return nil, fmt.Errorf("BUG: Non-pointer was passed in")
 	}
-	_, err = getFieldString(obj, "UUID")
+	_, err = getFieldString(obj, "Name")
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +146,7 @@ func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error)
 	}
 	existMount := getVolumeMountPoint(vol)
 	if existMount != "" && existMount != mountPoint {
-		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeUUID(vol), existMount, mountPoint)
+		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeName(vol), existMount, mountPoint)
 	}
 	if remount && isMounted(mountPoint) {
 		log.Debugf("Umount existing mountpoint %v", mountPoint)
@@ -160,7 +160,7 @@ func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error)
 		}
 	}
 	if !isMounted(mountPoint) {
-		log.Debugf("Volume %v is being mounted it to %v, with option %v", getVolumeUUID(vol), mountPoint, opts)
+		log.Debugf("Volume %v is being mounted it to %v, with option %v", getVolumeName(vol), mountPoint, opts)
 		_, err = callMount(opts, []string{dev, mountPoint})
 		if err != nil {
 			return "", err
@@ -177,7 +177,7 @@ func VolumeUmount(v interface{}) error {
 	}
 	mountPoint := getVolumeMountPoint(vol)
 	if mountPoint == "" {
-		log.Debugf("Umount a umounted volume %v", getVolumeUUID(vol))
+		log.Debugf("Umount a umounted volume %v", getVolumeName(vol))
 		return nil
 	}
 	if err := callUmount([]string{mountPoint}); err != nil {

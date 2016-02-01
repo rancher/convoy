@@ -12,12 +12,7 @@ type ErrorResponse struct {
 	Error string
 }
 
-type UUIDResponse struct {
-	UUID string
-}
-
 type VolumeResponse struct {
-	UUID        string
 	Name        string
 	Driver      string
 	MountPoint  string
@@ -27,11 +22,9 @@ type VolumeResponse struct {
 }
 
 type SnapshotResponse struct {
-	UUID            string
-	VolumeUUID      string `json:",omitempty"`
+	Name            string
 	VolumeName      string `json:",omitempty"`
 	VolumeCreatedAt string `json:",omitempty"`
-	Name            string
 	CreatedTime     string
 	DriverInfo      map[string]string
 }

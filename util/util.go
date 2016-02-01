@@ -2,16 +2,11 @@ package util
 
 import (
 	"bytes"
-	"code.google.com/p/go-uuid/uuid"
 	"compress/gzip"
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
-	"github.com/mcuadros/go-version"
-	"golang.org/x/sys/unix"
 	"io"
 	"io/ioutil"
 	"net"
@@ -22,6 +17,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"code.google.com/p/go-uuid/uuid"
+	"github.com/Sirupsen/logrus"
+	"github.com/codegangsta/cli"
+	"github.com/mcuadros/go-version"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -42,22 +43,6 @@ func EncodeData(v interface{}) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	return param, nil
-}
-
-func ExtractUUIDs(names []string, prefix, suffix string) ([]string, error) {
-	result := []string{}
-	for i := range names {
-		f := names[i]
-		// Remove additional slash if exists
-		f = strings.TrimLeft(f, "/")
-		f = strings.TrimPrefix(f, prefix)
-		f = strings.TrimSuffix(f, suffix)
-		if !ValidateUUID(f) {
-			return nil, fmt.Errorf("Invalid name %v was processed to extract UUID with prefix %v surfix %v", names[i], prefix, suffix)
-		}
-		result = append(result, f)
-	}
-	return result, nil
 }
 
 func MkdirIfNotExists(path string) error {
@@ -204,16 +189,6 @@ func DetachLoopbackDevice(file, dev string) error {
 	return nil
 }
 
-func ValidateUUID(s string) bool {
-	return uuid.Parse(s) != nil
-}
-
-func CheckUUID(uuid string) error {
-	if !ValidateUUID(uuid) {
-		return fmt.Errorf("Invalid UUID %v", uuid)
-	}
-	return nil
-}
 func ValidateName(name string) bool {
 	validName := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]+$`)
 	return validName.MatchString(name)
@@ -335,21 +310,6 @@ func DecompressAndVerify(src io.Reader, checksum string) (io.Reader, error) {
 	return bytes.NewReader(block), nil
 }
 
-func GetUUID(v interface{}, key string, required bool, err error) (string, error) {
-	uuid, err := GetFlag(v, key, required, err)
-	if err != nil {
-		return uuid, err
-	}
-	uuid = strings.ToLower(uuid)
-	if !required && uuid == "" {
-		return "", nil
-	}
-	if err := CheckUUID(uuid); err != nil {
-		return "", err
-	}
-	return uuid, nil
-}
-
 func GetName(v interface{}, key string, required bool, err error) (string, error) {
 	name, err := GetFlag(v, key, required, err)
 	if err != nil {
@@ -418,4 +378,33 @@ func ValidNetworkAddr(addr string) bool {
 		return false
 	}
 	return true
+}
+
+func GetFieldFromOpts(name string, opts map[string]string) (string, error) {
+	value, exists := opts[name]
+	if !exists {
+		return "", fmt.Errorf("Cannot find field named %v in options", name)
+	}
+	return value, nil
+}
+
+func ExtractNames(names []string, prefix, suffix string) ([]string, error) {
+	result := []string{}
+	for i := range names {
+		f := names[i]
+		// Remove additional slash if exists
+		f = strings.TrimLeft(f, "/")
+		f = strings.TrimPrefix(f, prefix)
+		f = strings.TrimSuffix(f, suffix)
+		if !ValidateName(f) {
+			return nil, fmt.Errorf("Invalid name %v was processed to extract name with prefix %v surfix %v", names[i], prefix, suffix)
+		}
+		result = append(result, f)
+	}
+	return result, nil
+}
+
+func GenerateName(prefix string) string {
+	suffix := strings.Replace(uuid.New(), "-", "", -1)
+	return prefix + "-" + suffix[:16]
 }

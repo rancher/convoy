@@ -40,9 +40,6 @@ func writeStringResponse(w http.ResponseWriter, s string) error {
 }
 
 func (s *daemon) doInfo(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	s.GlobalLock.RLock()
-	defer s.GlobalLock.RUnlock()
-
 	var err error
 	_, err = w.Write([]byte(fmt.Sprint("{\n\"General\": ")))
 	if err != nil {

@@ -1,13 +1,13 @@
 package api
 
 type VolumeMountRequest struct {
-	VolumeUUID string
+	VolumeName string
 	MountPoint string
 	Verbose    bool
 }
 
 type VolumeUmountRequest struct {
-	VolumeUUID string
+	VolumeName string
 }
 
 type VolumeCreateRequest struct {
@@ -23,37 +23,37 @@ type VolumeCreateRequest struct {
 }
 
 type VolumeDeleteRequest struct {
-	VolumeUUID    string
+	VolumeName    string
 	ReferenceOnly bool
 }
 
 type VolumeInspectRequest struct {
-	VolumeUUID string
+	VolumeName string
 }
 
 type SnapshotCreateRequest struct {
 	Name       string
-	VolumeUUID string
+	VolumeName string
 	Verbose    bool
 }
 
 type SnapshotDeleteRequest struct {
-	SnapshotUUID string
+	SnapshotName string
 }
 
 type SnapshotInspectRequest struct {
-	SnapshotUUID string
+	SnapshotName string
 }
 
 type BackupListRequest struct {
 	URL          string
-	VolumeUUID   string
-	SnapshotUUID string
+	VolumeName   string
+	SnapshotName string
 }
 
 type BackupCreateRequest struct {
 	URL          string
-	SnapshotUUID string
+	SnapshotName string
 	Verbose      bool
 }
 
