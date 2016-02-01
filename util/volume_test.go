@@ -8,7 +8,7 @@ import (
 )
 
 type HelperVolume struct {
-	UUID       string
+	Name       string
 	Device     string
 	MountPoint string
 }
@@ -27,7 +27,7 @@ func (v *HelperVolume) GetMountOpts() []string {
 }
 
 func (v *HelperVolume) GenerateDefaultMountPoint() string {
-	return filepath.Join(testMountPath, v.UUID)
+	return filepath.Join(testMountPath, v.Name)
 }
 
 func (s *TestSuite) TestVolumeHelper(c *C) {
@@ -35,7 +35,7 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 	c.Assert(err, IsNil)
 
 	r := &HelperVolume{
-		UUID:   "testabc",
+		Name:   "testabc",
 		Device: dev,
 	}
 
@@ -50,7 +50,7 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 
 	newMountPoint := "/tmp/util/mnt"
 	_, err = VolumeMount(r, newMountPoint, false)
-	c.Assert(err, ErrorMatches, "Volume "+r.UUID+" was already mounted at "+r.MountPoint+".*")
+	c.Assert(err, ErrorMatches, "Volume "+r.Name+" was already mounted at "+r.MountPoint+".*")
 
 	err = VolumeUmount(r)
 	c.Assert(err, IsNil)

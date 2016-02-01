@@ -617,6 +617,9 @@ func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
 }
 
 func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error) {
+	// Snapshot on EBS can be removed by DeleteBackup
+	removed := false
+
 	snapshot, _, err := d.getSnapshotAndVolume(id, volumeID)
 	if err != nil {
 		return nil, err
@@ -624,17 +627,26 @@ func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error)
 
 	ebsSnapshot, err := d.ebsService.GetSnapshot(snapshot.EBSID)
 	if err != nil {
-		return nil, err
+		removed = true
 	}
 
-	info := map[string]string{
-		OPT_SNAPSHOT_NAME:         snapshot.Name,
-		"VolumeName":              volumeID,
-		"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
-		"EBSVolumeID":             *ebsSnapshot.VolumeId,
-		OPT_SNAPSHOT_CREATED_TIME: (*ebsSnapshot.StartTime).Format(time.RubyDate),
-		OPT_SIZE:                  strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-		"State":                   *ebsSnapshot.State,
+	info := map[string]string{}
+	if !removed {
+		info = map[string]string{
+			OPT_SNAPSHOT_NAME:         snapshot.Name,
+			"VolumeName":              volumeID,
+			"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
+			"EBSVolumeID":             *ebsSnapshot.VolumeId,
+			OPT_SNAPSHOT_CREATED_TIME: (*ebsSnapshot.StartTime).Format(time.RubyDate),
+			OPT_SIZE:                  strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
+			"State":                   *ebsSnapshot.State,
+		}
+	} else {
+		info = map[string]string{
+			OPT_SNAPSHOT_NAME: snapshot.Name,
+			"VolumeName":      volumeID,
+			"State":           "removed",
+		}
 	}
 
 	return info, nil
