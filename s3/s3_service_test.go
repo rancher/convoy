@@ -32,8 +32,9 @@ func (s *TestSuite) SetUpSuite(c *C) {
 	s.service.Region = os.Getenv(ENV_TEST_AWS_REGION)
 	s.service.Bucket = os.Getenv(ENV_TEST_AWS_BUCKET)
 
-	c.Assert(s.service.Region, Not(Equals), "")
-	c.Assert(s.service.Bucket, Not(Equals), "")
+	if s.service.Region == "" || s.service.Bucket == "" {
+		c.Skip("S3 test environment variables not provided.")
+	}
 }
 
 func (s *TestSuite) TestFuncs(c *C) {
