@@ -3,15 +3,15 @@
 package devmapper
 
 import (
-	"code.google.com/p/go-uuid/uuid"
-	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/convoydriver"
-	"github.com/rancher/convoy/util"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/rancher/convoy/convoydriver"
+	"github.com/rancher/convoy/util"
 
 	. "gopkg.in/check.v1"
 )
@@ -170,7 +170,7 @@ func (s *TestSuite) TestVolume(c *C) {
 
 	drv := driver.(*Driver)
 	lastDevID := drv.LastDevID
-	volumeID := uuid.New()
+	volumeID := util.NewUUID()
 
 	volOps, err := driver.VolumeOps()
 	c.Assert(err, IsNil)
@@ -187,7 +187,7 @@ func (s *TestSuite) TestVolume(c *C) {
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Already has volume with specific uuid.*")
 
-	volumeID2 := uuid.New()
+	volumeID2 := util.NewUUID()
 
 	wrongOpts := map[string]string{
 		convoydriver.OPT_SIZE: "1333333",
@@ -228,14 +228,14 @@ func (s *TestSuite) TestSnapshot(c *C) {
 	snapOps, err := driver.SnapshotOps()
 	c.Assert(err, IsNil)
 
-	volumeID := uuid.New()
+	volumeID := util.NewUUID()
 	opts := map[string]string{
 		convoydriver.OPT_SIZE: strconv.FormatInt(volumeSize, 10),
 	}
 	err = volOps.CreateVolume(volumeID, opts)
 	c.Assert(err, IsNil)
 
-	snapshotID := uuid.New()
+	snapshotID := util.NewUUID()
 	err = snapOps.CreateSnapshot(snapshotID, volumeID)
 	c.Assert(err, IsNil)
 
@@ -243,7 +243,7 @@ func (s *TestSuite) TestSnapshot(c *C) {
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Already has snapshot with uuid.*")
 
-	snapshotID2 := uuid.New()
+	snapshotID2 := util.NewUUID()
 	err = snapOps.CreateSnapshot(snapshotID2, volumeID)
 	c.Assert(err, IsNil)
 

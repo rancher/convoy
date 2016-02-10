@@ -1,7 +1,6 @@
 package util
 
 import (
-	"code.google.com/p/go-uuid/uuid"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -66,7 +65,7 @@ func (s *TestSuite) TestListConfigIDs(c *C) {
 	counts := 10
 	uuids := make(map[string]bool)
 	for i := 0; i < counts; i++ {
-		id := uuid.New()
+		id := NewUUID()
 		uuids[id] = true
 		err := exec.Command("touch", filepath.Join(tmpdir, prefix+id+suffix)).Run()
 		c.Assert(err, IsNil)

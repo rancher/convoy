@@ -6,11 +6,6 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/go-uuid/uuid",
-			"Comment": "null-15",
-			"Rev": "35bc42037350f0078e3c974c6ea690f1926603ab"
-		},
-		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.8.2-2-g6ba91e2",
 			"Rev": "6ba91e24c498b49d0363c723e9e2ab2b5b8fd012"
@@ -81,11 +76,6 @@
 			"Rev": "ea65c38ac0972709cdb371ce6b1886eb252a126e"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/truncindex",
-			"Comment": "v1.4.1-5826-gea65c38",
-			"Rev": "ea65c38ac0972709cdb371ce6b1886eb252a126e"
-		},
-		{
 			"ImportPath": "github.com/go-ini/ini",
 			"Comment": "v1.8.6",
 			"Rev": "afbd495e5aaea13597b5e14fe514ddeaa4d76fc3"
@@ -121,9 +111,8 @@
 			"Rev": "a1a60172da70a2d3f324da3b0c392b79f75fb91b"
 		},
 		{
-			"ImportPath": "github.com/tchap/go-patricia/patricia",
-			"Comment": "v2.2.2",
-			"Rev": "42daf53d2c20234572a4640ac642df046505562d"
+			"ImportPath": "github.com/satori/go.uuid",
+			"Rev": "d41af8bb6a7704f00bc3b7cba9355ae6a5a80048"
 		},
 		{
 			"ImportPath": "golang.org/x/sys/unix",

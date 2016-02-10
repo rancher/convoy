@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/mcuadros/go-version"
+	"github.com/satori/go.uuid"
 	"golang.org/x/sys/unix"
 )
 
@@ -405,6 +405,10 @@ func ExtractNames(names []string, prefix, suffix string) ([]string, error) {
 }
 
 func GenerateName(prefix string) string {
-	suffix := strings.Replace(uuid.New(), "-", "", -1)
+	suffix := strings.Replace(NewUUID(), "-", "", -1)
 	return prefix + "-" + suffix[:16]
+}
+
+func NewUUID() string {
+	return uuid.NewV4().String()
 }
