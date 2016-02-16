@@ -281,13 +281,7 @@ func (d *Driver) doCreateVolume(volume *Volume, stack *Stack, id string, opts ma
 	// If env was nil then we created stack so we need to format
 	if env == nil {
 		dev, _ := volume.GetDevice()
-		err := Backoff(5*time.Minute, fmt.Sprintf("Failed to find %s", dev), func() (bool, error) {
-			if _, err := os.Stat(dev); err == nil {
-				return true, nil
-			}
-			return false, nil
-		})
-		if err != nil {
+		if err := waitForDevice(dev); err != nil {
 			return err
 		}
 
@@ -295,6 +289,11 @@ func (d *Driver) doCreateVolume(volume *Volume, stack *Stack, id string, opts ma
 		if _, err := util.Execute("mkfs.ext4", []string{dev}); err != nil {
 			return err
 		}
+	}
+
+	if err := volume.Stack(d).MoveController(); err != nil {
+		log.Errorf("Failed to move controller to %s", d.containerName)
+		return err
 	}
 
 	return util.ObjectSave(volume)
@@ -325,6 +324,16 @@ func (d *Driver) DeleteVolume(req Request) error {
 	return util.ObjectDelete(volume)
 }
 
+func waitForDevice(dev string) error {
+	err := Backoff(5*time.Minute, fmt.Sprintf("Failed to find %s", dev), func() (bool, error) {
+		if _, err := os.Stat(dev); err == nil {
+			return true, nil
+		}
+		return false, nil
+	})
+	return err
+}
+
 func (d *Driver) MountVolume(req Request) (string, error) {
 	id := req.Name
 	opts := req.Options
@@ -334,8 +343,8 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 		return "", err
 	}
 
-	if err := volume.Stack(d).MoveController(); err != nil {
-		log.Errorf("Failed to move controller to %s", d.containerName)
+	dev, _ := volume.GetDevice()
+	if err := waitForDevice(dev); err != nil {
 		return "", err
 	}
 
