@@ -212,6 +212,7 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		client:        client,
 		containerName: containerName,
 		Device:        *dev,
+		mutex:         &sync.RWMutex{},
 	}
 
 	return d, nil
