@@ -3,10 +3,12 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/util"
 	"net/http"
 	"strconv"
+
+	"github.com/rancher/convoy/api"
+	. "github.com/rancher/convoy/convoydriver"
+	"github.com/rancher/convoy/util"
 )
 
 type pluginInfo struct {
@@ -14,8 +16,15 @@ type pluginInfo struct {
 }
 
 type pluginResponse struct {
+	Mountpoint string          `json:",omitempty"`
+	Err        string          `json:",omitempty"`
+	Volumes    []*DockerVolume `json:",omitempty"`
+	Volume     *DockerVolume   `json:",omitempty"`
+}
+
+type DockerVolume struct {
+	Name       string `json:",omitempty"`
 	Mountpoint string `json:",omitempty"`
-	Err        string `json:",omitempty"`
 }
 
 type pluginRequest struct {
@@ -53,7 +62,10 @@ func (s *daemon) getDockerVolume(r *http.Request, create bool) (*Volume, error) 
 	if err != nil {
 		return nil, err
 	}
+	return s.getDockerVolumeFromPluginRequest(request, create)
+}
 
+func (s *daemon) getDockerVolumeFromPluginRequest(request *pluginRequest, create bool) (*Volume, error) {
 	name := request.Name
 	var (
 		volume     *Volume
@@ -239,4 +251,79 @@ func (s *daemon) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Volume: %v is mounted at %v for docker", volume.Name, mountPoint)
 
 	dockerResponse(w, mountPoint, nil)
+}
+
+func (s *daemon) dockerVolumeGet(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handle plugin get volume: %v %v", r.Method, r.RequestURI)
+
+	request, err := getDockerVolumeRequest(r)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
+	volume, err := s.getDockerVolumeFromPluginRequest(request, false)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
+	if volume == nil {
+		dockerResponse(w, "", fmt.Errorf("Could not find volume %v", request.Name))
+		return
+	}
+
+	log.Debugf("Found volume %v for docker", volume.Name)
+
+	mountPoint, err := s.getVolumeMountPoint(volume)
+	if err != nil {
+		dockerResponse(w, "", err)
+		return
+	}
+
+	response := pluginResponse{
+		Volume: &DockerVolume{
+			Name:       volume.Name,
+			Mountpoint: mountPoint,
+		},
+	}
+
+	writeResponseOutput(w, response)
+}
+
+func (s *daemon) dockerVolumeList(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handle plugin list volume: %v %v", r.Method, r.RequestURI)
+
+	vols := []*DockerVolume{}
+
+	knownVolumes := s.getVolumeList()
+	for _, v := range knownVolumes {
+		volName := v[OPT_VOLUME_NAME]
+		if volName == "" {
+			continue
+		}
+		vol := s.getVolume(volName)
+		if vol == nil {
+			continue
+		}
+		mountPoint, err := s.getVolumeMountPoint(vol)
+		if err != nil {
+			dockerResponse(w, "", err)
+			return
+		}
+
+		dv := &DockerVolume{
+			Name:       volName,
+			Mountpoint: mountPoint,
+		}
+		vols = append(vols, dv)
+	}
+
+	response := pluginResponse{
+		Volumes: vols,
+	}
+
+	log.Debugf("Successfully got volume list for docker.")
+
+	writeResponseOutput(w, response)
 }
