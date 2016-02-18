@@ -101,8 +101,8 @@ func createRouter(s *daemon) *mux.Router {
 			"/VolumeDriver.Mount":   s.dockerMountVolume,
 			"/VolumeDriver.Unmount": s.dockerUnmountVolume,
 			"/VolumeDriver.Path":    s.dockerVolumePath,
-			"/VolumeDriver.Get":     s.dockerVolumeGet,
-			"/VolumeDriver.List":    s.dockerVolumeList,
+			"/VolumeDriver.Get":     s.dockerGetVolume,
+			"/VolumeDriver.List":    s.dockerListVolume,
 		},
 	}
 	for method, routes := range pluginMap {
