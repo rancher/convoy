@@ -373,13 +373,8 @@ func (d *Driver) UmountVolume(req Request) error {
 }
 
 func (d *Driver) MountPoint(req Request) (string, error) {
-	id := req.Name
-
-	volume := d.blankVolume(id)
-	if err := util.ObjectLoad(volume); err != nil {
-		return "", err
-	}
-	return volume.MountPoint, nil
+	volume := d.blankVolume(req.Name)
+	return volume.GenerateDefaultMountPoint(), nil
 }
 
 func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
