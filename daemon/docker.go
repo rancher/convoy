@@ -135,21 +135,28 @@ func (s *daemon) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 func (s *daemon) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin remove volume: %v %v", r.Method, r.RequestURI)
 
-	volume, _, err := s.getDockerVolume(r)
-	if err != nil {
-		dockerResponse(w, "", err)
-		return
-	}
-
-	if volume == nil {
-		log.Infof("Couldn't find volume. Nothing to remove.")
-		dockerResponse(w, "", nil)
-		return
-	}
-
 	if s.IgnoreDockerDelete {
-		log.Debugf("Ignoring remove volume %v for docker", volume.Name)
+		req, err := convertToPluginRequest(r)
+		var name string
+		if err != nil {
+			name = "unknown"
+		} else {
+			name = req.Name
+		}
+		log.Debugf("Ignoring remove volume %v for docker", name)
 	} else {
+		volume, _, err := s.getDockerVolume(r)
+		if err != nil {
+			dockerResponse(w, "", err)
+			return
+		}
+
+		if volume == nil {
+			log.Infof("Couldn't find volume. Nothing to remove.")
+			dockerResponse(w, "", nil)
+			return
+		}
+
 		request := &api.VolumeDeleteRequest{
 			VolumeName: volume.Name,
 			// By default we don't want to remove the volume because probably we're using NFS
@@ -243,14 +250,15 @@ func (s *daemon) dockerVolumePath(w http.ResponseWriter, r *http.Request) {
 func (s *daemon) dockerGetVolume(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin get volume: %v %v", r.Method, r.RequestURI)
 
-	volume, req, err := s.getDockerVolume(r)
+	volume, _, err := s.getDockerVolume(r)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
 	if volume == nil {
-		dockerResponse(w, "", fmt.Errorf("Could not find volume %v.", req.Name))
+		response := pluginResponse{}
+		writeResponseOutput(w, response)
 		return
 	}
 
