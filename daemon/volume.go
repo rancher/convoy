@@ -29,17 +29,58 @@ func (s *daemon) getVolume(name string) *Volume {
 	}
 }
 
+func (s *daemon) volumeExists(name string) (bool, error) {
+	for _, driver := range s.ConvoyDrivers {
+		volOps, err := driver.VolumeOps()
+		if err != nil {
+			return false, err
+		}
+
+		v, err := volOps.GetVolumeInfo(name)
+		if err != nil {
+			if util.IsNotExistsError(err) {
+				continue
+			}
+			return false, err
+		}
+
+		if v != nil {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *daemon) generateName() (string, error) {
+	name := util.GenerateName("volume")
+	for {
+		exists, err := s.volumeExists(name)
+		if err != nil {
+			return "", fmt.Errorf("Error occurred while checking if volume %v exists: %v", name, err)
+		}
+		if !exists {
+			return name, nil
+		}
+		name = util.GenerateName("volume")
+	}
+}
+
 func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
 	volumeName := request.Name
 	driverName := request.DriverName
 
+	var err error
 	if volumeName == "" {
-		volumeName = util.GenerateName("volume")
-		for s.NameUUIDIndex.Get(volumeName) != "" {
-			volumeName = util.GenerateName("volume")
+		volumeName, err = s.generateName()
+		if err != nil {
+			return nil, err
 		}
 	} else {
-		if s.NameUUIDIndex.Get(volumeName) != "" {
+		exists, err := s.volumeExists(volumeName)
+		if err != nil {
+			return nil, fmt.Errorf("Error occurred while checking if volume %v exists: %v", volumeName, err)
+		}
+		if exists {
 			return nil, fmt.Errorf("Volume %v already exists ", volumeName)
 		}
 	}
@@ -465,7 +506,7 @@ func (s *daemon) getDriverForVolume(id string) (ConvoyDriver, error) {
 			panic(fmt.Errorf("Driver %v incorrectly reports VolumeOperations implemented",
 				driver.Name()))
 		}
-		if _, err := volOps.GetVolumeInfo(id); err != nil {
+		if vol, err := volOps.GetVolumeInfo(id); vol == nil {
 			continue
 		}
 		return driver, nil
