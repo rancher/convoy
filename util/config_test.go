@@ -133,7 +133,7 @@ func (s *TestSuite) TestSaveLoadObject(c *C) {
 	c.Assert(exists, Equals, false)
 
 	err = ObjectLoad(d1)
-	c.Assert(err, ErrorMatches, "Cannot find object config.*")
+	c.Assert(err, ErrorMatches, "No such volume.*")
 
 	// test with ID
 	exists, err = ObjectExists(&Volume{})
