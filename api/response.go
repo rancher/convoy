@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"runtime"
 	"runtime/debug"
 	"strings"
 )
@@ -57,12 +58,17 @@ func ResponseLogAndError(v interface{}) {
 		}
 		// Cosmetic since " would be escaped
 		ResponseError(strings.Replace(s, "\"", "'", -1))
-	} else if e, ok := v.(error); ok {
-		logrus.Errorf(fmt.Sprint(e))
-		ResponseError(fmt.Sprint(e))
 	} else {
-		logrus.Errorf("%s: %s", v, debug.Stack())
-		ResponseError("Caught FATAL error: %s", v)
+		e, isErr := v.(error)
+		_, isRuntimeErr := e.(runtime.Error)
+		if isErr && !isRuntimeErr {
+			logrus.Errorf(fmt.Sprint(e))
+			ResponseError(fmt.Sprint(e))
+		} else {
+			logrus.Errorf("Caught FATAL error: %s", v)
+			debug.PrintStack()
+			ResponseError("Caught FATAL error: %s", v)
+		}
 	}
 }
 
