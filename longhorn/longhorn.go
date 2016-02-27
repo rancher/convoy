@@ -92,9 +92,10 @@ func (v *Volume) Stack(driver *Driver) *Stack {
 		COMPOSE_VOLUME_SIZE: sizeString,
 		COMPOSE_CONVOY:      driver.containerName,
 	}
+
 	return &Stack{
 		Client:        driver.client,
-		Name:          "longhorn-vol-" + v.Name,
+		Name:          "longhorn-vol-" + strings.Replace(v.Name, "_", "-", -1),
 		ExternalId:    "system://longhorn?name=" + v.Name,
 		Template:      DockerComposeTemplate,
 		Environment:   env,
