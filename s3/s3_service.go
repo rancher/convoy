@@ -53,6 +53,23 @@ func (s *S3Service) ListObjects(key, delimiter string) ([]*s3.Object, []*s3.Comm
 	return resp.Contents, resp.CommonPrefixes, nil
 }
 
+func (s *S3Service) HeadObject(key string) (*s3.HeadObjectOutput, error) {
+	svc, err := s.New()
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	params := &s3.HeadObjectInput{
+		Bucket: aws.String(s.Bucket),
+		Key:    aws.String(key),
+	}
+	resp, err := svc.HeadObject(params)
+	if err != nil {
+		return nil, parseAwsError(resp.String(), err)
+	}
+	return resp, nil
+}
+
 func (s *S3Service) PutObject(key string, reader io.ReadSeeker) error {
 	svc, err := s.New()
 	if err != nil {
