@@ -122,17 +122,14 @@ func (s *S3ObjectStoreDriver) FileExists(filePath string) bool {
 
 func (s *S3ObjectStoreDriver) FileSize(filePath string) int64 {
 	path := s.updatePath(filePath)
-	contents, _, err := s.service.ListObjects(path, "/")
+	head, err := s.service.HeadObject(path)
 	if err != nil {
 		return -1
 	}
-
-	if len(contents) == 0 {
+	if head.ContentLength == nil {
 		return -1
 	}
-
-	//TODO deal with multiple returns
-	return *contents[0].Size
+	return *head.ContentLength
 }
 
 func (s *S3ObjectStoreDriver) Remove(names ...string) error {
