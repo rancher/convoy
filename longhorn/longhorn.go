@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,6 +54,7 @@ var (
 type Driver struct {
 	mutex         *sync.RWMutex
 	client        *rancherClient.RancherClient
+	mdClient      *metadata.Client
 	containerName string
 	Device
 }
@@ -90,9 +92,10 @@ func (v *Volume) Stack(driver *Driver) *Stack {
 		COMPOSE_VOLUME_SIZE: sizeString,
 		COMPOSE_CONVOY:      driver.containerName,
 	}
+
 	return &Stack{
 		Client:        driver.client,
-		Name:          "longhorn-vol-" + v.Name,
+		Name:          "longhorn-vol-" + strings.Replace(v.Name, "_", "-", -1),
 		ExternalId:    "system://longhorn?name=" + v.Name,
 		Template:      DockerComposeTemplate,
 		Environment:   env,
@@ -185,10 +188,10 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		}
 	}
 
+	mdClient := metadata.NewClient(RANCHER_METADATA_URL)
 	containerName := config[LH_CONTAINER_NAME]
 	if containerName == "" {
-		handler := metadata.NewClient(RANCHER_METADATA_URL)
-		container, err := handler.GetSelfContainer()
+		container, err := mdClient.GetSelfContainer()
 		if err != nil {
 			return nil, err
 		}
@@ -210,8 +213,10 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 	}
 	d := &Driver{
 		client:        client,
+		mdClient:      mdClient,
 		containerName: containerName,
 		Device:        *dev,
+		mutex:         &sync.RWMutex{},
 	}
 
 	return d, nil
@@ -280,13 +285,7 @@ func (d *Driver) doCreateVolume(volume *Volume, stack *Stack, id string, opts ma
 	// If env was nil then we created stack so we need to format
 	if env == nil {
 		dev, _ := volume.GetDevice()
-		err := Backoff(5*time.Minute, fmt.Sprintf("Failed to find %s", dev), func() (bool, error) {
-			if _, err := os.Stat(dev); err == nil {
-				return true, nil
-			}
-			return false, nil
-		})
-		if err != nil {
+		if err := waitForDevice(dev); err != nil {
 			return err
 		}
 
@@ -294,6 +293,11 @@ func (d *Driver) doCreateVolume(volume *Volume, stack *Stack, id string, opts ma
 		if _, err := util.Execute("mkfs.ext4", []string{dev}); err != nil {
 			return err
 		}
+	}
+
+	if err := volume.Stack(d).MoveController(); err != nil {
+		log.Errorf("Failed to move controller to %s", d.containerName)
+		return err
 	}
 
 	return util.ObjectSave(volume)
@@ -324,6 +328,16 @@ func (d *Driver) DeleteVolume(req Request) error {
 	return util.ObjectDelete(volume)
 }
 
+func waitForDevice(dev string) error {
+	err := Backoff(5*time.Minute, fmt.Sprintf("Failed to find %s", dev), func() (bool, error) {
+		if _, err := os.Stat(dev); err == nil {
+			return true, nil
+		}
+		return false, nil
+	})
+	return err
+}
+
 func (d *Driver) MountVolume(req Request) (string, error) {
 	id := req.Name
 	opts := req.Options
@@ -333,8 +347,8 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 		return "", err
 	}
 
-	if err := volume.Stack(d).MoveController(); err != nil {
-		log.Errorf("Failed to move controller to %s", d.containerName)
+	dev, _ := volume.GetDevice()
+	if err := waitForDevice(dev); err != nil {
 		return "", err
 	}
 
@@ -372,26 +386,35 @@ func (d *Driver) UmountVolume(req Request) error {
 }
 
 func (d *Driver) MountPoint(req Request) (string, error) {
-	id := req.Name
-
-	volume := d.blankVolume(id)
-	if err := util.ObjectLoad(volume); err != nil {
-		return "", err
-	}
-	return volume.MountPoint, nil
+	volume := d.blankVolume(req.Name)
+	return volume.GenerateDefaultMountPoint(), nil
 }
 
 func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
+	return d.getVolumeInfo(id, true)
+}
+
+func (d *Driver) getVolumeInfo(id string, filter bool) (map[string]string, error) {
 	volume := d.blankVolume(id)
 	if err := util.ObjectLoad(volume); err != nil {
 		return nil, err
 	}
-	return map[string]string{
+
+	vol := map[string]string{
 		"Size":                  strconv.FormatInt(volume.Size, 10),
 		OPT_PREPARE_FOR_VM:      strconv.FormatBool(volume.PrepareForVM),
 		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
 		OPT_VOLUME_NAME:         volume.Name,
-	}, nil
+	}
+
+	if filter {
+		forFilter := map[string]map[string]string{id: vol}
+		d.filterThroughRancher(forFilter)
+		if len(forFilter) == 0 {
+			return nil, nil
+		}
+	}
+	return vol, nil
 }
 
 func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]string, error) {
@@ -404,16 +427,68 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	}
 	result := map[string]map[string]string{}
 	for _, id := range volumeIDs {
-		result[id], err = d.GetVolumeInfo(id)
+		volInfo, err := d.getVolumeInfo(id, false)
 		if err != nil {
-			return nil, err
+			continue
+		}
+		if volInfo != nil {
+			result[id] = volInfo
 		}
 	}
+	d.filterThroughRancher(result)
 	return result, nil
 }
 
 func (device *Device) listVolumeIDs() ([]string, error) {
 	return util.ListConfigIDs(device.Root, LONGHORN_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
+}
+
+func (d *Driver) filterThroughRancher(inputVols map[string]map[string]string) error {
+	stacks, err := d.mdClient.GetStacks()
+	if err != nil {
+		return err
+	}
+
+	con, err := d.mdClient.GetSelfContainer()
+	if err != nil {
+		return err
+	}
+	hostUUID := con.HostUUID
+	fromRancher := map[string]bool{}
+	for _, stack := range stacks {
+		if strings.HasPrefix(stack.Name, "longhorn-vol") {
+			onThisHost := false
+			for _, service := range stack.Services {
+				if service.Name == "controller" {
+					for _, container := range service.Containers {
+						if container.HostUUID == hostUUID {
+							onThisHost = true
+							break
+						}
+					}
+				}
+				if onThisHost {
+					if lhmd := service.Metadata["longhorn"]; lhmd != nil {
+						if m, ok := lhmd.(map[string]interface{}); ok {
+							if n := m["volume_name"]; n != nil {
+								if name, ok := n.(string); ok && name != "" {
+									fromRancher[name] = true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for k := range inputVols {
+		if _, ok := fromRancher[k]; !ok {
+			delete(inputVols, k)
+		}
+	}
+
+	return nil
 }
 
 func (d *Driver) SnapshotOps() (SnapshotOperations, error) {

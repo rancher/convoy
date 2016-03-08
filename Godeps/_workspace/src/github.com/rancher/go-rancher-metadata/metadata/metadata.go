@@ -123,6 +123,19 @@ func (m *Client) GetServices() ([]Service, error) {
 	return services, nil
 }
 
+func (m *Client) GetStacks() ([]Stack, error) {
+	resp, err := m.SendRequest("/stacks")
+	var stacks []Stack
+	if err != nil {
+		return stacks, err
+	}
+
+	if err = json.Unmarshal(resp, &stacks); err != nil {
+		return stacks, err
+	}
+	return stacks, nil
+}
+
 func (m *Client) GetContainers() ([]Container, error) {
 	resp, err := m.SendRequest("/containers")
 	var containers []Container
