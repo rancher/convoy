@@ -7,9 +7,9 @@ replica:
       slab_size: $SLAB_SIZE
   labels:
     io.rancher.container.hostname_override: container_name
-    io.rancher.scheduler.affinity:container_label_soft_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
+    io.rancher.scheduler.affinity:container_label_ne: io.rancher.stack_service.name=$${stack_name}/$${service_name}
     io.rancher.scheduler.affinity:container_soft: $CONVOY_CONTAINER
-  image: rancher/longhorn:v0.2.0
+  image: rancher/longhorn:v0.3.0
   volumes:
   - /volumes
   command: start-replica.sh
@@ -22,7 +22,7 @@ replica:
     recreate_on_quorum_strategy_config:
       quorum: 1
     request_line: GET /replica/status HTTP/1.0
-    response_timeout: 10000
+    response_timeout: 50000
     strategy: recreateOnQuorum
     unhealthy_threshold: 3
 
@@ -36,13 +36,13 @@ controller:
       slab_size: $SLAB_SIZE
   health_check:
     healthy_threshold: 1
-    interval: 2000
+    interval: 5000
     port: 8199
     request_line: GET /controller/status HTTP/1.0
-    response_timeout: 2000
+    response_timeout: 5000
     strategy: none
     unhealthy_threshold: 2
-  image: rancher/longhorn:v0.2.0
+  image: rancher/longhorn:v0.3.0
   privileged: true
   volumes:
   - /dev:/host/dev
