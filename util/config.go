@@ -2,12 +2,15 @@ package util
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
 )
+
+var errDoesNotExist = errors.New("No such volume")
 
 func LoadConfig(fileName string, v interface{}) error {
 	if _, err := os.Stat(fileName); err != nil {
@@ -115,7 +118,7 @@ func ObjectLoad(obj interface{}) error {
 		return err
 	}
 	if !ConfigExists(config) {
-		return fmt.Errorf("Cannot find object config %v", config)
+		return errDoesNotExist
 	}
 	if err := LoadConfig(config, obj); err != nil {
 		return err
@@ -145,4 +148,8 @@ func ObjectDelete(obj interface{}) error {
 		return err
 	}
 	return RemoveConfig(config)
+}
+
+func IsNotExistsError(err error) bool {
+	return err == errDoesNotExist
 }

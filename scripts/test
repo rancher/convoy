@@ -10,9 +10,12 @@ set_project_vars
 
 go test -tags "libdm_no_deferred_remove s3test" ./...
 
+echo "Checking gofmt:"
 result=$(find . -name "*.go" | grep -v ./Godeps | xargs gofmt -s -l)
 for i in $result; do
-    echo $i
+    echo "GOFMT ERROR IN $i:"
+    gofmt -s -d $i
+
 done
 
 [ -n "$result" ] && exit 1
