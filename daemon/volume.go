@@ -17,6 +17,11 @@ type Volume struct {
 	DriverName string
 }
 
+var notFoundAPIError = APIError{
+	statusCode: http.StatusNotFound,
+	error:      fmt.Sprintf("Volume not found."),
+}
+
 func (s *daemon) getVolume(name string) *Volume {
 	driver, err := s.getDriverForVolume(name)
 	if err != nil {
@@ -182,7 +187,7 @@ func (s *daemon) processVolumeDelete(request *api.VolumeDeleteRequest) error {
 
 	volume := s.getVolume(name)
 	if volume == nil {
-		return fmt.Errorf("Cannot find volume %s", name)
+		return notFoundAPIError
 	}
 
 	// In the case of snapshot is not supported, snapshots would be nil
@@ -325,7 +330,7 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 func (s *daemon) inspectVolume(name string) ([]byte, error) {
 	volume := s.getVolume(name)
 	if volume == nil {
-		return nil, fmt.Errorf("Cannot find volume %v", name)
+		return nil, notFoundAPIError
 	}
 	resp, err := s.listVolumeInfo(volume)
 	if err != nil {

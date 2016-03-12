@@ -138,8 +138,12 @@ func makeHandlerFunc(method string, route string, version string, f requestHandl
 			}
 		}
 		if err := f(version, w, r, mux.Vars(r)); err != nil {
-			log.Errorf("Handler for %s %s returned error: %s", method, route, err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			statusCode := checkForStatusCode(err)
+			if statusCode == 0 {
+				log.Errorf("Handler for %s %s returned error: %s", method, route, err)
+				statusCode = http.StatusBadRequest
+			}
+			http.Error(w, err.Error(), statusCode)
 		}
 	}
 }
@@ -378,4 +382,20 @@ func (s *daemon) getBackupOpsForVolume(volume *Volume) (BackupOperations, error)
 		return nil, err
 	}
 	return driver.BackupOps()
+}
+
+type APIError struct {
+	error      string
+	statusCode int
+}
+
+func (e APIError) Error() string {
+	return e.error
+}
+
+func checkForStatusCode(err error) int {
+	if apiError, ok := err.(APIError); ok {
+		return apiError.statusCode
+	}
+	return 0
 }
