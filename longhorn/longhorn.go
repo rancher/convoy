@@ -387,6 +387,7 @@ func (d *Driver) UmountVolume(req Request) error {
 
 func (d *Driver) MountPoint(req Request) (string, error) {
 	volume := d.blankVolume(req.Name)
+	// TODO Fix this. If unmounted, should return ""
 	return volume.GenerateDefaultMountPoint(), nil
 }
 
