@@ -43,9 +43,6 @@ func (idx *Index) Delete(key string) error {
 	idx.lock.Lock()
 	defer idx.lock.Unlock()
 
-	if _, exists := idx.data[key]; !exists {
-		return fmt.Errorf("BUG: About to remove non-existed key %v from index", key)
-	}
 	delete(idx.data, key)
 	return nil
 }
