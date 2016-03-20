@@ -2,14 +2,14 @@ package vfs
 
 import (
 	"fmt"
-	"github.com/rancher/convoy/objectstore"
-	"github.com/rancher/convoy/util"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 
 	. "github.com/rancher/convoy/convoydriver"
+	"github.com/rancher/convoy/objectstore"
+	"github.com/rancher/convoy/util"
 )
 
 const (
@@ -42,6 +42,7 @@ func (d *Driver) Name() string {
 type Device struct {
 	Root              string
 	Path              string
+	ConfigPath        string
 	DefaultVolumeSize int64
 }
 
@@ -82,7 +83,7 @@ func (v *Volume) ConfigFile() (string, error) {
 }
 
 func (device *Device) listVolumeNames() ([]string, error) {
-	return util.ListConfigIDs(device.Root, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
+	return util.ListConfigIDs(device.ConfigPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
 func Init(root string, config map[string]string) (ConvoyDriver, error) {
@@ -103,16 +104,21 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		}
 
 		path := config[VFS_PATH]
+		configPath := filepath.Join(path, "config")
 		if path == "" {
 			return nil, fmt.Errorf("VFS driver base path unspecified")
 		}
 		if err := util.MkdirIfNotExists(path); err != nil {
 			return nil, err
 		}
+		if err := util.MkdirIfNotExists(configPath); err != nil {
+			return nil, err
+		}
 
 		dev = &Device{
-			Root: root,
-			Path: path,
+			Root:       root,
+			Path:       path,
+			ConfigPath: configPath,
 		}
 
 		if _, exists := config[VFS_DEFAULT_VOLUME_SIZE]; !exists {
@@ -158,7 +164,7 @@ func (d *Driver) VolumeOps() (VolumeOperations, error) {
 
 func (d *Driver) blankVolume(id string) *Volume {
 	return &Volume{
-		configPath: d.Root,
+		configPath: d.ConfigPath,
 		Name:       id,
 	}
 }
@@ -177,6 +183,13 @@ func (d *Driver) CreateVolume(req Request) error {
 
 	id := req.Name
 	opts := req.Options
+	volume := d.blankVolume(id)
+
+	lockFile, err := flock(volume)
+	if err != nil {
+		return fmt.Errorf("Coudln't get flock. Error: %v", err)
+	}
+	defer util.UnlockFile(lockFile)
 
 	backupURL := opts[OPT_BACKUP_URL]
 	if backupURL != "" {
@@ -189,13 +202,12 @@ func (d *Driver) CreateVolume(req Request) error {
 		}
 	}
 
-	volume := d.blankVolume(id)
 	exists, err := util.ObjectExists(volume)
 	if err != nil {
 		return err
 	}
 	if exists {
-		return fmt.Errorf("volume %v already exists", id)
+		return nil
 	}
 
 	volume.PrepareForVM, err = strconv.ParseBool(opts[OPT_PREPARE_FOR_VM])
@@ -239,6 +251,13 @@ func (d *Driver) DeleteVolume(req Request) error {
 	opts := req.Options
 
 	volume := d.blankVolume(id)
+
+	lockFile, err := flock(volume)
+	if err != nil {
+		return fmt.Errorf("Coudln't get flock. Error: %v", err)
+	}
+	defer util.UnlockFile(lockFile)
+
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
@@ -280,6 +299,13 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 			return "", err
 		}
 	}
+
+	lockFile, err := flock(volume)
+	if err != nil {
+		return "", fmt.Errorf("Coudln't get flock. Error: %v", err)
+	}
+	defer util.UnlockFile(lockFile)
+
 	if err := util.ObjectSave(volume); err != nil {
 		return "", err
 	}
@@ -300,6 +326,12 @@ func (d *Driver) UmountVolume(req Request) error {
 	if volume.MountPoint != "" {
 		volume.MountPoint = ""
 	}
+
+	lockFile, err := flock(volume)
+	if err != nil {
+		return fmt.Errorf("Coudln't get flock. Error: %v", err)
+	}
+	defer util.UnlockFile(lockFile)
 	return util.ObjectSave(volume)
 }
 
@@ -313,7 +345,7 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	}
 	result := map[string]map[string]string{}
 	for _, id := range volumeIDs {
-		result[id], err = d.GetVolumeInfo(id)
+		result[id], err = d.getVolumeInfo(id)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +356,10 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 func (d *Driver) GetVolumeInfo(name string) (map[string]string, error) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
+	return d.getVolumeInfo(name)
+}
 
+func (d *Driver) getVolumeInfo(name string) (map[string]string, error) {
 	volume := d.blankVolume(name)
 	if err := util.ObjectLoad(volume); err != nil {
 		return nil, err
@@ -396,6 +431,12 @@ func (d *Driver) CreateSnapshot(req Request) error {
 		VolumeUUID:  volumeID,
 		FilePath:    snapFile,
 	}
+
+	lockFile, err := flock(volume)
+	if err != nil {
+		return fmt.Errorf("Coudln't get flock. Error: %v", err)
+	}
+	defer util.UnlockFile(lockFile)
 	return util.ObjectSave(volume)
 }
 
@@ -423,6 +464,12 @@ func (d *Driver) deleteSnapshot(id, volumeID string) error {
 		return err
 	}
 	delete(volume.Snapshots, id)
+
+	lockFile, err := flock(volume)
+	if err != nil {
+		return fmt.Errorf("Coudln't get flock. Error: %v", err)
+	}
+	defer util.UnlockFile(lockFile)
 	return util.ObjectSave(volume)
 }
 
@@ -539,4 +586,13 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 
 func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
 	return objectstore.List(opts[OPT_VOLUME_NAME], destURL, d.Name())
+}
+
+func flock(volume *Volume) (*os.File, error) {
+	cf, err := volume.ConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	lockPath := cf + ".lock"
+	return util.LockFile(lockPath)
 }
