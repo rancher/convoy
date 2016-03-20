@@ -37,5 +37,9 @@ var (
 			Name:  "ignore-docker-delete",
 			Usage: "Do not delete volumes when told to by Docker",
 		},
+		cli.BoolFlag{
+			Name:  "create-on-docker-mount",
+			Usage: "Create a volume if docker asks to do a mount and the volume doesn't exist.",
+		},
 	}
 )

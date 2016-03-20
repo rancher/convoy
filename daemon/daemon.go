@@ -45,11 +45,12 @@ var (
 )
 
 type daemonConfig struct {
-	Root               string
-	DriverList         []string
-	DefaultDriver      string
-	MountNamespaceFD   string
-	IgnoreDockerDelete bool
+	Root                string
+	DriverList          []string
+	DefaultDriver       string
+	MountNamespaceFD    string
+	IgnoreDockerDelete  bool
+	CreateOnDockerMount bool
 }
 
 func (c *daemonConfig) ConfigFile() (string, error) {
@@ -292,6 +293,7 @@ func Start(sockFile string, c *cli.Context) error {
 		config.DriverList = driverList
 		config.DefaultDriver = driverList[0]
 		config.IgnoreDockerDelete = c.Bool("ignore-docker-delete")
+		config.CreateOnDockerMount = c.Bool("create-on-docker-mount")
 	}
 
 	s.daemonConfig = *config

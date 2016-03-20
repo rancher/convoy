@@ -176,15 +176,24 @@ func (s *daemon) dockerRemoveVolume(w http.ResponseWriter, r *http.Request) {
 func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Handle plugin mount volume: %v %v", r.Method, r.RequestURI)
 
-	volume, _, err := s.getDockerVolume(r)
+	volume, request, err := s.getDockerVolume(r)
 	if err != nil {
 		dockerResponse(w, "", err)
 		return
 	}
 
 	if volume == nil {
-		dockerResponse(w, "", fmt.Errorf("Couldn't find volume."))
-		return
+		if s.CreateOnDockerMount {
+			volume, err = s.createDockerVolume(request)
+			if err != nil {
+				dockerResponse(w, "", err)
+				return
+			}
+			log.Debugf("Created volume for docker during mount %v", volume.Name)
+		} else {
+			dockerResponse(w, "", fmt.Errorf("Couldn't find volume."))
+			return
+		}
 	}
 
 	log.Debugf("Mount volume: %v for docker", volume.Name)
