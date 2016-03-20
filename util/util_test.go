@@ -227,7 +227,7 @@ func (s *TestSuite) TestIndex(c *C) {
 	c.Assert(err, ErrorMatches, "BUG: Invalid empty index key")
 
 	err = index.Delete("keyx")
-	c.Assert(err, ErrorMatches, "BUG: About to remove non-existed key.*")
+	c.Assert(err, IsNil)
 
 	err = index.Delete("key1")
 	c.Assert(err, IsNil)
