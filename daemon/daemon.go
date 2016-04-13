@@ -51,6 +51,7 @@ type daemonConfig struct {
 	MountNamespaceFD    string
 	IgnoreDockerDelete  bool
 	CreateOnDockerMount bool
+	CmdTimeout          string
 }
 
 func (c *daemonConfig) ConfigFile() (string, error) {
@@ -300,6 +301,7 @@ func Start(sockFile string, c *cli.Context) error {
 		config.DefaultDriver = driverList[0]
 		config.IgnoreDockerDelete = c.Bool("ignore-docker-delete")
 		config.CreateOnDockerMount = c.Bool("create-on-docker-mount")
+		config.CmdTimeout = c.String("cmd-timeout")
 	}
 
 	s.daemonConfig = *config
@@ -307,6 +309,9 @@ func Start(sockFile string, c *cli.Context) error {
 	if err := util.InitMountNamespace(s.MountNamespaceFD); err != nil {
 		return err
 	}
+
+	util.InitTimeout(config.CmdTimeout)
+
 	// driverOpts would be ignored by Convoy Drivers if config already exists
 	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
 	if err := s.initDrivers(driverOpts); err != nil {
