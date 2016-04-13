@@ -114,14 +114,32 @@ func (device *Device) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(device.Root, DRIVER_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
-func Init(root string, config map[string]string) (ConvoyDriver, error) {
+func Init(root string, config map[string]string, ignoreCfgFile bool) (ConvoyDriver, error) {
+	var err error
+
 	dev := &Device{
 		Root: root,
 	}
-	exists, err := util.ObjectExists(dev)
-	if err != nil {
-		return nil, err
+
+	if ignoreCfgFile {
+		// Ignore configure file only if no volume exists
+		volumeIDs, err := dev.listVolumeNames()
+		if err != nil {
+			return nil, err
+		}
+		if len(volumeIDs) != 0 {
+			ignoreCfgFile = false
+		}
 	}
+
+	exists := false
+	if !ignoreCfgFile {
+		exists, err = util.ObjectExists(dev)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if exists {
 		if err := util.ObjectLoad(dev); err != nil {
 			return nil, err

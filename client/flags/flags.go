@@ -45,5 +45,9 @@ var (
 			Name:  "cmd-timeout",
 			Usage: "Set timeout value for executing each command. One minute (1m) by default and at least one minute.",
 		},
+		cli.BoolFlag{
+			Name:  "ignore-config-file",
+			Usage: "Avoid loading the existing config file when starting daemon",
+		},
 	}
 )

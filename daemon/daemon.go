@@ -41,6 +41,8 @@ var (
 	lockFile *os.File
 	logFile  *os.File
 
+	ignoreCfgFile bool
+
 	log = logrus.WithFields(logrus.Fields{"pkg": "daemon"})
 )
 
@@ -236,7 +238,7 @@ func (s *daemon) initDrivers(driverOpts map[string]string) error {
 			"driver_opts":    driverOpts,
 		}).Debug()
 
-		driver, err := GetDriver(driverName, s.Root, driverOpts)
+		driver, err := GetDriver(driverName, s.Root, driverOpts, ignoreCfgFile)
 		if err != nil {
 			return err
 		}
@@ -267,10 +269,16 @@ func Start(sockFile string, c *cli.Context) error {
 	config := &daemonConfig{
 		Root: root,
 	}
-	exists, err := util.ObjectExists(config)
-	if err != nil {
-		return err
+
+	ignoreCfgFile = c.Bool("ignore-config-file")
+	exists := false
+	if !ignoreCfgFile {
+		exists, err = util.ObjectExists(config)
+		if err != nil {
+			return err
+		}
 	}
+
 	if exists {
 		log.Debug("Found existing config. Ignoring command line opts, loading config from ", root)
 		if err := util.ObjectLoad(config); err != nil {
