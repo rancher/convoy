@@ -14,9 +14,10 @@ The registered function would be called upon Convoy need a ConvoyDriver
 instance, and it would return a valid ConvoyDriver for operation.
 
 The registered function would take a "root" path, used as driver's configuration
-file path, and a map of configuration specified for the driver.
+file path, a map of configuration specified for the driver and a option
+for indicating ignoring configure file.
 */
-type InitFunc func(root string, config map[string]string) (ConvoyDriver, error)
+type InitFunc func(root string, config map[string]string, ignoreCfgFile bool) (ConvoyDriver, error)
 
 /*
 ConvoyDriver interface would provide all the functionality needed for driver
@@ -119,10 +120,10 @@ func Register(name string, initFunc InitFunc) error {
 /*
 GetDriver would be called each time when a Convoy Driver instance is needed.
 */
-func GetDriver(name, root string, config map[string]string) (ConvoyDriver, error) {
+func GetDriver(name, root string, config map[string]string, ignoreCfgFile bool) (ConvoyDriver, error) {
 	if _, exists := initializers[name]; !exists {
 		return nil, fmt.Errorf("Driver %v is not supported!", name)
 	}
 	drvRoot := filepath.Join(root, name)
-	return initializers[name](drvRoot, config)
+	return initializers[name](drvRoot, config, ignoreCfgFile)
 }
