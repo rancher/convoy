@@ -41,5 +41,9 @@ var (
 			Name:  "create-on-docker-mount",
 			Usage: "Create a volume if docker asks to do a mount and the volume doesn't exist.",
 		},
+		cli.BoolFlag{
+			Name:  "ignore-config-file",
+			Usage: "Avoid loading the existing config file when starting daemon",
+		},
 	}
 )

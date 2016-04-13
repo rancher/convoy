@@ -266,10 +266,16 @@ func Start(sockFile string, c *cli.Context) error {
 	config := &daemonConfig{
 		Root: root,
 	}
-	exists, err := util.ObjectExists(config)
-	if err != nil {
-		return err
+
+	ignoreCfgFile := c.Bool("ignore-config-file")
+	exists := false
+	if !ignoreCfgFile {
+		exists, err = util.ObjectExists(config)
+		if err != nil {
+			return err
+		}
 	}
+
 	if exists {
 		log.Debug("Found existing config. Ignoring command line opts, loading config from ", root)
 		if err := util.ObjectLoad(config); err != nil {
