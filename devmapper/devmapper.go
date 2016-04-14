@@ -35,6 +35,7 @@ const (
 	DM_THINPOOL_NAME       = "dm.thinpoolname"
 	DM_THINPOOL_BLOCK_SIZE = "dm.thinpoolblocksize"
 	DM_DEFAULT_VOLUME_SIZE = "dm.defaultvolumesize"
+	DM_DEFAULT_FS_TYPE     = "dm.fs"
 
 	// as defined in device mapper thin provisioning
 	BLOCK_SIZE_MIN        = 128
@@ -42,6 +43,7 @@ const (
 	BLOCK_SIZE_MULTIPLIER = 128
 
 	DEFAULT_VOLUME_SIZE = "100G"
+	DEFAULT_FS_TYPE     = "ext4"
 
 	SECTOR_SIZE = 512
 
@@ -115,6 +117,7 @@ type Device struct {
 	ThinpoolBlockSize int64
 	DefaultVolumeSize int64
 	LastDevID         int
+	Filesystem        string
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -186,7 +189,24 @@ func verifyConfig(config map[string]string) (*Device, error) {
 	}
 	dv.DefaultVolumeSize = volumeSize
 
+	if _, exists := config[DM_DEFAULT_FS_TYPE]; !exists {
+		config[DM_DEFAULT_FS_TYPE] = DEFAULT_FS_TYPE
+	}
+	fs_type := config[DM_DEFAULT_FS_TYPE]
+	if !fsSupported(fs_type) {
+		return nil, fmt.Errorf("Unsupported filesystem type specified")
+	}
+	dv.Filesystem = fs_type
+
 	return &dv, nil
+}
+
+func fsSupported(fs_type string) bool {
+	if fs_type == "ext4" || fs_type == "xfs" {
+		return true
+	}
+
+	return false
 }
 
 func (d *Driver) activatePool() error {
@@ -501,7 +521,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	}
 	if backupURL == "" {
 		// format the device
-		if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
+		if err := d.createFilesystem(dev); err != nil {
 			return err
 		}
 	} else {
@@ -511,6 +531,29 @@ func (d *Driver) CreateVolume(req Request) error {
 	}
 
 	return nil
+}
+
+func (d *Driver) createFilesystem(dev string) error {
+	var err error
+
+	log.Debugf("Formatting device %s with %s filesystem", dev, d.Filesystem)
+
+	switch d.Filesystem {
+	case "ext4":
+		_, err = util.Execute("mkfs", []string{"-t", "ext4", dev})
+	case "xfs":
+		_, err = util.Execute("mkfs", []string{"-t", "xfs", dev})
+	default:
+		err = fmt.Errorf("Unsupported filesystem type %s", d.Filesystem)
+	}
+
+	if err != nil {
+		log.Errorf("Formatting device failed")
+	} else {
+		log.Debugf("Formatting device done")
+	}
+
+	return err
 }
 
 func (d *Driver) removeDevice(name string) error {

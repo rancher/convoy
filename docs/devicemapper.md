@@ -16,6 +16,8 @@ __Required__. A small block device called metadata device used to create device 
 ```4096```(2MiB) by default. The block size in 512-byte sectors of thin-provisioning pool. Notice it must be a value between 128 and 2097152, and must be multiples of 128.
 #### ```dm.defaultvolumesize```
 ```100G``` by default. Since we're using thin-provisioning volumes of device mapper, here the volume size is the upper limit of volume size, rather than real volume size allocated on the disk. Though specify a number too big here would result in bigger storage space taken by the empty filesystem.
+#### ```dm.fs```
+```ext4``` by default. Supported filesystem types are ext4 and xfs.
 
 ## Command details
 #### `create`
