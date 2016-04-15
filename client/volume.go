@@ -163,13 +163,14 @@ func doVolumeDelete(c *cli.Context) error {
 
 		url := "/volumes/"
 
-		err = sendRequestAndPrint("DELETE", url, request)
-		if err != nil {
-			fmt.Println("Error deleting " + name + ": " + err.Error())
+		reqErr := sendRequestAndPrint("DELETE", url, request)
+		if reqErr != nil {
+			err = reqErr
+			fmt.Println("Error deleting " + name + ": " + reqErr.Error())
 		}
 	}
 
-	return nil
+	return err
 }
 
 func cmdVolumeList(c *cli.Context) {
