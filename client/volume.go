@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/util"
@@ -149,19 +150,27 @@ func cmdVolumeDelete(c *cli.Context) {
 func doVolumeDelete(c *cli.Context) error {
 	var err error
 
-	name, err := getName(c, "", true)
+	names, err := getNames(c)
 	if err != nil {
 		return err
 	}
 
-	request := &api.VolumeDeleteRequest{
-		VolumeName:    name,
-		ReferenceOnly: c.Bool("reference"),
+	for _, name := range names {
+		request := &api.VolumeDeleteRequest{
+			VolumeName:    name,
+			ReferenceOnly: c.Bool("reference"),
+		}
+
+		url := "/volumes/"
+
+		reqErr := sendRequestAndPrint("DELETE", url, request)
+		if reqErr != nil {
+			err = reqErr
+			fmt.Println("Error deleting " + name + ": " + reqErr.Error())
+		}
 	}
 
-	url := "/volumes/"
-
-	return sendRequestAndPrint("DELETE", url, request)
+	return err
 }
 
 func cmdVolumeList(c *cli.Context) {

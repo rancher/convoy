@@ -194,3 +194,13 @@ func getName(c *cli.Context, key string, required bool) (string, error) {
 	}
 	return name, nil
 }
+
+func getNames(c *cli.Context) ([]string, error) {
+	names := c.Args()
+	for _, name := range names {
+		if err := util.CheckName(name); err != nil {
+			return nil, err
+		}
+	}
+	return names, nil
+}
