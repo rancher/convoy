@@ -513,8 +513,12 @@ func (d *Driver) CreateVolume(req Request) error {
 	return nil
 }
 
+func devPath(name string) string {
+	return filepath.Join(DM_DIR, name)
+}
+
 func (d *Driver) removeDevice(name string) error {
-	if err := devicemapper.BlockDeviceDiscard(name); err != nil {
+	if err := devicemapper.BlockDeviceDiscard(devPath(name)); err != nil {
 		log.Debugf("Error %s when discarding %v, ignored", err, name)
 	}
 	for i := 0; i < 200; i++ {
