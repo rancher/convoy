@@ -37,7 +37,7 @@ $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./util/volume.go ./util/index.go \
 	./glusterfs/glusterfs.go \
 	./logging/logging.go
-	go build $(FLAGS) -o $(CONVOY_EXEC_FILE)
+	godep go build $(FLAGS) -o $(CONVOY_EXEC_FILE)
 
 clean:
 	rm -f $(CONVOY_EXEC_FILE)
@@ -46,4 +46,4 @@ install:
 	cp $(CONVOY_EXEC_FILE) /usr/local/bin/
 
 test:
-	go test -tags "libdm_no_deferred_remove" ./...
+	godep go test -tags "libdm_no_deferred_remove" ./...
