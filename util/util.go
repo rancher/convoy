@@ -31,7 +31,24 @@ const (
 
 var (
 	log = logrus.WithFields(logrus.Fields{"pkg": "util"})
+
+	cmdTimeout time.Duration = time.Minute // one minute by default
 )
+
+func InitTimeout(timeout string) {
+	if timeout == "" {
+		return
+	}
+
+	duration, err := time.ParseDuration(timeout)
+	if err != nil || duration < cmdTimeout {
+		log.Errorf("Invalid timeout value %s specified, default to one minute", timeout)
+		return
+	}
+
+	log.Debugf("Set command timeout value to: %s", duration.String())
+	cmdTimeout = duration
+}
 
 func EncodeData(v interface{}) (*bytes.Buffer, error) {
 	param := bytes.NewBuffer(nil)
@@ -267,7 +284,7 @@ func Execute(binary string, args []string) (string, error) {
 
 	select {
 	case <-done:
-	case <-time.After(1 * time.Minute):
+	case <-time.After(cmdTimeout):
 		if cmd.Process != nil {
 			cmd.Process.Kill()
 		}

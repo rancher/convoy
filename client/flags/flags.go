@@ -41,5 +41,9 @@ var (
 			Name:  "create-on-docker-mount",
 			Usage: "Create a volume if docker asks to do a mount and the volume doesn't exist.",
 		},
+		cli.StringFlag{
+			Name:  "cmd-timeout",
+			Usage: "Set timeout value for executing each command. One minute (1m) by default and at least one minute.",
+		},
 	}
 )
