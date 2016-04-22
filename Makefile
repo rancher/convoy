@@ -11,6 +11,11 @@ ifeq ($(STATIC_LINK), 1)
 	    --installsuffix netgo
 endif
 
+GODEP = godep
+ifeq ($(NO_GODEP), 1)
+    GODEP =
+endif
+
 ./longhorn/template.go: ./longhorn/docker-compose.yml
 	./longhorn/mktemplate.sh
 
@@ -37,7 +42,7 @@ $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./util/volume.go ./util/index.go \
 	./glusterfs/glusterfs.go \
 	./logging/logging.go
-	godep go build $(FLAGS) -o $(CONVOY_EXEC_FILE)
+	$(GODEP) go build $(FLAGS) -o $(CONVOY_EXEC_FILE)
 
 clean:
 	rm -f $(CONVOY_EXEC_FILE)
