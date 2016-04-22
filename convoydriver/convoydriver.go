@@ -94,6 +94,7 @@ const (
 	OPT_BACKUP_URL            = "BackupURL"
 	OPT_REFERENCE_ONLY        = "ReferenceOnly"
 	OPT_PREPARE_FOR_VM        = "PrepareForVM"
+	OPT_FILESYSTEM            = "Filesystem"
 )
 
 var (

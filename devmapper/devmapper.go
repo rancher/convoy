@@ -77,6 +77,7 @@ type Volume struct {
 	Snapshots   map[string]Snapshot
 
 	configPath string
+	Filesystem string
 }
 
 type Snapshot struct {
@@ -280,6 +281,15 @@ func (d *Driver) remountVolumes() error {
 		if err := util.ObjectLoad(volume); err != nil {
 			return err
 		}
+
+		if volume.Filesystem == "" {
+			//It must be formatted with ext4
+			volume.Filesystem = "ext4"
+			if err := util.ObjectSave(volume); err != nil {
+				return err
+			}
+		}
+
 		if volume.MountPoint == "" {
 			continue
 		}
@@ -511,6 +521,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	volume.Size = size
 	volume.CreatedTime = util.Now()
 	volume.Snapshots = make(map[string]Snapshot)
+	volume.Filesystem = d.Filesystem
 	if err := util.ObjectSave(volume); err != nil {
 		return err
 	}
@@ -750,6 +761,7 @@ func (d *Driver) Info() (map[string]string, error) {
 		"ThinpoolSize":      strconv.FormatInt(d.ThinpoolSize, 10),
 		"ThinpoolBlockSize": strconv.FormatInt(blockSize, 10),
 		"DefaultVolumeSize": strconv.FormatInt(d.DefaultVolumeSize, 10),
+		"Filesystem":        d.Filesystem,
 	}
 
 	return info, nil
@@ -907,6 +919,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		OPT_VOLUME_CREATED_TIME: volume.CreatedTime,
 		OPT_MOUNT_POINT:         volume.MountPoint,
 		OPT_SIZE:                strconv.FormatInt(volume.Size, 10),
+		OPT_FILESYSTEM:          volume.Filesystem,
 	}
 	return result, nil
 }
