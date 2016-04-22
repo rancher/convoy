@@ -132,23 +132,23 @@ func (s *TestSuite) TearDownSuite(c *C) {
 func (s *TestSuite) initDriver(c *C) {
 	config := make(map[string]string)
 
-	_, err := Init(devCfgRoot, config)
+	_, err := Init(devCfgRoot, config, false)
 	c.Assert(err, ErrorMatches, "data device or metadata device unspecified")
 
 	config[DM_DATA_DEV] = s.dataDev
 	config[DM_METADATA_DEV] = s.metadataDev
 	config[DM_THINPOOL_BLOCK_SIZE] = "100"
-	_, err = Init(devCfgRoot, config)
+	_, err = Init(devCfgRoot, config, false)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Block size must.*")
 
 	config[DM_THINPOOL_NAME] = "test_pool"
 	delete(config, DM_THINPOOL_BLOCK_SIZE)
 
-	driver, err := Init(devCfgRoot, config)
+	driver, err := Init(devCfgRoot, config, false)
 	c.Assert(err, IsNil)
 
-	newDriver, err := Init(devCfgRoot, config)
+	newDriver, err := Init(devCfgRoot, config, false)
 	c.Assert(err, IsNil)
 
 	drv1, ok := driver.(*Driver)
