@@ -281,6 +281,15 @@ func (d *Driver) remountVolumes() error {
 		if err := util.ObjectLoad(volume); err != nil {
 			return err
 		}
+
+		if volume.Filesystem == "" {
+			//It must be formatted with ext4
+			volume.Filesystem = "ext4"
+			if err := util.ObjectSave(volume); err != nil {
+				return err
+			}
+		}
+
 		if volume.MountPoint == "" {
 			continue
 		}
