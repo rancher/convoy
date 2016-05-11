@@ -1,0 +1,78 @@
+package: github.com/rancher/convoy
+
+import:
+- package: github.com/Sirupsen/logrus
+  version: 6ba91e24c498b49d0363c723e9e2ab2b5b8fd012
+
+- package: github.com/aws/aws-sdk-go/aws
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/endpoints
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/protocol/ec2query
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/protocol/query
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/protocol/rest
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/protocol/restxml
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/signer/v4
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/private/waiter
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/service/ec2
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/aws/aws-sdk-go/service/s3
+  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+
+- package: github.com/codegangsta/cli
+  version: c31a7975863e7810c92e2e288a9ab074f9a88f29
+
+- package: github.com/docker/docker/pkg/devicemapper
+  version: ea65c38ac0972709cdb371ce6b1886eb252a126e
+
+- package: github.com/go-ini/ini
+  version: afbd495e5aaea13597b5e14fe514ddeaa4d76fc3
+
+- package: github.com/gorilla/context
+  version: 215affda49addc4c8ef7e2534915df2c8c35c6cd
+
+- package: github.com/gorilla/mux
+  version: e444e69cbd2e2e3e0749a2f3c717cec491552bbf
+
+- package: github.com/gorilla/websocket
+  version: 3986be78bf859e01f01af631ad76da5b269d270c
+
+- package: github.com/jmespath/go-jmespath
+  version: c01cf91b011868172fdcd9f41838e80c9d716264
+
+- package: github.com/mcuadros/go-version
+  version: d52711f8d6bea8dc01efafdb68ad95a4e2606630
+
+- package: github.com/rancher/go-rancher-metadata/metadata
+  version: 593dcecf7122b25df7ad5d0d3d73fdbcc8bee3be
+
+- package: github.com/rancher/go-rancher/client
+  version: a1a60172da70a2d3f324da3b0c392b79f75fb91b
+
+- package: github.com/satori/go.uuid
+  version: d41af8bb6a7704f00bc3b7cba9355ae6a5a80048
+
+- package: golang.org/x/sys/unix
+  version: 442cd600860ce722f6615730eb008a37a87b13ee
+
+- package: gopkg.in/check.v1
+  version: 4f90aeace3a26ad7021961c297b22c42160c7b25
+
