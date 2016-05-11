@@ -1,25 +1,9 @@
-#!/bin/bash -e
+#!/bin/bash
+set -e
 
 cd $(dirname $0)/..
 
-if [ -f ./build/bootstrap.envs ];then
-    . ./build/bootstrap.envs
-fi
-
-. ./scripts/common_functions
-
-set_project_vars
-
-if [ -L ${PACKAGE} ]; then
-    rm ${PACKAGE}
-fi
-
-if [ ! -e ${PACKAGE} ]; then
-    mkdir -p $(dirname $PACKAGE)
-    ln -s $(pwd) $PACKAGE
-fi
-
-echo export GOPATH=$GOPATH
-
-make STATIC_LINK=1
-make install
+mkdir -p bin
+go build -a -tags "netgo libdm_no_deferred_remove" \
+	-ldflags "-X main.VERSION=$VERSION -linkmode external -extldflags -static" \
+	--installsuffix netgo -o bin/convoy

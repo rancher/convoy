@@ -52,20 +52,11 @@ import:
 - package: github.com/gorilla/mux
   version: e444e69cbd2e2e3e0749a2f3c717cec491552bbf
 
-- package: github.com/gorilla/websocket
-  version: 3986be78bf859e01f01af631ad76da5b269d270c
-
 - package: github.com/jmespath/go-jmespath
   version: c01cf91b011868172fdcd9f41838e80c9d716264
 
 - package: github.com/mcuadros/go-version
   version: d52711f8d6bea8dc01efafdb68ad95a4e2606630
-
-- package: github.com/rancher/go-rancher-metadata/metadata
-  version: 593dcecf7122b25df7ad5d0d3d73fdbcc8bee3be
-
-- package: github.com/rancher/go-rancher/client
-  version: a1a60172da70a2d3f324da3b0c392b79f75fb91b
 
 - package: github.com/satori/go.uuid
   version: d41af8bb6a7704f00bc3b7cba9355ae6a5a80048

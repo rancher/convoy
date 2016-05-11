@@ -1,29 +1,25 @@
 #!/bin/bash
+set -e
+
+CONVOY_CONTENT="convoy"
 
 cd $(dirname $0)/..
 
-CONTENT=$(uuidgen)
-CONVOY_CONTENT="convoy"
+if [ ! -x bin/convoy ]; then
+    scripts/build
+fi
 
 rm -rf dist/artifacts
 
-mkdir -p build/${CONTENT}
 mkdir -p build/${CONVOY_CONTENT}
 mkdir -p dist/artifacts
 
 cp /usr/local/bin/convoy-pdata_tools bin/
-cp -rf apply.sh bin build/${CONTENT}
 cp -f bin/* build/${CONVOY_CONTENT}
 
 cd build
 
-sha1sum -b $(find ${CONTENT} -type f) > ${CONTENT}/SHA1SUMS
-sha1sum ${CONTENT}/SHA1SUMS > ${CONTENT}/SHA1SUMSSUM
-
 sha1sum -b $(find ${CONVOY_CONTENT} -type f) > ${CONVOY_CONTENT}/SHA1SUMS
-
-tar czf ../dist/artifacts/convoy_package.tar.gz ${CONTENT}
-echo Created dist/artifacts/convoy_package.tar.gz
 
 tar czf ../dist/artifacts/convoy.tar.gz ${CONVOY_CONTENT}
 echo Created dist/artifacts/convoy.tar.gz

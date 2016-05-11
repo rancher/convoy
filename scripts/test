@@ -1,23 +1,14 @@
 #!/bin/bash
-
 set -e
 
 cd $(dirname $0)/..
 
-. ./scripts/common_functions
+echo Running tests
 
-set_project_vars
+if [ ! -x ./bin/convoy ]; then
+    ./scripts/build
+fi
 
-go test -tags "libdm_no_deferred_remove s3test" ./...
+PACKAGES=". $(find -name '*.go' | xargs -I{} dirname {} |  cut -f2 -d/ | sort -u | grep -Ev '(^\.$|.git|.trash-cache|vendor|bin)' | sed -e 's!^!./!' -e 's!$!/...!')"
 
-echo "Checking gofmt:"
-result=$(find . -name "*.go" | grep -v ./Godeps | xargs gofmt -s -l)
-for i in $result; do
-    echo "GOFMT ERROR IN $i:"
-    gofmt -s -d $i
-
-done
-
-[ -n "$result" ] && exit 1
-
-echo OK
+go test -race -cover -tags "libdm_no_deferred_remove s3test" ${PACKAGES}
