@@ -11,9 +11,6 @@ ifeq ($(STATIC_LINK), 1)
 	    --installsuffix netgo
 endif
 
-./longhorn/template.go: ./longhorn/docker-compose.yml
-	./longhorn/mktemplate.sh
-
 $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./api/response.go ./api/const.go \
 	./daemon/daemon.go ./daemon/common.go ./daemon/volume.go \
@@ -31,7 +28,6 @@ $(CONVOY_EXEC_FILE): ./main.go ./api/request.go \
 	./vfs/vfs_objectstore.go ./vfs/vfs_storage.go \
 	./convoydriver/convoydriver.go \
 	./devmapper/devmapper.go ./devmapper/backup.go \
-	./longhorn/longhorn.go ./longhorn/template.go ./longhorn/wait.go ./longhorn/stack.go \
 	./metadata/devmapper.go ./metadata/metadata.go \
 	./util/util.go ./util/config.go \
 	./util/volume.go ./util/index.go \
