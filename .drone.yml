@@ -1,3 +1,4 @@
-image: rancher/dind:v0.3.0
+image: rancher/dind:v1.10.0-rancher1
 script:
-  - ./scripts/ci
+ - wrapdocker
+ - make ci
