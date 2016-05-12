@@ -177,7 +177,7 @@ func Copy(src, dst string) error {
 }
 
 func AttachLoopbackDevice(file string, readonly bool) (string, error) {
-	params := []string{"-v", "-f"}
+	params := []string{"--show", "-f"}
 	if readonly {
 		params = append(params, "-r")
 	}
@@ -186,8 +186,10 @@ func AttachLoopbackDevice(file string, readonly bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dev := strings.TrimSpace(strings.SplitAfter(string(out[:]), "device is")[1])
-	return dev, nil
+	if len(out) == 0 {
+		return "", fmt.Errorf("losetup --show doesn't return device name")
+	}
+	return strings.TrimSpace(out), nil
 }
 
 func DetachLoopbackDevice(file, dev string) error {
