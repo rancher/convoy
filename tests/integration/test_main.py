@@ -82,8 +82,8 @@ def create_empty_file(filepath, size):
     assert os.path.exists(filepath)
 
 def attach_loopback_dev(filepath):
-    dev = subprocess.check_output(["losetup", "-v", "-f",
-            filepath]).strip().split(" ")[3]
+    dev = subprocess.check_output(["losetup", "--show", "-f",
+            filepath]).strip()
     assert dev.startswith("/dev/loop")
     return dev
 
