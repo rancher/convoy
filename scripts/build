@@ -1,7 +1,11 @@
 #!/bin/bash
 set -e
 
+source $(dirname $0)/version
+
 cd $(dirname $0)/..
+
+echo Current building version is $VERSION
 
 mkdir -p bin
 go build -a -tags "netgo libdm_no_deferred_remove" \

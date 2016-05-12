@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-const (
+var (
 	// version of Convoy
 	VERSION = "0.5.0-dev"
 )
