@@ -748,8 +748,8 @@ def process_objectstore_test(dest, driver):
     assert len(backups) == 0
 
     #add volume to objectstore
-    name1 = "volume1_" + str(uuid.uuid1())[:8]
-    name2 = "volume2_" + str(uuid.uuid1())[:8]
+    name1 = "volume1_" + str(uuid.uuid4())[:8]
+    name2 = str(uuid.uuid4())[:2]
     volume1_name = create_volume(VOLUME_SIZE_BIG, name1, driver=driver)
     volume1 = v.inspect_volume(name1)
     volume2_name = create_volume(VOLUME_SIZE_SMALL, name2, driver=driver)
