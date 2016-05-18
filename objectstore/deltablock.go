@@ -19,7 +19,6 @@ type BlockMapping struct {
 }
 
 type DeltaBlockBackupOperations interface {
-	GetVolumeDevice(id string) (string, error)
 	HasSnapshot(id, volumeID string) bool
 	CompareSnapshot(id, compareID, volumeID string) (*metadata.Mappings, error)
 	OpenSnapshot(id, volumeID string) error
