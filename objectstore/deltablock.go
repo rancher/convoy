@@ -3,7 +3,6 @@ package objectstore
 import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/metadata"
 	"github.com/rancher/convoy/util"
 	"io"
@@ -34,10 +33,9 @@ const (
 	BLOCK_SEPARATE_LAYER2 = 4
 )
 
-func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, sDriver convoydriver.ConvoyDriver) (string, error) {
-	deltaOps, ok := sDriver.(DeltaBlockBackupOperations)
-	if !ok {
-		return "", fmt.Errorf("Driver %s doesn't implemented DeltaBlockBackupOperations interface", sDriver.Name())
+func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, deltaOps DeltaBlockBackupOperations) (string, error) {
+	if deltaOps == nil {
+		return "", fmt.Errorf("Missing DeltaBlockBackupOperations")
 	}
 
 	bsDriver, err := GetObjectStoreDriver(destURL)
