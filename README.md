@@ -8,7 +8,7 @@ Convoy is a  Docker volume plugin for a variety of storage back-ends. It's desig
 ## Why we need Convoy?
 Docker has various drivers(aufs, device mapper, etc) for container's root image, but not for volumes. User can create volume through ```docker run -v volname```, but it's disposable, cannot be easily reused for new containers or containers on the other hosts. For example, if you start a wordpress container with database, add some posts, remove the container, then the modified database would lost.
 
-Before volume plugin, the only way to reuse the volume is using host bind mount feature of Docker, as ```docker run -v /host_path:/container_path```, then maintain the content of the volume at ```/hostpath```. You can also use ```--volume-from``` but that would require original container still exists on the same host.
+Before volume plugin, the only way to reuse the volume is using host bind mount feature of Docker, as ```docker run -v /host_path:/container_path```, then maintain the content of the volume at ```/host_path```. You can also use ```--volume-from``` but that would require original container still exists on the same host.
 
 Convoy used Docker volume plugin mechanism to provide persistent volume for Docker containers, and supports various of backends(e.g. device mapper, NFS, EBS) and more features like snapshot/backup/restore. So user would able to migrate the volumes between the hosts, share the same volume across the hosts, make scheduled snapshots of as well as recover to previous version of volume. It's much easier for user to manage data with Docker volumes with Convoy.
 
