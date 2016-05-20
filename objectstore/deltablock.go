@@ -90,6 +90,12 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		LOG_FIELD_SNAPSHOT:      snapshot.Name,
 		LOG_FIELD_LAST_SNAPSHOT: lastSnapshotName,
 	}).Debug("Generating snapshot changed blocks metadata")
+
+	if err := deltaOps.OpenSnapshot(snapshot.Name, volume.Name); err != nil {
+		return "", err
+	}
+	defer deltaOps.CloseSnapshot(snapshot.Name, volume.Name)
+
 	delta, err := deltaOps.CompareSnapshot(snapshot.Name, lastSnapshotName, volume.Name)
 	if err != nil {
 		return "", err
@@ -118,10 +124,6 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 		SnapshotName: snapshot.Name,
 		Blocks:       []BlockMapping{},
 	}
-	if err := deltaOps.OpenSnapshot(snapshot.Name, volume.Name); err != nil {
-		return "", err
-	}
-	defer deltaOps.CloseSnapshot(snapshot.Name, volume.Name)
 	mCounts := len(delta.Mappings)
 	for m, d := range delta.Mappings {
 		block := make([]byte, DEFAULT_BLOCK_SIZE)
