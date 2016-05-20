@@ -124,6 +124,10 @@ func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL string, 
 	}
 	mCounts := len(delta.Mappings)
 	for m, d := range delta.Mappings {
+		if d.Size%delta.BlockSize != 0 {
+			return "", fmt.Errorf("Mapping's size %v is not multiples of backup block size %v",
+				d.Size, delta.BlockSize)
+		}
 		block := make([]byte, DEFAULT_BLOCK_SIZE)
 		blkCounts := d.Size / delta.BlockSize
 		for i := int64(0); i < blkCounts; i++ {
