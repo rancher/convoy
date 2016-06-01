@@ -54,7 +54,7 @@ func (s *daemon) createDockerVolume(request *pluginRequest) (*Volume, error) {
 	log.Debugf("Create a new volume %v for docker", name)
 
 	if !util.ValidateName(name) {
-		return nil, fmt.Errorf("Invalid volume %s. Must be only contains 0-9, a-z, dash(-), underscore(_) and dot(.)", name)
+		return nil, fmt.Errorf("Invalid volume name %s. Can only contain 0-9, a-z, dash(-), underscore(_) and dot(.)", name)
 	}
 
 	size, err := util.ParseSize(request.Opts["size"])
