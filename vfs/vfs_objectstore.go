@@ -103,6 +103,10 @@ func (v *VfsObjectStoreDriver) Remove(names ...string) error {
 		dir := v.updatePath(name)
 		for i := 0; i < MAX_CLEANUP_LEVEL; i++ {
 			dir = filepath.Dir(dir)
+			// Don't clean above OBJECTSTORE_BASE
+			if strings.HasSuffix(dir, objectstore.OBJECTSTORE_BASE) {
+				break
+			}
 			// If directory is not empty, then we don't need to continue
 			if err := os.Remove(dir); err != nil {
 				break
