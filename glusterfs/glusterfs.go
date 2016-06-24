@@ -2,13 +2,14 @@ package glusterfs
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/util"
 	"math/rand"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/rancher/convoy/util"
 
 	. "github.com/rancher/convoy/convoydriver"
 )

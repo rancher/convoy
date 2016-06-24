@@ -2,8 +2,6 @@ package ebs
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/util"
 	"net/url"
 	"path/filepath"
 	"regexp"
@@ -11,6 +9,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/rancher/convoy/util"
 
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"

@@ -2,10 +2,11 @@ package daemon
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/util"
-	"net/http"
 
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"

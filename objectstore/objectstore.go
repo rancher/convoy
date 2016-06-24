@@ -2,9 +2,10 @@ package objectstore
 
 import (
 	"fmt"
-	"github.com/rancher/convoy/util"
 	"net/url"
 	"strconv"
+
+	"github.com/rancher/convoy/util"
 )
 
 type Volume struct {

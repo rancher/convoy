@@ -3,10 +3,11 @@
 package ebs
 
 import (
-	"github.com/Sirupsen/logrus"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/Sirupsen/logrus"
 
 	. "gopkg.in/check.v1"
 )

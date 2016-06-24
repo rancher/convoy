@@ -2,16 +2,17 @@ package client
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
-	"github.com/rancher/convoy/api"
-	"github.com/rancher/convoy/util"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/codegangsta/cli"
+	"github.com/rancher/convoy/api"
+	"github.com/rancher/convoy/util"
 )
 
 type convoyClient struct {
