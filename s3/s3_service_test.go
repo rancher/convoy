@@ -4,10 +4,11 @@ package s3
 
 import (
 	"bytes"
-	"github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/Sirupsen/logrus"
 
 	. "gopkg.in/check.v1"
 )

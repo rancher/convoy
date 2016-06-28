@@ -2,9 +2,10 @@ package objectstore
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"io"
 	"net/url"
+
+	"github.com/Sirupsen/logrus"
 
 	. "github.com/rancher/convoy/logging"
 )

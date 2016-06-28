@@ -2,10 +2,11 @@ package client
 
 import (
 	"fmt"
+	"net/url"
+
 	"github.com/codegangsta/cli"
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/util"
-	"net/url"
 )
 
 var (

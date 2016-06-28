@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/rancher/convoy/api"
 	"github.com/rancher/convoy/client"
-	"os"
 )
 
 var (

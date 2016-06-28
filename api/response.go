@@ -3,10 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"runtime"
 	"runtime/debug"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type ErrorResponse struct {

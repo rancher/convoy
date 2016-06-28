@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/rancher/convoy/util"
-	"path/filepath"
 
 	. "github.com/rancher/convoy/logging"
 )

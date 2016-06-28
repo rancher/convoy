@@ -2,10 +2,11 @@ package client
 
 import (
 	"fmt"
+	"io/ioutil"
+
 	"github.com/codegangsta/cli"
 	"github.com/rancher/convoy/client/flags"
 	"github.com/rancher/convoy/daemon"
-	"io/ioutil"
 )
 
 var (

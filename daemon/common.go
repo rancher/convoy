@@ -3,8 +3,9 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rancher/convoy/api"
 	"net/http"
+
+	"github.com/rancher/convoy/api"
 )
 
 func decodeRequest(r *http.Request, v interface{}) error {

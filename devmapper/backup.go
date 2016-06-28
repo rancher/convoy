@@ -2,15 +2,16 @@ package devmapper
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/rancher/convoy/convoydriver"
 	"github.com/rancher/convoy/metadata"
 	"github.com/rancher/convoy/objectstore"
 	"github.com/rancher/convoy/util"
-	"os"
-	"path/filepath"
-	"strconv"
 
 	. "github.com/rancher/convoy/logging"
 )

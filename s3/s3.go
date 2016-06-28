@@ -2,13 +2,14 @@ package s3
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/objectstore"
 	"io"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/rancher/convoy/objectstore"
 )
 
 var (

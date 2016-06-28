@@ -2,8 +2,9 @@ package convoydriver
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"path/filepath"
+
+	"github.com/Sirupsen/logrus"
 )
 
 /*

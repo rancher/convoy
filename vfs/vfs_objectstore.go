@@ -2,14 +2,15 @@ package vfs
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"github.com/rancher/convoy/objectstore"
-	"github.com/rancher/convoy/util"
 	"io"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/rancher/convoy/objectstore"
+	"github.com/rancher/convoy/util"
 )
 
 var (
