@@ -132,6 +132,8 @@ func (s *TestSuite) TestChecksum(c *C) {
 }
 
 func (s *TestSuite) TestLoopDevice(c *C) {
+	var err error
+
 	dev, err := AttachLoopbackDevice(s.imageFile, true)
 	c.Assert(err, IsNil)
 
@@ -146,6 +148,24 @@ func (s *TestSuite) TestLoopDevice(c *C) {
 
 	err = DetachLoopbackDevice("/tmp", "/dev/loop0")
 	c.Assert(err, Not(IsNil))
+
+	dev1, err := AttachLoopbackDevice(s.imageFile, true)
+	c.Assert(err, IsNil)
+	dev2, err := AttachLoopbackDevice(s.imageFile, true)
+	c.Assert(err, IsNil)
+
+	list, err := ListLoopbackDevice(s.imageFile)
+	c.Assert(err, IsNil)
+	c.Assert(list, HasLen, 2)
+	c.Assert(list[0], Equals, dev1)
+	c.Assert(list[1], Equals, dev2)
+
+	err = DetachAnyLoopbackDevice(s.imageFile)
+	c.Assert(err, IsNil)
+
+	list, err = ListLoopbackDevice(s.imageFile)
+	c.Assert(err, IsNil)
+	c.Assert(list, HasLen, 0)
 }
 
 func (s *TestSuite) TestValidateName(c *C) {

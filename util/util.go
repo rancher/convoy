@@ -208,6 +208,33 @@ func DetachLoopbackDevice(file, dev string) error {
 	return nil
 }
 
+func ListLoopbackDevice(file string) ([]string, error) {
+	params := []string{"-O", "NAME", "-n", "-j"}
+	params = append(params, file)
+	out, err := Execute("losetup", params)
+	if err != nil {
+		return nil, err
+	}
+	out = strings.TrimSpace(out)
+	if len(out) == 0 {
+		return []string{}, nil
+	}
+	return strings.Split(out, "\n"), nil
+}
+
+func DetachAnyLoopbackDevice(file string) error {
+	devices, err := ListLoopbackDevice(file)
+	if err != nil {
+		return err
+	}
+	for _, dev := range devices {
+		if err := DetachLoopbackDevice(file, dev); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func ValidateName(name string) bool {
 	validName := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]+$`)
 	return validName.MatchString(name)
