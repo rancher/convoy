@@ -131,6 +131,9 @@ NAME:
 
 USAGE:
    command inspect [arguments...]
+
+OPTIONS:
+   --help, -h   show help
 ```
 * Volume can be referred by name, UUID, or partial UUID.
 
