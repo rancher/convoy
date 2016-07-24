@@ -20,7 +20,7 @@ __Required__. The default GlusterFS volume name which would be used to create co
 
 #### `delete`
 `delete` would delete the directory where the volume stored by default.
-* `--reference` would only delete the reference of volume in Convoy. It would perserve the volume directory for future use.
+* `--reference` would only delete the reference of volume in Convoy. It would preserve the volume directory for future use.
   * E.g., the default GlusterFS volume is mounted to `/var/lib/convoy/glusterfs/mounts/my_vol`, and user has created volume `vol1`. `convoy delete --reference vol1` would result in remove the reference of `vol1` in Convoy, but keep the directory `/var/lib/convoy/glusterfs/mounts/my_vol/vol1` for future use.
 
 #### `inspect`
