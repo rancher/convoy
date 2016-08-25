@@ -30,6 +30,7 @@ const (
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
+	DEFAULT_FILE_SYSTEM = "ext4"
 
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
@@ -69,6 +70,8 @@ type Volume struct {
 	Snapshots  map[string]Snapshot
 
 	configPath string
+	PreExist   bool
+	ReadWrite  string
 }
 
 func (d *Driver) blankVolume(name string) *Volume {
@@ -93,7 +96,11 @@ func (v *Volume) GetDevice() (string, error) {
 }
 
 func (v *Volume) GetMountOpts() []string {
-	return []string{}
+	options := []string{}
+	if v.ReadWrite != "" {
+		options = append(options, "-o", v.ReadWrite)
+	}
+	return options
 }
 
 func (v *Volume) GenerateDefaultMountPoint() string {
@@ -295,6 +302,21 @@ func (d *Driver) CreateVolume(req Request) error {
 		if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
 			log.Debugf("Failed to update tags for volume %v, but continue", volumeID)
 		}
+		volume.PreExist = true
+
+		// detach from all instances
+		for _, attachment := range ebsVolume.Attachments {
+			// check the VM state before detaching , ensure no running instance is using the volume
+			running, err := d.ebsService.IsInstanceRunning(attachment.InstanceId)
+			if err != nil {
+				return err
+			}
+			if running {
+				return fmt.Errorf("can't detach ebs volumeID: %s from instanceID: %s, instance is running", *ebsVolume.VolumeId, *attachment.InstanceId)
+			}
+			log.Debugf("detaching ebs volumeID: %s from instanceID: %s ...", *ebsVolume.VolumeId, *attachment.InstanceId)
+			d.ebsService.DetachVolumeFromInstance(ebsVolume.VolumeId, attachment.InstanceId)
+		}
 	} else if backupURL != "" {
 		region, ebsSnapshotID, err := decodeURL(backupURL)
 		if err != nil {
@@ -377,11 +399,14 @@ func (d *Driver) CreateVolume(req Request) error {
 
 	// We don't format existing or snapshot restored volume
 	if format {
-		if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
+		fileSystem := DEFAULT_FILE_SYSTEM
+		if opts[OPT_FILESYSTEM] != "" {
+			fileSystem = opts[OPT_FILESYSTEM]
+		}
+		if _, err := util.Execute("mkfs", []string{"-t", fileSystem, dev}); err != nil {
 			return err
 		}
 	}
-
 	return util.ObjectSave(volume)
 }
 
@@ -409,7 +434,7 @@ func (d *Driver) DeleteVolume(req Request) error {
 		log.Debugf("Detached %v(%v) from %v", id, volume.EBSID, volume.Device)
 	}
 
-	if !referenceOnly {
+	if !referenceOnly && !volume.PreExist {
 		if err := d.ebsService.DeleteVolume(volume.EBSID); err != nil {
 			return err
 		}
@@ -426,7 +451,7 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
-
+	volume.ReadWrite = opts[OPT_READ_WRITE]
 	mountPoint, err := util.VolumeMount(volume, opts[OPT_MOUNT_POINT], false)
 	if err != nil {
 		return "", err

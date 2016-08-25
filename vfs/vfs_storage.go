@@ -207,6 +207,7 @@ func (d *Driver) CreateVolume(req Request) error {
 		return err
 	}
 	if exists {
+		log.Debugf("volume name: %s exists!", volume.Name)
 		return nil
 	}
 
@@ -240,6 +241,7 @@ func (d *Driver) CreateVolume(req Request) error {
 			return err
 		}
 	}
+	log.Debugf("created volume name: %s", volume.Name)
 	return util.ObjectSave(volume)
 }
 
@@ -286,14 +288,23 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
+	specifiedMountPoint := opts[OPT_MOUNT_POINT]
+	bindMount := opts[OPT_BIND_MOUNT]
+	if bindMount == "" {
+		if specifiedMountPoint != "" {
+			return "", fmt.Errorf("VFS doesn't support specified mount point if not bind mount")
+		}
+		if volume.MountPoint == "" {
+			volume.MountPoint = volume.Path
+		}
+	} else {
+		mountPoint, err := d.doBindMount(volume, opts)
+		if err != nil {
+			return "", err
+		}
+		volume.MountPoint = mountPoint
+	}
 
-	specifiedPoint := opts[OPT_MOUNT_POINT]
-	if specifiedPoint != "" {
-		return "", fmt.Errorf("VFS doesn't support specified mount point")
-	}
-	if volume.MountPoint == "" {
-		volume.MountPoint = volume.Path
-	}
 	if volume.PrepareForVM {
 		if err := util.MountPointPrepareImageFile(volume.MountPoint, volume.Size); err != nil {
 			return "", err
@@ -312,6 +323,28 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 	return volume.MountPoint, nil
 }
 
+func (d *Driver) doBindMount(volume *Volume, opts map[string]string) (string, error) {
+	mountPoint := opts[OPT_MOUNT_POINT]
+	if volume.MountPoint != "" && volume.MountPoint != mountPoint {
+		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", volume.Name, volume.MountPoint, mountPoint)
+	}
+	if err := util.CallMkdirIfNotExists(mountPoint); err != nil {
+		return "", err
+	}
+	if !util.IsMounted(mountPoint) {
+		options := []string{"-o", opts[OPT_BIND_MOUNT]}
+		if opts[OPT_READ_WRITE] != "" {
+			options = append(options, "-o", opts[OPT_READ_WRITE])
+		}
+		log.Debugf("Volume %v is being mounted to %v, with option %v", volume.Name, mountPoint, options)
+		_, err := util.CallMount(options, []string{volume.Path, mountPoint})
+		if err != nil {
+			return "", err
+		}
+	}
+	return mountPoint, nil
+}
+
 func (d *Driver) UmountVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -322,11 +355,13 @@ func (d *Driver) UmountVolume(req Request) error {
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
-
-	if volume.MountPoint != "" {
-		volume.MountPoint = ""
+	if volume.MountPoint != "" && volume.MountPoint != volume.Path {
+		log.Debugf("CallUmount: %s", volume.MountPoint)
+		if err := util.CallUmount([]string{volume.MountPoint}); err != nil {
+			return err
+		}
 	}
-
+	volume.MountPoint = ""
 	lockFile, err := flock(volume)
 	if err != nil {
 		return fmt.Errorf("Coudln't get flock. Error: %v", err)

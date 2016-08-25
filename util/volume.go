@@ -113,8 +113,8 @@ func getVolumeOps(obj interface{}) (VolumeHelper, error) {
 	return ops, nil
 }
 
-func isMounted(mountPoint string) bool {
-	output, err := callMount([]string{}, []string{})
+func IsMounted(mountPoint string) bool {
+	output, err := CallMount([]string{}, []string{})
 	if err != nil {
 		return false
 	}
@@ -148,20 +148,20 @@ func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error)
 	if existMount != "" && existMount != mountPoint {
 		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", getVolumeName(vol), existMount, mountPoint)
 	}
-	if remount && isMounted(mountPoint) {
+	if remount && IsMounted(mountPoint) {
 		log.Debugf("Umount existing mountpoint %v", mountPoint)
-		if err := callUmount([]string{mountPoint}); err != nil {
+		if err := CallUmount([]string{mountPoint}); err != nil {
 			return "", err
 		}
 	}
 	if createMountpoint {
-		if err := callMkdirIfNotExists(mountPoint); err != nil {
+		if err := CallMkdirIfNotExists(mountPoint); err != nil {
 			return "", err
 		}
 	}
-	if !isMounted(mountPoint) {
+	if !IsMounted(mountPoint) {
 		log.Debugf("Volume %v is being mounted it to %v, with option %v", getVolumeName(vol), mountPoint, opts)
-		_, err = callMount(opts, []string{dev, mountPoint})
+		_, err = CallMount(opts, []string{dev, mountPoint})
 		if err != nil {
 			return "", err
 		}
@@ -180,7 +180,7 @@ func VolumeUmount(v interface{}) error {
 		log.Debugf("Umount a umounted volume %v", getVolumeName(vol))
 		return nil
 	}
-	if err := callUmount([]string{mountPoint}); err != nil {
+	if err := CallUmount([]string{mountPoint}); err != nil {
 		return err
 	}
 	if mountPoint == vol.GenerateDefaultMountPoint() {
@@ -192,7 +192,7 @@ func VolumeUmount(v interface{}) error {
 	return nil
 }
 
-func callMkdirIfNotExists(dirName string) error {
+func CallMkdirIfNotExists(dirName string) error {
 	cmdName := "mkdir"
 	cmdArgs := []string{"-p", dirName}
 	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
@@ -203,7 +203,7 @@ func callMkdirIfNotExists(dirName string) error {
 	return nil
 }
 
-func callMount(opts, args []string) (string, error) {
+func CallMount(opts, args []string) (string, error) {
 	cmdName := MOUNT_BINARY
 	cmdArgs := opts
 	cmdArgs = append(cmdArgs, args...)
@@ -215,7 +215,7 @@ func callMount(opts, args []string) (string, error) {
 	return output, nil
 }
 
-func callUmount(args []string) error {
+func CallUmount(args []string) error {
 	cmdName := UMOUNT_BINARY
 	cmdArgs := args
 	cmdName, cmdArgs = updateMountNamespace(cmdName, cmdArgs)
