@@ -80,7 +80,7 @@ var (
 		Name:  "list",
 		Usage: "list all managed volumes",
 		Flags: []cli.Flag{
-			cli.BoolFlag{
+			cli.StringFlag{
 				Name:  "driver",
 				Usage: "Ask for driver specific info of volumes and snapshots",
 			},
@@ -182,9 +182,15 @@ func cmdVolumeList(c *cli.Context) {
 
 func doVolumeList(c *cli.Context) error {
 	v := url.Values{}
-	if c.Bool("driver") {
-		v.Set("driver", "1")
-	}
+
+        var err error
+        driver, err := util.GetFlag(c, "driver", false, err)
+        if err != nil {
+            return err
+        }
+        if driver != "" {
+            v.Set("driver", driver)
+        }
 
 	url := "/volumes/list?" + v.Encode()
 	return sendRequestAndPrint("GET", url, nil)

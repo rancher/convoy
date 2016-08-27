@@ -315,9 +315,15 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	}
 
 	var data []byte
-	if driverSpecific == "1" {
+	if driverSpecific != "" {
+                driverResult := make(map[string]map[string]string)
 		result := s.getVolumeList()
-		data, err = api.ResponseOutput(&result)
+                for k, v := range result {
+                    if v["Driver"] == driverSpecific {
+                        driverResult[k] = v
+                    }
+                }  
+		data, err = api.ResponseOutput(&driverResult)
 	} else {
 		data, err = s.listVolume()
 	}
