@@ -27,6 +27,7 @@ const (
 
 	EBS_DEFAULT_VOLUME_SIZE = "ebs.defaultvolumesize"
 	EBS_DEFAULT_VOLUME_TYPE = "ebs.defaultvolumetype"
+	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
@@ -46,6 +47,7 @@ type Device struct {
 	Root              string
 	DefaultVolumeSize int64
 	DefaultVolumeType string
+	DefaultKmsKeyID   string
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -113,6 +115,8 @@ func checkVolumeType(volumeType string) error {
 		"gp2":      true,
 		"io1":      true,
 		"standard": true,
+		"st1":      true,
+		"sc1":      true,
 	}
 	if !validVolumeType[volumeType] {
 		return fmt.Errorf("Invalid volume type %v", volumeType)
@@ -179,10 +183,12 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		if err := checkVolumeType(volumeType); err != nil {
 			return nil, err
 		}
+		kmsKeyId := config[EBS_DEFAULT_VOLUME_KEY]
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: size,
 			DefaultVolumeType: volumeType,
+			DefaultKmsKeyID:   kmsKeyId,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -208,6 +214,7 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos := make(map[string]string)
 	infos["DefaultVolumeSize"] = strconv.FormatInt(d.DefaultVolumeSize, 10)
 	infos["DefaultVolumeType"] = d.DefaultVolumeType
+	infos["DefaultKmsKey"] = d.DefaultKmsKeyID
 	infos["InstanceID"] = d.ebsService.InstanceID
 	infos["Region"] = d.ebsService.Region
 	infos["AvailiablityZone"] = d.ebsService.AvailabilityZone
@@ -355,12 +362,13 @@ func (d *Driver) CreateVolume(req Request) error {
 			VolumeType: volumeType,
 			IOPS:       iops,
 			Tags:       newTags,
+			KmsKeyID:   d.DefaultKmsKeyID,
 		}
 		volumeID, err = d.ebsService.CreateVolume(r)
 		if err != nil {
 			return err
 		}
-		log.Debugf("Created volume %v from EBS volume %v", id, volumeID)
+		log.Debugf("Created volume %s from EBS volume %v", id, volumeID)
 		format = true
 	}
 
@@ -490,6 +498,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"Device":                volume.Device,
 		"MountPoint":            volume.MountPoint,
 		"EBSVolumeID":           volume.EBSID,
+		"KmsKeyId":              *ebsVolume.KmsKeyId,
 		"AvailiablityZone":      *ebsVolume.AvailabilityZone,
 		OPT_VOLUME_NAME:         id,
 		OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
@@ -498,6 +507,7 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"Type":                  *ebsVolume.VolumeType,
 		"IOPS":                  iops,
 	}
+
 	return info, nil
 }
 
@@ -638,6 +648,7 @@ func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error)
 			"VolumeName":              volumeID,
 			"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
 			"EBSVolumeID":             *ebsSnapshot.VolumeId,
+			"KmsKeyId":                *ebsSnapshot.KmsKeyId,
 			OPT_SNAPSHOT_CREATED_TIME: (*ebsSnapshot.StartTime).Format(time.RubyDate),
 			OPT_SIZE:                  strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
 			"State":                   *ebsSnapshot.State,
@@ -761,6 +772,7 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 		"Region":        region,
 		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
 		"EBSVolumeID":   *ebsSnapshot.VolumeId,
+		"KmsKeyId":      *ebsSnapshot.KmsKeyId,
 		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
 		"Size":          strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
 		"State":         *ebsSnapshot.State,
