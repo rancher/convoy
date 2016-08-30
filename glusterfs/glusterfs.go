@@ -77,7 +77,7 @@ type Volume struct {
 }
 
 type GlusterFSVolume struct {
-	UUID       string // volume name in fact
+	Name       string
 	MountPoint string
 	Servers    []string
 
@@ -90,7 +90,7 @@ func (gv *GlusterFSVolume) GetDevice() (string, error) {
 		return "", fmt.Errorf("No server IP provided for glusterfs")
 	}
 	ip := gv.Servers[rand.Intn(l)]
-	return ip + ":/" + gv.UUID, nil
+	return ip + ":/" + gv.Name, nil
 }
 
 func (gv *GlusterFSVolume) GetMountOpts() []string {
@@ -98,7 +98,7 @@ func (gv *GlusterFSVolume) GetMountOpts() []string {
 }
 
 func (gv *GlusterFSVolume) GenerateDefaultMountPoint() string {
-	return filepath.Join(gv.configPath, MOUNTS_DIR, gv.UUID)
+	return filepath.Join(gv.configPath, MOUNTS_DIR, gv.Name)
 }
 
 func (v *Volume) ConfigFile() (string, error) {
@@ -179,7 +179,7 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		Device:   *dev,
 	}
 	gVolume := &GlusterFSVolume{
-		UUID:       dev.DefaultVolumePool,
+		Name:       dev.DefaultVolumePool,
 		Servers:    dev.Servers,
 		configPath: d.Root,
 	}
@@ -260,7 +260,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	}
 	volume.Name = id
 	volume.Path = volumePath
-	volume.VolumePool = gVolume.UUID
+	volume.VolumePool = gVolume.Name
 	volume.CreatedTime = util.Now()
 
 	return util.ObjectSave(volume)
