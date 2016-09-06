@@ -14,7 +14,7 @@ make
 ```
 
 ## Integration tests
-1. Environment: Ensure python and pytest are installed.
+1. Environment: Ensure python, pytest and [start-stop-daemon](http://www.man7.org/linux/man-pages/man8/start-stop-daemon.8.html) are installed.
 2. Run the tests
 ```
 cd $GOPATH/src/github.com/rancher/convoy/tests/integration
