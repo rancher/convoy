@@ -118,7 +118,7 @@ func cmdNotFound(c *cli.Context, command string) {
 // NewCli would generate Convoy CLI
 func NewCli(version string) *cli.App {
 	app := cli.NewApp()
-	app.Name = "convoy"
+	app.Name = "Convoy"
 	app.Version = version
 	app.Author = "Sheng Yang <sheng.yang@rancher.com>"
 	app.Usage = "A volume manager capable of snapshot and delta backup"
