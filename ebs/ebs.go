@@ -295,6 +295,20 @@ func (d *Driver) CreateVolume(req Request) error {
 		if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
 			log.Debugf("Failed to update tags for volume %v, but continue", volumeID)
 		}
+
+		// detach from all instances
+		for _, attachment := range ebsVolume.Attachments {
+			// check the VM state before detaching , ensure no running instance is using the volume
+			running, err := d.ebsService.IsInstanceRunning(attachment.InstanceId)
+			if err != nil {
+				return err
+			}
+			if running {
+				return fmt.Errorf("can't detach ebs volumeID: %s from instanceID: %s, instance is running", *ebsVolume.VolumeId, *attachment.InstanceId)
+			}
+			log.Debugf("detaching ebs volumeID: %s from instanceID: %s ...", *ebsVolume.VolumeId, *attachment.InstanceId)
+			d.ebsService.DetachVolumeFromInstance(ebsVolume.VolumeId, attachment.InstanceId)
+		}
 	} else if backupURL != "" {
 		region, ebsSnapshotID, err := decodeURL(backupURL)
 		if err != nil {

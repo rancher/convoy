@@ -145,7 +145,7 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 		if len(volume.Attachments) != 0 {
 			attachment = volume.Attachments[0]
 		} else {
-			return fmt.Errorf("Attaching failed for ", volumeID)
+			return fmt.Errorf("Attaching failed for %s", volumeID)
 		}
 	}
 	if *attachment.State != ec2.VolumeAttachmentStateAttached {
@@ -191,7 +191,6 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 			params.Iops = aws.Int64(iops)
 		}
 	}
-
 	ec2Volume, err := s.ec2Client.CreateVolume(params)
 	if err != nil {
 		return "", parseAwsError(err)
@@ -239,6 +238,24 @@ func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 		return nil, fmt.Errorf("Cannot find volume %v", volumeID)
 	}
 	return volumes.Volumes[0], nil
+}
+
+func (s *ebsService) IsInstanceRunning(instanceID *string) (bool, error) {
+	includeAll := true
+	params := &ec2.DescribeInstanceStatusInput{
+		InstanceIds: []*string{
+			instanceID,
+		},
+		IncludeAllInstances: &includeAll,
+	}
+	instanceStatus, err := s.ec2Client.DescribeInstanceStatus(params)
+	if err != nil {
+		return false, parseAwsError(err)
+	}
+	if len(instanceStatus.InstanceStatuses) != 1 {
+		return false, fmt.Errorf("Can't get the status of instanceId: %s", *instanceID)
+	}
+	return *instanceStatus.InstanceStatuses[0].InstanceState.Name == ec2.InstanceStateNameRunning, nil
 }
 
 func getBlkDevList() (map[string]bool, error) {
@@ -526,4 +543,17 @@ func (s *ebsService) GetTags(resourceID string) (map[string]string, error) {
 		result[*tag.Key] = *tag.Value
 	}
 	return result, nil
+}
+
+func (s *ebsService) DetachVolumeFromInstance(volumeID *string, instanceID *string) error {
+	params := &ec2.DetachVolumeInput{
+		VolumeId:   volumeID,
+		InstanceId: instanceID,
+	}
+
+	if _, err := s.ec2Client.DetachVolume(params); err != nil {
+		return parseAwsError(err)
+	}
+
+	return s.waitForVolumeTransition(*volumeID, ec2.VolumeStateInUse, ec2.VolumeStateAvailable)
 }
