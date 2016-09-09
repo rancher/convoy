@@ -96,6 +96,9 @@ const (
 	OPT_REFERENCE_ONLY        = "ReferenceOnly"
 	OPT_PREPARE_FOR_VM        = "PrepareForVM"
 	OPT_FILESYSTEM            = "Filesystem"
+	OPT_READ_WRITE            = "ReadWrite"
+	OPT_BIND_MOUNT            = "BindMount"
+	OPT_REMOUNT               = "ReMount"
 )
 
 var (

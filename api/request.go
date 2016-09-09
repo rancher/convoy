@@ -3,6 +3,9 @@ package api
 type VolumeMountRequest struct {
 	VolumeName string
 	MountPoint string
+	ReadWrite  string // either "rw or "ro"
+	BindMount  string // either "bind" or "rbind"
+	ReMount    bool   // allow or disallow mount with a new mountpoint
 	Verbose    bool
 }
 
@@ -19,6 +22,7 @@ type VolumeCreateRequest struct {
 	Type           string
 	IOPS           int64
 	PrepareForVM   bool
+	FSType         string
 	Verbose        bool
 }
 
