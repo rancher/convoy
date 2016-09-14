@@ -350,11 +350,6 @@ func doMount(c *cli.Context) error {
 	}
 
 	request := &api.VolumeMountRequest{}
-
-	// k8s needs driver to create mountpoint directory, but k8s will delete it when unmount
-	if err := util.CallMkdirIfNotExists(mountpoint); err != nil {
-		return err
-	}
 	request.MountPoint = mountpoint
 	request.ReadWrite = optionsMap["kubernetes.io/readwrite"]
 	log.Debugf("kubernetes.io/readwrite: %s", request.ReadWrite)
