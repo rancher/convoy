@@ -250,6 +250,11 @@ func (s *ebsService) IsInstanceRunning(instanceID *string) (bool, error) {
 	}
 	instanceStatus, err := s.ec2Client.DescribeInstanceStatus(params)
 	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() == "InvalidInstanceID.NotFound" {
+				return false, nil
+			}
+		}
 		return false, parseAwsError(err)
 	}
 	if len(instanceStatus.InstanceStatuses) != 1 {

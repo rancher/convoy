@@ -312,7 +312,7 @@ func (d *Driver) CreateVolume(req Request) error {
 				return err
 			}
 			if running {
-				return fmt.Errorf("can't detach ebs volumeID: %s from instanceID: %s, instance is running", *ebsVolume.VolumeId, *attachment.InstanceId)
+				return fmt.Errorf("can't re-use ebs volumeID: %s from instanceID: %s, instance is running", *ebsVolume.VolumeId, *attachment.InstanceId)
 			}
 			log.Debugf("detaching ebs volumeID: %s from instanceID: %s ...", *ebsVolume.VolumeId, *attachment.InstanceId)
 			d.ebsService.DetachVolumeFromInstance(ebsVolume.VolumeId, attachment.InstanceId)

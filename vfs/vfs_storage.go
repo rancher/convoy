@@ -82,6 +82,18 @@ func (v *Volume) ConfigFile() (string, error) {
 	return filepath.Join(v.configPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
 
+func (v *Volume) GetDevice() (string, error) {
+	return "", nil
+}
+
+func (v *Volume) GetMountOpts() []string {
+	return []string{}
+}
+
+func (v *Volume) GenerateDefaultMountPoint() string {
+	return ""
+}
+
 func (device *Device) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(device.ConfigPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
@@ -301,7 +313,12 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 		if specifiedMountPoint == "" {
 			return "", nil
 		}
-		mountPoint, err := d.bindMount(volume, opts)
+		mountPoint, err := util.BindMountVolume(volume.Name,
+			volume.Path,
+			volume.MountPoint,
+			specifiedMountPoint,
+			bindMount,
+			opts[OPT_REMOUNT] != "")
 		if err != nil {
 			return "", err
 		}
@@ -326,54 +343,6 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 	return volume.MountPoint, nil
 }
 
-func (d *Driver) bindMount(volume *Volume, opts map[string]string) (string, error) {
-	mountPoint := opts[OPT_MOUNT_POINT]
-	remount := opts[OPT_REMOUNT]
-
-	// if existing mount point is the same as asked for, then do nothing
-	if volume.MountPoint == mountPoint && util.IsMounted(mountPoint) {
-		return mountPoint, nil
-	}
-	if volume.MountPoint != "" &&
-		util.IsMounted(volume.MountPoint) &&
-		volume.MountPoint != mountPoint &&
-		remount == "" {
-		// without remount option, can't bind mount a new mount point
-		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", volume.Name, volume.MountPoint, mountPoint)
-	}
-	if err := util.CallMkdirIfNotExists(mountPoint); err != nil {
-		return "", err
-	}
-	if volume.MountPoint != "" &&
-		util.IsMounted(volume.MountPoint) &&
-		remount != "" {
-		// unmount existing mount point
-		log.Debugf("Unmount existing mountpoint %v", volume.MountPoint)
-		if err := util.CallUmount([]string{volume.MountPoint}); err != nil {
-			return "", err
-		}
-	}
-	if err := d.doBindMount(volume, opts); err != nil {
-		return "", err
-	}
-	return mountPoint, nil
-}
-
-func (d *Driver) doBindMount(volume *Volume, opts map[string]string) error {
-	mountPoint := opts[OPT_MOUNT_POINT]
-	options := []string{"-o", opts[OPT_BIND_MOUNT]}
-	if opts[OPT_READ_WRITE] != "" {
-		options = append(options, "-o", opts[OPT_READ_WRITE])
-	}
-	log.Debugf("Volume %v is being mounted to %v, with option %v", volume.Name, mountPoint, options)
-
-	if _, err := util.CallMount(options, []string{volume.Path, mountPoint}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (d *Driver) UmountVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -385,8 +354,8 @@ func (d *Driver) UmountVolume(req Request) error {
 		return err
 	}
 	if volume.MountPoint != "" && volume.MountPoint != volume.Path {
-		log.Debugf("CallUmount: %s", volume.MountPoint)
-		if err := util.CallUmount([]string{volume.MountPoint}); err != nil {
+		log.Debugf("VolumeUmount: %s", volume.MountPoint)
+		if err := util.VolumeUmount(volume); err != nil {
 			return err
 		}
 	}
