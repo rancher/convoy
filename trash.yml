@@ -67,3 +67,20 @@ import:
 - package: gopkg.in/check.v1
   version: 4f90aeace3a26ad7021961c297b22c42160c7b25
 
+- package: github.com/digitalocean/godo
+  version: 27d2cca254e40de87ef3d247d0cb29fa57cd8303
+
+- package: github.com/digitalocean/go-metadata
+  version: 4407e7cd82798dc70d82e7f87c82835ad37382f7
+
+- package: github.com/google/go-querystring/query
+  version: 9235644dd9e52eeae6fa48efd539fdc351a0af53
+
+- package: github.com/tent/http-link-go
+  version: ac974c61c2f990f4115b119354b5e0b47550e888
+
+- package: golang.org/x/net/context
+  version: 042ba42fa6633b34205efc66ba5719cd3afd8d38
+
+- package: golang.org/x/oauth2
+  version: 3c3a985cb79f52a3190fbc056984415ca6763d01

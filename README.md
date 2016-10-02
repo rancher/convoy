@@ -111,6 +111,12 @@ Make sure you're running on EC2 instance, and has already [configured AWS creden
 sudo convoy daemon --drivers ebs
 ```
 
+#### DigitalOcean
+Make sure you're running on a DigitalOcean Droplet, and that you have the `DO_TOKEN` environment variable set with your key
+```
+sudo convoy daemon --drivers digitalocean
+```
+
 ## Volume Commands
 #### Create a Volume
 
@@ -134,7 +140,7 @@ or
 ```
 sudo docker rm -v <container_name>
 ```
-* NFS or EBS: The `-r/--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on [NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS volume](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete) unchanged. This is useful when the volume need to be reused later.
+* NFS, EBS and DigitalOcean: The `-r/--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on [NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS volume](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete) unchanged. This is useful when the volume need to be reused later.
 * [`docker rm -v`](https://github.com/rancher/convoy/blob/master/docs/docker.md#delete-container) would be treated as `convoy delete` with `-r/--reference`.
 * If you use `--rm` with `docker run`, all the volumes associated with the container would be deleted in the same way as executing `docker rm -v` when exit. See [Docker run reference](https://docs.docker.com/engine/reference/run/) for details.
 
