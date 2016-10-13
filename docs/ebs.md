@@ -19,8 +19,11 @@ At least please add permission for these actions:
 "ec2:DeleteVolume",
 "ec2:AttachVolume",
 "ec2:DetachVolume",
+"ec2:DescribeAvailabilityZones",
 "ec2:DescribeSnapshots",
 "ec2:DescribeTags",
+"ec2:DescribeVolumeAttribute",
+"ec2:DescribeVolumeStatus",
 "ec2:DescribeVolumes"
 ```
 
@@ -32,9 +35,6 @@ At least please add permission for these actions:
 `4G` by default. EBS volumes are 1GiB minimal and must be a multiple of 1GiB.
 #### `ebs.defaultvolumetype`
 `gp2` by default. See [Amazon EBS Volume Types](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html) for details. Notice if user choose `io1` as default volume type, then user has to specify `--iops` when creating volume everytime.
-Other values are st1 and sc1.
-#### `ebs.defaultkmskeyid`
-Default is blank, if specified than volumes will be encrypted using the given kms key id.
 
 ## Command details
 ### `create`
@@ -61,7 +61,6 @@ Default is blank, if specified than volumes will be encrypted using the given km
 * `State`: EBS volume state. Should be `InUse` when it's attached to the current instance.
 * `Type`: EBS volume type.
 * `IOPS`: Input/Output Operations Per Second for EBS volume.
-* `KmsKeyId`: If the volume is encrypted, this specifies be the KMS key used.
 
 ### `snapshot create`
 `snapshot create` would create a new EBS snapshot of current EBS volume. The command would return immediately after it confirmed that creating of an EBS snapshot has been initated.
@@ -76,7 +75,6 @@ Default is blank, if specified than volumes will be encrypted using the given km
 * `StartTime`: Timestamp of start creating EBS snapshot
 * `Size`: Size of original EBS volume.
 * `State`: EBS snapshot state. Would be either `completed`, `error` or `pending`
-* `KmsKeyId`: If the snapshot is encrypted, this specifies the KMS key used.
 
 ### `backup create`
 `backup create` would wait for a EBS snapshot complete creating if it hasn't completed yet. If creation of snapshot was success, the command would return URL in the format of `ebs://<region>/snap-xxxxxxxx` represent the backup, which can be used with `create --backup` command later.
@@ -93,10 +91,9 @@ Default is blank, if specified than volumes will be encrypted using the given km
 * `StartTime`: Timestamp of start creating EBS snapshot
 * `Size`: Size of original EBS volume.
 * `State`: EBS snapshot state. Would be either `completed`, `error` or `pending`
-* `KmsKeyId`: If the snapshot is encrypted, this specifies the KMS key used.
 
 ## AWS tags
-Convoy uses the following bookeeping tags on EBS volume/snapshots which can be used to classify convoy managed resources.
+Convoy would use tags in EBS volume/snapshot to provide some insight of the volume in Convoy's perspect.
 
 ### EBS Volume
 * `Name`: Volume Name In Convoy
