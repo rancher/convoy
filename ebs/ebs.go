@@ -554,6 +554,9 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	if err != nil {
 		return nil, err
 	}
+	if len(volumeIDs) == 0{
+		return make(map[string]map[string]string), nil
+	}
 	volumeInfos, err  := d.GetVolumesInfo(volumeIDs)
 	if err != nil {
 		return nil, err
