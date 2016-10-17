@@ -299,15 +299,8 @@ func (s *daemon) dockerListVolume(w http.ResponseWriter, r *http.Request) {
 		if volName == "" {
 			continue
 		}
-		vol := s.getVolume(volName)
-		if vol == nil {
-			continue
-		}
-		mountPoint, err := s.getVolumeMountPoint(vol)
-		if err != nil {
-			dockerResponse(w, "", err)
-			return
-		}
+
+		mountPoint := v["MountPoint"]
 
 		dv := &DockerVolume{
 			Name:       volName,

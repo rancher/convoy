@@ -224,6 +224,37 @@ func (s *ebsService) DeleteVolume(volumeID string) error {
 	return parseAwsError(err)
 }
 
+func (s *ebsService) GetVolumes(volumeIDs []string) ([]*ec2.Volume, error) {
+	sleepBeforeRetry()
+	var idList []*string
+	params := &ec2.DescribeVolumesInput{
+			Filters: []*ec2.Filter{
+				{
+					Name: aws.String("availability-zone"),
+					Values: []*string{
+						aws.String(s.AvailabilityZone),
+					},
+				},
+			},
+		}
+
+	for _, volumeID := range volumeIDs {
+		idList = append(idList, aws.String(volumeID))
+	}
+
+	params.VolumeIds = idList
+
+	volumes, err := s.ec2Client.DescribeVolumes(params)
+	if err != nil {
+		return nil, parseAwsError(err)
+	}
+	if len(volumes.Volumes) < 1 {
+		log.Errorf("Cannot find any volumes from the list provided: %v", volumeIDs)
+		return nil, fmt.Errorf("Cannot find any volumes")
+	}
+	return volumes.Volumes, nil
+}
+
 func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 	sleepBeforeRetry()
 	params := &ec2.DescribeVolumesInput{

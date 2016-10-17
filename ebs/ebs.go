@@ -468,6 +468,50 @@ func (d *Driver) MountPoint(req Request) (string, error) {
 	return volume.MountPoint, nil
 }
 
+func (d *Driver) GetVolumesInfo(ids []string) ([]map[string]string, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	var ebsIDs []string
+	var volumeObjects []*Volume
+	for _, id := range ids{
+		volume := d.blankVolume(id)
+		if err := util.ObjectLoad(volume); err != nil {
+			return nil, err
+		}
+		ebsIDs = append(ebsIDs, volume.EBSID)
+		volumeObjects = append(volumeObjects, volume)
+	}
+
+	ebsVolumes, err := d.ebsService.GetVolumes(ebsIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	var infoList []map[string]string
+	for i, ebsVolume := range ebsVolumes{
+		iops := ""
+		if ebsVolume.Iops != nil {
+			iops = strconv.FormatInt(*ebsVolume.Iops, 10)
+		}
+
+		info := map[string]string{
+			"Device":                volumeObjects[i].Device,
+			"MountPoint":            volumeObjects[i].MountPoint,
+			"EBSVolumeID":           volumeObjects[i].EBSID,
+			"AvailiablityZone":      *ebsVolume.AvailabilityZone,
+			OPT_VOLUME_NAME:         volumeObjects[i].Name,
+			OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
+			"Size":                  strconv.FormatInt(*ebsVolume.Size*GB, 10),
+			"State":                 *ebsVolume.State,
+			"Type":                  *ebsVolume.VolumeType,
+			"IOPS":                  iops,
+		}
+		infoList = append(infoList, info)
+	}
+	return infoList, nil
+}
+
 func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
@@ -510,11 +554,12 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	if err != nil {
 		return nil, err
 	}
-	for _, uuid := range volumeIDs {
-		volumes[uuid], err = d.GetVolumeInfo(uuid)
-		if err != nil {
-			return nil, err
-		}
+	volumeInfos, err  := d.GetVolumesInfo(volumeIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i, uuid := range volumeIDs {
+		volumes[uuid] = volumeInfos[i]
 	}
 	return volumes, nil
 }
