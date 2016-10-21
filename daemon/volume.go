@@ -57,6 +57,28 @@ func (s *daemon) volumeExists(name string) (bool, error) {
 	return false, nil
 }
 
+func (s *daemon) isVolumeAttached(name string) (bool, error) {
+	for _, driver := range s.ConvoyDrivers {
+		volOps, err := driver.VolumeOps()
+		if err != nil {
+			return false, err
+		}
+
+		v, err := volOps.GetVolumeInfo(name)
+		if err != nil {
+			if util.IsNotExistsError(err) {
+				continue
+			}
+			return false, err
+		}
+
+		if v["AWSMountPoint"] != "" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (s *daemon) generateName() (string, error) {
 	name := util.GenerateName("volume")
 	for {

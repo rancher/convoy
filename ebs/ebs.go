@@ -15,6 +15,7 @@ import (
 
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 const (
@@ -403,7 +404,7 @@ func (d *Driver) DeleteVolume(req Request) error {
 			return err
 		}
 		//Ignore the error, remove the reference
-		log.Warnf("Unable to detached %v(%v) due to %v, but continue with removing the reference",
+		log.Warnf("Unable to detach %v(%v) Backend Error: %v, Deleting object from state",
 			id, volume.EBSID, err)
 	} else {
 		log.Debugf("Detached %v(%v) from %v", id, volume.EBSID, volume.Device)
@@ -429,6 +430,12 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 
 	mountPoint, err := util.VolumeMount(volume, opts[OPT_MOUNT_POINT], false)
 	if err != nil {
+		// if device doesn't exist, it's a stale entry. Delete from state
+		errorStr := err.Error()
+		var validID = regexp.MustCompile(`. output mount: special device /dev/([a-z]+) does not exist`)
+		if validID.MatchString(errorStr){
+			util.ObjectDelete(volume)
+		}
 		return "", err
 	}
 
@@ -499,12 +506,12 @@ func (d *Driver) GetVolumesInfo(ids []string) ([]map[string]string, error) {
 			"Device":                volumeObjects[i].Device,
 			"MountPoint":            volumeObjects[i].MountPoint,
 			"EBSVolumeID":           volumeObjects[i].EBSID,
-			"AvailiablityZone":      *ebsVolume.AvailabilityZone,
+			"AvailiablityZone":      aws.StringValue(ebsVolume.AvailabilityZone),
 			OPT_VOLUME_NAME:         volumeObjects[i].Name,
 			OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
 			"Size":                  strconv.FormatInt(*ebsVolume.Size*GB, 10),
-			"State":                 *ebsVolume.State,
-			"Type":                  *ebsVolume.VolumeType,
+			"State":                 aws.StringValue(ebsVolume.State),
+			"Type":                  aws.StringValue(ebsVolume.VolumeType),
 			"IOPS":                  iops,
 		}
 		infoList = append(infoList, info)
@@ -534,14 +541,19 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"Device":                volume.Device,
 		"MountPoint":            volume.MountPoint,
 		"EBSVolumeID":           volume.EBSID,
-		"AvailiablityZone":      *ebsVolume.AvailabilityZone,
+		"AvailiablityZone":      aws.StringValue(ebsVolume.AvailabilityZone),
 		OPT_VOLUME_NAME:         id,
 		OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
 		"Size":                  strconv.FormatInt(*ebsVolume.Size*GB, 10),
-		"State":                 *ebsVolume.State,
-		"Type":                  *ebsVolume.VolumeType,
+		"State":                 aws.StringValue(ebsVolume.State),
+		"Type":                  aws.StringValue(ebsVolume.VolumeType),
 		"IOPS":                  iops,
 	}
+
+	if len(ebsVolume.Attachments) != 0 && aws.StringValue(ebsVolume.Attachments[0].Device) != ""{
+		info["AWSMountPoint"] = aws.StringValue(ebsVolume.Attachments[0].Device)
+	}
+
 	return info, nil
 }
 
@@ -681,11 +693,11 @@ func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error)
 		info = map[string]string{
 			OPT_SNAPSHOT_NAME:         snapshot.Name,
 			"VolumeName":              volumeID,
-			"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
-			"EBSVolumeID":             *ebsSnapshot.VolumeId,
+			"EBSSnapshotID":           aws.StringValue(ebsSnapshot.SnapshotId),
+			"EBSVolumeID":             aws.StringValue(ebsSnapshot.VolumeId),
 			OPT_SNAPSHOT_CREATED_TIME: (*ebsSnapshot.StartTime).Format(time.RubyDate),
 			OPT_SIZE:                  strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-			"State":                   *ebsSnapshot.State,
+			"State":                   aws.StringValue(ebsSnapshot.State),
 		}
 	} else {
 		info = map[string]string{
@@ -804,11 +816,11 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 
 	info := map[string]string{
 		"Region":        region,
-		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
-		"EBSVolumeID":   *ebsSnapshot.VolumeId,
+		"EBSSnapshotID": aws.StringValue(ebsSnapshot.SnapshotId),
+		"EBSVolumeID":   aws.StringValue(ebsSnapshot.VolumeId),
 		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
 		"Size":          strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-		"State":         *ebsSnapshot.State,
+		"State":         aws.StringValue(ebsSnapshot.State),
 	}
 
 	return info, nil
