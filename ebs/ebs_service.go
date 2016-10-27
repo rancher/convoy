@@ -100,17 +100,29 @@ func (s *ebsService) isEC2Instance() bool {
 }
 
 func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error {
+	log.Debugf("Starting wait from %s to %s for %s", start, end, volumeID)
 	volume, err := s.GetVolume(volumeID)
 	if err != nil {
+		log.Debugf("Got error to get volume %s", volumeID)
 		return err
 	}
 
+	timeChan := time.NewTimer(time.Second * 61).C
+	tickChan := time.NewTicker(time.Second * 3).C //tick at most 20 times before err out
+
+	POLL:
 	for *volume.State == start {
-		log.Debugf("Waiting for volume %v state transiting from %v to %v",
-			volumeID, start, end)
-		volume, err = s.GetVolume(volumeID)
-		if err != nil {
-			return err
+		select {
+			case <- timeChan:
+				log.Debugf("Timeout Reached, stopping to poll volume state")
+				break POLL
+			case <-tickChan:
+				log.Debugf("Waiting for volume %v state transiting from %v to %v",
+					volumeID, start, end)
+				volume, err = s.GetVolume(volumeID)
+				if err != nil {
+					return err
+				}
 		}
 	}
 	if *volume.State != end {
@@ -136,16 +148,26 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 	}
 	attachment = volume.Attachments[0]
 
+	timeChan := time.NewTimer(time.Second * 61).C
+	tickChan := time.NewTicker(time.Second * 3).C //tick at most 20 times before err out
+
+	WAIT:
 	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
-		log.Debugf("Waiting for volume %v attaching", volumeID)
-		volume, err := s.GetVolume(volumeID)
-		if err != nil {
-			return err
-		}
-		if len(volume.Attachments) != 0 {
-			attachment = volume.Attachments[0]
-		} else {
-			return fmt.Errorf("Attaching failed for ", volumeID)
+		select {
+			case <- timeChan:
+				log.Debugf("Timeout Reached, stopping to wait for volume to attach")
+				break WAIT
+			case <-tickChan:
+				log.Debugf("Waiting for volume %v attaching", volumeID)
+				volume, err := s.GetVolume(volumeID)
+				if err != nil {
+					return err
+				}
+				if len(volume.Attachments) != 0 {
+					attachment = volume.Attachments[0]
+				} else {
+					return fmt.Errorf("Attaching failed for %s", volumeID)
+				}
 		}
 	}
 	if *attachment.State != ec2.VolumeAttachmentStateAttached {
@@ -261,6 +283,14 @@ func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 		VolumeIds: []*string{
 			aws.String(volumeID),
 		},
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("availability-zone"),
+				Values: []*string{
+					aws.String(s.AvailabilityZone),
+				},
+			},
+		},
 	}
 	volumes, err := s.ec2Client.DescribeVolumes(params)
 	if err != nil {
@@ -268,6 +298,43 @@ func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 	}
 	if len(volumes.Volumes) != 1 {
 		return nil, fmt.Errorf("Cannot find volume %v", volumeID)
+	}
+	return volumes.Volumes[0], nil
+}
+
+func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, error) {
+	params := &ec2.DescribeVolumesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("tag:Name"),
+				Values: []*string{
+					aws.String(volumeName),
+				},
+			},
+			{
+				Name: aws.String("tag:DCName"),
+				Values: []*string{
+					aws.String(dcName),
+				},
+			},
+			{
+				Name: aws.String("availability-zone"),
+				Values: []*string{
+					aws.String(s.AvailabilityZone),
+				},
+			},
+		},
+	}
+	volumes, err := s.ec2Client.DescribeVolumes(params)
+	if err != nil {
+		return nil, parseAwsError(err)
+	}
+	// Since tag Name is not AWS's identifying attribute (i.e. volume_id), we can get multiple results with same name
+	// Return the first one
+	if len(volumes.Volumes) < 1 {
+		return nil, fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone)
+	}else if len(volumes.Volumes) > 1 {
+		log.Debugf("Found multiple volumes with name %s. Returning the first one.", volumeName)
 	}
 	return volumes.Volumes[0], nil
 }
@@ -390,6 +457,29 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 	}
 
 	if err = s.waitForVolumeAttaching(volumeID); err != nil {
+		log.Errorf("Error in attaching: %s - Trying force detach to free the volume and returning err", err.Error())
+		forceDetachParams := &ec2.DetachVolumeInput{
+			VolumeId:   aws.String(volumeID),
+			InstanceId: aws.String(s.InstanceID),
+			Force:aws.Bool(true),
+		}
+
+		if _, err := s.ec2Client.DetachVolume(forceDetachParams); err != nil {
+			return "", parseAwsError(err)
+		}
+
+		forceDetachErr := s.waitForVolumeTransition(volumeID, ec2.VolumeAttachmentStateAttaching, ec2.VolumeStateAvailable)
+
+		if forceDetachErr != nil{
+			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
+			return "", fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error())
+		}
+
+		fdTag := make(map[string]string)
+		fdTag["ForceDetached"] = "true"
+		s.AddTags(s.InstanceID, fdTag)
+
+		log.Debugf("Successfully force detached the volume %s", volumeID)
 		return "", err
 	}
 
@@ -410,7 +500,37 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 		return parseAwsError(err)
 	}
 
-	return s.waitForVolumeTransition(volumeID, ec2.VolumeStateInUse, ec2.VolumeStateAvailable)
+	detachErr := s.waitForVolumeTransition(volumeID, ec2.VolumeStateInUse, ec2.VolumeStateAvailable)
+
+	if detachErr != nil {
+		//error in state transition, force detach and free volume
+		log.Errorf("Error in detach's state transition: %s - Trying force detach to free the volume", detachErr.Error())
+		forceDetachParams := &ec2.DetachVolumeInput{
+			VolumeId:   aws.String(volumeID),
+			InstanceId: aws.String(s.InstanceID),
+			Force:aws.Bool(true),
+		}
+
+		if _, err := s.ec2Client.DetachVolume(forceDetachParams); err != nil {
+			return parseAwsError(err)
+		}
+
+		forceDetachErr := s.waitForVolumeTransition(volumeID, ec2.VolumeStateInUse, ec2.VolumeStateAvailable)
+
+		if forceDetachErr != nil{
+			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
+			return fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error())
+		}
+
+		fdTag := make(map[string]string)
+		fdTag["ForceDetached"] = "true"
+		s.AddTags(s.InstanceID, fdTag)
+
+		log.Debugf("Successfully force detached the volume %s", volumeID)
+		return forceDetachErr
+	}
+	log.Debugf("Successfully detached the volume %s", volumeID)
+	return detachErr
 }
 
 func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snapshot, error) {

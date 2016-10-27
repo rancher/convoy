@@ -28,9 +28,11 @@ const (
 
 	EBS_DEFAULT_VOLUME_SIZE = "ebs.defaultvolumesize"
 	EBS_DEFAULT_VOLUME_TYPE = "ebs.defaultvolumetype"
+	EBS_CLUSTER_NAME = "ebs.clustername"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
+	DEFAULT_CLUSTER_NAME = ""
 
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
@@ -47,6 +49,7 @@ type Device struct {
 	Root              string
 	DefaultVolumeSize int64
 	DefaultVolumeType string
+	DefaultDCName     string
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -180,10 +183,16 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		if err := checkVolumeType(volumeType); err != nil {
 			return nil, err
 		}
+		if config[EBS_CLUSTER_NAME] == "" {
+			config[EBS_CLUSTER_NAME] = DEFAULT_CLUSTER_NAME
+		}
+		log.Debugf("Setting DC name in driver as %s", config[EBS_CLUSTER_NAME])
+		dcName := config[EBS_CLUSTER_NAME]
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: size,
 			DefaultVolumeType: volumeType,
+			DefaultDCName: dcName,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -264,6 +273,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
+	log.Debugf("Create volume request object: %v", req)
 	id := req.Name
 	opts := req.Options
 
@@ -276,16 +286,33 @@ func (d *Driver) CreateVolume(req Request) error {
 		return fmt.Errorf("Volume %v already exists", id)
 	}
 
+	//EBS volume name
+	volumeName := opts[OPT_VOLUME_NAME]
 	//EBS volume ID
 	volumeID := opts[OPT_VOLUME_DRIVER_ID]
 	backupURL := opts[OPT_BACKUP_URL]
 	if backupURL != "" && volumeID != "" {
 		return fmt.Errorf("Cannot specify both backup and EBS volume ID")
 	}
+	if volumeID != "" && volumeName != "" {
+		return fmt.Errorf("Cannot specify both EBS volume ID and EBS volume Name")
+	}
+	if volumeName != "" {
+		log.Debugf("Looking up volume by name %s", volumeName)
+		ebsVolume, err := d.ebsService.GetVolumeByName(volumeName, d.DefaultDCName)
+		if err == nil {
+			volumeSize = *ebsVolume.Size * GB
+			volumeID = aws.StringValue(ebsVolume.VolumeId)
+			log.Debugf("Found EBS volume %v with name %v", volumeID, volumeName)
+		}
+	}
 
+	log.Debugf("Creating volume %s for cluster %s in AZ %s", id, d.DefaultDCName, d.ebsService.AvailabilityZone)
 	newTags := map[string]string{
 		"Name": id,
+		"DCName": d.DefaultDCName,
 	}
+	// Run some searches on AWS to see if we find a volume that might be not on our system but provisioned in AWS
 	if volumeID != "" {
 		ebsVolume, err := d.ebsService.GetVolume(volumeID)
 		if err != nil {
@@ -296,7 +323,7 @@ func (d *Driver) CreateVolume(req Request) error {
 		if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
 			log.Debugf("Failed to update tags for volume %v, but continue", volumeID)
 		}
-	} else if backupURL != "" {
+	}else if backupURL != "" {
 		region, ebsSnapshotID, err := decodeURL(backupURL)
 		if err != nil {
 			return err
@@ -341,7 +368,6 @@ func (d *Driver) CreateVolume(req Request) error {
 		}
 		log.Debugf("Created volume %v from EBS snapshot %v", id, ebsSnapshotID)
 	} else {
-
 		// Create a new EBS volume
 		volumeSize, err = d.getSize(opts, d.DefaultVolumeSize)
 		if err != nil {
@@ -410,12 +436,15 @@ func (d *Driver) DeleteVolume(req Request) error {
 		log.Debugf("Detached %v(%v) from %v", id, volume.EBSID, volume.Device)
 	}
 
+	// Don't delete as per Medallia design, just remove reference
+	/*
 	if !referenceOnly {
 		if err := d.ebsService.DeleteVolume(volume.EBSID); err != nil {
 			return err
 		}
 		log.Debugf("Deleted %v(%v)", id, volume.EBSID)
 	}
+	*/
 	return util.ObjectDelete(volume)
 }
 
@@ -460,6 +489,12 @@ func (d *Driver) UmountVolume(req Request) error {
 
 	if err := util.ObjectSave(volume); err != nil {
 		return err
+	}
+
+	//Medallia specific, unmount docker volume also implies a detach
+	detachErr := d.DeleteVolume(req)
+	if detachErr != nil{
+		return detachErr
 	}
 
 	return nil
@@ -565,6 +600,9 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	volumeIDs, err := d.listVolumeNames()
 	if err != nil {
 		return nil, err
+	}
+	if len(volumeIDs) == 0{
+		return make(map[string]map[string]string), nil
 	}
 	volumeInfos, err  := d.GetVolumesInfo(volumeIDs)
 	if err != nil {
