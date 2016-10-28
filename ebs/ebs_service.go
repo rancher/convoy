@@ -648,6 +648,33 @@ func (s *ebsService) AddTags(resourceID string, tags map[string]string) error {
 	return nil
 }
 
+func (s *ebsService) DeleteTags(resourceID string, tags map[string]string) error {
+	if tags == nil {
+		return nil
+	}
+	log.Debugf("Deleting tags for %v, as %v", resourceID, tags)
+	params := &ec2.DeleteTagsInput{
+		Resources: []*string{
+			aws.String(resourceID),
+		},
+	}
+	ec2Tags := []*ec2.Tag{}
+	for k, v := range tags {
+		tag := &ec2.Tag{
+			Key:   aws.String(k),
+			Value: aws.String(v),
+		}
+		ec2Tags = append(ec2Tags, tag)
+	}
+	params.Tags = ec2Tags
+
+	_, err := s.ec2Client.DeleteTags(params)
+	if err != nil {
+		return parseAwsError(err)
+	}
+	return nil
+}
+
 func (s *ebsService) GetTags(resourceID string) (map[string]string, error) {
 	params := &ec2.DescribeTagsInput{
 		Filters: []*ec2.Filter{
