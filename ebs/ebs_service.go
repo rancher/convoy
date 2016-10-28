@@ -39,6 +39,7 @@ type CreateEBSVolumeRequest struct {
 	SnapshotID string
 	VolumeType string
 	Tags       map[string]string
+	KmsKeyID   string
 }
 
 type CreateSnapshotRequest struct {
@@ -184,6 +185,7 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 	iops := request.IOPS
 	snapshotID := request.SnapshotID
 	volumeType := request.VolumeType
+	kmsKeyID := request.KmsKeyID
 
 	// EBS size are in GB, we would round it up
 	ebsSize := size / GB
@@ -195,12 +197,17 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 		AvailabilityZone: aws.String(s.AvailabilityZone),
 		Size:             aws.Int64(ebsSize),
 	}
+
 	if snapshotID != "" {
 		params.SnapshotId = aws.String(snapshotID)
+	} else if kmsKeyID != "" {
+		params.KmsKeyId = aws.String(kmsKeyID)
+		params.Encrypted = aws.Bool(true)
 	}
+
 	if volumeType != "" {
-		if volumeType != "gp2" && volumeType != "io1" && volumeType != "standard" {
-			return "", fmt.Errorf("Invalid volume type for EBS: %v", volumeType)
+		if err := checkVolumeType(volumeType); err != nil {
+			return "", err
 		}
 		if volumeType == "io1" && iops == 0 {
 			return "", fmt.Errorf("Invalid IOPS for volume type io1")
