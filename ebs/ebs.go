@@ -34,6 +34,7 @@ const (
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
 	DEFAULT_CLUSTER_NAME = ""
+	FILESYSTEM_NEEDED_TAG = "NeedFS"
 
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
@@ -411,13 +412,44 @@ func (d *Driver) CreateVolume(req Request) error {
 	volume.Snapshots = make(map[string]Snapshot)
 
 	// We don't format existing or snapshot restored volume
-	if format {
+	if format || d.volumeNeedsFS(volume) {
 		if _, err := util.Execute("mkfs", []string{"-t", "ext4", dev}); err != nil {
+			return err
+		}
+		if err := d.setVolumeHasFS(volume); err != nil {
 			return err
 		}
 	}
 
 	return util.ObjectSave(volume)
+}
+
+// setVolumeHasFS removes the Tag 'needsFS:true' indicating the volume already has a filesystem.
+func (d *Driver) setVolumeHasFS(volume *Volume) error {
+	needFsTag := make(map[string]string)
+	needFsTag[FILESYSTEM_NEEDED_TAG] = "true"
+	if err := d.ebsService.DeleteTags(volume.EBSID, needFsTag); err != nil {
+		log.Errorf("Unable to delete Tag %v in volume %v(%v).", FILESYSTEM_NEEDED_TAG, volume.Name, volume.EBSID)
+		return err
+	}
+	return nil
+}
+
+// volumeNeedsFs tells if the given volume has a Tag 'needFS:true', indicating it needs to be formated. */
+func (d *Driver) volumeNeedsFS(volume *Volume) bool {
+	tags, err := d.ebsService.GetTags(volume.EBSID)
+	if err != nil {
+		log.Debugf("Unable to determine if volume %v needs a Fs. Can't fetch tags for volume %v(%v)", volume.Name, volume.EBSID)
+		return false
+	}
+	needFs := tags[FILESYSTEM_NEEDED_TAG] != ""
+	if needFs {
+		log.Debugf("Tag %v found in %v(%v), %v needs a filesystem.", FILESYSTEM_NEEDED_TAG,
+			volume.Name, volume.EBSID, volume.Device)
+	} else {
+		log.Debugf("Tag '%v' not present in %v(%v).", volume.Name, volume.EBSID, FILESYSTEM_NEEDED_TAG)
+	}
+	return needFs
 }
 
 func (d *Driver) DeleteVolume(req Request) error {
