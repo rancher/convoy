@@ -15,6 +15,8 @@ import (
 
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
+
+	"github.com/aws/aws-sdk-go/aws"
 )
 
 const (
@@ -498,13 +500,13 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 		"Device":                volume.Device,
 		"MountPoint":            volume.MountPoint,
 		"EBSVolumeID":           volume.EBSID,
-		"KmsKeyId":              *ebsVolume.KmsKeyId,
-		"AvailiablityZone":      *ebsVolume.AvailabilityZone,
+		"KmsKeyId":              aws.StringValue(ebsVolume.KmsKeyId),
+		"AvailiablityZone":      aws.StringValue(ebsVolume.AvailabilityZone),
 		OPT_VOLUME_NAME:         id,
 		OPT_VOLUME_CREATED_TIME: (*ebsVolume.CreateTime).Format(time.RubyDate),
 		"Size":                  strconv.FormatInt(*ebsVolume.Size*GB, 10),
-		"State":                 *ebsVolume.State,
-		"Type":                  *ebsVolume.VolumeType,
+		"State":                 aws.StringValue(ebsVolume.State),
+		"Type":                  aws.StringValue(ebsVolume.VolumeType),
 		"IOPS":                  iops,
 	}
 
@@ -646,12 +648,12 @@ func (d *Driver) getSnapshotInfo(id, volumeID string) (map[string]string, error)
 		info = map[string]string{
 			OPT_SNAPSHOT_NAME:         snapshot.Name,
 			"VolumeName":              volumeID,
-			"EBSSnapshotID":           *ebsSnapshot.SnapshotId,
-			"EBSVolumeID":             *ebsSnapshot.VolumeId,
-			"KmsKeyId":                *ebsSnapshot.KmsKeyId,
+			"EBSSnapshotID":           aws.StringValue(ebsSnapshot.SnapshotId),
+			"EBSVolumeID":             aws.StringValue(ebsSnapshot.VolumeId),
+			"KmsKeyId":                aws.StringValue(ebsSnapshot.KmsKeyId),
 			OPT_SNAPSHOT_CREATED_TIME: (*ebsSnapshot.StartTime).Format(time.RubyDate),
 			OPT_SIZE:                  strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-			"State":                   *ebsSnapshot.State,
+			"State":                   aws.StringValue(ebsSnapshot.State),
 		}
 	} else {
 		info = map[string]string{
@@ -770,12 +772,12 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 
 	info := map[string]string{
 		"Region":        region,
-		"EBSSnapshotID": *ebsSnapshot.SnapshotId,
-		"EBSVolumeID":   *ebsSnapshot.VolumeId,
-		"KmsKeyId":      *ebsSnapshot.KmsKeyId,
+		"EBSSnapshotID": aws.StringValue(ebsSnapshot.SnapshotId),
+		"EBSVolumeID":   aws.StringValue(ebsSnapshot.VolumeId),
+		"KmsKeyId":      aws.StringValue(ebsSnapshot.KmsKeyId),
 		"StartTime":     (*ebsSnapshot.StartTime).Format(time.RubyDate),
 		"Size":          strconv.FormatInt(*ebsSnapshot.VolumeSize*GB, 10),
-		"State":         *ebsSnapshot.State,
+		"State":         aws.StringValue(ebsSnapshot.State),
 	}
 
 	return info, nil
