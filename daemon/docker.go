@@ -183,8 +183,8 @@ func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if volume != nil{
-		attached, err := s.isVolumeAttached(volume.Name)
-		if err != nil || !attached{
+		_, err := s.isVolumeAttached(volume.Name)
+		if util.IsNotAttachedInBackendError(err){
 			log.Debugf("Volume %s is not attached to a device", volume.Name)
 			request := &api.VolumeDeleteRequest{
 				VolumeName: volume.Name,
@@ -193,7 +193,8 @@ func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 
 			// if a volume is not attached then processVolumeDelete() just updates the local state.
 			s.processVolumeDelete(request)
-			log.Debugf("Volume %s removed from local state", volume.Name)
+			log.Debugf("Volume %s removed from local state, will attempt recreation", volume.Name)
+			volume=nil
 		}
 	}
 

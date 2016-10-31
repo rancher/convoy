@@ -74,6 +74,8 @@ func (s *daemon) isVolumeAttached(name string) (bool, error) {
 
 		if v["AWSMountPoint"] != "" {
 			return true, nil
+		}else{
+			return false, util.ErrorNotAttachedInBackend()
 		}
 	}
 	return false, nil
@@ -106,7 +108,17 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 	} else {
 		exists, err := s.volumeExists(volumeName)
 		if err != nil {
-			return nil, fmt.Errorf("Error occurred while checking if volume %v exists: %v", volumeName, err)
+			if util.IsNotExistsInBackendError(err){
+				log.Debugf("Volume %s is not found on backend. Updating state and submitting create request.", volumeName)
+				// volume was deleted in the backend, it cannot to attached. Delete from state.
+				request := &api.VolumeDeleteRequest{
+					VolumeName: volumeName,
+					ReferenceOnly: true,
+				}
+				s.processVolumeDelete(request)
+			}else{
+				return nil, fmt.Errorf("Error occurred while checking if volume %v exists: %v", volumeName, err)
+			}
 		}
 		if exists {
 			return nil, fmt.Errorf("Volume %v already exists ", volumeName)

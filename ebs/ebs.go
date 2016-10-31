@@ -16,6 +16,7 @@ import (
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 )
 
 const (
@@ -573,6 +574,11 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 
 	ebsVolume, err := d.ebsService.GetVolume(volume.EBSID)
 	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() == "InvalidVolume.NotFound"{
+				return nil, util.ErrorNotExistsInBackend()
+			}
+		}
 		return nil, err
 	}
 
