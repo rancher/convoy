@@ -17,6 +17,7 @@ import (
 	. "github.com/rancher/convoy/logging"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
 const (
@@ -523,6 +524,8 @@ func (d *Driver) GetVolumesInfo(ids []string) ([]map[string]string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
+	log.Debugf("Will be looking for ids of names: %s", ids)
+
 	var ebsIDs []string
 	var volumeObjects []*Volume
 	for _, id := range ids{
@@ -534,13 +537,35 @@ func (d *Driver) GetVolumesInfo(ids []string) ([]map[string]string, error) {
 		volumeObjects = append(volumeObjects, volume)
 	}
 
-	ebsVolumes, err := d.ebsService.GetVolumes(ebsIDs)
-	if err != nil {
-		return nil, err
+	log.Debugf("Got IDS: %s", ebsIDs)
+
+	var wg sync.WaitGroup
+	ebsVolumes := make([]*ec2.Volume, len(ebsIDs))
+
+	for k, ebsID := range ebsIDs{
+		wg.Add(1)
+		go func(i int, id string){
+			defer wg.Done()
+			ebsVolume, er := d.ebsService.GetVolume(id)
+			if er != nil {
+				if strings.Contains(er.Error(), "InvalidVolume.NotFound") {
+					log.Debugf("Found a non-existent volume %s in state, deleting.", ids[i])
+					vol := d.blankVolume(ids[i])
+					util.ObjectLoad(vol)
+					util.ObjectDelete(vol)
+				}
+			}else{
+				ebsVolumes[i] = ebsVolume
+			}
+		}(k, ebsID)
 	}
+	wg.Wait()
 
 	var infoList []map[string]string
 	for i, ebsVolume := range ebsVolumes{
+		if ebsVolume == nil{
+			continue
+		}
 		iops := ""
 		if ebsVolume.Iops != nil {
 			iops = strconv.FormatInt(*ebsVolume.Iops, 10)
@@ -623,8 +648,8 @@ func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]strin
 	if err != nil {
 		return nil, err
 	}
-	for i, uuid := range volumeIDs {
-		volumes[uuid] = volumeInfos[i]
+	for i, vol := range volumeInfos {
+		volumes[vol[OPT_VOLUME_NAME]] = volumeInfos[i]
 	}
 	return volumes, nil
 }
