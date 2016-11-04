@@ -16,7 +16,6 @@ import (
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
@@ -599,10 +598,10 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 
 	ebsVolume, err := d.ebsService.GetVolume(volume.EBSID)
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			if awsErr.Code() == "InvalidVolume.NotFound"{
-				return nil, util.ErrorNotExistsInBackend()
-			}
+		if strings.Contains(err.Error(), "InvalidVolume.NotFound"){
+			//this volume does not exist, delete it from state if it exists
+			util.ObjectDelete(volume)
+			return nil, util.ErrorNotExistsInBackend()
 		}
 		return nil, err
 	}
