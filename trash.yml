@@ -5,37 +5,43 @@ import:
   version: 6ba91e24c498b49d0363c723e9e2ab2b5b8fd012
 
 - package: github.com/aws/aws-sdk-go/aws
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
+
+- package: github.com/aws/aws-sdk-go/private/protocol
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/endpoints
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/protocol/ec2query
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/protocol/query
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/protocol/rest
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/protocol/restxml
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/signer/v4
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/private/waiter
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
+
+- package: github.com/aws/aws-sdk-go/service/sts
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/service/ec2
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/aws/aws-sdk-go/service/s3
-  version: c924893c38ecc04b18d7aab8a7aa561cb8b4c4cc
+  version: d8c88d08bd2ea15fa84ac414fe6c75b13b4c2023
 
 - package: github.com/codegangsta/cli
   version: c31a7975863e7810c92e2e288a9ab074f9a88f29

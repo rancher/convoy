@@ -74,6 +74,8 @@ func (s *daemon) isVolumeAttached(name string) (bool, error) {
 
 		if v["AWSMountPoint"] != "" {
 			return true, nil
+		}else{
+			return false, util.ErrorNotAttachedInBackend()
 		}
 	}
 	return false, nil
