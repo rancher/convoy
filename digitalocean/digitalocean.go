@@ -41,6 +41,7 @@ type Driver struct {
 type Device struct {
 	Root              string
 	DefaultVolumeSize int64
+	StorageType       string
 }
 
 func (d *Device) ConfigFile() (string, error) {
@@ -120,7 +121,11 @@ func init() {
 	Register(DRIVER_NAME, Init)
 }
 
-func Init(root string, config map[string]string) (ConvoyDriver, error) {
+func Init(root string, v interface{}) (ConvoyDriver, error) {
+	config, ok := v.(map[string]string)
+	if !ok {
+		return nil, fmt.Errorf("config is not a map")
+	}
 	dev := &Device{
 		Root: root,
 	}
@@ -179,6 +184,10 @@ func (d *Driver) Info() (map[string]string, error) {
 		"DefaultVolumeSize": strconv.FormatInt(d.DefaultVolumeSize, 10),
 	}
 	return ret, nil
+}
+
+func (d *Driver) Storage() string {
+	return d.StorageType
 }
 
 func (d *Driver) VolumeOps() (VolumeOperations, error) {

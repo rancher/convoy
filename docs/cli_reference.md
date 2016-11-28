@@ -36,8 +36,7 @@ OPTIONS:
    --debug							Debug log, enabled by default
    --log 							specific output log file, otherwise output to stdout by default
    --root "/var/lib/convoy"					specific root directory of convoy, if configure file exists, daemon specific options would be ignored
-   --drivers [--drivers option --drivers option]		Drivers to be enabled, first driver in the list would be treated as default driver
-   --driver-opts [--driver-opts option --driver-opts option]	options for driver
+   --config                         Config filename for driver
 ```
 1. ```daemon``` command would start the Convoy daemon.The same Convoy binary would be used to start daemon as well as used as the client to communicate with daemon. In order to use Convoy, user need to setup and start the Convoy daemon first. Convoy daemon would run in the foreground by default. User can use various method e.g. [init-script](https://github.com/fhd/init-script-template) to start Convoy as background daemon.
 2. ```--root``` option would specify Convoy daemon's config root directory. After start Convoy on the host for the first time, it would contains all the information necessary for Convoy to start. After first time of start up, ```convoy daemon``` would automatically load configuration from config root directory. User don't need to specify same configurations anymore.
@@ -62,7 +61,7 @@ USAGE:
    command create [command options] [arguments...]
 
 OPTIONS:
-   --driver 	specify using driver other than default
+   --storagetype        specify using storagetype
    --size 	size of volume if driver supports, in bytes, or end in either G or M or K
    --backup 	create a volume of backup if driver supports
    --id 	driver specific volume ID if driver supports

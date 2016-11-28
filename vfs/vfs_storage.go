@@ -44,6 +44,7 @@ type Device struct {
 	Path              string
 	ConfigPath        string
 	DefaultVolumeSize int64
+	StorageType       string
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -51,6 +52,10 @@ func (dev *Device) ConfigFile() (string, error) {
 		return "", fmt.Errorf("BUG: Invalid empty device config path")
 	}
 	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
+}
+
+func (d *Driver) Storage() string {
+	return d.StorageType
 }
 
 type Snapshot struct {
@@ -86,7 +91,11 @@ func (device *Device) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(device.ConfigPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
-func Init(root string, config map[string]string) (ConvoyDriver, error) {
+func Init(root string, v interface{}) (ConvoyDriver, error) {
+	config, ok := v.(map[string]string)
+	if !ok {
+		return nil, fmt.Errorf("config is not map")
+	}
 	dev := &Device{
 		Root: root,
 	}

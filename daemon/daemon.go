@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"github.com/ghodss/yaml"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
@@ -18,6 +19,7 @@ import (
 
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
+	"io/ioutil"
 )
 
 type daemon struct {
@@ -31,10 +33,13 @@ type daemon struct {
 
 const (
 	VOLUME_CFG_PREFIX = "volume_"
-	CFG_POSTFIX       = ".json"
+	JSON_POSTFIX      = ".json"
+	YAML_POSTFIX      = ".yml"
 
 	CONFIGFILE = "convoy.cfg"
 	LOCKFILE   = "lock"
+	DEFAULT_DRIVER = "devicemapper"
+	DEFAULT_TYPE   = "silver"
 )
 
 var (
@@ -44,9 +49,17 @@ var (
 	log = logrus.WithFields(logrus.Fields{"pkg": "daemon"})
 )
 
+type PoolConfig struct {
+	StorageType        string  `json:"storagetype", omitempty`
+	ThinPool   *ThinPoolConfig `json:"thinpool",omitempty`
+}
+
+type Pools struct {
+	Pools              []PoolConfig   `json:"pools", omitempty`
+}
+
 type daemonConfig struct {
 	Root                string
-	DriverList          []string
 	DefaultDriver       string
 	MountNamespaceFD    string
 	IgnoreDockerDelete  bool
@@ -226,17 +239,23 @@ func (s *daemon) finializeInitialization() error {
 	return nil
 }
 
-func (s *daemon) initDrivers(driverOpts map[string]string) error {
-	for _, driverName := range s.DriverList {
+func (s *daemon) initDrivers(poolconfigList []PoolConfig) error {
+	for _, poolconfig := range poolconfigList {
 		log.WithFields(logrus.Fields{
 			LOG_FIELD_REASON: LOG_REASON_PREPARE,
 			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
-			LOG_FIELD_DRIVER: driverName,
+			LOG_FIELD_TYPE:   poolconfig.StorageType,
 			"root":           s.Root,
-			"driver_opts":    driverOpts,
 		}).Debug()
 
-		driver, err := GetDriver(driverName, s.Root, driverOpts)
+		var driver ConvoyDriver
+		var err error
+		if poolconfig.ThinPool != nil {
+			poolconfig.ThinPool.StorageType = poolconfig.StorageType
+			s.daemonConfig.DefaultDriver = poolconfig.ThinPool.Driver
+			driver, err = GetDriver(poolconfig.StorageType, poolconfig.ThinPool.Driver, s.Root, *poolconfig.ThinPool)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -244,9 +263,9 @@ func (s *daemon) initDrivers(driverOpts map[string]string) error {
 		log.WithFields(logrus.Fields{
 			LOG_FIELD_REASON: LOG_REASON_COMPLETE,
 			LOG_FIELD_EVENT:  LOG_EVENT_INIT,
-			LOG_FIELD_DRIVER: driverName,
+			LOG_FIELD_TYPE:   poolconfig.StorageType,
 		}).Debug()
-		s.ConvoyDrivers[driverName] = driver
+		s.ConvoyDrivers[poolconfig.StorageType] = driver
 	}
 	return nil
 }
@@ -277,6 +296,22 @@ func Start(sockFile string, c *cli.Context) error {
 		}
 	}
 
+	configPath := c.String("config")
+	poolconfig := Pools{}
+	var poolConfigList []PoolConfig
+	log.Debug("configPath: ", configPath)
+	if configPath != "" {
+		if !strings.HasSuffix(configPath, JSON_POSTFIX) && !strings.HasSuffix(configPath, YAML_POSTFIX){
+			return fmt.Errorf("config param must be a json or yaml file")
+		}
+		err := jsonParse(configPath, &poolconfig)
+		if err != nil {
+			return err
+		}
+		log.Info("poolconfig: ", poolconfig)
+		poolConfigList = poolconfig.Pools
+	}
+
 	if exists {
 		log.Debug("Found existing config. Ignoring command line opts, loading config from ", root)
 		if err := util.ObjectLoad(config); err != nil {
@@ -290,15 +325,13 @@ func Start(sockFile string, c *cli.Context) error {
 			}
 			config.MountNamespaceFD = fd
 		}
-
-		driverList := c.StringSlice("drivers")
-		if len(driverList) == 0 {
-			return fmt.Errorf("Missing or invalid parameters")
-		}
 		log.Debug("Creating config at ", root)
 
-		config.DriverList = driverList
-		config.DefaultDriver = driverList[0]
+		for _, pool := range poolConfigList {
+			if pool.StorageType == ""{
+				return fmt.Errorf("Not specifit StorageType")
+			}
+		}
 		config.IgnoreDockerDelete = c.Bool("ignore-docker-delete")
 		config.CreateOnDockerMount = c.Bool("create-on-docker-mount")
 		config.CmdTimeout = c.String("cmd-timeout")
@@ -313,8 +346,7 @@ func Start(sockFile string, c *cli.Context) error {
 	util.InitTimeout(config.CmdTimeout)
 
 	// driverOpts would be ignored by Convoy Drivers if config already exists
-	driverOpts := util.SliceToMap(c.StringSlice("driver-opts"))
-	if err := s.initDrivers(driverOpts); err != nil {
+	if err := s.initDrivers(poolConfigList); err != nil {
 		return err
 	}
 	if err := s.finializeInitialization(); err != nil {
@@ -365,16 +397,16 @@ func Start(sockFile string, c *cli.Context) error {
 	return nil
 }
 
-func (s *daemon) getDriver(driverName string) (ConvoyDriver, error) {
-	driver, exists := s.ConvoyDrivers[driverName]
+func (s *daemon) getDriver(storageType string) (ConvoyDriver, error) {
+	driver, exists := s.ConvoyDrivers[storageType]
 	if !exists {
-		return nil, fmt.Errorf("Cannot find driver %s", driverName)
+		return nil, fmt.Errorf("Cannot find ConvoyDrivers of %s", storageType)
 	}
 	return driver, nil
 }
 
 func (s *daemon) getVolumeOpsForVolume(volume *Volume) (VolumeOperations, error) {
-	driver, err := s.getDriver(volume.DriverName)
+	driver, err := s.getDriver(volume.StorageType)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +414,7 @@ func (s *daemon) getVolumeOpsForVolume(volume *Volume) (VolumeOperations, error)
 }
 
 func (s *daemon) getSnapshotOpsForVolume(volume *Volume) (SnapshotOperations, error) {
-	driver, err := s.getDriver(volume.DriverName)
+	driver, err := s.getDriver(volume.StorageType)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +422,7 @@ func (s *daemon) getSnapshotOpsForVolume(volume *Volume) (SnapshotOperations, er
 }
 
 func (s *daemon) getBackupOpsForVolume(volume *Volume) (BackupOperations, error) {
-	driver, err := s.getDriver(volume.DriverName)
+	driver, err := s.getDriver(volume.StorageType)
 	if err != nil {
 		return nil, err
 	}
@@ -411,4 +443,16 @@ func checkForStatusCode(err error) int {
 		return apiError.statusCode
 	}
 	return 0
+}
+
+func jsonParse(filename string, v interface{}) error {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	err = yaml.Unmarshal([]byte(data), v)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/rancher/convoy/util"
 
 	. "gopkg.in/check.v1"
+	"github.com/rancher/convoy/daemon"
 )
 
 const (
@@ -130,20 +131,19 @@ func (s *TestSuite) TearDownSuite(c *C) {
 }
 
 func (s *TestSuite) initDriver(c *C) {
-	config := make(map[string]string)
+	config := daemon.ThinPoolConfig{}
 
 	_, err := Init(devCfgRoot, config)
 	c.Assert(err, ErrorMatches, "data device or metadata device unspecified")
 
-	config[DM_DATA_DEV] = s.dataDev
-	config[DM_METADATA_DEV] = s.metadataDev
-	config[DM_THINPOOL_BLOCK_SIZE] = "100"
+	config.ThinPoolDataDevice = s.dataDev
+	config.ThinPoolMetaDevice = s.metadataDev
+	config.BlockSize = "100"
 	_, err = Init(devCfgRoot, config)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err, ErrorMatches, "Block size must.*")
 
-	config[DM_THINPOOL_NAME] = "test_pool"
-	delete(config, DM_THINPOOL_BLOCK_SIZE)
+	config.BlockSize = ""
 
 	driver, err := Init(devCfgRoot, config)
 	c.Assert(err, IsNil)

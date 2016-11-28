@@ -15,8 +15,8 @@ var (
 		Usage: "create a new volume: create [volume_name] [options]",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "driver",
-				Usage: "specify using driver other than default",
+				Name:  "storagetype",
+				Usage: "specify using storagetype",
 			},
 			cli.StringFlag{
 				Name:  "size",
@@ -81,7 +81,7 @@ var (
 		Usage: "list all managed volumes",
 		Flags: []cli.Flag{
 			cli.BoolFlag{
-				Name:  "driver",
+				Name:  "storagetype",
 				Usage: "Ask for driver specific info of volumes and snapshots",
 			},
 		},
@@ -114,7 +114,7 @@ func doVolumeCreate(c *cli.Context) error {
 
 	name := c.Args().First()
 	size, err := getSize(c, err)
-	driverName, err := util.GetFlag(c, "driver", false, err)
+	typeName, err := util.GetFlag(c, "storagetype", false, err)
 	backupURL, err := util.GetFlag(c, "backup", false, err)
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func doVolumeCreate(c *cli.Context) error {
 
 	request := &api.VolumeCreateRequest{
 		Name:           name,
-		DriverName:     driverName,
+		StorageType:    typeName,
 		Size:           size,
 		BackupURL:      backupURL,
 		DriverVolumeID: driverVolumeID,
@@ -182,8 +182,8 @@ func cmdVolumeList(c *cli.Context) {
 
 func doVolumeList(c *cli.Context) error {
 	v := url.Values{}
-	if c.Bool("driver") {
-		v.Set("driver", "1")
+	if c.Bool("storagetype") {
+		v.Set("storagetype", "1")
 	}
 
 	url := "/volumes/list?" + v.Encode()

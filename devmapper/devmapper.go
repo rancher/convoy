@@ -14,28 +14,19 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/rancher/convoy/objectstore"
 	"github.com/rancher/convoy/util"
-
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
 )
 
 const (
 	DRIVER_NAME           = "devicemapper"
-	DRIVER_CONFIG_FILE    = "devicemapper.cfg"
 	DEFAULT_THINPOOL_NAME = "convoy-pool"
 	DEFAULT_BLOCK_SIZE    = "4096"
 	DM_DIR                = "/dev/mapper/"
 	MOUNTS_DIR            = "mounts"
-
+	CONFIG_POSTFIX        = ".cfg"
 	THIN_PROVISION_TOOLS_BINARY      = "convoy-pdata_tools"
 	THIN_PROVISION_TOOLS_MIN_VERSION = "0.5.1"
-
-	DM_DATA_DEV            = "dm.datadev"
-	DM_METADATA_DEV        = "dm.metadatadev"
-	DM_THINPOOL_NAME       = "dm.thinpoolname"
-	DM_THINPOOL_BLOCK_SIZE = "dm.thinpoolblocksize"
-	DM_DEFAULT_VOLUME_SIZE = "dm.defaultvolumesize"
-	DM_DEFAULT_FS_TYPE     = "dm.fs"
 
 	// as defined in device mapper thin provisioning
 	BLOCK_SIZE_MIN        = 128
@@ -51,6 +42,7 @@ const (
 	IMAGE_CFG_PREFIX     = "image_"
 	DEVMAPPER_CFG_PREFIX = DRIVER_NAME + "_"
 	CFG_POSTFIX          = ".json"
+	POOLNAME_PREFIX      = "convoy_"
 
 	DM_LOG_FIELD_VOLUME_DEVID   = "dm_volume_devid"
 	DM_LOG_FIELD_SNAPSHOT_DEVID = "dm_snapshot_devid"
@@ -112,6 +104,7 @@ func (v *Volume) GenerateDefaultMountPoint() string {
 type Device struct {
 	Root              string
 	DataDevice        string
+	StorageType       string
 	MetadataDevice    string
 	ThinpoolDevice    string
 	ThinpoolSize      int64
@@ -125,7 +118,7 @@ func (dev *Device) ConfigFile() (string, error) {
 	if dev.Root == "" {
 		return "", fmt.Errorf("BUG: Invalid empty device config path")
 	}
-	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
+	return filepath.Join(dev.Root, DRIVER_NAME + CONFIG_POSTFIX), nil
 }
 
 var (
@@ -153,25 +146,24 @@ func (d *Driver) blankVolume(name string) *Volume {
 	}
 }
 
-func verifyConfig(config map[string]string) (*Device, error) {
+func verifyConfig(config ThinPoolConfig) (*Device, error) {
 	dv := Device{
-		DataDevice:     config[DM_DATA_DEV],
-		MetadataDevice: config[DM_METADATA_DEV],
+		DataDevice:     config.ThinPoolDataDevice,
+		MetadataDevice: config.ThinPoolMetaDevice,
 	}
 
 	if dv.DataDevice == "" || dv.MetadataDevice == "" {
 		return nil, fmt.Errorf("data device or metadata device unspecified")
 	}
 
-	if _, exists := config[DM_THINPOOL_NAME]; !exists {
-		config[DM_THINPOOL_NAME] = DEFAULT_THINPOOL_NAME
-	}
-	dv.ThinpoolDevice = filepath.Join(DM_DIR, config[DM_THINPOOL_NAME])
+	dv.ThinpoolDevice = filepath.Join(DM_DIR, POOLNAME_PREFIX+ config.StorageType)
 
-	if _, exists := config[DM_THINPOOL_BLOCK_SIZE]; !exists {
-		config[DM_THINPOOL_BLOCK_SIZE] = DEFAULT_BLOCK_SIZE
+	dv.StorageType = config.StorageType
+
+	if config.BlockSize == "" {
+		config.BlockSize = DEFAULT_BLOCK_SIZE
 	}
-	blockSize, err := util.ParseSize(config[DM_THINPOOL_BLOCK_SIZE])
+	blockSize, err := util.ParseSize(config.BlockSize)
 	if err != nil {
 		return nil, fmt.Errorf("Illegal block size specified")
 	}
@@ -181,24 +173,23 @@ func verifyConfig(config map[string]string) (*Device, error) {
 	}
 	dv.ThinpoolBlockSize = blockSize
 
-	if _, exists := config[DM_DEFAULT_VOLUME_SIZE]; !exists {
-		config[DM_DEFAULT_VOLUME_SIZE] = DEFAULT_VOLUME_SIZE
+	if config.VolumeSize == "" {
+		config.VolumeSize = DEFAULT_VOLUME_SIZE
 	}
-	volumeSize, err := util.ParseSize(config[DM_DEFAULT_VOLUME_SIZE])
+	volumeSize, err := util.ParseSize(config.VolumeSize)
 	if err != nil || volumeSize == 0 {
 		return nil, fmt.Errorf("Illegal default volume size specified")
 	}
 	dv.DefaultVolumeSize = volumeSize
 
-	if _, exists := config[DM_DEFAULT_FS_TYPE]; !exists {
-		config[DM_DEFAULT_FS_TYPE] = DEFAULT_FS_TYPE
+	if config.FileSystem == "" {
+		config.FileSystem = DEFAULT_FS_TYPE
 	}
-	fs_type := config[DM_DEFAULT_FS_TYPE]
+	fs_type := config.FileSystem
 	if !fsSupported(fs_type) {
 		return nil, fmt.Errorf("Unsupported filesystem type specified")
 	}
 	dv.Filesystem = fs_type
-
 	return &dv, nil
 }
 
@@ -304,7 +295,7 @@ func (d *Driver) remountVolumes() error {
 	return err
 }
 
-func Init(root string, config map[string]string) (ConvoyDriver, error) {
+func Init(root string, v interface{}) (ConvoyDriver, error) {
 	devicemapper.LogInitVerbose(1)
 	devicemapper.LogInit(&DMLogger{})
 
@@ -312,6 +303,13 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		return nil, err
 	}
 
+	if err := util.MkdirIfNotExists(root); err != nil {
+		return nil, err
+	}
+	config, ok := v.(ThinPoolConfig)
+	if !ok {
+		return nil, fmt.Errorf("Config type error")
+	}
 	if err := util.MkdirIfNotExists(root); err != nil {
 		return nil, err
 	}
@@ -633,6 +631,10 @@ func (d *Driver) DeleteVolume(req Request) error {
 	return nil
 }
 
+func (d *Driver) Storage() string {
+	return d.StorageType
+}
+
 func (d *Driver) ListVolume(opts map[string]string) (map[string]map[string]string, error) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
@@ -757,6 +759,7 @@ func (d *Driver) Info() (map[string]string, error) {
 		"Root":              d.Root,
 		"DataDevice":        d.DataDevice,
 		"MetadataDevice":    d.MetadataDevice,
+		"StorageType":       d.StorageType,
 		"ThinpoolDevice":    d.ThinpoolDevice,
 		"ThinpoolSize":      strconv.FormatInt(d.ThinpoolSize, 10),
 		"ThinpoolBlockSize": strconv.FormatInt(blockSize, 10),

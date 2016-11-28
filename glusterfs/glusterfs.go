@@ -50,11 +50,16 @@ func (d *Driver) Name() string {
 	return DRIVER_NAME
 }
 
+func (d *Driver) Storage() string {
+	return d.StorageType
+}
+
 type Device struct {
 	Root              string
 	Servers           []string
 	DefaultVolumePool string
 	DefaultVolumeSize int64
+	StorageType       string
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -115,7 +120,11 @@ func (device *Device) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(device.Root, DRIVER_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
 
-func Init(root string, config map[string]string) (ConvoyDriver, error) {
+func Init(root string, v interface{}) (ConvoyDriver, error) {
+	config, ok := v.(map[string]string)
+	if !ok {
+		return nil, fmt.Errorf("config is not a map")
+	}
 	dev := &Device{
 		Root: root,
 	}

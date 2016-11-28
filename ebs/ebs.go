@@ -50,6 +50,7 @@ type Device struct {
 	DefaultVolumeSize int64
 	DefaultVolumeType string
 	DefaultKmsKeyID   string
+	StorageType       string
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -80,6 +81,10 @@ func (d *Driver) blankVolume(name string) *Volume {
 		configPath: d.Root,
 		Name:       name,
 	}
+}
+
+func (d *Driver) Storage() string {
+	return d.StorageType
 }
 
 func (v *Volume) ConfigFile() (string, error) {
@@ -150,7 +155,11 @@ func (d *Driver) remountVolumes() error {
 	return err
 }
 
-func Init(root string, config map[string]string) (ConvoyDriver, error) {
+func Init(root string, v interface{}) (ConvoyDriver, error) {
+	config, ok := v.(map[string]string)
+	if !ok {
+		return nil, fmt.Errorf("config is not a map")
+	}
 	ebsService, err := NewEBSService()
 	if err != nil {
 		return nil, err

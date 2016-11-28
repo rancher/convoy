@@ -17,7 +17,7 @@ instance, and it would return a valid ConvoyDriver for operation.
 The registered function would take a "root" path, used as driver's configuration
 file path, and a map of configuration specified for the driver.
 */
-type InitFunc func(root string, config map[string]string) (ConvoyDriver, error)
+type InitFunc func(root string, config interface{}) (ConvoyDriver, error)
 
 /*
 ConvoyDriver interface would provide all the functionality needed for driver
@@ -29,9 +29,9 @@ driver.
 type ConvoyDriver interface {
 	Name() string
 	Info() (map[string]string, error)
-
-	VolumeOps() (VolumeOperations, error)
+	Storage() string
 	SnapshotOps() (SnapshotOperations, error)
+	VolumeOps() (VolumeOperations, error)
 	BackupOps() (BackupOperations, error)
 }
 
@@ -89,6 +89,7 @@ const (
 	OPT_VOLUME_DRIVER_ID      = "VolumeDriverID"
 	OPT_VOLUME_TYPE           = "VolumeType"
 	OPT_VOLUME_IOPS           = "VolumeIOPS"
+	OPT_VOLUME_STORAGETYPE    = "VolumeStorageType"
 	OPT_VOLUME_CREATED_TIME   = "VolumeCreatedAt"
 	OPT_SNAPSHOT_NAME         = "SnapshotName"
 	OPT_SNAPSHOT_CREATED_TIME = "SnapshotCreatedAt"
@@ -121,10 +122,10 @@ func Register(name string, initFunc InitFunc) error {
 /*
 GetDriver would be called each time when a Convoy Driver instance is needed.
 */
-func GetDriver(name, root string, config map[string]string) (ConvoyDriver, error) {
-	if _, exists := initializers[name]; !exists {
-		return nil, fmt.Errorf("Driver %v is not supported!", name)
+func GetDriver(typeName, driver, root string, config interface{}) (ConvoyDriver, error) {
+	if _, exists := initializers[driver]; !exists {
+		return nil, fmt.Errorf("Driver %v is not supported!", driver)
 	}
-	drvRoot := filepath.Join(root, name)
-	return initializers[name](drvRoot, config)
+	drvRoot := filepath.Join(root, typeName)
+	return initializers[driver](drvRoot, config)
 }
