@@ -80,6 +80,7 @@ func createRouter(s *daemon) *mux.Router {
 		"GET": {
 			"/info":            s.doInfo,
 			"/volumes/list":    s.doVolumeList,
+			"/storagetype/list":s.doTypeList,
 			"/volumes/":        s.doVolumeInspect,
 			"/snapshots/":      s.doSnapshotInspect,
 			"/backups/list":    s.doBackupList,

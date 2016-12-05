@@ -333,6 +333,16 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	return err
 }
 
+func (s *daemon) doTypeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	result := ""
+	for _, driver := range s.ConvoyDrivers {
+		result = result + driver.Storage() + " "
+	}
+	data, err := api.ResponseOutput(&result)
+	_, err = w.Write(data)
+	return err
+}
+
 func (s *daemon) inspectVolume(name string) ([]byte, error) {
 	volume := s.getVolume(name)
 	if volume == nil {

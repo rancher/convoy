@@ -88,6 +88,18 @@ var (
 		Action: cmdVolumeList,
 	}
 
+	volumeListTypeCmd = cli.Command{
+		Name:  "list-type",
+		Usage: "list all storage type",
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  "storagetype",
+				Usage: "Ask for storagetype",
+			},
+		},
+		Action: cmdTypeList,
+	}
+
 	volumeInspectCmd = cli.Command{
 		Name:   "inspect",
 		Usage:  "inspect a certain volume: inspect <volume>",
@@ -187,6 +199,22 @@ func doVolumeList(c *cli.Context) error {
 	}
 
 	url := "/volumes/list?" + v.Encode()
+	return sendRequestAndPrint("GET", url, nil)
+}
+
+func cmdTypeList(c *cli.Context) {
+	if err := doTypeList(c); err != nil {
+		panic(err)
+	}
+}
+
+func doTypeList(c *cli.Context) error {
+	v := url.Values{}
+	if c.Bool("storagetype") {
+		v.Set("storagetype", "1")
+	}
+
+	url := "/storagetype/list?" + v.Encode()
 	return sendRequestAndPrint("GET", url, nil)
 }
 
