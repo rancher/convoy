@@ -26,6 +26,7 @@ ENV GOPATH=/go
 # Go tools
 RUN go get github.com/rancher/trash
 RUN go get github.com/golang/lint/golint
+RUN go get github.com/ghodss/yaml
 
 # Docker
 RUN curl -sL https://get.docker.com/builds/Linux/x86_64/docker-1.9.1 > /usr/bin/docker && \
