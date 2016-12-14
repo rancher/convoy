@@ -43,6 +43,7 @@ const (
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
 	UMOUNT_BINARY = "umount"
+
 )
 
 type Driver struct {
@@ -82,6 +83,15 @@ type Volume struct {
 	Snapshots  map[string]Snapshot
 
 	configPath string
+}
+
+func getTagValue(key string, tags []*ec2.Tag) string {
+	for _, tag := range tags {
+		if key == *tag.Key {
+			return *tag.Value
+		}
+	}
+	return ""
 }
 
 func (d *Driver) blankVolume(name string) *Volume {
@@ -293,6 +303,199 @@ func (d *Driver) getTypeAndIOPS(opts map[string]string) (string, int64, error) {
 	return volumeType, iops, nil
 }
 
+func convertEc2TagsToMap(tags []*ec2.Tag) map[string]string {
+	tagMap := make(map[string]string)
+	for _, tag := range tags {
+		tagMap[*tag.Key] = *tag.Value
+	}
+	return tagMap
+}
+
+func (d *Driver) MarkVolumeForGC(volume *ec2.Volume) error {
+	if volume == nil {
+		return nil
+	}
+	gcTag := make(map[string]string)
+	gcTag["GarbageCollection"] = time.Now().String()
+	if err := d.ebsService.AddTags(*volume.VolumeId, gcTag); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Driver) CreateAndBuildFromSnapshot(oldVolume *ec2.Volume, snapshotVolume *ec2.Volume, opts map[string]string) (string, int64, error) {
+	// If the volume I would snapshot off of is the same as the one that I need to create then just return
+	if oldVolume != nil && *oldVolume.VolumeId == *snapshotVolume.VolumeId {
+		return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
+	}
+	csr := &CreateSnapshotRequest {
+		VolumeID: *snapshotVolume.VolumeId,
+		Description: fmt.Sprintf("Creating snaphot from %s", *snapshotVolume.VolumeId),
+		Tags: convertEc2TagsToMap(snapshotVolume.Tags),
+	}
+	// Create snapshot from volume in other AZ
+	snapshotId, err := d.ebsService.CreateSnapshot(csr)
+	if err != nil {
+		return "", -1, err
+	}
+
+	snapshot, err := d.ebsService.GetSnapshot(snapshotId)
+	if err != nil {
+		return "", -1, err
+	}
+	return d.BuildFromSnapshot(oldVolume, snapshot, opts)
+}
+
+func (d *Driver) BuildFromSnapshot(oldVolume *ec2.Volume, snapshot *ec2.Snapshot, opts map[string]string) (string, int64, error) {
+	// If the snapshot to rebuild off of was created from the oldVolume then update tags and move on
+	if oldVolume != nil && *oldVolume.VolumeId == *snapshot.VolumeId {
+		return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
+	}
+
+	// If there is an old volume then we will mark is for GarbageCollection
+	if err := d.MarkVolumeForGC(oldVolume); err != nil {
+		return "", -1, err
+	}
+
+	if err := d.ebsService.WaitForSnapshotComplete(*snapshot.SnapshotId); err != nil {
+		return "", -1, err
+	}
+	log.Debugf("Snapshot %v is ready", *snapshot.SnapshotId)
+	snapshotVolumeSize := *snapshot.VolumeSize * GB
+	volumeSize, err := d.getSize(opts, snapshotVolumeSize)
+	if err != nil {
+		return "", volumeSize, err
+	}
+	if volumeSize < snapshotVolumeSize {
+		return "", volumeSize, fmt.Errorf("Volume size cannot be less than snapshot size %v", snapshotVolumeSize)
+	}
+
+	volumeType, iops, err := d.getTypeAndIOPS(opts)
+	if err != nil {
+		return "", volumeSize, err
+	}
+
+	r := &CreateEBSVolumeRequest{
+		Size:       volumeSize,
+		SnapshotID: *snapshot.SnapshotId,
+		VolumeType: volumeType,
+		IOPS:       iops,
+		Tags:       convertEc2TagsToMap(snapshot.Tags),
+		Encrypted:  *snapshot.Encrypted,
+	}
+
+	volumeID, err := d.ebsService.CreateVolume(r)
+	if err != nil {
+		return volumeID, volumeSize, err
+	}
+	log.Debugf("Created volume %v from EBS snapshot %v", volumeID, *snapshot.SnapshotId)
+	return volumeID, volumeSize, nil
+}
+
+func (d *Driver) UpdateTags(volumeID string, newTags map[string]string) error {
+	if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
+		log.Debugf("Failed to update tags for volume %v, but continue", volumeID)
+		return err
+	}
+	return nil
+}
+
+func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[string]string, newTags map[string]string, needsFS *bool) (string, int64, error) {
+
+	var volumeSize int64
+	liveAvailabilityZones, err := d.ebsService.GetAvailabilityZones(
+		&ec2.Filter {
+			Name: aws.String("state"),
+			Values: []*string {
+				aws.String("available"),
+			},
+		},
+	)
+	if err != nil {
+		return volumeID, volumeSize, err
+	} else if len(liveAvailabilityZones) == 0 {
+		return volumeID, volumeSize, fmt.Errorf("AWS is reporting not any Availablity Zones in \"available\" state")
+	}
+
+	// Need to specify the volume and the filter for availability-zones
+	mostRecentVolume, err := d.ebsService.GetMostRecentVolume(
+		volumeName, 
+		d.DefaultDCName,
+		&ec2.Filter {
+			Name: aws.String("availability-zone"),
+			Values: liveAvailabilityZones,
+		},
+	)
+	if err != nil {
+		return volumeID, volumeSize, err
+	}
+
+	mostRecentSnapshot, err := d.ebsService.GetMostRecentSnapshot(volumeName, d.DefaultDCName)
+	if err != nil {
+		return volumeID, volumeSize, err
+	}
+
+	// if volumeID is empty and most recent volume is empty then blow up
+	if volumeID != "" && mostRecentVolume == nil {
+		return volumeID, volumeSize, fmt.Errorf("Most recent volume was nil for volumeID: %s", volumeID)
+	}
+
+	var oldVolume *ec2.Volume
+	if volumeID != "" {
+		if oldVolume, err = d.ebsService.GetVolume(volumeID); err != nil {
+			return volumeID, volumeSize, err
+		}
+		// If Failover is false then return 
+		if getTagValue("Failover", oldVolume.Tags) != "False" {
+			return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
+		}
+
+	}
+
+	// Both are nil, create new volume from scratch
+	if mostRecentSnapshot == nil && mostRecentVolume == nil {
+		volumeSize, err := d.getSize(opts, d.DefaultVolumeSize)
+		if err != nil {
+			return volumeID, volumeSize, err
+		}
+		volumeType, iops, err := d.getTypeAndIOPS(opts)
+		if err != nil {
+			return volumeID, volumeSize, err
+		}
+		r := &CreateEBSVolumeRequest{
+			Size:       volumeSize,
+			VolumeType: volumeType,
+			IOPS:       iops,
+			KmsKeyID:   d.DefaultKmsKeyID,
+			Encrypted:  d.DefaultEncrypted,
+		}
+		volumeID, err = d.ebsService.CreateVolume(r)
+		if err != nil {
+			return volumeID, volumeSize, err
+		}
+		log.Debugf("Created volume %s from EBS volume %v", volumeName, volumeID)
+		needsFS = aws.Bool(true)
+		return volumeID, volumeSize, nil
+	} else if mostRecentSnapshot == nil {
+		// If snapshot is nil then rebuild from most recent volume
+		return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
+	} else if mostRecentVolume == nil {
+		return d.BuildFromSnapshot(oldVolume, mostRecentSnapshot, opts)
+	} else if (*mostRecentVolume.CreateTime).After(*mostRecentSnapshot.StartTime) {
+		return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
+	} else {
+		// If we branched here it means the mostRecentSnapshot is newer than the most recent volume
+		if (*mostRecentVolume.VolumeId) == (*mostRecentSnapshot.VolumeId) {
+			// If the most recent snapshot is based off the most recent volume, then the volume could have more up to date data so build from it
+			return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
+		} else {
+			// The snapshot is from a volume that no longer exists so build from it
+			return d.BuildFromSnapshot(oldVolume, mostRecentSnapshot, opts)
+		}
+	}
+
+}
+
 func (d *Driver) CreateVolume(req Request) error {
 	var (
 		err        error
@@ -349,86 +552,13 @@ func (d *Driver) CreateVolume(req Request) error {
 		"Name": id,
 		"DCName": d.DefaultDCName,
 	}
-	// Run some searches on AWS to see if we find a volume that might be not on our system but provisioned in AWS
-	if volumeID != "" {
-		ebsVolume, err := d.ebsService.GetVolume(volumeID)
-		if err != nil {
-			return err
-		}
-		volumeSize = *ebsVolume.Size * GB
-		log.Debugf("Found EBS volume %v for volume %v, update tags", volumeID, id)
-		if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
-			log.Debugf("Failed to update tags for volume %v, but continue", volumeID)
-		}
-	}else if backupURL != "" {
-		region, ebsSnapshotID, err := decodeURL(backupURL)
-		if err != nil {
-			return err
-		}
-		if region != d.ebsService.Region {
-			// We don't want to automatically copy snapshot here
-			// because it's way too time consuming.
-			return fmt.Errorf("Snapshot %v is at %v rather than current region %v. Copy snapshot is needed",
-				ebsSnapshotID, region, d.ebsService.Region)
-		}
-		if err := d.ebsService.WaitForSnapshotComplete(ebsSnapshotID); err != nil {
-			return err
-		}
-		log.Debugf("Snapshot %v is ready", ebsSnapshotID)
-		ebsSnapshot, err := d.ebsService.GetSnapshot(ebsSnapshotID)
-		if err != nil {
-			return err
-		}
 
-		snapshotVolumeSize := *ebsSnapshot.VolumeSize * GB
-		volumeSize, err = d.getSize(opts, snapshotVolumeSize)
-		if err != nil {
-			return err
-		}
-		if volumeSize < snapshotVolumeSize {
-			return fmt.Errorf("Volume size cannot be less than snapshot size %v", snapshotVolumeSize)
-		}
-		volumeType, iops, err := d.getTypeAndIOPS(opts)
-		if err != nil {
-			return err
-		}
-		r := &CreateEBSVolumeRequest{
-			Size:       volumeSize,
-			SnapshotID: ebsSnapshotID,
-			VolumeType: volumeType,
-			IOPS:       iops,
-			Tags:       newTags,
-		}
-		volumeID, err = d.ebsService.CreateVolume(r)
-		if err != nil {
-			return err
-		}
-		log.Debugf("Created volume %v from EBS snapshot %v", id, ebsSnapshotID)
-	} else {
-		// Create a new EBS volume
-		volumeSize, err = d.getSize(opts, d.DefaultVolumeSize)
-		if err != nil {
-			return err
-		}
-		volumeType, iops, err := d.getTypeAndIOPS(opts)
-		if err != nil {
-			return err
-		}
-		r := &CreateEBSVolumeRequest{
-			Size:       volumeSize,
-			VolumeType: volumeType,
-			IOPS:       iops,
-			Tags:       newTags,
-			KmsKeyID:   d.DefaultKmsKeyID,
-			Encrypted:  d.DefaultEncrypted,
-		}
-		volumeID, err = d.ebsService.CreateVolume(r)
-		if err != nil {
-			return err
-		}
-		log.Debugf("Created volume %s from EBS volume %v", id, volumeID)
-		needsFS = true
+	// If Failover Tag is false, will be designated inside this logic and return the proper values
+	volumeID, volumeSize, err = d.FailoverLogic(volumeName, volumeID, opts, newTags, &needsFS)
+	if err != nil {
+		return err
 	}
+	d.UpdateTags(volumeID, newTags)
 
 	dev, err := d.ebsService.AttachVolume(volumeID, volumeSize)
 	if err != nil {

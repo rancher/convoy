@@ -3,6 +3,7 @@ package ebs
 import (
 	"fmt"
 	"io/ioutil"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +50,27 @@ type CreateSnapshotRequest struct {
 	Tags        map[string]string
 }
 
+type VolumeByCreateTime []*ec2.Volume
+func (v VolumeByCreateTime) Len() int {
+	return len(v)
+}
+func (v VolumeByCreateTime) Swap(i, j int) {
+    v[i], v[j] = v[j], v[i]
+}
+func (v VolumeByCreateTime) Less(i, j int) bool {
+    return (*v[i].CreateTime).Before(*v[j].CreateTime)
+}
+
+type SnapshotByTime []*ec2.Snapshot
+func (s SnapshotByTime) Len() int {
+    return len(s)
+}
+func (s SnapshotByTime) Swap(i, j int) {
+    s[i], s[j] = s[j], s[i]
+}
+func (s SnapshotByTime) Less(i, j int) bool {
+    return (*s[i].StartTime).Before(*s[j].StartTime)
+}
 func sleepBeforeRetry() {
 	time.Sleep(RETRY_INTERVAL * time.Second)
 }
@@ -93,7 +115,6 @@ func NewEBSService() (*ebsService, error) {
 
 	config := aws.NewConfig().WithRegion(s.Region)
 	s.ec2Client = ec2.New(session.New(), config)
-
 	return s, nil
 }
 
@@ -176,6 +197,29 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 		return fmt.Errorf("Cannot attach volume, final state %v", *attachment.State)
 	}
 	return nil
+}
+
+func (s *ebsService) GetAvailabilityZones(filters ...*ec2.Filter) ([]*string, error) {
+	azInput := &ec2.DescribeAvailabilityZonesInput {
+		Filters: []*ec2.Filter {
+			&ec2.Filter {
+				Name: aws.String("region-name"),
+				Values: []*string {
+					aws.String(s.Region),
+				},
+			},
+		},
+	}
+	// Find out which other AZ's are available
+	var liveAZs []*string
+	azOutput, err := s.ec2Client.DescribeAvailabilityZones(azInput)
+	if err != nil {
+		return liveAZs, err
+	}
+	for _, az := range azOutput.AvailabilityZones {
+		liveAZs = append(liveAZs, az.ZoneName)
+	}
+	return liveAZs, nil
 }
 
 func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, error) {
@@ -338,14 +382,20 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 	if err != nil {
 		return nil, parseAwsError(err)
 	}
+	var finalVolumes []*ec2.Volume 
+	for _, volume := range volumes.Volumes {
+		if getTagValue("GarbageCollection", volume.Tags) == "" {
+			finalVolumes = append(finalVolumes, volume)
+		}
+	}
 	// Since tag Name is not AWS's identifying attribute (i.e. volume_id), we can get multiple results with same name
 	// Return the first one
-	if len(volumes.Volumes) < 1 {
+	if len(finalVolumes) < 1 {
 		return nil, fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone)
-	}else if len(volumes.Volumes) > 1 {
+	}else if len(finalVolumes) > 1 {
 		log.Debugf("Found multiple volumes with name %s. Returning the first one.", volumeName)
 	}
-	return volumes.Volumes[0], nil
+	return finalVolumes[0], nil
 }
 
 func getBlkDevList() (map[string]bool, error) {
@@ -540,6 +590,87 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 	}
 	log.Debugf("Successfully detached the volume %s", volumeID)
 	return detachErr
+}
+
+func (s *ebsService) GetMostRecentSnapshot(volumeName string, dcName string, filters ...*ec2.Filter) (*ec2.Snapshot, error) {
+	snapshots, err := s.GetSnapshots(volumeName, dcName, filters...)
+	if err != nil {
+		return nil, err
+	} else if len(snapshots) == 0 {
+		return nil, nil
+	}
+	return snapshots[len(snapshots)-1], nil
+}
+
+func (s *ebsService) GetMostRecentVolume(volumeName string, dcName string, filters ...*ec2.Filter) (*ec2.Volume, error) {
+		// We always need to specify the name, dc name, and that the snapshot is complete. If the AZ has truly crashed, then the snapshot may never complete
+	volumeInput := &ec2.DescribeVolumesInput {
+		Filters: []*ec2.Filter {
+			&ec2.Filter {
+				Name: aws.String("tag:Name"),
+				Values: []*string {
+					aws.String(volumeName),
+				},
+			},
+			&ec2.Filter {
+				Name: aws.String("tag:DCName"),
+				Values: []*string {
+					aws.String(dcName),
+				},
+			},
+			&ec2.Filter {
+				Name: aws.String("status"),
+				Values: []*string {
+					aws.String("available"),
+				},
+			},
+		},
+	}
+	volumeInput.Filters = append(volumeInput.Filters, filters...)
+	log.Printf("Describe volumes input: %+v", volumeInput)
+	req, volOutput := s.ec2Client.DescribeVolumesRequest(volumeInput)
+	if err := req.Send(); err != nil {
+		return nil, err
+	}
+	sort.Sort(sort.Reverse(VolumeByCreateTime(volOutput.Volumes)))
+	if len(volOutput.Volumes) == 0 {
+		return nil, nil
+	}
+	return volOutput.Volumes[0], nil
+}
+
+// Gets the snapshots. The name and dc name are required, but any extra filters are not
+func (s *ebsService) GetSnapshots(volumeName string, dcName string, filters ...*ec2.Filter) ([]*ec2.Snapshot, error) {
+	// We always need to specify the name, dc name, and that the snapshot is complete. If the AZ has truly crashed, then the snapshot may never complete
+	snapshotInput := &ec2.DescribeSnapshotsInput {
+		Filters: []*ec2.Filter {
+			&ec2.Filter {
+				Name: aws.String("tag:Name"),
+				Values: []*string {
+					aws.String(volumeName),
+				},
+			},
+			&ec2.Filter {
+				Name: aws.String("tag:DCName"),
+				Values: []*string {
+					aws.String(dcName),
+				},
+			},
+			&ec2.Filter {
+				Name: aws.String("status"),
+				Values: []*string {
+					aws.String("completed"),
+				},
+			},
+		},
+	}
+	snapshotInput.Filters = append(snapshotInput.Filters, filters...)
+	req, snapOutput := s.ec2Client.DescribeSnapshotsRequest(snapshotInput)
+	if err := req.Send(); err != nil {
+		return []*ec2.Snapshot{}, err
+	}
+	sort.Sort(SnapshotByTime(snapOutput.Snapshots))
+	return snapOutput.Snapshots, nil
 }
 
 func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snapshot, error) {
