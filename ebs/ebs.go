@@ -31,6 +31,7 @@ const (
 	EBS_DEFAULT_VOLUME_TYPE = "ebs.defaultvolumetype"
 	EBS_CLUSTER_NAME = "ebs.clustername"
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
+	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
@@ -54,6 +55,7 @@ type Device struct {
 	DefaultVolumeType string
 	DefaultDCName     string
 	DefaultKmsKeyID   string
+	DefaultEncrypted  bool
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -195,12 +197,19 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		log.Debugf("Setting DC name in driver as %s", config[EBS_CLUSTER_NAME])
 		dcName := config[EBS_CLUSTER_NAME]
 		kmsKeyId := config[EBS_DEFAULT_VOLUME_KEY]
+		var encrypted bool
+		if encryptedStr, ok := config[EBS_DEFAULT_ENCRYPTED]; ok {
+			if encrypted, err = strconv.ParseBool(encryptedStr); err != nil {
+				return nil, err
+			}
+		}
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: size,
 			DefaultVolumeType: volumeType,
 			DefaultDCName: dcName,
 			DefaultKmsKeyID:   kmsKeyId,
+			DefaultEncrypted:  encrypted,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -227,6 +236,7 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos["DefaultVolumeSize"] = strconv.FormatInt(d.DefaultVolumeSize, 10)
 	infos["DefaultVolumeType"] = d.DefaultVolumeType
 	infos["DefaultKmsKey"] = d.DefaultKmsKeyID
+	infos["DefaultEncrypted"] = fmt.Sprint(d.DefaultEncrypted)
 	infos["InstanceID"] = d.ebsService.InstanceID
 	infos["Region"] = d.ebsService.Region
 	infos["AvailiablityZone"] = d.ebsService.AvailabilityZone
@@ -399,6 +409,7 @@ func (d *Driver) CreateVolume(req Request) error {
 			IOPS:       iops,
 			Tags:       newTags,
 			KmsKeyID:   d.DefaultKmsKeyID,
+			Encrypted:  d.DefaultEncrypted,
 		}
 		volumeID, err = d.ebsService.CreateVolume(r)
 		if err != nil {
