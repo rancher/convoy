@@ -33,11 +33,12 @@ const (
 	EBS_CLUSTER_NAME = "ebs.clustername"
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
 	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
+	EBS_DEFAULT_FILESYSTEM  = "ebs.defaultfilesystem"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
 	DEFAULT_CLUSTER_NAME = ""
-	FILESYSTEM_NEEDED_TAG = "NeedFS"
+	DEFAULT_FILESYSTEM   = "ext4"
 
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
@@ -55,6 +56,7 @@ type Device struct {
 	DefaultVolumeSize int64
 	DefaultVolumeType string
 	DefaultDCName     string
+	DefaultFSType     string
 	DefaultKmsKeyID   string
 	DefaultEncrypted  bool
 }
@@ -197,6 +199,12 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		}
 		log.Debugf("Setting DC name in driver as %s", config[EBS_CLUSTER_NAME])
 		dcName := config[EBS_CLUSTER_NAME]
+		if config[EBS_DEFAULT_FILESYSTEM] == "" {
+			config[EBS_DEFAULT_FILESYSTEM] = DEFAULT_FILESYSTEM
+		} else {
+			log.Debugf("Setting default filesystem type in driver to %q", config[EBS_DEFAULT_FILESYSTEM])
+		}
+		fsType := config[EBS_DEFAULT_FILESYSTEM]
 		kmsKeyId := config[EBS_DEFAULT_VOLUME_KEY]
 		var encrypted bool
 		if encryptedStr, ok := config[EBS_DEFAULT_ENCRYPTED]; ok {
@@ -209,6 +217,7 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			DefaultVolumeSize: size,
 			DefaultVolumeType: volumeType,
 			DefaultDCName: dcName,
+			DefaultFSType:     fsType,
 			DefaultKmsKeyID:   kmsKeyId,
 			DefaultEncrypted:  encrypted,
 		}
@@ -237,6 +246,7 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos["DefaultVolumeSize"] = strconv.FormatInt(d.DefaultVolumeSize, 10)
 	infos["DefaultVolumeType"] = d.DefaultVolumeType
 	infos["DefaultKmsKey"] = d.DefaultKmsKeyID
+	infos["DefaultFSType"] = d.DefaultFSType
 	infos["DefaultEncrypted"] = fmt.Sprint(d.DefaultEncrypted)
 	infos["InstanceID"] = d.ebsService.InstanceID
 	infos["Region"] = d.ebsService.Region
@@ -287,7 +297,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	var (
 		err        error
 		volumeSize int64
-		format     bool
+		needsFS    bool
 	)
 
 	d.mutex.Lock()
@@ -417,7 +427,7 @@ func (d *Driver) CreateVolume(req Request) error {
 			return err
 		}
 		log.Debugf("Created volume %s from EBS volume %v", id, volumeID)
-		format = true
+		needsFS = true
 	}
 
 	dev, err := d.ebsService.AttachVolume(volumeID, volumeSize)
@@ -431,8 +441,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	volume.Device = dev
 	volume.Snapshots = make(map[string]Snapshot)
 
-	var needsFS bool
-	if !format {
+	if !needsFS {
 		if fsType, err := fs.Detect(volume.Device); err != nil {
 			if err == fs.ErrNoFilesystemDetected {
 				needsFS = true
@@ -444,9 +453,9 @@ func (d *Driver) CreateVolume(req Request) error {
 		}
 	}
 
-	if format || needsFS {
-		log.Debugf("Formatting device=%s", volume.Device)
-		if err := fs.FormatDevice(volume.Device, "ext4"); err != nil {
+	if needsFS {
+		log.Debugf("Formatting device=%s with filesystem type=%s", volume.Device, d.DefaultFSType)
+		if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
 			return err
 		}
 	}
