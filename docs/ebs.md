@@ -37,6 +37,8 @@ Other values are st1 and sc1.
 Default is blank, if specified then volumes will be encrypted using the given kms key id.
 #### `ebs.defaultencrypted`
 `false` by default, if `true` then volumes will be encrypted with the default account kms key.
+#### `ebs.defaultfilesystem`
+`ext4` by default, supported options are "btrfs", "ext2", "ext3", "ext4", "minix", or "xfs".
 
 ## Command details
 ### `create`
