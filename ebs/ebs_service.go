@@ -128,7 +128,7 @@ func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error 
 	log.Debugf("Starting wait from %s to %s for %s", start, end, volumeID)
 	volume, err := s.GetVolume(volumeID)
 	if err != nil {
-		log.Debugf("Got error to get volume %s", volumeID)
+		log.Errorf("Got error to get volume %s", volumeID)
 		return err
 	}
 
@@ -639,6 +639,15 @@ func (s *ebsService) GetMostRecentVolume(volumeName string, dcName string, filte
 		return nil, nil
 	}
 	return volOutput.Volumes[0], nil
+}
+
+func (s *ebsService) LaunchSnapshot(volumeId string, description string, tags map[string]string) (string, error) {
+	request := &CreateSnapshotRequest{
+		VolumeID:    volumeId,
+		Description: description,
+		Tags:        tags,
+	}
+	return s.CreateSnapshot(request)
 }
 
 // Gets the snapshots. The name and dc name are required, but any extra filters are not

@@ -350,13 +350,8 @@ func (d *Driver) CreateAndBuildFromSnapshot(oldVolume *ec2.Volume, snapshotVolum
 	if oldVolume != nil && *oldVolume.VolumeId == *snapshotVolume.VolumeId {
 		return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
 	}
-	csr := &CreateSnapshotRequest{
-		VolumeID:    *snapshotVolume.VolumeId,
-		Description: fmt.Sprintf("Creating snaphot from %s", *snapshotVolume.VolumeId),
-		Tags:        convertEc2TagsToMap(snapshotVolume.Tags),
-	}
 	// Create snapshot from volume in other AZ
-	snapshotId, err := d.ebsService.CreateSnapshot(csr)
+	snapshotId, err := d.ebsService.LaunchSnapshot(*snapshotVolume.VolumeId, fmt.Sprintf("Creating snaphot from %s", *snapshotVolume.VolumeId), convertEc2TagsToMap(snapshotVolume.Tags))
 	if err != nil {
 		return "", -1, err
 	}
@@ -411,12 +406,16 @@ func (d *Driver) BuildFromSnapshot(oldVolume *ec2.Volume, snapshot *ec2.Snapshot
 		return volumeID, volumeSize, err
 	}
 	log.Debugf("Created volume %v from EBS snapshot %v", volumeID, *snapshot.SnapshotId)
+	log.Debugf("Launching snapshot creation for new volume: %s", volumeID)
+	if _, err := d.ebsService.LaunchSnapshot(volumeID, fmt.Sprintf("Initial snapshot of Convoy volume: %s", volumeID), convertEc2TagsToMap(snapshot.Tags)); err != nil {
+		return "", -1, err
+	}
 	return volumeID, volumeSize, nil
 }
 
 func (d *Driver) UpdateTags(volumeID string, newTags map[string]string) error {
 	if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
-		log.Debugf("Failed to update tags for volume %v, but continue", volumeID)
+		log.Errorf("Failed to update tags for volume %v, but continue", volumeID)
 		return err
 	}
 	return nil
@@ -617,6 +616,12 @@ func (d *Driver) CreateVolume(req Request) error {
 		log.Debugf("Formatting device=%s with filesystem type=%s", volume.Device, d.DefaultFSType)
 		if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
 			return err
+		}
+		log.Debugf("Launching snapshot creation for brand new volume: %s", volumeName)
+		// This is purposefully non-blocking. Create snapshot is an optimization
+		// Snapshotting immediately after creation allows for quicker subsequent snapshots
+		if _, err := d.ebsService.LaunchSnapshot(volumeID, fmt.Sprintf("Initial snapshot of Convoy volume %s", volumeName), newTags); err != nil {
+			log.Errorf("Failed to create snapshot for %s: %+v", volumeName, err)
 		}
 	}
 
@@ -904,15 +909,11 @@ func (d *Driver) CreateSnapshot(req Request) error {
 		"ConvoyVolumeName":   volumeID,
 		"ConvoySnapshotName": id,
 	}
-	request := &CreateSnapshotRequest{
-		VolumeID:    volume.EBSID,
-		Description: fmt.Sprintf("Convoy snapshot"),
-		Tags:        tags,
-	}
-	ebsSnapshotID, err := d.ebsService.CreateSnapshot(request)
+	ebsSnapshotID, err := d.ebsService.LaunchSnapshot(volume.EBSID, "Convoy Snapshot", tags)
 	if err != nil {
 		return err
 	}
+
 	log.Debugf("Creating snapshot %v(%v) of volume %v(%v)", id, ebsSnapshotID, volumeID, volume.EBSID)
 
 	snapshot = Snapshot{
