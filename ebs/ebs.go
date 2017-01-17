@@ -34,6 +34,8 @@ const (
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
 	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
 	EBS_DEFAULT_FILESYSTEM  = "ebs.defaultfilesystem"
+	EBS_AUTOFORMAT  = "ebs.autoformat"
+	EBS_AUTORESIZEFS  = "ebs.autoresizefs"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
@@ -60,6 +62,8 @@ type Device struct {
 	DefaultFSType     string
 	DefaultKmsKeyID   string
 	DefaultEncrypted  bool
+	AutoResizeFS      bool
+	AutoFormat        bool
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -222,6 +226,20 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 				return nil, err
 			}
 		}
+
+		autoFormat := true
+		autoResizefs := true
+		if autoFormatStr, ok := config[EBS_AUTOFORMAT]; ok{
+			if autoFormat, err = strconv.ParseBool(autoFormatStr); err != nil {
+				return nil, err
+			}
+		}
+		if autoResizeStr, ok := config[EBS_AUTORESIZEFS]; ok{
+			if autoResizefs, err = strconv.ParseBool(autoResizeStr); err != nil {
+				return nil, err
+			}
+		}
+
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: size,
@@ -230,6 +248,8 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			DefaultFSType:     fsType,
 			DefaultKmsKeyID:   kmsKeyId,
 			DefaultEncrypted:  encrypted,
+			AutoFormat: autoFormat,
+			AutoResizeFS: autoResizefs,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -261,6 +281,8 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos["InstanceID"] = d.ebsService.InstanceID
 	infos["Region"] = d.ebsService.Region
 	infos["AvailiablityZone"] = d.ebsService.AvailabilityZone
+	infos["AutoResizeFS"] = d.AutoResizeFS
+	infos["AutoFormat"] = d.AutoFormat
 	return infos, nil
 }
 
@@ -581,18 +603,22 @@ func (d *Driver) CreateVolume(req Request) error {
 			}
 		} else {
 			log.Debugf("Detected existing filesystem type=%s for device=%s", fsType, volume.Device)
-			log.Debugf("Ensuring filesystem size and device's (%s) size are in sync.", volume.Device)
-			if er := fs.Resize(volume.Device); er != nil{
-				log.Debugf("Error in syncing sizes %s", volume.Device)
-				return er
+			if d.AutoResizeFS {
+				log.Debugf("Ensuring filesystem size and device's (%s) size are in sync.", volume.Device)
+				if er := fs.Resize(volume.Device); er != nil {
+					log.Debugf("Error in syncing sizes %s", volume.Device)
+					return er
+				}
 			}
 		}
 	}
 
 	if needsFS {
-		log.Debugf("Formatting device=%s with filesystem type=%s", volume.Device, d.DefaultFSType)
-		if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
-			return err
+		if d.AutoFormat {
+			log.Debugf("Formatting device=%s with filesystem type=%s", volume.Device, d.DefaultFSType)
+			if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
+				return err
+			}
 		}
 	}
 
