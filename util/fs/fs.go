@@ -43,7 +43,7 @@ func Detect(devicePath string) (string, error) {
 // resize2fs only runs a resize when it is
 // required on the device; otherwise, it just exits with a code 0 and a message.
 func Resize(devicePath string) error {
-	cmd := exec.Command("sudo", "-n", "resize2fs", devicePath)
+	cmd := exec.Command("sudo", "-n", "resize2fs", "-f", devicePath)
 	output, err := cmd.CombinedOutput()
 	output = bytes.Trim(output, "\r\n \t")
 	if err != nil {

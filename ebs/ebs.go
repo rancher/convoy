@@ -239,6 +239,7 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 				return nil, err
 			}
 		}
+		log.Debugf("Setting 2 flags autoFormat:%v autoResizefs:%v", autoFormat, autoResizefs)
 
 		dev = &Device{
 			Root:              root,
@@ -281,8 +282,8 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos["InstanceID"] = d.ebsService.InstanceID
 	infos["Region"] = d.ebsService.Region
 	infos["AvailiablityZone"] = d.ebsService.AvailabilityZone
-	infos["AutoResizeFS"] = d.AutoResizeFS
-	infos["AutoFormat"] = d.AutoFormat
+	infos["AutoResizeFS"] = fmt.Sprint(d.AutoResizeFS)
+	infos["AutoFormat"] = fmt.Sprint(d.AutoFormat)
 	return infos, nil
 }
 
