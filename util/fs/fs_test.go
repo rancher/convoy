@@ -47,23 +47,28 @@ func TestDeviceFormatter(t *testing.T) {
 	}
 }
 
-func TestFSDetector(t *testing.T) {
+func TestFSDetectorResize(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("TestFSDetector skipped because OS is not 'linux'")
+		t.Skip("TestFSDetectorResize skipped because OS is not 'linux'")
 	}
 	if !hasPasswordlessSudo() {
-		t.Skip("TestFSDetector skipped because password-less sudo is required and not presently available")
+		t.Skip("TestFSDetectorResize skipped because password-less sudo is required and not presently available")
 	}
 
 	// Non-existent test case.
-	if fsType, err := Detect("/TestFSDetector/foo/bar/baz"); err != ErrNoFilesystemDetected {
+	if fsType, err := Detect("/TestFSDetectorResize/foo/bar/baz"); err != ErrNoFilesystemDetected {
 		t.Errorf("Expected ErrNoFilesystemDetected error from Detect, but got result fsType=%s err=%+v", fsType, err)
+	}
+
+	// Non-existent test case.
+	if err := Resize("/TestFSDetectorResize/foo/bar/baz"); err == nil  {
+		t.Error("Expected error from Resize, but got nothing")
 	}
 
 	for _, targetFsType := range supportedFsTypes {
 		func() {
 			// Create fake device.
-			fakeDevicePath := fmt.Sprintf("/tmp/TestFSDetector-%s.img", targetFsType)
+			fakeDevicePath := fmt.Sprintf("/tmp/TestFSDetectorResize-%s.img", targetFsType)
 			if err := makeFakeDevice(fakeDevicePath); err != nil {
 				t.Fatal(err)
 			}
@@ -80,6 +85,11 @@ func TestFSDetector(t *testing.T) {
 				t.Fatalf("Expected ErrNoFilesystemDetected from Detect for unformatted device, but got fsType=%s err=%+v", fsType, err)
 			}
 
+			// Unformatted case.
+			if err := Resize(fakeDevicePath); err == nil {
+				t.Fatal("Expected error from Resize for unformatted device, but got nothing")
+			}
+
 			// Format it.
 			if err := FormatDevice(fakeDevicePath, targetFsType); err != nil {
 				t.Fatalf("Unexpected error formatting device=%s: %s", fakeDevicePath, err)
@@ -94,10 +104,16 @@ func TestFSDetector(t *testing.T) {
 				if expected, actual := targetFsType, fsType; actual != expected {
 					t.Errorf("Wrong result from Detect, expected fsType=%q but actual=%q", expected, actual)
 				}
+
+				err = Resize(fakeDevicePath)
+				if err != nil {
+					t.Errorf("Unexpected error in resize: %s", err)
+				}
 			}
 		}()
 	}
 }
+
 
 func makeFakeDevice(path string) error {
 	size := 100 // NB: btrfs requires a minimum size of 100MB.

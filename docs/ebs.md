@@ -39,6 +39,10 @@ Default is blank, if specified then volumes will be encrypted using the given km
 `false` by default, if `true` then volumes will be encrypted with the default account kms key.
 #### `ebs.defaultfilesystem`
 `ext4` by default, supported options are "btrfs", "ext2", "ext3", "ext4", "minix", or "xfs".
+#### `ebs.autoformat`
+`true` by default. Decides whether convoy should format a filesystem on the device which doesn't have one already. If set, it will use the fs type set in `ebs.defaultfilesystem`
+#### `ebs.autoresizefs`
+`true` by default. If set to `true` then Convoy runs a redundant `resize2fs` on a device if it finds a filesystem on it. This is helpful to sync the filesystem in scenarios where your block devices might get resized in the backend.
 
 ## Command details
 ### `create`
