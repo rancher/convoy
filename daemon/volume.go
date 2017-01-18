@@ -74,7 +74,7 @@ func (s *daemon) isVolumeAttached(name string) (bool, error) {
 
 		if v["AWSMountPoint"] != "" {
 			return true, nil
-		}else{
+		} else {
 			return false, util.ErrorNotAttachedInBackend()
 		}
 	}
@@ -308,7 +308,7 @@ func (s *daemon) listVolume() ([]byte, error) {
 
 	for name, driverInfo := range volumes {
 		log.Debugf("Getting info for volume %s", name)
-		volume := &Volume{Name:name, DriverName:driverInfo["Driver"]}
+		volume := &Volume{Name: name, DriverName: driverInfo["Driver"]}
 
 		resp := &api.VolumeResponse{
 			Name:        name,

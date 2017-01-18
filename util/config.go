@@ -164,14 +164,14 @@ func IsNotAttachedInBackendError(err error) bool {
 	return err == errNotAttachedInBackend
 }
 
-func ErrorNotExists() error{
+func ErrorNotExists() error {
 	return errDoesNotExist
 }
 
-func ErrorNotExistsInBackend() error{
+func ErrorNotExistsInBackend() error {
 	return errDoesNotExistInBackend
 }
 
-func ErrorNotAttachedInBackend() error{
+func ErrorNotAttachedInBackend() error {
 	return errNotAttachedInBackend
 }
