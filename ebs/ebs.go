@@ -34,8 +34,8 @@ const (
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
 	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
 	EBS_DEFAULT_FILESYSTEM  = "ebs.defaultfilesystem"
-	EBS_AUTOFORMAT  = "ebs.autoformat"
-	EBS_AUTORESIZEFS  = "ebs.autoresizefs"
+	EBS_AUTOFORMAT          = "ebs.autoformat"
+	EBS_AUTORESIZEFS        = "ebs.autoresizefs"
 
 	DEFAULT_VOLUME_SIZE  = "4G"
 	DEFAULT_VOLUME_TYPE  = "gp2"
@@ -228,12 +228,12 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 
 		autoFormat := true
 		autoResizefs := true
-		if autoFormatStr, ok := config[EBS_AUTOFORMAT]; ok{
+		if autoFormatStr, ok := config[EBS_AUTOFORMAT]; ok {
 			if autoFormat, err = strconv.ParseBool(autoFormatStr); err != nil {
 				return nil, err
 			}
 		}
-		if autoResizeStr, ok := config[EBS_AUTORESIZEFS]; ok{
+		if autoResizeStr, ok := config[EBS_AUTORESIZEFS]; ok {
 			if autoResizefs, err = strconv.ParseBool(autoResizeStr); err != nil {
 				return nil, err
 			}
@@ -248,8 +248,8 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			DefaultFSType:     fsType,
 			DefaultKmsKeyID:   kmsKeyId,
 			DefaultEncrypted:  encrypted,
-			AutoFormat: autoFormat,
-			AutoResizeFS: autoResizefs,
+			AutoFormat:        autoFormat,
+			AutoResizeFS:      autoResizefs,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -613,7 +613,7 @@ func (d *Driver) CreateVolume(req Request) error {
 		}
 	}
 
-	if needsFS && d.AutoFormat{
+	if needsFS && d.AutoFormat {
 		log.Debugf("Formatting device=%s with filesystem type=%s", volume.Device, d.DefaultFSType)
 		if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
 			return err
