@@ -51,25 +51,27 @@ type CreateSnapshotRequest struct {
 }
 
 type VolumeByCreateTime []*ec2.Volume
+
 func (v VolumeByCreateTime) Len() int {
 	return len(v)
 }
 func (v VolumeByCreateTime) Swap(i, j int) {
-    v[i], v[j] = v[j], v[i]
+	v[i], v[j] = v[j], v[i]
 }
 func (v VolumeByCreateTime) Less(i, j int) bool {
-    return (*v[i].CreateTime).Before(*v[j].CreateTime)
+	return (*v[i].CreateTime).Before(*v[j].CreateTime)
 }
 
 type SnapshotByTime []*ec2.Snapshot
+
 func (s SnapshotByTime) Len() int {
-    return len(s)
+	return len(s)
 }
 func (s SnapshotByTime) Swap(i, j int) {
-    s[i], s[j] = s[j], s[i]
+	s[i], s[j] = s[j], s[i]
 }
 func (s SnapshotByTime) Less(i, j int) bool {
-    return (*s[i].StartTime).Before(*s[j].StartTime)
+	return (*s[i].StartTime).Before(*s[j].StartTime)
 }
 func sleepBeforeRetry() {
 	time.Sleep(RETRY_INTERVAL * time.Second)
@@ -133,19 +135,19 @@ func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error 
 	timeChan := time.NewTimer(time.Second * 61).C
 	tickChan := time.NewTicker(time.Second * 3).C //tick at most 20 times before err out
 
-	POLL:
+POLL:
 	for *volume.State == start {
 		select {
-			case <- timeChan:
-				log.Debugf("Timeout Reached, stopping to poll volume state")
-				break POLL
-			case <-tickChan:
-				log.Debugf("Waiting for volume %v state transiting from %v to %v",
-					volumeID, start, end)
-				volume, err = s.GetVolume(volumeID)
-				if err != nil {
-					return err
-				}
+		case <-timeChan:
+			log.Debugf("Timeout Reached, stopping to poll volume state")
+			break POLL
+		case <-tickChan:
+			log.Debugf("Waiting for volume %v state transiting from %v to %v",
+				volumeID, start, end)
+			volume, err = s.GetVolume(volumeID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if *volume.State != end {
@@ -174,23 +176,23 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 	timeChan := time.NewTimer(time.Second * 61).C
 	tickChan := time.NewTicker(time.Second * 3).C //tick at most 20 times before err out
 
-	WAIT:
+WAIT:
 	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
 		select {
-			case <- timeChan:
-				log.Debugf("Timeout Reached, stopping to wait for volume to attach")
-				break WAIT
-			case <-tickChan:
-				log.Debugf("Waiting for volume %v attaching", volumeID)
-				volume, err := s.GetVolume(volumeID)
-				if err != nil {
-					return err
-				}
-				if len(volume.Attachments) != 0 {
-					attachment = volume.Attachments[0]
-				} else {
-					return fmt.Errorf("Attaching failed for %s", volumeID)
-				}
+		case <-timeChan:
+			log.Debugf("Timeout Reached, stopping to wait for volume to attach")
+			break WAIT
+		case <-tickChan:
+			log.Debugf("Waiting for volume %v attaching", volumeID)
+			volume, err := s.GetVolume(volumeID)
+			if err != nil {
+				return err
+			}
+			if len(volume.Attachments) != 0 {
+				attachment = volume.Attachments[0]
+			} else {
+				return fmt.Errorf("Attaching failed for %s", volumeID)
+			}
 		}
 	}
 	if *attachment.State != ec2.VolumeAttachmentStateAttached {
@@ -200,11 +202,11 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 }
 
 func (s *ebsService) GetAvailabilityZones(filters ...*ec2.Filter) ([]*string, error) {
-	azInput := &ec2.DescribeAvailabilityZonesInput {
-		Filters: []*ec2.Filter {
-			&ec2.Filter {
+	azInput := &ec2.DescribeAvailabilityZonesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
 				Name: aws.String("region-name"),
-				Values: []*string {
+				Values: []*string{
 					aws.String(s.Region),
 				},
 			},
@@ -303,15 +305,15 @@ func (s *ebsService) GetVolumes(volumeIDs []string) ([]*ec2.Volume, error) {
 	sleepBeforeRetry()
 	var idList []*string
 	params := &ec2.DescribeVolumesInput{
-			Filters: []*ec2.Filter{
-				{
-					Name: aws.String("availability-zone"),
-					Values: []*string{
-						aws.String(s.AvailabilityZone),
-					},
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("availability-zone"),
+				Values: []*string{
+					aws.String(s.AvailabilityZone),
 				},
 			},
-		}
+		},
+	}
 
 	for _, volumeID := range volumeIDs {
 		idList = append(idList, aws.String(volumeID))
@@ -382,7 +384,7 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 	if err != nil {
 		return nil, parseAwsError(err)
 	}
-	var finalVolumes []*ec2.Volume 
+	var finalVolumes []*ec2.Volume
 	for _, volume := range volumes.Volumes {
 		if getTagValue("GarbageCollection", volume.Tags) == "" {
 			finalVolumes = append(finalVolumes, volume)
@@ -392,7 +394,7 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 	// Return the first one
 	if len(finalVolumes) < 1 {
 		return nil, fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone)
-	}else if len(finalVolumes) > 1 {
+	} else if len(finalVolumes) > 1 {
 		log.Debugf("Found multiple volumes with name %s. Returning the first one.", volumeName)
 	}
 	return finalVolumes[0], nil
@@ -520,7 +522,7 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 		forceDetachParams := &ec2.DetachVolumeInput{
 			VolumeId:   aws.String(volumeID),
 			InstanceId: aws.String(s.InstanceID),
-			Force:aws.Bool(true),
+			Force:      aws.Bool(true),
 		}
 
 		if _, err := s.ec2Client.DetachVolume(forceDetachParams); err != nil {
@@ -529,7 +531,7 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 
 		forceDetachErr := s.waitForVolumeTransition(volumeID, ec2.VolumeAttachmentStateAttaching, ec2.VolumeStateAvailable)
 
-		if forceDetachErr != nil{
+		if forceDetachErr != nil {
 			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
 			return "", fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error())
 		}
@@ -567,7 +569,7 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 		forceDetachParams := &ec2.DetachVolumeInput{
 			VolumeId:   aws.String(volumeID),
 			InstanceId: aws.String(s.InstanceID),
-			Force:aws.Bool(true),
+			Force:      aws.Bool(true),
 		}
 
 		if _, err := s.ec2Client.DetachVolume(forceDetachParams); err != nil {
@@ -576,7 +578,7 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 
 		forceDetachErr := s.waitForVolumeTransition(volumeID, ec2.VolumeStateInUse, ec2.VolumeStateAvailable)
 
-		if forceDetachErr != nil{
+		if forceDetachErr != nil {
 			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
 			return fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error())
 		}
@@ -603,24 +605,24 @@ func (s *ebsService) GetMostRecentSnapshot(volumeName string, dcName string, fil
 }
 
 func (s *ebsService) GetMostRecentVolume(volumeName string, dcName string, filters ...*ec2.Filter) (*ec2.Volume, error) {
-		// We always need to specify the name, dc name, and that the snapshot is complete. If the AZ has truly crashed, then the snapshot may never complete
-	volumeInput := &ec2.DescribeVolumesInput {
-		Filters: []*ec2.Filter {
-			&ec2.Filter {
+	// We always need to specify the name, dc name, and that the snapshot is complete. If the AZ has truly crashed, then the snapshot may never complete
+	volumeInput := &ec2.DescribeVolumesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
 				Name: aws.String("tag:Name"),
-				Values: []*string {
+				Values: []*string{
 					aws.String(volumeName),
 				},
 			},
-			&ec2.Filter {
+			&ec2.Filter{
 				Name: aws.String("tag:DCName"),
-				Values: []*string {
+				Values: []*string{
 					aws.String(dcName),
 				},
 			},
-			&ec2.Filter {
+			&ec2.Filter{
 				Name: aws.String("status"),
-				Values: []*string {
+				Values: []*string{
 					aws.String("available"),
 				},
 			},
@@ -642,23 +644,23 @@ func (s *ebsService) GetMostRecentVolume(volumeName string, dcName string, filte
 // Gets the snapshots. The name and dc name are required, but any extra filters are not
 func (s *ebsService) GetSnapshots(volumeName string, dcName string, filters ...*ec2.Filter) ([]*ec2.Snapshot, error) {
 	// We always need to specify the name, dc name, and that the snapshot is complete. If the AZ has truly crashed, then the snapshot may never complete
-	snapshotInput := &ec2.DescribeSnapshotsInput {
-		Filters: []*ec2.Filter {
-			&ec2.Filter {
+	snapshotInput := &ec2.DescribeSnapshotsInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
 				Name: aws.String("tag:Name"),
-				Values: []*string {
+				Values: []*string{
 					aws.String(volumeName),
 				},
 			},
-			&ec2.Filter {
+			&ec2.Filter{
 				Name: aws.String("tag:DCName"),
-				Values: []*string {
+				Values: []*string{
 					aws.String(dcName),
 				},
 			},
-			&ec2.Filter {
+			&ec2.Filter{
 				Name: aws.String("status"),
-				Values: []*string {
+				Values: []*string{
 					aws.String("completed"),
 				},
 			},
