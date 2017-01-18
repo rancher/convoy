@@ -606,20 +606,18 @@ func (d *Driver) CreateVolume(req Request) error {
 			log.Debugf("Detected existing filesystem type=%s for device=%s", fsType, volume.Device)
 			if d.AutoResizeFS {
 				log.Debugf("Ensuring filesystem size and device's (%s) size are in sync.", volume.Device)
-				if er := fs.Resize(volume.Device); er != nil {
-					log.Debugf("Error in syncing sizes %s", volume.Device)
-					return er
+				if err := fs.Resize(volume.Device); err != nil {
+					log.Debugf("Error in syncing sizes %s: %s", volume.Device, err.Error())
+					return err
 				}
 			}
 		}
 	}
 
-	if needsFS {
-		if d.AutoFormat {
-			log.Debugf("Formatting device=%s with filesystem type=%s", volume.Device, d.DefaultFSType)
-			if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
-				return err
-			}
+	if needsFS && d.AutoFormat{
+		log.Debugf("Formatting device=%s with filesystem type=%s", volume.Device, d.DefaultFSType)
+		if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
+			return err
 		}
 	}
 
