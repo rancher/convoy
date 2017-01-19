@@ -91,7 +91,9 @@ func (s *TestSuite) TestVolumeHelper(c *C) {
 }
 
 func (s *TestSuite) TestVolumeHelperWithNamespace(c *C) {
-	InitMountNamespace("/proc/1/ns/mnt")
+	if err := InitMountNamespace("/proc/1/ns/mnt"); err != nil {
+		panic(err)
+	}
 	s.TestVolumeHelper(c)
 }
 

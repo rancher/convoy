@@ -316,7 +316,9 @@ func Execute(binary string, args []string) (string, error) {
 	case <-done:
 	case <-time.After(cmdTimeout):
 		if cmd.Process != nil {
-			cmd.Process.Kill()
+			if err := cmd.Process.Kill(); err != nil {
+				log.Warnf("Problem killing process pid=%v: %s", cmd.Process.Pid, err)
+			}
 		}
 		return "", fmt.Errorf("Timeout executing: %v %v, output %v, error %v", binary, args, string(output), err)
 	}

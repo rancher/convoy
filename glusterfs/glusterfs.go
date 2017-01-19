@@ -43,7 +43,9 @@ type Driver struct {
 }
 
 func init() {
-	Register(DRIVER_NAME, Init)
+	if err := Register(DRIVER_NAME, Init); err != nil {
+		panic(err)
+	}
 }
 
 func (d *Driver) Name() string {
