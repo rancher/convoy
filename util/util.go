@@ -236,8 +236,9 @@ func DetachAnyLoopbackDevice(file string) error {
 }
 
 func ValidateName(name string) bool {
-	validName := regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9_.-]|@)+$`)
-	return validName.MatchString(name)
+	validName := regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9_.-]|~)+$`)
+	isValid := validName.MatchString(name)
+	return isValid
 }
 
 func CheckName(name string) error {
