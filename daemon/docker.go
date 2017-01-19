@@ -1,11 +1,11 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
-	"encoding/json"
-	"net/http"
 
 	"github.com/rancher/convoy/api"
 	. "github.com/rancher/convoy/convoydriver"
@@ -211,7 +211,9 @@ func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// if a volume is not attached then processVolumeDelete() just updates the local state.
-			s.processVolumeDelete(request)
+			if err := s.processVolumeDelete(request); err != nil {
+				log.Warnf("Problem processing volume deletion: %s (continuing despite this error)", err)
+			}
 			log.Debugf("Volume %s removed from local state, will attempt recreation", volume.Name)
 			volume = nil
 		}

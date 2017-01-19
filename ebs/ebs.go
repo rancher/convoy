@@ -127,7 +127,9 @@ func (v *Volume) GenerateDefaultMountPoint() string {
 }
 
 func init() {
-	Register(DRIVER_NAME, Init)
+	if err := Register(DRIVER_NAME, Init); err != nil {
+		panic(err)
+	}
 }
 
 func generateError(fields logrus.Fields, format string, v ...interface{}) error {
@@ -415,7 +417,7 @@ func (d *Driver) BuildFromSnapshot(oldVolume *ec2.Volume, snapshot *ec2.Snapshot
 
 func (d *Driver) UpdateTags(volumeID string, newTags map[string]string) error {
 	if err := d.ebsService.AddTags(volumeID, newTags); err != nil {
-		log.Errorf("Failed to update tags for volume %v, but continue", volumeID)
+		log.Errorf("Failed to update tags for volume %v: %s", volumeID, err)
 		return err
 	}
 	return nil
@@ -580,7 +582,9 @@ func (d *Driver) CreateVolume(req Request) error {
 	if err != nil {
 		return err
 	}
-	d.UpdateTags(volumeID, newTags)
+	if err := d.UpdateTags(volumeID, newTags); err != nil {
+		return err
+	}
 
 	dev, err := d.ebsService.AttachVolume(volumeID, volumeSize)
 	if err != nil {
@@ -683,7 +687,9 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 		errorStr := err.Error()
 		var validID = regexp.MustCompile(`. output mount: special device /dev/([a-z]+) does not exist`)
 		if validID.MatchString(errorStr) {
-			util.ObjectDelete(volume)
+			if delErr := util.ObjectDelete(volume); delErr != nil {
+				log.Warnf("Deleting object=%q in response to an error while unmounting produced: %s", volume, delErr)
+			}
 		}
 		return "", err
 	}
@@ -756,13 +762,16 @@ func (d *Driver) GetVolumesInfo(ids []string) ([]map[string]string, error) {
 		wg.Add(1)
 		go func(i int, id string) {
 			defer wg.Done()
-			ebsVolume, er := d.ebsService.GetVolume(id)
-			if er != nil {
-				if strings.Contains(er.Error(), "InvalidVolume.NotFound") {
+			if ebsVolume, err := d.ebsService.GetVolume(id); err != nil {
+				if strings.Contains(err.Error(), "InvalidVolume.NotFound") {
 					log.Debugf("Found a non-existent volume %s in state, deleting.", ids[i])
 					vol := d.blankVolume(ids[i])
-					util.ObjectLoad(vol)
-					util.ObjectDelete(vol)
+					if loadErr := util.ObjectLoad(vol); loadErr != nil {
+						log.Warnf("Problem loading object=%q: %s (continuing despite this error)", vol, loadErr)
+					}
+					if delErr := util.ObjectDelete(vol); delErr != nil {
+						log.Warnf("Problem deleting object=%q: %s (continuing despite this error)", vol, delErr)
+					}
 				}
 			} else {
 				ebsVolumes[i] = ebsVolume
@@ -811,7 +820,9 @@ func (d *Driver) GetVolumeInfo(id string) (map[string]string, error) {
 	if err != nil {
 		if strings.Contains(err.Error(), "InvalidVolume.NotFound") {
 			//this volume does not exist, delete it from state if it exists
-			util.ObjectDelete(volume)
+			if delErr := util.ObjectDelete(volume); delErr != nil {
+				log.Warnf("Problem deleting object=%q: %s (continuing despite this error)", volume, delErr)
+			}
 			return nil, util.ErrorNotExistsInBackend()
 		}
 		return nil, err

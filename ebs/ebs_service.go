@@ -151,8 +151,7 @@ POLL:
 		}
 	}
 	if *volume.State != end {
-		return fmt.Errorf("Cannot finish volume %v state transition, ",
-			"from %v to %v, though final state %v",
+		return fmt.Errorf("Cannot finish volume %v state transition, from %v to %v, though final state %v",
 			volumeID, start, end, *volume.State)
 	}
 	return nil
@@ -538,7 +537,9 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 
 		fdTag := make(map[string]string)
 		fdTag["ForceDetached"] = "true"
-		s.AddTags(s.InstanceID, fdTag)
+		if tagErr := s.AddTags(s.InstanceID, fdTag); tagErr != nil {
+			log.Warnf("Problem adding force-detach tags=%+v to instanceID=%q: %s (continuing despite this error)", fdTag, s.InstanceID, tagErr)
+		}
 
 		log.Debugf("Successfully force detached the volume %s", volumeID)
 		return "", err
@@ -585,7 +586,9 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 
 		fdTag := make(map[string]string)
 		fdTag["ForceDetached"] = "true"
-		s.AddTags(s.InstanceID, fdTag)
+		if tagErr := s.AddTags(s.InstanceID, fdTag); tagErr != nil {
+			log.Warnf("Problem adding force-detach tags=%+v to instanceID=%q: %s (continuing despite this error)", fdTag, s.InstanceID, tagErr)
+		}
 
 		log.Debugf("Successfully force detached the volume %s", volumeID)
 		return forceDetachErr
