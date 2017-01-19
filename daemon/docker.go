@@ -1,10 +1,12 @@
 package daemon
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
+	"encoding/json"
+	"net/http"
 
 	"github.com/rancher/convoy/api"
 	. "github.com/rancher/convoy/convoydriver"
@@ -90,6 +92,23 @@ func (s *daemon) createDockerVolume(request *pluginRequest) (*Volume, error) {
 
 func (s *daemon) getDockerVolume(r *http.Request) (*Volume, *pluginRequest, error) {
 	request, err := convertToPluginRequest(r)
+	request.Opts = make(map[string]string)
+	//log.Debugf("Request obj is %v.\n Name:%s\n Opts:%v", request, request.Name, request.Opts)
+
+	//This check parses the name to check if there is a need to pick the size from the name.
+	sizere := regexp.MustCompile(".+@[1-9]+[0-9]*[GT]$")
+	if sizere.MatchString(request.Name) {
+		log.Debugf("Volume name received (%s) needs to be parsed for size", request.Name)
+		delimIndex := strings.LastIndex(request.Name, "@")
+		vsSize := request.Name[delimIndex+1:]
+		vsName := request.Name[:delimIndex]
+
+		//update our values
+		log.Debugf("Updating volume name to %s for size %s", vsName, vsSize)
+		request.Opts["size"] = vsSize
+		request.Name = vsName
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}
