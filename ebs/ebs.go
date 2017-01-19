@@ -103,7 +103,9 @@ func (v *Volume) GenerateDefaultMountPoint() string {
 }
 
 func init() {
-	Register(DRIVER_NAME, Init)
+	if err := Register(DRIVER_NAME, Init); err != nil {
+		panic(err)
+	}
 }
 
 func generateError(fields logrus.Fields, format string, v ...interface{}) error {

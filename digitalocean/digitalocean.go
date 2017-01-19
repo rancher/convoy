@@ -117,7 +117,9 @@ func (d *Driver) remountVolumes() error {
 }
 
 func init() {
-	Register(DRIVER_NAME, Init)
+	if err := Register(DRIVER_NAME, Init); err != nil {
+		panic(err)
+	}
 }
 
 func Init(root string, config map[string]string) (ConvoyDriver, error) {
