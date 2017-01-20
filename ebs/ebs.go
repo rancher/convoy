@@ -460,7 +460,7 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 
 	// if volumeID is empty and most recent volume is empty then blow up
 	if volumeID != "" && mostRecentVolume == nil {
-		return volumeID, volumeSize, fmt.Errorf("Most recent volume was nil for volumeID: %s", volumeID)
+		return volumeID, volumeSize, fmt.Errorf("No available volume for volumeID: %s", volumeID)
 	}
 
 	var oldVolume *ec2.Volume
@@ -472,7 +472,6 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 		if getTagValue("Failover", oldVolume.Tags) != "False" {
 			return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
 		}
-
 	}
 
 	// Both are nil, create new volume from scratch
@@ -564,10 +563,21 @@ func (d *Driver) CreateVolume(req Request) error {
 	if volumeName != "" {
 		log.Debugf("Looking up volume by name %s", volumeName)
 		ebsVolume, err := d.ebsService.GetVolumeByName(volumeName, d.DefaultDCName)
-		if err == nil {
+		if err != nil {
+			//allow NotFound response.
+			if !strings.Contains(err.Error(), "InvalidVolume.NotFound") {
+				return fmt.Errorf("Got an unexpected error when looking up volume %s: %s", volumeName, err.Error())
+			}
+		} else {
 			volumeSize = *ebsVolume.Size * GB
 			volumeID = aws.StringValue(ebsVolume.VolumeId)
 			log.Debugf("Found EBS volume %v with name %v", volumeID, volumeName)
+			//is size of the existing block is same as that requested
+			requestedSize, _ := util.ParseSize(opts[OPT_SIZE])
+			if requestedSize > 0 && volumeSize != requestedSize {
+				log.Debugf("Volume size requested (%d GB) does not match actual volume size (%d GB)", requestedSize/GB, volumeSize/GB)
+				return fmt.Errorf("Volume size requested (%d GB) does not match actual volume size (%d GB)", requestedSize/GB, volumeSize/GB)
+			}
 		}
 	}
 
