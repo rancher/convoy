@@ -95,13 +95,11 @@ func (s *daemon) getDockerVolume(r *http.Request) (*Volume, *pluginRequest, erro
 	//log.Debugf("Request obj is %v.\n Name:%s\n Opts:%v", request, request.Name, request.Opts)
 
 	//This check parses the name to check if there is a need to pick the size from the name.
-	sizeRe := regexp.MustCompile(`.+~[1-9]+[0-9]*[GT]$`)
-	if sizeRe.MatchString(request.Name) {
+	sizeRe := regexp.MustCompile(`^(.+)~([1-9]+[0-9]*[GT])$`)
+	if matches := sizeRe.FindAllStringSubmatch(request.Name, 1); len(matches) > 0 {
 		log.Debugf("Volume name received (%s) needs to be parsed for size", request.Name)
-		expr := regexp.MustCompile(`^(.*)~([1-9]+[0-9]*[GT])$`)
-		submatches := expr.FindAllStringSubmatch(request.Name, 1)[0]
-		vsName := submatches[1]
-		vsSize := submatches[2]
+		vsName := matches[0][1]
+		vsSize := matches[0][2]
 
 		//update our values
 		log.Debugf("Updating volume name to %s for size %s", vsName, vsSize)
