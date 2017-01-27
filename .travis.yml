@@ -6,5 +6,21 @@ services:
   - docker
 
 script:
-  - sudo make ci
+  - sudo make
+
+deploy:
+  provider: releases
+  api_key:
+    secure: k6+5QliQrFkCrbXFKq1SXa8sw8tV35d1gcoPNsCqAq45XsKJtTIbs2eVNtTQahToEb1gL8jyXceY/y//uhwXGJV5lK58yKY5JpWTXPZpovx5XNKUo1AGB3uE47/YV0trX0wyTYASIuS9nUA+GoA3kw6geZVmyYIoMtih7tGHkQcAS6TjHgKTN2TY6zz+hCpLfmHie6kHlJvdWiwy12ZDEzF4MM5eLsJCp95bTIYD4gSat35AC1pBfWUhCjyofovbo/LahJ19r2mtou1TNrRVijnVK74xGYgUFmqjlgIbGSIEyem9bMQ/k5hxkK5My8oY/9Dv35NOSq2z+8azU+wEjjLAwi5Czo78f7vqQ+dHkXSOXJ6m3E5UwZS+3MwFw94tsK1fVQVdDUSUtcoUX5fzqX+cKi5uM6WGTj4eIR6ONgXqbfjrrZrTvxMQqpujzvTLe4hSZjX2+pz5N2mhzxiQDtXIsw6dlMUWTLlqqB8XQNiDE/huvXLNPDdKwNGrM1l9ddflIXyxsA6hD5ELYWGEw1wVZr+xTR+eSGTloQIj288A7qHiyCjBsYdyt9U12cWfnscHLGNOsijig5Sft7Y1b7Q8qrs/cpQf9pdbfFpe35LRlwo/pn7MGEKhDvOibjE44KheLxvXOLS6rGG2Y5deAfyogYMhIr1SyjhK/Fi9rc0=
+
+  file: dist/artifacts/convoy.tar.gz
+
+  skip_cleanup: true
+  draft: false
+  prerelease: false
+
+  on:
+    repo: medallia/convoy
+    branch: master
+    tags: true
 

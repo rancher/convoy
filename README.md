@@ -221,3 +221,26 @@ And of course, [bug fixes](https://github.com/rancher/convoy/issues) are always 
 [Amazon Elastic Block Store](https://github.com/rancher/convoy/blob/master/docs/ebs.md)
 
 [Virtual File System/Network File System](https://github.com/rancher/convoy/blob/master/docs/vfs.md)
+
+## Creating Releases
+This repository is hooked up to travis-ci, and releases are automatically built and uploaded to GitHub whenever a new tag is created and pushed.
+
+Example:
+
+    git tag -a v0.5.0.2-medallia-1.15 -m 'release-code-name
+    * A brand new fully-tested feature!
+    * Rebased in ranchers fabulous upstream changes!'
+
+    git push --tags
+
+Creates a release versioned as `v0.5.0.2-medallia-1.13`.
+
+Note: On the first line, the "release-code-name" portion ends up displayed as part of the title on the top line of the release.
+Come up with whatever release code name you'd like to ensure the rest of the message displays as clean markdown.
+
+The remainder of the message should contain informative release-specific notes.
+
+The resulting release from the above example will appear like so:
+
+![Example release screenshot](docs/example-gh-release.png "Example release screenshot")
+
