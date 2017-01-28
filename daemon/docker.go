@@ -52,7 +52,7 @@ func convertToPluginRequest(r *http.Request) (*pluginRequest, error) {
 
 func (s *daemon) createDockerVolume(request *pluginRequest) (*Volume, error) {
 	name := request.Name
-	log.Debugf("Create a new volume %v for docker", name)
+	log.Debugf("Processing request to create volume %s for docker", name)
 
 	if !util.ValidateName(name) {
 		return nil, fmt.Errorf("Invalid volume name %s. Can only contain 0-9, a-z, dash(-), underscore(_) and dot(.)", name)
@@ -144,7 +144,6 @@ func (s *daemon) dockerCreateVolume(w http.ResponseWriter, r *http.Request) {
 		dockerResponse(w, "", err)
 		return
 	}
-	log.Debugf("Created volume for docker %v", volume.Name)
 
 	dockerResponse(w, "", nil)
 }
