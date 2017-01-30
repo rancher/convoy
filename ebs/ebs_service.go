@@ -390,13 +390,13 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 		}
 	}
 	// Since tag Name is not AWS's identifying attribute (i.e. volume_id), we can get multiple results with same name
-	// Return the first one
+	// Return the last one, i.e. the latest one.
 	if len(finalVolumes) < 1 {
 		return nil, fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone)
 	} else if len(finalVolumes) > 1 {
-		log.Debugf("Found multiple volumes with name %s. Returning the first one.", volumeName)
+		log.Debugf("Found multiple volumes with name %s. Returning the latest one.", volumeName)
 	}
-	return finalVolumes[0], nil
+	return finalVolumes[len(finalVolumes)-1], nil
 }
 
 func getBlkDevList() (map[string]bool, error) {
