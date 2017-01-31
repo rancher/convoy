@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"errors"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
@@ -14,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/rancher/convoy/util"
 )
 
 const (
@@ -86,9 +88,9 @@ func parseAwsError(err error) error {
 		if reqErr, ok := err.(awserr.RequestFailure); ok {
 			message += fmt.Sprintln(reqErr.StatusCode(), reqErr.RequestID())
 		}
-		return fmt.Errorf(message)
+		return util.NewConvoyDriverErr(fmt.Errorf(message), util.ErrGenericFailureCode)
 	}
-	return err
+	return util.NewConvoyDriverErr(err, util.ErrGenericFailureCode)
 }
 
 func NewEBSService() (*ebsService, error) {
@@ -97,7 +99,7 @@ func NewEBSService() (*ebsService, error) {
 	s := &ebsService{}
 	s.metadataClient = ec2metadata.New(session.New())
 	if !s.isEC2Instance() {
-		return nil, fmt.Errorf("Not running on an EC2 instance")
+		return nil, util.NewConvoyDriverErr(errors.New("Not running on an EC2 instance"), util.ErrInvalidRequestCode)
 	}
 
 	s.InstanceID, err = s.metadataClient.GetMetadata("instance-id")
@@ -151,8 +153,8 @@ POLL:
 		}
 	}
 	if *volume.State != end {
-		return fmt.Errorf("Cannot finish volume %v state transition, from %v to %v, though final state %v",
-			volumeID, start, end, *volume.State)
+		return util.NewConvoyDriverErr(fmt.Errorf("Cannot finish volume %v state transition, from %v to %v, though final state %v",
+			volumeID, start, end, *volume.State), util.ErrVolumeTransitionCode)
 	}
 	return nil
 }
@@ -190,12 +192,12 @@ WAIT:
 			if len(volume.Attachments) != 0 {
 				attachment = volume.Attachments[0]
 			} else {
-				return fmt.Errorf("Attaching failed for %s", volumeID)
+				return util.NewConvoyDriverErr(fmt.Errorf("Attaching failed for %s", volumeID), util.ErrVolumeAttachFailureCode)
 			}
 		}
 	}
 	if *attachment.State != ec2.VolumeAttachmentStateAttached {
-		return fmt.Errorf("Cannot attach volume, final state %v", *attachment.State)
+		return util.NewConvoyDriverErr(fmt.Errorf("Cannot attach volume, final state %v", *attachment.State), util.ErrVolumeAttachFailureCode)
 	}
 	return nil
 }
@@ -225,7 +227,7 @@ func (s *ebsService) GetAvailabilityZones(filters ...*ec2.Filter) ([]*string, er
 
 func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, error) {
 	if request == nil {
-		return "", fmt.Errorf("Invalid CreateEBSVolumeRequest")
+		return "", util.NewConvoyDriverErr(errors.New("Invalid CreateEBSVolumeRequest"), util.ErrInvalidRequestCode)
 	}
 	size := request.Size
 	iops := request.IOPS
@@ -254,13 +256,13 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 
 	if volumeType != "" {
 		if err := checkVolumeType(volumeType); err != nil {
-			return "", err
+			return "", util.NewConvoyDriverErr(err, util.ErrInvalidRequestCode)
 		}
 		if volumeType == "io1" && iops == 0 {
-			return "", fmt.Errorf("Invalid IOPS for volume type io1")
+			return "", util.NewConvoyDriverErr(errors.New("Invalid IOPS for volume type io1"), util.ErrInvalidRequestCode)
 		}
 		if volumeType != "io1" && iops != 0 {
-			return "", fmt.Errorf("IOPS only valid for volume type io1")
+			return "", util.NewConvoyDriverErr(errors.New("IOPS only valid for volume type io1"), util.ErrInvalidRequestCode)
 		}
 		params.VolumeType = aws.String(volumeType)
 		if iops != 0 {
@@ -280,8 +282,8 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 		if err != nil {
 			log.Errorf("Failed deleting volume: %v", parseAwsError(err))
 		}
-		return "", fmt.Errorf("Failed creating volume with size %v and snapshot %v",
-			size, snapshotID)
+		return "", util.NewConvoyDriverErr(fmt.Errorf("Failed creating volume with size %v and snapshot %v",
+			size, snapshotID), util.ErrVolumeCreateFailureCode)
 	}
 	if request.Tags != nil {
 		if err := s.AddTags(volumeID, request.Tags); err != nil {
@@ -326,7 +328,7 @@ func (s *ebsService) GetVolumes(volumeIDs []string) ([]*ec2.Volume, error) {
 	}
 	if len(volumes.Volumes) < 1 {
 		log.Errorf("Cannot find any volumes from the list provided: %v", volumeIDs)
-		return nil, fmt.Errorf("Cannot find any volumes")
+		return nil, util.NewConvoyDriverErr(errors.New("Cannot find any volumes"), util.ErrVolumeNotFoundCode)
 	}
 	return volumes.Volumes, nil
 }
@@ -351,7 +353,7 @@ func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 		return nil, parseAwsError(err)
 	}
 	if len(volumes.Volumes) != 1 {
-		return nil, fmt.Errorf("Cannot find volume %v", volumeID)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find volume %v", volumeID), util.ErrVolumeNotFoundCode)
 	}
 	return volumes.Volumes[0], nil
 }
@@ -392,7 +394,7 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 	// Since tag Name is not AWS's identifying attribute (i.e. volume_id), we can get multiple results with same name
 	// Return the last one, i.e. the latest one.
 	if len(finalVolumes) < 1 {
-		return nil, fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone), util.ErrVolumeNotFoundCode)
 	} else if len(finalVolumes) > 1 {
 		log.Debugf("Found multiple volumes with name %s. Returning the latest one.", volumeName)
 	}
@@ -439,7 +441,7 @@ func getAttachedDev(oldDevList map[string]bool, size int64) (string, error) {
 		}
 	}
 	if attachedDev == "" {
-		return "", fmt.Errorf("Cannot find a device matching description")
+		return "", util.NewConvoyDriverErr(errors.New("Cannot find a device matching description"), util.ErrDeviceFailureCode)
 	}
 	return "/dev/" + attachedDev, nil
 }
@@ -491,7 +493,7 @@ func (s *ebsService) FindFreeDeviceForAttach() (string, error) {
 			return dev, nil
 		}
 	}
-	return "", fmt.Errorf("Cannot find an available device for instance %v", s.InstanceID)
+	return "", util.NewConvoyDriverErr(fmt.Errorf("Cannot find an available device for instance %v", s.InstanceID), util.ErrDeviceFailureCode)
 }
 
 func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
@@ -532,7 +534,7 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 
 		if forceDetachErr != nil {
 			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
-			return "", fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error())
+			return "", util.NewConvoyDriverErr(fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error()), util.ErrVolumeDetachFailureCode)
 		}
 
 		fdTag := make(map[string]string)
@@ -581,7 +583,7 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 
 		if forceDetachErr != nil {
 			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
-			return fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error())
+			return util.NewConvoyDriverErr(fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error()), util.ErrVolumeDetachFailureCode)
 		}
 
 		fdTag := make(map[string]string)
@@ -600,7 +602,7 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 func (s *ebsService) GetMostRecentSnapshot(volumeName string, dcName string, filters ...*ec2.Filter) (*ec2.Snapshot, error) {
 	snapshots, err := s.GetSnapshots(volumeName, dcName, filters...)
 	if err != nil {
-		return nil, err
+		return nil, util.NewConvoyDriverErr(err, util.ErrSnapshotNotFoundCode)
 	} else if len(snapshots) == 0 {
 		return nil, nil
 	}
@@ -635,7 +637,7 @@ func (s *ebsService) GetMostRecentVolume(volumeName string, dcName string, filte
 	log.Printf("Describe volumes input: %+v", volumeInput)
 	req, volOutput := s.ec2Client.DescribeVolumesRequest(volumeInput)
 	if err := req.Send(); err != nil {
-		return nil, err
+		return nil, util.NewConvoyDriverErr(err, util.ErrVolumeNotAvailableCode)
 	}
 	sort.Sort(sort.Reverse(VolumeByCreateTime(volOutput.Volumes)))
 	if len(volOutput.Volumes) == 0 {
@@ -702,7 +704,7 @@ func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snap
 		return nil, parseAwsError(err)
 	}
 	if len(snapshots.Snapshots) != 1 {
-		return nil, fmt.Errorf("Cannot find snapshot %v", snapshotID)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find snapshot %v", snapshotID), util.ErrSnapshotNotFoundCode)
 	}
 	return snapshots.Snapshots[0], nil
 }
@@ -853,7 +855,7 @@ func (s *ebsService) GetTags(resourceID string) (map[string]string, error) {
 
 	for _, tag := range resp.Tags {
 		if *tag.ResourceId != resourceID {
-			return nil, fmt.Errorf("BUG: why the result is not related to what I asked for?")
+			return nil, util.NewConvoyDriverErr(errors.New("BUG: why the result is not related to what I asked for?"), util.ErrGenericFailureCode)
 		}
 		result[*tag.Key] = *tag.Value
 	}
