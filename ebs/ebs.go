@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"errors"
 
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
@@ -67,7 +68,7 @@ type Device struct {
 
 func (dev *Device) ConfigFile() (string, error) {
 	if dev.Root == "" {
-		return "", fmt.Errorf("BUG: Invalid empty device config path")
+		return "", errors.New("BUG: Invalid empty device config path")
 	}
 	return filepath.Join(dev.Root, DRIVER_CONFIG_FILE), nil
 }
@@ -106,10 +107,10 @@ func (d *Driver) blankVolume(name string) *Volume {
 
 func (v *Volume) ConfigFile() (string, error) {
 	if v.Name == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume name")
+		return "", errors.New("BUG: Invalid empty volume name")
 	}
 	if v.configPath == "" {
-		return "", fmt.Errorf("BUG: Invalid empty volume config path")
+		return "", errors.New("BUG: Invalid empty volume config path")
 	}
 	return filepath.Join(v.configPath, CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
@@ -319,10 +320,10 @@ func (d *Driver) getTypeAndIOPS(opts map[string]string) (string, int64, error) {
 		}
 	}
 	if volumeType == "io1" && iops == 0 {
-		return "", 0, fmt.Errorf("Invalid IOPS for volume type io1")
+		return "", 0, errors.New("Invalid IOPS for volume type io1")
 	}
 	if volumeType != "io1" && iops != 0 {
-		return "", 0, fmt.Errorf("IOPS only valid for volume type io1")
+		return "", 0, errors.New("IOPS only valid for volume type io1")
 	}
 	return volumeType, iops, nil
 }
@@ -386,7 +387,7 @@ func (d *Driver) BuildFromSnapshot(oldVolume *ec2.Volume, snapshot *ec2.Snapshot
 		return "", volumeSize, err
 	}
 	if volumeSize < snapshotVolumeSize {
-		return "", volumeSize, fmt.Errorf("Volume size cannot be less than snapshot size %v", snapshotVolumeSize)
+		return "", volumeSize, util.NewConvoyDriverErr(fmt.Errorf("Volume size cannot be less than snapshot size %v", snapshotVolumeSize), util.ErrInvalidRequestCode)
 	}
 
 	volumeType, iops, err := d.getTypeAndIOPS(opts)
@@ -437,7 +438,7 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 	if err != nil {
 		return volumeID, volumeSize, err
 	} else if len(liveAvailabilityZones) == 0 {
-		return volumeID, volumeSize, fmt.Errorf("AWS is reporting not any Availablity Zones in \"available\" state")
+		return volumeID, volumeSize, util.NewConvoyDriverErr(errors.New("AWS is reporting not any Availablity Zones in \"available\" state"), util.ErrGenericFailureCode)
 	}
 
 	// Need to specify the volume and the filter for availability-zones
@@ -460,7 +461,7 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 
 	// if volumeID is empty and most recent volume is empty then blow up
 	if volumeID != "" && mostRecentVolume == nil {
-		return volumeID, volumeSize, fmt.Errorf("No available volume for volumeID: %s", volumeID)
+		return volumeID, volumeSize, util.NewConvoyDriverErr(fmt.Errorf("No available volume for volumeID: %s", volumeID), util.ErrVolumeNotAvailableCode)
 	}
 
 	var oldVolume *ec2.Volume
@@ -538,7 +539,7 @@ func (d *Driver) CreateVolume(req Request) error {
 		return err
 	}
 	if exists {
-		return fmt.Errorf("Volume %v already exists", id)
+		return util.NewConvoyDriverErr(fmt.Errorf("Volume %v already exists", id), util.ErrVolumeExistsCode)
 	}
 
 	//check if the volume name is a 64 chars alphanumeric string.
@@ -546,7 +547,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	//This check prevents run-away volume creation in EBS
 	re := regexp.MustCompile("^[a-zA-Z0-9]{64}$")
 	if re.MatchString(id) {
-		return fmt.Errorf("Volume name 64 chars alphanumeric. Are you sure this is not a Docker generated volume name? Please change the name and try again.")
+		return util.NewConvoyDriverErr(errors.New("Volume name 64 chars alphanumeric. Are you sure this is not a Docker generated volume name? Please change the name and try again."), util.ErrInvalidRequestCode)
 	}
 
 	//EBS volume name
@@ -555,18 +556,19 @@ func (d *Driver) CreateVolume(req Request) error {
 	volumeID := opts[OPT_VOLUME_DRIVER_ID]
 	backupURL := opts[OPT_BACKUP_URL]
 	if backupURL != "" && volumeID != "" {
-		return fmt.Errorf("Cannot specify both backup and EBS volume ID")
+		return util.NewConvoyDriverErr(errors.New("Cannot specify both backup and EBS volume ID"), util.ErrInvalidRequestCode)
 	}
 	if volumeID != "" && volumeName != "" {
-		return fmt.Errorf("Cannot specify both EBS volume ID and EBS volume Name")
+		return util.NewConvoyDriverErr(errors.New("Cannot specify both EBS volume ID and EBS volume Name"), util.ErrInvalidRequestCode)
 	}
 	if volumeName != "" {
 		log.Debugf("Looking up volume by name %s", volumeName)
 		ebsVolume, err := d.ebsService.GetVolumeByName(volumeName, d.DefaultDCName)
 		if err != nil {
-			//allow NotFound response.
-			if !strings.Contains(err.Error(), "InvalidVolume.NotFound") {
-				return fmt.Errorf("Got an unexpected error when looking up volume %s: %s", volumeName, err.Error())
+			if convoyErr, ok := err.(util.ConvoyDriverErr); ok {
+				if convoyErr.ErrorCode != util.ErrVolumeNotFoundCode {
+					return util.NewConvoyDriverErr(fmt.Errorf("Got an unexpected error when looking up volume %s: %s", volumeName, convoyErr.Error()), util.ErrGenericFailureCode)
+				}
 			}
 		} else {
 			volumeSize = *ebsVolume.Size * GB
@@ -576,7 +578,7 @@ func (d *Driver) CreateVolume(req Request) error {
 			requestedSize, _ := util.ParseSize(opts[OPT_SIZE])
 			if requestedSize > 0 && volumeSize != requestedSize {
 				log.Debugf("Volume size requested (%d GB) does not match actual volume size (%d GB)", requestedSize/GB, volumeSize/GB)
-				return fmt.Errorf("Volume size requested (%d GB) does not match actual volume size (%d GB)", requestedSize/GB, volumeSize/GB)
+				return util.NewConvoyDriverErr(fmt.Errorf("Volume size requested (%d GB) does not match actual volume size (%d GB)", requestedSize/GB, volumeSize/GB), util.ErrInvalidRequestCode)
 			}
 		}
 	}
