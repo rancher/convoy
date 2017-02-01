@@ -1,13 +1,13 @@
 package ebs
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"errors"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
@@ -385,6 +385,7 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 	if err != nil {
 		return nil, parseAwsError(err)
 	}
+
 	var finalVolumes []*ec2.Volume
 	for _, volume := range volumes.Volumes {
 		if getTagValue("GarbageCollection", volume.Tags) == "" {
@@ -393,12 +394,12 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 	}
 	// Since tag Name is not AWS's identifying attribute (i.e. volume_id), we can get multiple results with same name
 	// Return the last one, i.e. the latest one.
-	if len(finalVolumes) < 1 {
+	if len(finalVolumes) == 0 {
 		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone), util.ErrVolumeNotFoundCode)
 	} else if len(finalVolumes) > 1 {
-		log.Debugf("Found multiple volumes with name %s. Returning the latest one.", volumeName)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Found multiple volumes with name %s", volumeName), util.ErrVolumeMultipleInstancesCode)
 	}
-	return finalVolumes[len(finalVolumes)-1], nil
+	return finalVolumes[0], nil
 }
 
 func getBlkDevList() (map[string]bool, error) {

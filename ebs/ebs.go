@@ -1,6 +1,7 @@
 package ebs
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"errors"
 
 	. "github.com/rancher/convoy/convoydriver"
 	. "github.com/rancher/convoy/logging"
@@ -477,6 +477,7 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 
 	// Both are nil, create new volume from scratch
 	if mostRecentSnapshot == nil && mostRecentVolume == nil {
+		log.Debugf("No recent snapshot or recent volume. Building %s from scratch", volumeName)
 		volumeSize, err := d.getSize(opts, d.DefaultVolumeSize)
 		if err != nil {
 			return volumeID, volumeSize, err
@@ -500,18 +501,23 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 		needsFS = aws.Bool(true)
 		return volumeID, volumeSize, nil
 	} else if mostRecentSnapshot == nil {
+		log.Debugf("No most recent snapshot for %s. Creating and building from snapshot", volumeName)
 		// If snapshot is nil then rebuild from most recent volume
 		return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
 	} else if mostRecentVolume == nil {
+		log.Debugf("Most recent volume is nil for %s. Building from snapshot", volumeName)
 		return d.BuildFromSnapshot(oldVolume, mostRecentSnapshot, opts)
 	} else if (*mostRecentVolume.CreateTime).After(*mostRecentSnapshot.StartTime) {
+		log.Debugf("Most recent volume create time is after most recent snapshot start time for %s", volumeName)
 		return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
 	} else {
 		// If we branched here it means the mostRecentSnapshot is newer than the most recent volume
 		if (*mostRecentVolume.VolumeId) == (*mostRecentSnapshot.VolumeId) {
+			log.Debugf("Most recent snapshot is built from the most recent volume for %s", volumeName)
 			// If the most recent snapshot is based off the most recent volume, then the volume could have more up to date data so build from it
 			return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
 		} else {
+			log.Debugf("Snapshot is from a volume that no longer exists so build from it for %s", volumeName)
 			// The snapshot is from a volume that no longer exists so build from it
 			return d.BuildFromSnapshot(oldVolume, mostRecentSnapshot, opts)
 		}
@@ -565,7 +571,9 @@ func (d *Driver) CreateVolume(req Request) error {
 		log.Debugf("Looking up volume by name %s", volumeName)
 		ebsVolume, err := d.ebsService.GetVolumeByName(volumeName, d.DefaultDCName)
 		if err != nil {
-			if convoyErr, ok := err.(util.ConvoyDriverErr); ok {
+			log.Debugf("Error from GetVolumeByName: %+v", err)
+			if convoyErr, ok := err.(*util.ConvoyDriverErr); ok {
+				log.Debugf("Found Convoy Error from GetVolumeByName: %+v", convoyErr)
 				if convoyErr.ErrorCode != util.ErrVolumeNotFoundCode {
 					return util.NewConvoyDriverErr(fmt.Errorf("Got an unexpected error when looking up volume %s: %s", volumeName, convoyErr.Error()), util.ErrGenericFailureCode)
 				}

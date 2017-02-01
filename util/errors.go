@@ -6,6 +6,7 @@ const (
 	ErrSnapshotNotFoundCode
 	ErrVolumeInUseCode
 	ErrVolumeExistsCode
+	ErrVolumeMultipleInstancesCode
 	ErrVolumeNotAvailableCode
 	ErrVolumeCreateFailureCode
 	ErrVolumeDeleteFailureCode
@@ -18,14 +19,11 @@ const (
 )
 
 type ConvoyDriverErr struct {
-	//Original error from the backend
-	Err error
-
-	//Convoy's internal error code
-	ErrorCode int
+	Err       error // Original error from the backend
+	ErrorCode int   // Convoy's internal error code
 }
 
-func (e ConvoyDriverErr) Error() string {
+func (e *ConvoyDriverErr) Error() string {
 	return e.Err.Error()
 }
 
