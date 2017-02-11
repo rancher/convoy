@@ -34,7 +34,11 @@ At least please add permission for these actions:
 `gp2` by default. See [Amazon EBS Volume Types](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html) for details. Notice if user choose `io1` as default volume type, then user has to specify `--iops` when creating volume everytime.
 Other values are st1 and sc1.
 #### `ebs.defaultkmskeyid`
-Default is blank, if specified than volumes will be encrypted using the given kms key id.
+Default is blank, if specified then volumes will be encrypted using the given kms key id.
+#### `ebs.defaultencrypted`
+`false` by default, if `true` then volumes will be encrypted with the default account kms key.
+#### `ebs.defaultfilesystem`
+`ext4` by default, supported options are "btrfs", "ext2", "ext3", "ext4", "minix", or "xfs".
 
 ## Command details
 ### `create`
