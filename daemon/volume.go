@@ -57,6 +57,30 @@ func (s *daemon) volumeExists(name string) (bool, error) {
 	return false, nil
 }
 
+func (s *daemon) isVolumeAttached(name string) (bool, error) {
+	for _, driver := range s.ConvoyDrivers {
+		volOps, err := driver.VolumeOps()
+		if err != nil {
+			return false, err
+		}
+
+		v, err := volOps.GetVolumeInfo(name)
+		if err != nil {
+			if util.IsNotExistsError(err) {
+				continue
+			}
+			return false, err
+		}
+
+		if v["AWSMountPoint"] != "" {
+			return true, nil
+		} else {
+			return false, util.ErrorNotAttachedInBackend()
+		}
+	}
+	return false, nil
+}
+
 func (s *daemon) generateName() (string, error) {
 	name := util.GenerateName("volume")
 	for {
@@ -276,23 +300,47 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 }
 
 func (s *daemon) listVolume() ([]byte, error) {
-	resp := make(map[string]api.VolumeResponse)
+	log.Debugf("Received request to list volumes")
+	list := make(map[string]api.VolumeResponse)
 
+	log.Debugf("Getting information on everything attached to this host.")
 	volumes := s.getVolumeList()
 
-	for name := range volumes {
-		volume := s.getVolume(name)
-		if volume == nil {
-			return nil, fmt.Errorf("Volume list changed for volume %v", name)
+	for name, driverInfo := range volumes {
+		log.Debugf("Getting info for volume %s", name)
+		volume := &Volume{Name: name, DriverName: driverInfo["Driver"]}
+
+		resp := &api.VolumeResponse{
+			Name:        name,
+			Driver:      driverInfo["Driver"],
+			MountPoint:  driverInfo["MountPoint"],
+			CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
+			DriverInfo:  driverInfo,
+			Snapshots:   make(map[string]api.SnapshotResponse),
 		}
-		r, err := s.listVolumeInfo(volume)
+		log.Debugf("Getting info for snapshots for volume %s if any", name)
+		snapshots, err := s.listSnapshotDriverInfos(volume)
+		if err != nil {
+			//snapshot doesn't exists
+			return nil, err
+		}
+		for name, snapshot := range snapshots {
+			snapshot["Driver"] = driverInfo["Driver"]
+			resp.Snapshots[name] = api.SnapshotResponse{
+				Name:        name,
+				CreatedTime: snapshot[OPT_SNAPSHOT_CREATED_TIME],
+				DriverInfo:  snapshot,
+			}
+		}
+
 		if err != nil {
 			return nil, err
 		}
-		resp[name] = *r
+		log.Debugf("ListVolume computation done.")
+		list[name] = *resp
 	}
 
-	return api.ResponseOutput(resp)
+	return api.ResponseOutput(list)
 }
 
 func (s *daemon) getVolumeDriverInfo(volume *Volume) (map[string]string, error) {

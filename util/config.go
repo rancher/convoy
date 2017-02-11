@@ -11,6 +11,8 @@ import (
 )
 
 var errDoesNotExist = errors.New("No such volume")
+var errDoesNotExistInBackend = errors.New("Volume does not exist in backend")
+var errNotAttachedInBackend = errors.New("Volume is not as per backend")
 
 func LoadConfig(fileName string, v interface{}) error {
 	if _, err := os.Stat(fileName); err != nil {
@@ -152,4 +154,24 @@ func ObjectDelete(obj interface{}) error {
 
 func IsNotExistsError(err error) bool {
 	return err == errDoesNotExist
+}
+
+func IsNotExistsInBackendError(err error) bool {
+	return err == errDoesNotExistInBackend
+}
+
+func IsNotAttachedInBackendError(err error) bool {
+	return err == errNotAttachedInBackend
+}
+
+func ErrorNotExists() error {
+	return errDoesNotExist
+}
+
+func ErrorNotExistsInBackend() error {
+	return errDoesNotExistInBackend
+}
+
+func ErrorNotAttachedInBackend() error {
+	return errNotAttachedInBackend
 }

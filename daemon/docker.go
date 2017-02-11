@@ -182,6 +182,22 @@ func (s *daemon) dockerMountVolume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if volume != nil {
+		_, err := s.isVolumeAttached(volume.Name)
+		if util.IsNotAttachedInBackendError(err) {
+			log.Debugf("Volume %s is not attached to a device", volume.Name)
+			request := &api.VolumeDeleteRequest{
+				VolumeName:    volume.Name,
+				ReferenceOnly: true,
+			}
+
+			// if a volume is not attached then processVolumeDelete() just updates the local state.
+			s.processVolumeDelete(request)
+			log.Debugf("Volume %s removed from local state, will attempt recreation", volume.Name)
+			volume = nil
+		}
+	}
+
 	if volume == nil {
 		if s.CreateOnDockerMount {
 			volume, err = s.createDockerVolume(request)
@@ -299,15 +315,8 @@ func (s *daemon) dockerListVolume(w http.ResponseWriter, r *http.Request) {
 		if volName == "" {
 			continue
 		}
-		vol := s.getVolume(volName)
-		if vol == nil {
-			continue
-		}
-		mountPoint, err := s.getVolumeMountPoint(vol)
-		if err != nil {
-			dockerResponse(w, "", err)
-			return
-		}
+
+		mountPoint := v["MountPoint"]
 
 		dv := &DockerVolume{
 			Name:       volName,

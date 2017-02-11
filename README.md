@@ -1,4 +1,7 @@
-# Convoy [![Build Status](https://drone.rancher.io/api/badges/rancher/convoy/status.svg)](https://drone.rancher.io/rancher/convoy)
+# Convoy
+
+[![Build Status](https://travis-ci.org/medallia/convoy.svg?branch=master)](https://travis-ci.org/medallia/convoy)
+[![Report Card](https://goreportcard.com/badge/github.com/medallia/convoy)](https://goreportcard.com/report/github.com/medallia/convoy)
 
 ## Overview
 Convoy is a  Docker volume plugin for a variety of storage back-ends. It's designed to be a simple Docker volume plug-ins that supports vendor-specific extensions such as snapshots, backups and restore. It's written in Go and can be deployed as a standalone binary.
