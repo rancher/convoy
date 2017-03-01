@@ -115,8 +115,7 @@ func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error 
 		}
 	}
 	if *volume.State != end {
-		return fmt.Errorf("Cannot finish volume %v state transition, ",
-			"from %v to %v, though final state %v",
+		return fmt.Errorf("Cannot finish volume %v state transition, from %v to %v, though final state %v",
 			volumeID, start, end, *volume.State)
 	}
 	return nil

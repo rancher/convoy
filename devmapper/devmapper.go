@@ -139,7 +139,9 @@ func generateError(fields logrus.Fields, format string, v ...interface{}) error 
 }
 
 func init() {
-	Register(DRIVER_NAME, Init)
+	if err := Register(DRIVER_NAME, Init); err != nil {
+		panic(err)
+	}
 }
 
 func (device *Device) listVolumeNames() ([]string, error) {
