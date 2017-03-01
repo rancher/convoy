@@ -424,9 +424,18 @@ func (d *Driver) CreateSnapshot(req Request) error {
 	if err := util.MkdirIfNotExists(filepath.Dir(snapFile)); err != nil {
 		return err
 	}
+
+	if volume.MountPoint != "" {
+		log.Debugf("syncing filesystems...")
+		if err := util.Sync(); err != nil {
+			return err
+		}
+	}
+	
 	if err := util.CompressDir(volume.Path, snapFile); err != nil {
 		return err
 	}
+
 	volume.Snapshots[id] = Snapshot{
 		Name:        id,
 		CreatedTime: util.Now(),
