@@ -442,7 +442,7 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 	}
 
 	// Need to specify the volume and the filter for availability-zones
-	mostRecentVolume, err := d.ebsService.GetMostRecentVolume(
+	mostRecentVolume, err := d.ebsService.GetMostRecentAvailableVolume(
 		volumeName,
 		d.DefaultDCName,
 		&ec2.Filter{
@@ -535,7 +535,6 @@ func (d *Driver) CreateVolume(req Request) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	log.Debugf("Create volume request object: %v", req)
 	id := req.Name
 	opts := req.Options
 
@@ -568,7 +567,7 @@ func (d *Driver) CreateVolume(req Request) error {
 		return util.NewConvoyDriverErr(errors.New("Cannot specify both EBS volume ID and EBS volume Name"), util.ErrInvalidRequestCode)
 	}
 	if volumeName != "" {
-		log.Debugf("Looking up volume by name %s", volumeName)
+		log.Debugf("Checking if volume with name %s is in EBS", volumeName)
 		ebsVolume, err := d.ebsService.GetVolumeByName(volumeName, d.DefaultDCName)
 		if err != nil {
 			log.Debugf("Error from GetVolumeByName: %+v", err)
@@ -581,7 +580,7 @@ func (d *Driver) CreateVolume(req Request) error {
 		} else {
 			volumeSize = *ebsVolume.Size * GB
 			volumeID = aws.StringValue(ebsVolume.VolumeId)
-			log.Debugf("Found EBS volume %v with name %v", volumeID, volumeName)
+			log.Debugf("Received EBS volume %s with name %s", volumeID, volumeName)
 			//is size of the existing block is same as that requested
 			requestedSize, _ := util.ParseSize(opts[OPT_SIZE])
 			if requestedSize > 0 && volumeSize != requestedSize {
@@ -591,7 +590,6 @@ func (d *Driver) CreateVolume(req Request) error {
 		}
 	}
 
-	log.Debugf("Creating volume %s for cluster %s in AZ %s", id, d.DefaultDCName, d.ebsService.AvailabilityZone)
 	newTags := map[string]string{
 		"Name":   id,
 		"DCName": d.DefaultDCName,

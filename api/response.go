@@ -75,7 +75,7 @@ func ResponseLogAndError(v interface{}) {
 
 // ResponseOutput would generate a JSON format byte array of object for output
 func ResponseOutput(v interface{}) ([]byte, error) {
-	j, err := json.MarshalIndent(v, "", "\t")
+	j, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}

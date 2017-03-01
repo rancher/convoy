@@ -610,7 +610,7 @@ func (s *ebsService) GetMostRecentSnapshot(volumeName string, dcName string, fil
 	return snapshots[len(snapshots)-1], nil
 }
 
-func (s *ebsService) GetMostRecentVolume(volumeName string, dcName string, filters ...*ec2.Filter) (*ec2.Volume, error) {
+func (s *ebsService) GetMostRecentAvailableVolume(volumeName string, dcName string, filters ...*ec2.Filter) (*ec2.Volume, error) {
 	// We always need to specify the name, dc name, and that the snapshot is complete. If the AZ has truly crashed, then the snapshot may never complete
 	volumeInput := &ec2.DescribeVolumesInput{
 		Filters: []*ec2.Filter{
@@ -635,7 +635,7 @@ func (s *ebsService) GetMostRecentVolume(volumeName string, dcName string, filte
 		},
 	}
 	volumeInput.Filters = append(volumeInput.Filters, filters...)
-	log.Printf("Describe volumes input: %+v", volumeInput)
+	log.Printf("GetMostRecentAvailableVolume API filters Name=%s DCName=%s Status=available", volumeName, dcName)
 	req, volOutput := s.ec2Client.DescribeVolumesRequest(volumeInput)
 	if err := req.Send(); err != nil {
 		return nil, util.NewConvoyDriverErr(err, util.ErrVolumeNotAvailableCode)
