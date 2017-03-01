@@ -30,10 +30,12 @@ const (
 	EBS_DEFAULT_VOLUME_SIZE = "ebs.defaultvolumesize"
 	EBS_DEFAULT_VOLUME_TYPE = "ebs.defaultvolumetype"
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
+	EBS_FSFREEZE            = "ebs.fsfreeze"
 	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
+	DEFAULT_FSFREEZE = "false"
 
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
@@ -51,6 +53,7 @@ type Device struct {
 	DefaultVolumeSize int64
 	DefaultVolumeType string
 	DefaultKmsKeyID   string
+	FsFreeze          string
 	DefaultEncrypted  bool
 }
 
@@ -190,6 +193,10 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			return nil, err
 		}
 		kmsKeyId := config[EBS_DEFAULT_VOLUME_KEY]
+		if config[EBS_FSFREEZE] == "" {
+			config[EBS_FSFREEZE] = DEFAULT_FSFREEZE
+		}
+		fsFreeze := config[EBS_FSFREEZE]
 		var encrypted bool
 		if encryptedStr, ok := config[EBS_DEFAULT_ENCRYPTED]; ok {
 			if encrypted, err = strconv.ParseBool(encryptedStr); err != nil {
@@ -201,6 +208,7 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			DefaultVolumeSize: size,
 			DefaultVolumeType: volumeType,
 			DefaultKmsKeyID:   kmsKeyId,
+			FsFreeze:          fsFreeze,
 			DefaultEncrypted:  encrypted,
 		}
 		if err := util.ObjectSave(dev); err != nil {
@@ -584,6 +592,20 @@ func (d *Driver) CreateSnapshot(req Request) error {
 		}, "Already has snapshot with uuid")
 	}
 
+	if volume.MountPoint != "" {
+		log.Debugf("syncing filesystems...")
+		if err := util.Sync(); err != nil {
+			return err
+		}
+
+		if d.FsFreeze == "true" {
+			log.Debugf("freezing %v", volume.MountPoint)
+			if err := util.Freeze( volume.MountPoint ); err != nil {
+				return err
+			}
+		}
+	}
+
 	tags := map[string]string{
 		"ConvoyVolumeName":   volumeID,
 		"ConvoySnapshotName": id,
@@ -597,6 +619,16 @@ func (d *Driver) CreateSnapshot(req Request) error {
 	if err != nil {
 		return err
 	}
+
+	if volume.MountPoint != "" {
+		if d.FsFreeze == "true" {
+			log.Debugf("unfreezing %v", volume.MountPoint)
+			if err := util.UnFreeze( volume.MountPoint ); err != nil {
+				return err
+			}
+		}
+	}
+	
 	log.Debugf("Creating snapshot %v(%v) of volume %v(%v)", id, ebsSnapshotID, volumeID, volume.EBSID)
 
 	snapshot = Snapshot{
