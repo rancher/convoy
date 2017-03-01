@@ -12,7 +12,7 @@ type VolumeUmountRequest struct {
 
 type VolumeCreateRequest struct {
 	Name           string
-	DriverName     string
+	StorageType    string
 	Size           int64
 	BackupURL      string
 	DriverVolumeID string

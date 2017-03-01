@@ -147,6 +147,7 @@ func NewCli(version string) *cli.App {
 		volumeMountCmd,
 		volumeUmountCmd,
 		volumeListCmd,
+		volumeListTypeCmd,
 		volumeInspectCmd,
 		snapshotCmd,
 		backupCmd,

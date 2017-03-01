@@ -14,8 +14,9 @@ import (
 )
 
 type Volume struct {
-	Name       string
-	DriverName string
+	Name        string
+	DriverName      string
+	StorageType string
 }
 
 var notFoundAPIError = APIError{
@@ -24,14 +25,15 @@ var notFoundAPIError = APIError{
 }
 
 func (s *daemon) getVolume(name string) *Volume {
-	driver, err := s.getDriverForVolume(name)
+	storage, err := s.getDriverForVolume(name)
 	if err != nil {
 		return nil
 	}
 
 	return &Volume{
 		Name:       name,
-		DriverName: driver.Name(),
+		StorageType: storage.Storage(),
+		DriverName: storage.Name(),
 	}
 }
 
@@ -73,8 +75,7 @@ func (s *daemon) generateName() (string, error) {
 
 func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume, error) {
 	volumeName := request.Name
-	driverName := request.DriverName
-
+	storageType := request.StorageType
 	var err error
 	if volumeName == "" {
 		volumeName, err = s.generateName()
@@ -91,14 +92,14 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		}
 	}
 
-	if driverName == "" {
-		driverName = s.DefaultDriver
+	if storageType == "" {
+		return nil, fmt.Errorf("Volume don't specifit --storagetype")
 	}
-	driver, err := s.getDriver(driverName)
+	storagetype, err := s.getDriver(storageType)
 	if err != nil {
 		return nil, err
 	}
-	volOps, err := driver.VolumeOps()
+	volOps, err := storagetype.VolumeOps()
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +112,7 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 			OPT_VOLUME_NAME:      volumeName,
 			OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
 			OPT_VOLUME_TYPE:      request.Type,
+			OPT_VOLUME_STORAGETYPE: storageType,
 			OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
 			OPT_PREPARE_FOR_VM:   strconv.FormatBool(request.PrepareForVM),
 		},
@@ -134,7 +136,8 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 
 	volume := &Volume{
 		Name:       volumeName,
-		DriverName: driverName,
+		StorageType: storageType,
+		DriverName: storagetype.Name(),
 	}
 
 	if err := s.NameUUIDIndex.Add(volumeName, "exists"); err != nil {
@@ -161,6 +164,7 @@ func (s *daemon) doVolumeCreate(version string, w http.ResponseWriter, r *http.R
 	if request.Verbose {
 		return writeResponseOutput(w, api.VolumeResponse{
 			Name:        volume.Name,
+			StorageType: volume.StorageType,
 			Driver:      volume.DriverName,
 			CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
 			DriverInfo:  driverInfo,
@@ -254,6 +258,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 	resp := &api.VolumeResponse{
 		Name:        volume.Name,
 		Driver:      volume.DriverName,
+		StorageType: volume.StorageType,
 		MountPoint:  mountPoint,
 		CreatedTime: driverInfo[OPT_VOLUME_CREATED_TIME],
 		DriverInfo:  driverInfo,
@@ -265,7 +270,7 @@ func (s *daemon) listVolumeInfo(volume *Volume) (*api.VolumeResponse, error) {
 		return resp, nil
 	}
 	for name, snapshot := range snapshots {
-		snapshot["Driver"] = volOps.Name()
+		snapshot["StorageType"] = volOps.Name()
 		resp.Snapshots[name] = api.SnapshotResponse{
 			Name:        name,
 			CreatedTime: snapshot[OPT_SNAPSHOT_CREATED_TIME],
@@ -300,22 +305,22 @@ func (s *daemon) getVolumeDriverInfo(volume *Volume) (map[string]string, error) 
 	if err != nil {
 		return nil, err
 	}
-	driverInfo, err := volOps.GetVolumeInfo(volume.Name)
+	DriverInfo, err := volOps.GetVolumeInfo(volume.Name)
 	if err != nil {
 		return nil, err
 	}
-	driverInfo["Driver"] = volOps.Name()
-	return driverInfo, nil
+	DriverInfo["Driver"] = volOps.Name()
+	return DriverInfo, nil
 }
 
 func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
-	driverSpecific, err := util.GetFlag(r, "driver", false, nil)
+	storageSpecific, err := util.GetFlag(r, "StorageType", false, nil)
 	if err != nil {
 		return err
 	}
 
 	var data []byte
-	if driverSpecific == "1" {
+	if storageSpecific == "1" {
 		result := s.getVolumeList()
 		data, err = api.ResponseOutput(&result)
 	} else {
@@ -324,6 +329,16 @@ func (s *daemon) doVolumeList(version string, w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return err
 	}
+	_, err = w.Write(data)
+	return err
+}
+
+func (s *daemon) doTypeList(version string, w http.ResponseWriter, r *http.Request, objs map[string]string) error {
+	result := ""
+	for _, driver := range s.ConvoyDrivers {
+		result = result + driver.Storage() + " "
+	}
+	data, err := api.ResponseOutput(&result)
 	_, err = w.Write(data)
 	return err
 }
@@ -532,7 +547,7 @@ func (s *daemon) getVolumeList() map[string]map[string]string {
 			break
 		}
 		for k, v := range volumes {
-			v["Driver"] = driver.Name()
+			v["storagetype"] = driver.Storage()
 			result[k] = v
 		}
 	}

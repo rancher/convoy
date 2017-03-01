@@ -17,6 +17,7 @@ type ErrorResponse struct {
 type VolumeResponse struct {
 	Name        string
 	Driver      string
+	StorageType string
 	MountPoint  string
 	CreatedTime string
 	DriverInfo  map[string]string

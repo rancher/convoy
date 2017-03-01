@@ -77,7 +77,7 @@ func (s *daemon) createDockerVolume(request *pluginRequest) (*Volume, error) {
 	}
 	createReq := &api.VolumeCreateRequest{
 		Name:           name,
-		DriverName:     request.Opts["driver"],
+		StorageType:    request.Opts["storagetype"],
 		Size:           size,
 		BackupURL:      request.Opts["backup"],
 		DriverVolumeID: request.Opts["id"],
