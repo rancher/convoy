@@ -31,9 +31,11 @@ const (
 	EBS_DEFAULT_VOLUME_TYPE = "ebs.defaultvolumetype"
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
 	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
+	EBS_FSFREEZE = "ebs.fsfreeze"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
+	DEFAULT_FSFREEZE = "false"
 
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
@@ -52,6 +54,7 @@ type Device struct {
 	DefaultVolumeType string
 	DefaultKmsKeyID   string
 	DefaultEncrypted  bool
+	FsFreeze          string
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -196,12 +199,18 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 				return nil, err
 			}
 		}
+		if config[EBS_FSFREEZE] == "" {
+			config[EBS_FSFREEZE] = DEFAULT_FSFREEZE
+		}
+		fsFreeze := config[EBS_FSFREEZE]
+
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: size,
 			DefaultVolumeType: volumeType,
 			DefaultKmsKeyID:   kmsKeyId,
 			DefaultEncrypted:  encrypted,
+			FsFreeze:          fsFreeze,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -590,9 +599,11 @@ func (d *Driver) CreateSnapshot(req Request) error {
 			return err
 		}
 
-		log.Debugf("freezing %v", volume.MountPoint)
-		if err := util.Freeze( volume.MountPoint ); err != nil {
-			return err
+		if d.FsFreeze == "true" {
+			log.Debugf("freezing %v", volume.MountPoint)
+			if err := util.Freeze( volume.MountPoint ); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -611,9 +622,11 @@ func (d *Driver) CreateSnapshot(req Request) error {
 	}
 
 	if volume.MountPoint != "" {
-		log.Debugf("unfreezing %v", volume.MountPoint)
-		if err := util.UnFreeze( volume.MountPoint ); err != nil {
-			return err
+		if d.FsFreeze == "true" {
+			log.Debugf("unfreezing %v", volume.MountPoint)
+			if err := util.UnFreeze( volume.MountPoint ); err != nil {
+				return err
+			}
 		}
 	}
 	
