@@ -40,6 +40,7 @@ type CreateEBSVolumeRequest struct {
 	VolumeType string
 	Tags       map[string]string
 	KmsKeyID   string
+	Encrypted  bool
 }
 
 type CreateSnapshotRequest struct {
@@ -173,6 +174,7 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 	params := &ec2.CreateVolumeInput{
 		AvailabilityZone: aws.String(s.AvailabilityZone),
 		Size:             aws.Int64(ebsSize),
+		Encrypted:        aws.Bool(request.Encrypted),
 	}
 
 	if snapshotID != "" {
