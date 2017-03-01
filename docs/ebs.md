@@ -35,7 +35,8 @@ At least please add permission for these actions:
 Other values are st1 and sc1.
 #### `ebs.defaultkmskeyid`
 Default is blank, if specified than volumes will be encrypted using the given kms key id.
-
+#### `ebs.fsfreeze`
+Default is false.  If set to true, will perform a `/sbin/fsfreeze` on the filesystem before creating a snapshot, and unfreeze after the snapshot has been created.  This may yield a more consistent snapshot of a running application.  This uses `/sbin/fsfreeze` command which must be installed.  It is installed by default in Ubuntu 16.04 based docker images.
 ## Command details
 ### `create`
 * `--size` would specify the EBS volume size user want to create. EBS volumes are 1GiB minimal and must be a multiple of 1GiB.
