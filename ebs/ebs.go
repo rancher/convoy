@@ -572,6 +572,18 @@ func (d *Driver) CreateSnapshot(req Request) error {
 		}, "Already has snapshot with uuid")
 	}
 
+	if volume.MountPoint != "" {
+		log.Debugf("syncing filesystems...")
+		if err := util.Sync(); err != nil {
+			return err
+		}
+
+		log.Debugf("freezing %v", volume.MountPoint)
+		if err := util.Freeze( volume.MountPoint ); err != nil {
+			return err
+		}
+	}
+
 	tags := map[string]string{
 		"ConvoyVolumeName":   volumeID,
 		"ConvoySnapshotName": id,
@@ -585,6 +597,14 @@ func (d *Driver) CreateSnapshot(req Request) error {
 	if err != nil {
 		return err
 	}
+
+	if volume.MountPoint != "" {
+		log.Debugf("unfreezing %v", volume.MountPoint)
+		if err := util.UnFreeze( volume.MountPoint ); err != nil {
+			return err
+		}
+	}
+	
 	log.Debugf("Creating snapshot %v(%v) of volume %v(%v)", id, ebsSnapshotID, volumeID, volume.EBSID)
 
 	snapshot = Snapshot{
