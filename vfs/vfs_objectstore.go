@@ -31,7 +31,9 @@ const (
 )
 
 func init() {
-	objectstore.RegisterDriver(KIND, initFunc)
+	if err := objectstore.RegisterDriver(KIND, initFunc); err != nil {
+		panic(err)
+	}
 }
 
 func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {

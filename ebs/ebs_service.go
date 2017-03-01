@@ -40,6 +40,7 @@ type CreateEBSVolumeRequest struct {
 	VolumeType string
 	Tags       map[string]string
 	KmsKeyID   string
+	Encrypted  bool
 }
 
 type CreateSnapshotRequest struct {
@@ -115,8 +116,7 @@ func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error 
 		}
 	}
 	if *volume.State != end {
-		return fmt.Errorf("Cannot finish volume %v state transition, ",
-			"from %v to %v, though final state %v",
+		return fmt.Errorf("Cannot finish volume %v state transition, from %v to %v, though final state %v",
 			volumeID, start, end, *volume.State)
 	}
 	return nil
@@ -174,6 +174,7 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 	params := &ec2.CreateVolumeInput{
 		AvailabilityZone: aws.String(s.AvailabilityZone),
 		Size:             aws.Int64(ebsSize),
+		Encrypted:        aws.Bool(request.Encrypted),
 	}
 
 	if snapshotID != "" {

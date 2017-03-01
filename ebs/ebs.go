@@ -30,7 +30,8 @@ const (
 	EBS_DEFAULT_VOLUME_SIZE = "ebs.defaultvolumesize"
 	EBS_DEFAULT_VOLUME_TYPE = "ebs.defaultvolumetype"
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
-	EBS_FSFREEZE = "ebs.fsfreeze"
+	EBS_FSFREEZE            = "ebs.fsfreeze"
+	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
@@ -53,6 +54,7 @@ type Device struct {
 	DefaultVolumeType string
 	DefaultKmsKeyID   string
 	FsFreeze          string
+	DefaultEncrypted  bool
 }
 
 func (dev *Device) ConfigFile() (string, error) {
@@ -108,7 +110,9 @@ func (v *Volume) GenerateDefaultMountPoint() string {
 }
 
 func init() {
-	Register(DRIVER_NAME, Init)
+	if err := Register(DRIVER_NAME, Init); err != nil {
+		panic(err)
+	}
 }
 
 func generateError(fields logrus.Fields, format string, v ...interface{}) error {
@@ -193,12 +197,19 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			config[EBS_FSFREEZE] = DEFAULT_FSFREEZE
 		}
 		fsFreeze := config[EBS_FSFREEZE]
+		var encrypted bool
+		if encryptedStr, ok := config[EBS_DEFAULT_ENCRYPTED]; ok {
+			if encrypted, err = strconv.ParseBool(encryptedStr); err != nil {
+				return nil, err
+			}
+		}
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: size,
 			DefaultVolumeType: volumeType,
 			DefaultKmsKeyID:   kmsKeyId,
 			FsFreeze:          fsFreeze,
+			DefaultEncrypted:  encrypted,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -225,6 +236,7 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos["DefaultVolumeSize"] = strconv.FormatInt(d.DefaultVolumeSize, 10)
 	infos["DefaultVolumeType"] = d.DefaultVolumeType
 	infos["DefaultKmsKey"] = d.DefaultKmsKeyID
+	infos["DefaultEncrypted"] = fmt.Sprint(d.DefaultEncrypted)
 	infos["InstanceID"] = d.ebsService.InstanceID
 	infos["Region"] = d.ebsService.Region
 	infos["AvailiablityZone"] = d.ebsService.AvailabilityZone
