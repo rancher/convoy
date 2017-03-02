@@ -84,6 +84,18 @@ func (v *Volume) ConfigFile() (string, error) {
 	return filepath.Join(v.configPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX+v.Name+CFG_POSTFIX), nil
 }
 
+func (v *Volume) GetDevice() (string, error) {
+	return "", nil
+}
+
+func (v *Volume) GetMountOpts() []string {
+	return []string{}
+}
+
+func (v *Volume) GenerateDefaultMountPoint() string {
+	return ""
+}
+
 func (device *Device) listVolumeNames() ([]string, error) {
 	return util.ListConfigIDs(device.ConfigPath, VFS_CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_POSTFIX)
 }
@@ -209,6 +221,7 @@ func (d *Driver) CreateVolume(req Request) error {
 		return err
 	}
 	if exists {
+		log.Debugf("volume name: %s exists!", volume.Name)
 		return nil
 	}
 
@@ -242,6 +255,7 @@ func (d *Driver) CreateVolume(req Request) error {
 			return err
 		}
 	}
+	log.Debugf("created volume name: %s", volume.Name)
 	return util.ObjectSave(volume)
 }
 
@@ -288,14 +302,31 @@ func (d *Driver) MountVolume(req Request) (string, error) {
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
 	}
+	specifiedMountPoint := opts[OPT_MOUNT_POINT]
+	bindMount := opts[OPT_BIND_MOUNT]
+	if bindMount == "" {
+		if specifiedMountPoint != "" {
+			return "", fmt.Errorf("VFS doesn't support specified mount point if not bind mount")
+		}
+		if volume.MountPoint == "" {
+			volume.MountPoint = volume.Path
+		}
+	} else {
+		if specifiedMountPoint == "" {
+			return "", nil
+		}
+		mountPoint, err := util.BindMountVolume(volume.Name,
+			volume.Path,
+			volume.MountPoint,
+			specifiedMountPoint,
+			bindMount,
+			opts[OPT_REMOUNT] != "")
+		if err != nil {
+			return "", err
+		}
+		volume.MountPoint = mountPoint
+	}
 
-	specifiedPoint := opts[OPT_MOUNT_POINT]
-	if specifiedPoint != "" {
-		return "", fmt.Errorf("VFS doesn't support specified mount point")
-	}
-	if volume.MountPoint == "" {
-		volume.MountPoint = volume.Path
-	}
 	if volume.PrepareForVM {
 		if err := util.MountPointPrepareImageFile(volume.MountPoint, volume.Size); err != nil {
 			return "", err
@@ -324,11 +355,13 @@ func (d *Driver) UmountVolume(req Request) error {
 	if err := util.ObjectLoad(volume); err != nil {
 		return err
 	}
-
-	if volume.MountPoint != "" {
-		volume.MountPoint = ""
+	if volume.MountPoint != "" && volume.MountPoint != volume.Path {
+		log.Debugf("VolumeUmount: %s", volume.MountPoint)
+		if err := util.VolumeUmount(volume); err != nil {
+			return err
+		}
 	}
-
+	volume.MountPoint = ""
 	lockFile, err := flock(volume)
 	if err != nil {
 		return fmt.Errorf("Coudln't get flock. Error: %v", err)

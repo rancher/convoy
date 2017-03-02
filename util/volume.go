@@ -137,12 +137,8 @@ func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error)
 		return "", err
 	}
 	opts := vol.GetMountOpts()
-	createMountpoint := false
 	if mountPoint == "" {
 		mountPoint = vol.GenerateDefaultMountPoint()
-		// Create of directory cannot be done before umount, because it
-		// won't be recognized as a directory file when mounted sometime
-		createMountpoint = true
 	}
 	existMount := getVolumeMountPoint(vol)
 	if existMount != "" && existMount != mountPoint {
@@ -154,10 +150,8 @@ func VolumeMount(v interface{}, mountPoint string, remount bool) (string, error)
 			return "", err
 		}
 	}
-	if createMountpoint {
-		if err := callMkdirIfNotExists(mountPoint); err != nil {
-			return "", err
-		}
+	if err := callMkdirIfNotExists(mountPoint); err != nil {
+		return "", err
 	}
 	if !isMounted(mountPoint) {
 		log.Debugf("Volume %v is being mounted it to %v, with option %v", getVolumeName(vol), mountPoint, opts)
@@ -456,4 +450,37 @@ func MountPointPrepareBlockDevice(mp string, dev string) error {
 		return err
 	}
 	return nil
+}
+
+func BindMountVolume(volName, path, previousMountPoint, newMountPoint, bindStr string, remount bool) (string, error) {
+	// if existing mount point is the same as asked for, then do nothing
+	if previousMountPoint == newMountPoint && isMounted(newMountPoint) {
+		return newMountPoint, nil
+	}
+	if previousMountPoint != "" &&
+		isMounted(previousMountPoint) &&
+		previousMountPoint != newMountPoint &&
+		!remount {
+		// without remount option, can't bind mount a new mount point
+		return "", fmt.Errorf("Volume %v was already mounted at %v, but asked to mount at %v", volName, previousMountPoint, newMountPoint)
+	}
+	if err := callMkdirIfNotExists(newMountPoint); err != nil {
+		return "", err
+	}
+	if previousMountPoint != "" &&
+		isMounted(previousMountPoint) &&
+		remount {
+		// unmount existing mount point
+		log.Debugf("Unmount existing mountpoint %v", previousMountPoint)
+		if err := callUmount([]string{previousMountPoint}); err != nil {
+			return "", err
+		}
+	}
+	options := []string{"-o", bindStr}
+	log.Debugf("Volume %v is being mounted to %v, with option %v", volName, newMountPoint, options)
+	if _, err := callMount(options, []string{path, newMountPoint}); err != nil {
+		return "", err
+	}
+
+	return newMountPoint, nil
 }
