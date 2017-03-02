@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
@@ -49,10 +48,6 @@ type CreateSnapshotRequest struct {
 	Tags        map[string]string
 }
 
-func sleepBeforeRetry() {
-	time.Sleep(RETRY_INTERVAL * time.Second)
-}
-
 func parseAwsError(err error) error {
 	if err == nil {
 		return nil
@@ -91,7 +86,7 @@ func NewEBSService() (*ebsService, error) {
 		return nil, err
 	}
 
-	config := aws.NewConfig().WithRegion(s.Region)
+	config := aws.NewConfig().WithRegion(s.Region).WithMaxRetries(5)
 	s.ec2Client = ec2.New(session.New(), config)
 
 	return s, nil
@@ -233,7 +228,6 @@ func (s *ebsService) DeleteVolume(volumeID string) error {
 }
 
 func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
-	sleepBeforeRetry()
 	params := &ec2.DescribeVolumesInput{
 		VolumeIds: []*string{
 			aws.String(volumeID),
@@ -411,7 +405,6 @@ func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snap
 }
 
 func (s *ebsService) GetSnapshot(snapshotID string) (*ec2.Snapshot, error) {
-	sleepBeforeRetry()
 	return s.GetSnapshotWithRegion(snapshotID, s.Region)
 }
 
