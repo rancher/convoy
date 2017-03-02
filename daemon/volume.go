@@ -113,6 +113,7 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 			OPT_VOLUME_TYPE:      request.Type,
 			OPT_VOLUME_IOPS:      strconv.FormatInt(request.IOPS, 10),
 			OPT_PREPARE_FOR_VM:   strconv.FormatBool(request.PrepareForVM),
+			OPT_FILESYSTEM:       request.FSType,
 		},
 	}
 	log.WithFields(logrus.Fields{
@@ -400,6 +401,8 @@ func (s *daemon) processVolumeMount(volume *Volume, request *api.VolumeMountRequ
 		Name: volume.Name,
 		Options: map[string]string{
 			OPT_MOUNT_POINT: request.MountPoint,
+			OPT_READ_WRITE:  request.ReadWrite,
+			OPT_BIND_MOUNT:  request.BindMount,
 		},
 	}
 	log.WithFields(logrus.Fields{

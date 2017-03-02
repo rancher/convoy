@@ -11,3 +11,8 @@ mkdir -p bin
 go build -a -tags "netgo libdm_no_deferred_remove" \
 	-ldflags "-X main.VERSION=$VERSION -linkmode external -extldflags -static" \
 	--installsuffix netgo -o bin/convoy
+
+cd k8s-client
+go build -a -tags "netgo libdm_no_deferred_remove" \
+	-ldflags "-X main.VERSION=$VERSION -linkmode external -extldflags -static" \
+	--installsuffix netgo -o ../bin/k8s
