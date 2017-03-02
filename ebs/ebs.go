@@ -805,19 +805,21 @@ func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]
 
 	backups := make(map[string]map[string]string)
 	for k, v := range snapshots {
-		backupUrl := encodeURL(d.ebsService.Region,v["EBSSnapshotID"]);
-		info := map[string]string{
-			"BackupName": v["EBSSnapshotID"],
-			"BackupURL": backupUrl,
-			"CreatedTime": v["SnapshotCreatedAt"],
-			"DriverName": "ebs",
-			"SnapshotCreatedAt": v["SnapshotCreatedAt"],
-			"SnapshotName": k,
-			"VolumeCreatedAt": "",
-			"VolumeName": v["VolumeName"],
-			"VolumeSize": v["Size"],
+		if v["State"] != "removed" {
+			backupUrl := encodeURL(d.ebsService.Region,v["EBSSnapshotID"]);
+			info := map[string]string{
+				"BackupName": v["EBSSnapshotID"],
+				"BackupURL": backupUrl,
+				"CreatedTime": v["SnapshotCreatedAt"],
+				"DriverName": "ebs",
+				"SnapshotCreatedAt": v["SnapshotCreatedAt"],
+				"SnapshotName": k,
+				"VolumeCreatedAt": "",
+				"VolumeName": v["VolumeName"],
+				"VolumeSize": v["Size"],
+			}
+			backups[ backupUrl ] = info
 		}
-		backups[ backupUrl ] = info
 	}
 	
 	return backups, nil
