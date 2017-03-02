@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,7 +17,7 @@ import (
 
 const (
 	GB             = 1073741824
-	RETRY_INTERVAL = 5
+	RETRY_INTERVAL = 1
 )
 
 var (
@@ -46,6 +47,10 @@ type CreateSnapshotRequest struct {
 	VolumeID    string
 	Description string
 	Tags        map[string]string
+}
+
+func sleepBeforeRetry() {
+        time.Sleep(RETRY_INTERVAL * time.Second)
 }
 
 func parseAwsError(err error) error {
@@ -105,6 +110,7 @@ func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error 
 	for *volume.State == start {
 		log.Debugf("Waiting for volume %v state transiting from %v to %v",
 			volumeID, start, end)
+		sleepBeforeRetry()
 		volume, err = s.GetVolume(volumeID)
 		if err != nil {
 			return err
@@ -125,6 +131,7 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 	}
 	for len(volume.Attachments) == 0 {
 		log.Debugf("Retry to get attachment of volume")
+		sleepBeforeRetry()
 		volume, err = s.GetVolume(volumeID)
 		if err != nil {
 			return err
@@ -134,6 +141,7 @@ func (s *ebsService) waitForVolumeAttaching(volumeID string) error {
 
 	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
 		log.Debugf("Waiting for volume %v attaching", volumeID)
+		sleepBeforeRetry()
 		volume, err := s.GetVolume(volumeID)
 		if err != nil {
 			return err
@@ -392,7 +400,7 @@ func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snap
 	}
 	ec2Client := s.ec2Client
 	if region != s.Region {
-		ec2Client = ec2.New(session.New(), aws.NewConfig().WithRegion(region))
+		ec2Client = ec2.New(session.New(), aws.NewConfig().WithRegion(region).WithMaxRetries(5))
 	}
 	snapshots, err := ec2Client.DescribeSnapshots(params)
 	if err != nil {
@@ -415,6 +423,7 @@ func (s *ebsService) WaitForSnapshotComplete(snapshotID string) error {
 	}
 	for *snapshot.State == ec2.SnapshotStatePending {
 		log.Debugf("Snapshot %v process %v", *snapshot.SnapshotId, *snapshot.Progress)
+		sleepBeforeRetry()
 		snapshot, err = s.GetSnapshot(snapshotID)
 		if err != nil {
 			return err
@@ -446,7 +455,7 @@ func (s *ebsService) DeleteSnapshotWithRegion(snapshotID, region string) error {
 	}
 	ec2Client := s.ec2Client
 	if region != s.Region {
-		ec2Client = ec2.New(session.New(), aws.NewConfig().WithRegion(region))
+		ec2Client = ec2.New(session.New(), aws.NewConfig().WithRegion(region).WithMaxRetries(5))
 	}
 	_, err := ec2Client.DeleteSnapshot(params)
 	return parseAwsError(err)
