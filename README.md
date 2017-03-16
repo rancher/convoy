@@ -16,6 +16,7 @@ Convoy used Docker volume plugin mechanism to provide persistent volume for Dock
 * Device Mapper
 * Virtual File System(VFS)/Network File System(NFS)
 * Amazon Elastic Block Store(EBS)
+* ProfitBricks
 
 ## Quick Start Guide
 First let's make sure we have Docker 1.8 or above running.
@@ -117,6 +118,12 @@ Make sure you're running on a DigitalOcean Droplet, and that you have the `DO_TO
 sudo convoy daemon --drivers digitalocean
 ```
 
+#### ProfitBricks
+Make sure that you have set the `PROFITBRICKS_USERNAME`, `PROFITBRICKS_PASSWORD`, and `DATACENTER_ID` environment variables before initializing the Convoy daemon. Additional documentation for using the ProfitBricks driver can be found [here](docs/profitbricks.md).
+```
+sudo convoy daemon --drivers profitbricks
+```
+
 ## Volume Commands
 #### Create a Volume
 
@@ -126,6 +133,7 @@ sudo convoy create volume_name
 ```
 * Device Mapper: Default volume size is 100G. `--size` [option](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#create) is supported.
 * EBS: Default volume size is 4G. `--size` and [some other options](https://github.com/rancher/convoy/blob/master/docs/ebs.md#create) are supported.
+* ProfitBricks: Default volume size is 5G.  `--size` [option](docs/profitbricks.md#create) is supported.
 
 We can also create a volume using the [`docker run`](https://github.com/rancher/convoy/blob/master/docs/docker.md#create-container) command. If the volume does not yet exist, a new volume will be created. Otherwise the existing volume will be used.
 ```
@@ -140,7 +148,7 @@ or
 ```
 sudo docker rm -v <container_name>
 ```
-* NFS, EBS and DigitalOcean: The `-r/--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on [NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS volume](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete) unchanged. This is useful when the volume need to be reused later.
+* NFS, EBS, DigitalOcean, and ProfitBricks: The `-r/--reference` option instructs the `convoy delete` command to only delete the reference to the volume from the current host and leave the underlying files on [NFS server](https://github.com/rancher/convoy/blob/master/docs/vfs.md#delete) or [EBS volume](https://github.com/rancher/convoy/blob/master/docs/ebs.md#delete) unchanged. This is useful when the volume need to be reused later.
 * [`docker rm -v`](https://github.com/rancher/convoy/blob/master/docs/docker.md#delete-container) would be treated as `convoy delete` with `-r/--reference`.
 * If you use `--rm` with `docker run`, all the volumes associated with the container would be deleted in the same way as executing `docker rm -v` when exit. See [Docker run reference](https://docs.docker.com/engine/reference/run/) for details.
 
@@ -218,3 +226,5 @@ And of course, [bug fixes](https://github.com/rancher/convoy/issues) are always 
 [Amazon Elastic Block Store](https://github.com/rancher/convoy/blob/master/docs/ebs.md)
 
 [Virtual File System/Network File System](https://github.com/rancher/convoy/blob/master/docs/vfs.md)
+
+[ProfitBricks](docs/profitbricks.md)

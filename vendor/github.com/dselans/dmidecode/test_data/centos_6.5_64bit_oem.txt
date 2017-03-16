@@ -1,0 +1,386 @@
+# dmidecode 2.12
+SMBIOS 2.4 present.
+28 structures occupying 1399 bytes.
+Table at 0x000FB9C0.
+
+Handle 0x0000, DMI type 0, 24 bytes
+BIOS Information
+	Vendor: American Megatrends Inc.
+	Version: P1.30
+	Release Date: 10/27/2006
+	Address: 0xF0000
+	Runtime Size: 64 kB
+	ROM Size: 512 kB
+	Characteristics:
+		PCI is supported
+		PNP is supported
+		BIOS is upgradeable
+		BIOS shadowing is allowed
+		Boot from CD is supported
+		Selectable boot is supported
+		BIOS ROM is socketed
+		EDD is supported
+		5.25"/1.2 MB floppy services are supported (int 13h)
+		3.5"/720 kB floppy services are supported (int 13h)
+		3.5"/2.88 MB floppy services are supported (int 13h)
+		Print screen service is supported (int 5h)
+		8042 keyboard services are supported (int 9h)
+		Serial services are supported (int 14h)
+		Printer services are supported (int 17h)
+		CGA/mono video services are supported (int 10h)
+		ACPI is supported
+		USB legacy is supported
+		LS-120 boot is supported
+		ATAPI Zip drive boot is supported
+		BIOS boot specification is supported
+		Function key-initiated network boot is supported
+		Targeted content distribution is supported
+	BIOS Revision: 8.12
+
+Handle 0x0001, DMI type 1, 27 bytes
+System Information
+	Manufacturer: To Be Filled By O.E.M.
+	Product Name: To Be Filled By O.E.M.
+	Version: To Be Filled By O.E.M.
+	Serial Number: To Be Filled By O.E.M.
+	UUID: 00020003-0004-0005-0006-000700080009
+	Wake-up Type: Power Switch
+	SKU Number: To Be Filled By O.E.M.
+	Family: To Be Filled By O.E.M.
+
+Handle 0x0002, DMI type 2, 15 bytes
+Base Board Information
+	Manufacturer:
+	Product Name: ConRoe945G-DVI
+	Version:
+	Serial Number:
+	Asset Tag:
+	Features:
+		Board is a hosting board
+		Board is replaceable
+	Location In Chassis:
+	Chassis Handle: 0x0003
+	Type: Motherboard
+	Contained Object Handles: 0
+
+Handle 0x0003, DMI type 3, 21 bytes
+Chassis Information
+	Manufacturer: To Be Filled By O.E.M.
+	Type: Desktop
+	Lock: Not Present
+	Version: To Be Filled By O.E.M.
+	Serial Number: To Be Filled By O.E.M.
+	Asset Tag: To Be Filled By O.E.M.
+	Boot-up State: Safe
+	Power Supply State: Safe
+	Thermal State: Safe
+	Security Status: None
+	OEM Information: 0x00000000
+	Height: Unspecified
+	Number Of Power Cords: 1
+	Contained Elements: 0
+
+Handle 0x0004, DMI type 4, 35 bytes
+Processor Information
+	Socket Designation: CPUSocket
+	Type: Central Processor
+	Family: Core 2
+	Manufacturer: Intel
+	ID: F6 06 00 00 FF FB EB BF
+	Signature: Type 0, Family 6, Model 15, Stepping 6
+	Flags:
+		FPU (Floating-point unit on-chip)
+		VME (Virtual mode extension)
+		DE (Debugging extension)
+		PSE (Page size extension)
+		TSC (Time stamp counter)
+		MSR (Model specific registers)
+		PAE (Physical address extension)
+		MCE (Machine check exception)
+		CX8 (CMPXCHG8 instruction supported)
+		APIC (On-chip APIC hardware supported)
+		SEP (Fast system call)
+		MTRR (Memory type range registers)
+		PGE (Page global enable)
+		MCA (Machine check architecture)
+		CMOV (Conditional move instruction supported)
+		PAT (Page attribute table)
+		PSE-36 (36-bit page size extension)
+		CLFSH (CLFLUSH instruction supported)
+		DS (Debug store)
+		ACPI (ACPI supported)
+		MMX (MMX technology supported)
+		FXSR (FXSAVE and FXSTOR instructions supported)
+		SSE (Streaming SIMD extensions)
+		SSE2 (Streaming SIMD extensions 2)
+		SS (Self-snoop)
+		HTT (Multi-threading)
+		TM (Thermal monitor supported)
+		PBE (Pending break enabled)
+	Version: Intel(R) Core(TM)2 CPU          6600  @ 2.40GHz
+	Voltage: 1.3 V
+	External Clock: 266 MHz
+	Max Speed: 2400 MHz
+	Current Speed: 2400 MHz
+	Status: Populated, Enabled
+	Upgrade: Other
+	L1 Cache Handle: 0x0005
+	L2 Cache Handle: 0x0006
+	L3 Cache Handle: Not Provided
+	Serial Number: To Be Filled By O.E.M.
+	Asset Tag: To Be Filled By O.E.M.
+	Part Number: To Be Filled By O.E.M.
+
+Handle 0x0005, DMI type 7, 19 bytes
+Cache Information
+	Socket Designation: L1-Cache
+	Configuration: Enabled, Not Socketed, Level 1
+	Operational Mode: Write Back
+	Location: Internal
+	Installed Size: 64 kB
+	Maximum Size: 64 kB
+	Supported SRAM Types:
+		Other
+	Installed SRAM Type: Other
+	Speed: Unknown
+	Error Correction Type: Parity
+	System Type: Data
+	Associativity: 8-way Set-associative
+
+Handle 0x0006, DMI type 7, 19 bytes
+Cache Information
+	Socket Designation: L2-Cache
+	Configuration: Enabled, Not Socketed, Level 2
+	Operational Mode: Write Back
+	Location: Internal
+	Installed Size: 4096 kB
+	Maximum Size: 4096 kB
+	Supported SRAM Types:
+		Other
+	Installed SRAM Type: Other
+	Speed: Unknown
+	Error Correction Type: Single-bit ECC
+	System Type: Instruction
+	Associativity: 8-way Set-associative
+
+Handle 0x0007, DMI type 5, 24 bytes
+Memory Controller Information
+	Error Detecting Method: 64-bit ECC
+	Error Correcting Capabilities:
+		None
+	Supported Interleave: One-way Interleave
+	Current Interleave: One-way Interleave
+	Maximum Memory Module Size: 4096 MB
+	Maximum Total Memory Size: 16384 MB
+	Supported Speeds:
+		Other
+	Supported Memory Types:
+		DIMM
+		SDRAM
+	Memory Module Voltage: 3.3 V
+	Associated Memory Slots: 4
+		0x0008
+		0x0009
+		0x000A
+		0x000B
+	Enabled Error Correcting Capabilities:
+		None
+
+Handle 0x0008, DMI type 6, 12 bytes
+Memory Module Information
+	Socket Designation: DIMM0
+	Bank Connections: 0 1
+	Current Speed: Unknown
+	Type: DIMM SDRAM
+	Installed Size: 1024 MB (Double-bank Connection)
+	Enabled Size: 1024 MB (Double-bank Connection)
+	Error Status: OK
+
+Handle 0x0009, DMI type 6, 12 bytes
+Memory Module Information
+	Socket Designation: DIMM1
+	Bank Connections: 2 3
+	Current Speed: Unknown
+	Type: DIMM SDRAM
+	Installed Size: Not Installed
+	Enabled Size: Not Installed
+	Error Status: OK
+
+Handle 0x000A, DMI type 6, 12 bytes
+Memory Module Information
+	Socket Designation: DIMM2
+	Bank Connections: 4 5
+	Current Speed: Unknown
+	Type: DIMM SDRAM
+	Installed Size: Not Installed
+	Enabled Size: Not Installed
+	Error Status: OK
+
+Handle 0x000B, DMI type 6, 12 bytes
+Memory Module Information
+	Socket Designation: DIMM3
+	Bank Connections: 6 7
+	Current Speed: Unknown
+	Type: DIMM SDRAM
+	Installed Size: Not Installed
+	Enabled Size: Not Installed
+	Error Status: OK
+
+Handle 0x000C, DMI type 9, 13 bytes
+System Slot Information
+	Designation: PCI1
+	Type: 32-bit PCI
+	Current Usage: In Use
+	Length: Short
+	ID: 1
+	Characteristics:
+		3.3 V is provided
+		Opening is shared
+		PME signal is supported
+
+Handle 0x000D, DMI type 9, 13 bytes
+System Slot Information
+	Designation: PCI2
+	Type: 32-bit PCI
+	Current Usage: Available
+	Length: Short
+	ID: 2
+	Characteristics:
+		3.3 V is provided
+		Opening is shared
+		PME signal is supported
+
+Handle 0x000E, DMI type 126, 13 bytes
+Inactive
+
+Handle 0x000F, DMI type 9, 13 bytes
+System Slot Information
+	Designation: PCIE2
+	Type: x1 PCI Express
+	Current Usage: Available
+	Length: Short
+	ID: 18
+	Characteristics:
+		3.3 V is provided
+		Opening is shared
+		PME signal is supported
+
+Handle 0x0010, DMI type 16, 15 bytes
+Physical Memory Array
+	Location: System Board Or Motherboard
+	Use: System Memory
+	Error Correction Type: None
+	Maximum Capacity: 4 GB
+	Error Information Handle: Not Provided
+	Number Of Devices: 4
+
+Handle 0x0011, DMI type 19, 15 bytes
+Memory Array Mapped Address
+	Starting Address: 0x00000000000
+	Ending Address: 0x0003FFFFFFF
+	Range Size: 1 GB
+	Physical Array Handle: 0x0010
+	Partition Width: 4
+
+Handle 0x0012, DMI type 17, 27 bytes
+Memory Device
+	Array Handle: 0x0010
+	Error Information Handle: Not Provided
+	Total Width: 64 bits
+	Data Width: 64 bits
+	Size: 1024 MB
+	Form Factor: DIMM
+	Set: None
+	Locator: DIMM0
+	Bank Locator: BANK0
+	Type: SDRAM
+	Type Detail: Synchronous
+	Speed: Unknown
+	Manufacturer: Manufacturer0
+	Serial Number: SerNum0
+	Asset Tag: AssetTagNum0
+	Part Number: PartNum0
+
+Handle 0x0013, DMI type 20, 19 bytes
+Memory Device Mapped Address
+	Starting Address: 0x00000000000
+	Ending Address: 0x0003FFFFFFF
+	Range Size: 1 GB
+	Physical Device Handle: 0x0012
+	Memory Array Mapped Address Handle: 0x0011
+	Partition Row Position: 1
+	Interleaved Data Depth: 1
+
+Handle 0x0014, DMI type 17, 27 bytes
+Memory Device
+	Array Handle: 0x0010
+	Error Information Handle: Not Provided
+	Total Width: Unknown
+	Data Width: 64 bits
+	Size: No Module Installed
+	Form Factor: DIMM
+	Set: None
+	Locator: DIMM1
+	Bank Locator: BANK1
+	Type: Unknown
+	Type Detail: Unknown
+	Speed: Unknown
+	Manufacturer: Manufacturer1
+	Serial Number: SerNum1
+	Asset Tag: AssetTagNum1
+	Part Number: PartNum1
+
+Handle 0x0015, DMI type 126, 19 bytes
+Inactive
+
+Handle 0x0016, DMI type 17, 27 bytes
+Memory Device
+	Array Handle: 0x0010
+	Error Information Handle: Not Provided
+	Total Width: Unknown
+	Data Width: 64 bits
+	Size: No Module Installed
+	Form Factor: DIMM
+	Set: None
+	Locator: DIMM2
+	Bank Locator: BANK2
+	Type: Unknown
+	Type Detail: Unknown
+	Speed: Unknown
+	Manufacturer: Manufacturer2
+	Serial Number: SerNum2
+	Asset Tag: AssetTagNum2
+	Part Number: PartNum2
+
+Handle 0x0017, DMI type 126, 19 bytes
+Inactive
+
+Handle 0x0018, DMI type 17, 27 bytes
+Memory Device
+	Array Handle: 0x0010
+	Error Information Handle: Not Provided
+	Total Width: Unknown
+	Data Width: 64 bits
+	Size: No Module Installed
+	Form Factor: DIMM
+	Set: None
+	Locator: DIMM3
+	Bank Locator: BANK3
+	Type: Unknown
+	Type Detail: Unknown
+	Speed: Unknown
+	Manufacturer: Manufacturer3
+	Serial Number: SerNum3
+	Asset Tag: AssetTagNum3
+	Part Number: PartNum3
+
+Handle 0x0019, DMI type 126, 19 bytes
+Inactive
+
+Handle 0x001A, DMI type 32, 20 bytes
+System Boot Information
+	Status: No errors detected
+
+Handle 0x001B, DMI type 127, 4 bytes
+End Of Table
+

@@ -1,0 +1,82 @@
+# dmidecode 2.12
+SMBIOS 2.5 present.
+10 structures occupying 449 bytes.
+Table at 0x000E1000.
+
+Handle 0x0000, DMI type 0, 20 bytes
+BIOS Information
+	Vendor: innotek GmbH
+	Version: VirtualBox
+	Release Date: 12/01/2006
+	Address: 0xE0000
+	Runtime Size: 128 kB
+	ROM Size: 128 kB
+	Characteristics:
+		ISA is supported
+		PCI is supported
+		Boot from CD is supported
+		Selectable boot is supported
+		8042 keyboard services are supported (int 9h)
+		CGA/mono video services are supported (int 10h)
+		ACPI is supported
+
+Handle 0x0001, DMI type 1, 27 bytes
+System Information
+	Manufacturer: innotek GmbH
+	Product Name: VirtualBox
+	Version: 1.2
+	Serial Number: 0
+	UUID: F548DD5F-057D-4F7F-9465-FC529E045C08
+	Wake-up Type: Power Switch
+	SKU Number: Not Specified
+	Family: Virtual Machine
+
+Handle 0x0008, DMI type 2, 15 bytes
+Base Board Information
+	Manufacturer: Oracle Corporation
+	Product Name: VirtualBox
+	Version: 1.2
+	Serial Number: 0
+	Asset Tag: Not Specified
+	Features:
+		Board is a hosting board
+	Location In Chassis: Not Specified
+	Chassis Handle: 0x0003
+	Type: Motherboard
+	Contained Object Handles: 0
+
+Handle 0x0003, DMI type 3, 13 bytes
+Chassis Information
+	Manufacturer: Oracle Corporation
+	Type: Other
+	Lock: Not Present
+	Version: Not Specified
+	Serial Number: Not Specified
+	Asset Tag: Not Specified
+	Boot-up State: Safe
+	Power Supply State: Safe
+	Thermal State: Safe
+	Security Status: None
+
+Handle 0x0007, DMI type 126, 42 bytes
+Inactive
+
+Handle 0x0005, DMI type 126, 15 bytes
+Inactive
+
+Handle 0x0006, DMI type 126, 28 bytes
+Inactive
+
+Handle 0x0002, DMI type 11, 7 bytes
+OEM Strings
+	String 1: vboxVer_4.3.20
+	String 2: vboxRev_96996
+
+Handle 0x0008, DMI type 128, 8 bytes
+OEM-specific Type
+	Header and Data:
+		80 08 08 00 E1 63 22 00
+
+Handle 0xFEFF, DMI type 127, 4 bytes
+End Of Table
+

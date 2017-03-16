@@ -41,7 +41,7 @@ OPTIONS:
 ```
 1. ```daemon``` command would start the Convoy daemon.The same Convoy binary would be used to start daemon as well as used as the client to communicate with daemon. In order to use Convoy, user need to setup and start the Convoy daemon first. Convoy daemon would run in the foreground by default. User can use various method e.g. [init-script](https://github.com/fhd/init-script-template) to start Convoy as background daemon.
 2. ```--root``` option would specify Convoy daemon's config root directory. After start Convoy on the host for the first time, it would contains all the information necessary for Convoy to start. After first time of start up, ```convoy daemon``` would automatically load configuration from config root directory. User don't need to specify same configurations anymore.
-3. ```--drivers``` and ```--driver-opts``` can be specified multiple times. ```--drivers``` would be the name of Convoy Driver, and ````--driver-opts``` would be the options for initialize the certain driver. See [```devicemapper```](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#driver-initialization), ```vfs```, ```ebs``` for driver option details. If there are multiple drivers specified, the first one in the list would be the default driver. See ```convoy create``` for details.
+3. ```--drivers``` and ```--driver-opts``` can be specified multiple times. ```--drivers``` would be the name of Convoy Driver, and ````--driver-opts``` would be the options for initialize the certain driver. See [```devicemapper```](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#driver-initialization), ```vfs```, ```ebs```, [`profitbricks`](profitbricks.md/#driver-options) for driver option details. If there are multiple drivers specified, the first one in the list would be the default driver. See ```convoy create``` for details.
 
 
 #### info
@@ -71,7 +71,7 @@ OPTIONS:
 ```
 1. ```create``` command would create a volume. ```volume_name``` is optional. If no ```volume_name``` specified, an automatically name would be generated in format of ```volume-xxxxxxxx```, in which last 8 characters would be the first 8 characters of volume's automatical generated UUID. The ```volume_name``` here would be the name user used with Docker.
 2. ```--driver``` option would be used to specify which driver to use if there are more than one driver supported in the setup. Without the option, the default driver(first driver in the list of ```--drivers``` when executing ```daemon``` command) would be used.
-3. ```--size``` option would be used to specify a volume's size if driver supports. Current it's supported by ```devicemapper``` and ```ebs```.
+3. ```--size``` option would be used to specify a volume's size if driver supports. Current it's supported by ```devicemapper```, ```ebs```, and ```profitbricks```.
 4. ```--backup``` option would be used to specify create a volume from existing backup. The backup would be in a format of URL and can be driver specific. See [backup] command for more details.
 5. ```--id```, ```--type```, ```--iops``` are driver specific options. Currenty they're supported by ```ebs```.
 
@@ -87,7 +87,7 @@ OPTIONS:
    --reference, -r	only delete the reference of volume if driver supports
 ```
 1. Volume can be referred by name, UUID, or partial UUID.
-2. ```--reference``` would only delete the reference of volume if driver supports. It provides ability to retain the volume after volume no longer managed by Convoy. Current it's supported by ```vfs``` and ```ebs```. 
+2. ```--reference``` would only delete the reference of volume if driver supports. It provides ability to retain the volume after volume no longer managed by Convoy. Current it's supported by ```vfs```, ```ebs```, and ```profitbricks```.
 
 #### mount
 ```
