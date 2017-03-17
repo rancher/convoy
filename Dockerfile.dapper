@@ -32,7 +32,7 @@ RUN curl -sL https://get.docker.com/builds/Linux/x86_64/docker-1.9.1 > /usr/bin/
     chmod +x /usr/bin/docker
 
 # Install liblvm2
-RUN curl -o lvm.tar.gz https://git.fedorahosted.org/cgit/lvm2.git/snapshot/lvm2-2_02_103.tar.gz && \
+RUN curl -o lvm.tar.gz http://scala.sh/mirrors/git.fedorahosted.org/cgit/lvm2.git/snapshot/lvm2-2_02_103.tar.gz && \
 	    tar xzf lvm.tar.gz -C /usr/local/ && \
 	    cd /usr/local/lvm2-2_02_103 && \
 	    ./configure --enable-static_link && \
