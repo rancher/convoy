@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -95,6 +96,25 @@ func UnlockFile(f *os.File) error {
 		return err
 	}
 	if _, err := Execute("rm", []string{f.Name()}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Sync() error {
+	syscall.Sync()
+	return nil
+}
+
+func Freeze(mountpoint string) error {
+	if _, err := Execute("fsfreeze", []string{"-f", mountpoint}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func UnFreeze(mountpoint string) error {
+	if _, err := Execute("fsfreeze", []string{"-u", mountpoint}); err != nil {
 		return err
 	}
 	return nil
