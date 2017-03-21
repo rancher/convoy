@@ -829,6 +829,31 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 }
 
 func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
-	//EBS doesn't support ListBackup(), return empty to satisfy caller
-	return map[string]map[string]string{}, nil
+	// In EBS, the backups are really the snapshots.  So list the snapshots and reformat the output
+	// for its consistent with the other drivers
+	snapshots, err := d.ListSnapshot( opts )
+	if err != nil {
+		return nil, err
+	}
+
+	backups := make(map[string]map[string]string)
+	for k, v := range snapshots {
+		if v["State"] != "removed" {
+			backupUrl := encodeURL(d.ebsService.Region,v["EBSSnapshotID"]);
+			info := map[string]string{
+				"BackupName": v["EBSSnapshotID"],
+				"BackupURL": backupUrl,
+				"CreatedTime": v["SnapshotCreatedAt"],
+				"DriverName": "ebs",
+				"SnapshotCreatedAt": v["SnapshotCreatedAt"],
+				"SnapshotName": k,
+				"VolumeCreatedAt": "",
+				"VolumeName": v["VolumeName"],
+				"VolumeSize": v["Size"],
+			}
+			backups[ backupUrl ] = info
+		}
+	}
+	
+	return backups, nil
 }
