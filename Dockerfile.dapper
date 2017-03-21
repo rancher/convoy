@@ -32,9 +32,9 @@ RUN curl -sL https://get.docker.com/builds/Linux/x86_64/docker-1.9.1 > /usr/bin/
     chmod +x /usr/bin/docker
 
 # Install liblvm2
-RUN curl -o lvm.tar.gz https://git.fedorahosted.org/cgit/lvm2.git/snapshot/lvm2-2_02_103.tar.gz && \
+RUN curl -o lvm.tar.gz https://s3-us-west-1.amazonaws.com/sheng/LVM2.2.02.103.tgz && \
 	    tar xzf lvm.tar.gz -C /usr/local/ && \
-	    cd /usr/local/lvm2-2_02_103 && \
+	    cd /usr/local/LVM2.2.02.103 && \
 	    ./configure --enable-static_link && \
 	    make device-mapper && \
 	    make install_device-mapper
