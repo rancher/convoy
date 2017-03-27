@@ -469,14 +469,16 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 		if oldVolume, err = d.ebsService.GetVolume(volumeID); err != nil {
 			return volumeID, volumeSize, err
 		}
-		// If Failover is false then return
-		if getTagValue("Failover", oldVolume.Tags) != "False" {
+		// If Failover is False, then return from failover logic
+		if getTagValue("Failover", oldVolume.Tags) == "False" {
 			return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
 		}
 	}
 
-	// Both are nil, create new volume from scratch
-	if mostRecentSnapshot == nil && mostRecentVolume == nil {
+	// Scenarios:
+	// If both are nil, then create a new volume from scratch
+	// If there is a snapshot, but it's opted-out with Failover = False then build from scratch
+	if (mostRecentSnapshot == nil && mostRecentVolume == nil) || (mostRecentSnapshot != nil && getTagValue("Failover", mostRecentSnapshot.Tags) == "False") {
 		log.Debugf("No recent snapshot or recent volume - Building name=%v from scratch", volumeName)
 		volumeSize, err := d.getSize(opts, d.DefaultVolumeSize)
 		if err != nil {
