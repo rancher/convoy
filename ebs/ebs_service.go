@@ -127,25 +127,24 @@ func (s *ebsService) isEC2Instance() bool {
 }
 
 func (s *ebsService) waitForVolumeTransition(volumeID, start, end string) error {
-	log.Debugf("Starting wait from %s to %s for %s", start, end, volumeID)
+	log.Debugf("Waiting for volume=%v to transition from %v to %v", volumeID, start, end)
 	volume, err := s.GetVolume(volumeID)
 	if err != nil {
-		log.Errorf("Got error to get volume %s", volumeID)
+		log.Errorf("Error getting volume=%v: %s", volumeID, err)
 		return err
 	}
 
 	timeChan := time.NewTimer(time.Second * 61).C
-	tickChan := time.NewTicker(time.Second * 3).C //tick at most 20 times before err out
+	tickChan := time.NewTicker(time.Second * 3).C // Tick at most 20 times before err out.
 
 POLL:
 	for *volume.State == start {
 		select {
 		case <-timeChan:
-			log.Debugf("Timeout Reached, stopping to poll volume state")
+			log.Debugf("Timed out waiting for volume=%v state transition from %v to %v - Volume state polling stopped", volumeID, start, end)
 			break POLL
 		case <-tickChan:
-			log.Debugf("Waiting for volume %v state transiting from %v to %v",
-				volumeID, start, end)
+			log.Debugf("Still waiting for volume=%v state transition from %v to %v ..", volumeID, start, end)
 			volume, err = s.GetVolume(volumeID)
 			if err != nil {
 				return err
@@ -153,8 +152,7 @@ POLL:
 		}
 	}
 	if *volume.State != end {
-		return util.NewConvoyDriverErr(fmt.Errorf("Cannot finish volume %v state transition, from %v to %v, though final state %v",
-			volumeID, start, end, *volume.State), util.ErrVolumeTransitionCode)
+		return util.NewConvoyDriverErr(fmt.Errorf("Incomplete state transition for volume=%v from %v to %v; final-state=%v", volumeID, start, end, *volume.State), util.ErrVolumeTransitionCode)
 	}
 	return nil
 }
@@ -181,10 +179,10 @@ WAIT:
 	for *attachment.State == ec2.VolumeAttachmentStateAttaching {
 		select {
 		case <-timeChan:
-			log.Debugf("Timeout Reached, stopping to wait for volume to attach")
+			log.Debugf("Timed out waiting for volume=%v to attach - Attachment state polling stopped", volumeID)
 			break WAIT
 		case <-tickChan:
-			log.Debugf("Waiting for volume %v attaching", volumeID)
+			log.Debugf("Still waiting for volume=%v to finish attaching..", volumeID)
 			volume, err := s.GetVolume(volumeID)
 			if err != nil {
 				return err
@@ -192,12 +190,12 @@ WAIT:
 			if len(volume.Attachments) != 0 {
 				attachment = volume.Attachments[0]
 			} else {
-				return util.NewConvoyDriverErr(fmt.Errorf("Attaching failed for %s", volumeID), util.ErrVolumeAttachFailureCode)
+				return util.NewConvoyDriverErr(fmt.Errorf("Attaching failed for volume=%v", volumeID), util.ErrVolumeAttachFailureCode)
 			}
 		}
 	}
 	if *attachment.State != ec2.VolumeAttachmentStateAttached {
-		return util.NewConvoyDriverErr(fmt.Errorf("Cannot attach volume, final state %v", *attachment.State), util.ErrVolumeAttachFailureCode)
+		return util.NewConvoyDriverErr(fmt.Errorf("Cannot attach volume=%v, final state=%v", volumeID, *attachment.State), util.ErrVolumeAttachFailureCode)
 	}
 	return nil
 }
@@ -277,17 +275,16 @@ func (s *ebsService) CreateVolume(request *CreateEBSVolumeRequest) (string, erro
 
 	volumeID := *ec2Volume.VolumeId
 	if err = s.waitForVolumeTransition(volumeID, ec2.VolumeStateCreating, ec2.VolumeStateAvailable); err != nil {
-		log.Debug("Failed to create volume: ", err)
+		log.Debugf("Failed to create volume=%v: %s", volumeID, err)
 		err = s.DeleteVolume(volumeID)
 		if err != nil {
-			log.Errorf("Failed deleting volume: %v", parseAwsError(err))
+			log.Errorf("Failed deleting volume=%v: %s", volumeID, parseAwsError(err))
 		}
-		return "", util.NewConvoyDriverErr(fmt.Errorf("Failed creating volume with size %v and snapshot %v",
-			size, snapshotID), util.ErrVolumeCreateFailureCode)
+		return "", util.NewConvoyDriverErr(fmt.Errorf("Failed creating volume with size=%v and snapshot=%v", size, snapshotID), util.ErrVolumeCreateFailureCode)
 	}
 	if request.Tags != nil {
 		if err := s.AddTags(volumeID, request.Tags); err != nil {
-			log.Warnf("Unable to tag %v with %v, but continue", volumeID, request.Tags)
+			log.Warnf("Unable to tag volume=%v with tags=%+v; will still continue on", volumeID, request.Tags)
 		}
 	}
 
@@ -353,7 +350,7 @@ func (s *ebsService) GetVolume(volumeID string) (*ec2.Volume, error) {
 		return nil, parseAwsError(err)
 	}
 	if len(volumes.Volumes) != 1 {
-		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find volume %v", volumeID), util.ErrVolumeNotFoundCode)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find volume=%v", volumeID), util.ErrVolumeNotFoundCode)
 	}
 	return volumes.Volumes[0], nil
 }
@@ -395,9 +392,9 @@ func (s *ebsService) GetVolumeByName(volumeName, dcName string) (*ec2.Volume, er
 	// Since tag Name is not AWS's identifying attribute (i.e. volume_id), we can get multiple results with same name
 	// Return the last one, i.e. the latest one.
 	if len(finalVolumes) == 0 {
-		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find volume by name %s in region %s in az %s", volumeName, s.Region, s.AvailabilityZone), util.ErrVolumeNotFoundCode)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find volume by name=%v in region=%v in az=%v", volumeName, s.Region, s.AvailabilityZone), util.ErrVolumeNotFoundCode)
 	} else if len(finalVolumes) > 1 {
-		return nil, util.NewConvoyDriverErr(fmt.Errorf("Found multiple volumes with name %s", volumeName), util.ErrVolumeMultipleInstancesCode)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Found multiple volumes with name=%v", volumeName), util.ErrVolumeMultipleInstancesCode)
 	}
 	return finalVolumes[0], nil
 }
@@ -435,8 +432,7 @@ func getAttachedDev(oldDevList map[string]bool, size int64) (string, error) {
 		devSize *= 512
 		if devSize == size {
 			if attachedDev != "" {
-				return "", fmt.Errorf("Found more than one device matching description, %v and %v",
-					attachedDev, dev)
+				return "", fmt.Errorf("Found more than one device matching description, attachedDev=%v and dev=%v", attachedDev, dev)
 			}
 			attachedDev = dev
 		}
@@ -474,7 +470,7 @@ func (s *ebsService) getInstanceDevList() (map[string]bool, error) {
 
 func (s *ebsService) FindFreeDeviceForAttach() (string, error) {
 	availableDevs := make(map[string]bool)
-	// Recommended available devices for EBS volume from AWS website
+	// Recommended available devices for EBS volume from AWS documentation.
 	chars := "fghijklmnop"
 	for i := 0; i < len(chars); i++ {
 		availableDevs["/dev/sd"+string(chars[i])] = true
@@ -494,7 +490,7 @@ func (s *ebsService) FindFreeDeviceForAttach() (string, error) {
 			return dev, nil
 		}
 	}
-	return "", util.NewConvoyDriverErr(fmt.Errorf("Cannot find an available device for instance %v", s.InstanceID), util.ErrDeviceFailureCode)
+	return "", util.NewConvoyDriverErr(fmt.Errorf("Cannot find an available device for instance=%v", s.InstanceID), util.ErrDeviceFailureCode)
 }
 
 func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
@@ -503,7 +499,7 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 		return "", err
 	}
 
-	log.Debugf("Attaching %v to %v's %v", volumeID, s.InstanceID, dev)
+	log.Debugf("Attaching volume=%v to isntance=%v via dev=%v", volumeID, s.InstanceID, dev)
 	params := &ec2.AttachVolumeInput{
 		Device:     aws.String(dev),
 		InstanceId: aws.String(s.InstanceID),
@@ -520,7 +516,7 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 	}
 
 	if err = s.waitForVolumeAttaching(volumeID); err != nil {
-		log.Errorf("Error in attaching: %s - Trying force detach to free the volume and returning err", err.Error())
+		log.Errorf("Error in attaching volume=%v: %s - Trying force detach to free the volume and returning err", volumeID, err)
 		forceDetachParams := &ec2.DetachVolumeInput{
 			VolumeId:   aws.String(volumeID),
 			InstanceId: aws.String(s.InstanceID),
@@ -534,17 +530,17 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 		forceDetachErr := s.waitForVolumeTransition(volumeID, ec2.VolumeAttachmentStateAttaching, ec2.VolumeStateAvailable)
 
 		if forceDetachErr != nil {
-			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
-			return "", util.NewConvoyDriverErr(fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error()), util.ErrVolumeDetachFailureCode)
+			log.Errorf("Error in force detach's state transition for volume=%v: %s - Returning the error", volumeID, forceDetachErr)
+			return "", util.NewConvoyDriverErr(fmt.Errorf("Force Detach error: %s", forceDetachErr), util.ErrVolumeDetachFailureCode)
 		}
 
 		fdTag := make(map[string]string)
 		fdTag["ForceDetached"] = "true"
 		if tagErr := s.AddTags(s.InstanceID, fdTag); tagErr != nil {
-			log.Warnf("Problem adding force-detach tags=%+v to instanceID=%q: %s (continuing despite this error)", fdTag, s.InstanceID, tagErr)
+			log.Warnf("Problem adding force-detach tags=%+v to instance=%v for volume=%v: %s - Continuing despite this error", fdTag, s.InstanceID, volumeID, tagErr)
 		}
 
-		log.Debugf("Successfully force detached the volume %s", volumeID)
+		log.Debugf("Successfully force detached volume=%v", volumeID)
 		return "", err
 	}
 
@@ -569,7 +565,7 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 
 	if detachErr != nil {
 		//error in state transition, force detach and free volume
-		log.Errorf("Error in detach's state transition: %s - Trying force detach to free the volume", detachErr.Error())
+		log.Errorf("Error in detachment state transition for volume=%v: %s - Trying force detach to free the volume", volumeID, detachErr)
 		forceDetachParams := &ec2.DetachVolumeInput{
 			VolumeId:   aws.String(volumeID),
 			InstanceId: aws.String(s.InstanceID),
@@ -583,20 +579,20 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 		forceDetachErr := s.waitForVolumeTransition(volumeID, ec2.VolumeStateInUse, ec2.VolumeStateAvailable)
 
 		if forceDetachErr != nil {
-			log.Errorf("Error in force detach's state transition: %s - Returning the error", forceDetachErr.Error())
-			return util.NewConvoyDriverErr(fmt.Errorf("Force Detach Err: %s", forceDetachErr.Error()), util.ErrVolumeDetachFailureCode)
+			log.Errorf("Error in force detach's state transition for volume=%v: %s - Returning the error", volumeID, forceDetachErr)
+			return util.NewConvoyDriverErr(fmt.Errorf("Force-detach: %v", forceDetachErr), util.ErrVolumeDetachFailureCode)
 		}
 
 		fdTag := make(map[string]string)
 		fdTag["ForceDetached"] = "true"
 		if tagErr := s.AddTags(s.InstanceID, fdTag); tagErr != nil {
-			log.Warnf("Problem adding force-detach tags=%+v to instanceID=%q: %s (continuing despite this error)", fdTag, s.InstanceID, tagErr)
+			log.Warnf("Problem adding force-detach tags=%+v to instance=%v for volume=%v: %s - Continuing despite this error", fdTag, s.InstanceID, volumeID, tagErr)
 		}
 
-		log.Debugf("Successfully force detached the volume %s", volumeID)
+		log.Debugf("Successfully force-detached volume=%v", volumeID)
 		return forceDetachErr
 	}
-	log.Debugf("Successfully detached the volume %s", volumeID)
+	log.Debugf("Successfully detached volume=%v", volumeID)
 	return detachErr
 }
 
@@ -635,7 +631,7 @@ func (s *ebsService) GetMostRecentAvailableVolume(volumeName string, dcName stri
 		},
 	}
 	volumeInput.Filters = append(volumeInput.Filters, filters...)
-	log.Printf("GetMostRecentAvailableVolume API filters Name=%s DCName=%s Status=available", volumeName, dcName)
+	log.Debugf("GetMostRecentAvailableVolume API filters Name=%v DCName=%v Status=available", volumeName, dcName)
 	req, volOutput := s.ec2Client.DescribeVolumesRequest(volumeInput)
 	if err := req.Send(); err != nil {
 		return nil, util.NewConvoyDriverErr(err, util.ErrVolumeNotAvailableCode)
@@ -705,7 +701,7 @@ func (s *ebsService) GetSnapshotWithRegion(snapshotID, region string) (*ec2.Snap
 		return nil, parseAwsError(err)
 	}
 	if len(snapshots.Snapshots) != 1 {
-		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find snapshot %v", snapshotID), util.ErrSnapshotNotFoundCode)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Cannot find snapshot=%v", snapshotID), util.ErrSnapshotNotFoundCode)
 	}
 	return snapshots.Snapshots[0], nil
 }
@@ -721,7 +717,7 @@ func (s *ebsService) WaitForSnapshotComplete(snapshotID string) error {
 		return err
 	}
 	for *snapshot.State == ec2.SnapshotStatePending {
-		log.Debugf("Snapshot %v process %v", *snapshot.SnapshotId, *snapshot.Progress)
+		log.Debugf("Snapshot=%v progress=%v", *snapshot.SnapshotId, *snapshot.Progress)
 		snapshot, err = s.GetSnapshot(snapshotID)
 		if err != nil {
 			return err
@@ -741,7 +737,7 @@ func (s *ebsService) CreateSnapshot(request *CreateSnapshotRequest) (string, err
 	}
 	if request.Tags != nil {
 		if err := s.AddTags(*resp.SnapshotId, request.Tags); err != nil {
-			log.Warnf("Unable to tag %v with %v, but continue", *resp.SnapshotId, request.Tags)
+			log.Warnf("Unable to tag snapshot=%v with tags=%+v - Continuing to move forward", *resp.SnapshotId, request.Tags)
 		}
 	}
 	return *resp.SnapshotId, nil
@@ -782,7 +778,7 @@ func (s *ebsService) AddTags(resourceID string, tags map[string]string) error {
 	if tags == nil {
 		return nil
 	}
-	log.Debugf("Adding tags for %v, as %v", resourceID, tags)
+	log.Debugf("Adding tags for resourceID=%v and tags=%+v", resourceID, tags)
 	params := &ec2.CreateTagsInput{
 		Resources: []*string{
 			aws.String(resourceID),
@@ -809,7 +805,7 @@ func (s *ebsService) DeleteTags(resourceID string, tags map[string]string) error
 	if tags == nil {
 		return nil
 	}
-	log.Debugf("Deleting tags for %v, as %v", resourceID, tags)
+	log.Debugf("Deleting tags for resourceID=%v and tags=%+v", resourceID, tags)
 	params := &ec2.DeleteTagsInput{
 		Resources: []*string{
 			aws.String(resourceID),

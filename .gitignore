@@ -33,3 +33,5 @@ _testmain.go
 *.prof
 
 longhorn/template.go
+
+/.dapper
