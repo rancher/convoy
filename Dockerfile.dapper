@@ -14,46 +14,60 @@ RUN apt-get update && \
         psmisc \
         python-tox
 
-# Install Go 1.6
-RUN curl -o go.tar.gz https://storage.googleapis.com/golang/go1.6.2.linux-amd64.tar.gz
-RUN echo 'e40c36ae71756198478624ed1bb4ce17597b3c19d243f3f0899bb5740d56212a  go.tar.gz' | sha256sum -c && \
-    tar xzf go.tar.gz -C /usr/local && \
-    rm go.tar.gz
-RUN mkdir -p /go
-ENV PATH $PATH:/usr/local/go/bin
-ENV GOPATH=/go
+# Install Go
+ENV GOVERSION 1.6.2
+ENV GOSHA256 e40c36ae71756198478624ed1bb4ce17597b3c19d243f3f0899bb5740d56212a
+
+RUN curl -o go${GOVERSION}.linux-amd64.tar.gz https://storage.googleapis.com/golang/go${GOVERSION}.linux-amd64.tar.gz \
+    && echo "${GOSHA256} go${GOVERSION}.linux-amd64.tar.gz" | sha256sum --check \
+    && tar -xzf go${GOVERSION}.linux-amd64.tar.gz -C /usr/local \
+    && rm go${GOVERSION}.linux-amd64.tar.gz \
+    && mkdir -p /go
+
+ENV GOROOT /usr/local/go
+ENV GOPATH /go
+ENV PATH $PATH:${GOROOT}/bin:${GOPATH}/bin
 
 # Go tools
 RUN go get github.com/rancher/trash
 RUN go get github.com/golang/lint/golint
 
 # Docker
-RUN curl -sL https://get.docker.com/builds/Linux/x86_64/docker-1.9.1 > /usr/bin/docker && \
-    chmod +x /usr/bin/docker
+RUN curl -sSL https://get.docker.com/builds/Linux/x86_64/docker-1.9.1 > /usr/bin/docker \
+    && chmod +x /usr/bin/docker
 
 # Install liblvm2
-RUN curl -o lvm.tar.gz http://scala.sh/mirrors/git.fedorahosted.org/cgit/lvm2.git/snapshot/lvm2-2_02_103.tar.gz && \
-	    tar xzf lvm.tar.gz -C /usr/local/ && \
-	    cd /usr/local/lvm2-2_02_103 && \
-	    ./configure --enable-static_link && \
-	    make device-mapper && \
-	    make install_device-mapper
+ENV LVM2SHA256 5a6428b6d9169a09100c83403e386daa7bb96296066414750f54dfbf4ebb6f90
+
+RUN curl -o lvm.tar.gz http://scala.sh/mirrors/git.fedorahosted.org/cgit/lvm2.git/snapshot/lvm2-2_02_103.tar.gz \
+    && echo "${LVM2SHA256} lvm.tar.gz" | sha256sum --check \
+    && tar xzf lvm.tar.gz -C /usr/local/ \
+    && cd /usr/local/lvm2-2_02_103 \
+    && ./configure --enable-static_link \
+    && make device-mapper \
+    && make install_device-mapper
 
 # Install convoy-pdata_tools
-RUN curl -sL https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2.1/convoy-pdata_tools > /usr/local/bin/convoy-pdata_tools && \
-	    chmod a+x /usr/local/bin/convoy-pdata_tools
+ENV PDATATOOLSSHA256 e7dea0a8f9c7d3ba46b4726b021a87f93e4ade849e9707c6f77b1a77c85f59d5
+
+RUN curl -sSL https://github.com/rancher/thin-provisioning-tools/releases/download/convoy-v0.2.1/convoy-pdata_tools > /usr/local/bin/convoy-pdata_tools \
+    && echo "${PDATATOOLSSHA256} /usr/local/bin/convoy-pdata_tools" | sha256sum --check \
+    && chmod a+x /usr/local/bin/convoy-pdata_tools
 
 # Setup environment
-ENV PATH /go/bin:$PATH
 ENV DAPPER_DOCKER_SOCKET true
 ENV DAPPER_ENV TAG REPO
 ENV DAPPER_OUTPUT ./bin ./dist
 ENV DAPPER_RUN_ARGS --privileged
 ENV DAPPER_SOURCE /go/src/github.com/rancher/convoy
 ENV TRASH_CACHE ${DAPPER_SOURCE}/.trash-cache
+
 WORKDIR ${DAPPER_SOURCE}
 
 VOLUME /tmp
+
 ENV TMPDIR /tmp
+
 ENTRYPOINT ["./scripts/entry"]
+
 CMD ["build"]
