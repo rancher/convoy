@@ -37,12 +37,11 @@ RUN curl -sSL https://get.docker.com/builds/Linux/x86_64/docker-1.9.1 > /usr/bin
     && chmod +x /usr/bin/docker
 
 # Install liblvm2
-ENV LVM2SHA256 5a6428b6d9169a09100c83403e386daa7bb96296066414750f54dfbf4ebb6f90
+ENV LVM2TAG c09aa3a299201a0cf34485fb8b1738fb81215bfa
 
-RUN curl -o lvm.tar.gz http://scala.sh/mirrors/git.fedorahosted.org/cgit/lvm2.git/snapshot/lvm2-2_02_103.tar.gz \
-    && echo "${LVM2SHA256} lvm.tar.gz" | sha256sum --check \
-    && tar xzf lvm.tar.gz -C /usr/local/ \
-    && cd /usr/local/lvm2-2_02_103 \
+RUN git clone git://sourceware.org/git/lvm2.git /usr/local/lvm2 \
+    && cd /usr/local/lvm2 \
+    && git checkout "${LVM2TAG}" \
     && ./configure --enable-static_link \
     && make device-mapper \
     && make install_device-mapper
