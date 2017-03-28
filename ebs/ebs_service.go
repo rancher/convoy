@@ -471,7 +471,7 @@ func (s *ebsService) getInstanceDevList() (map[string]bool, error) {
 func (s *ebsService) FindFreeDeviceForAttach() (string, error) {
 	availableDevs := make(map[string]bool)
 	// Recommended available devices for EBS volume from AWS documentation.
-	chars := "fghijklmnop"
+	chars := "fghijklmnopqrstuvwxyz"
 	for i := 0; i < len(chars); i++ {
 		availableDevs["/dev/sd"+string(chars[i])] = true
 	}
