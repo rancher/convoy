@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
-	"os/user"
+	"strings"
 )
 
 var (
@@ -90,11 +90,11 @@ func sudoCmd(name string, args ...string) (*exec.Cmd, error) {
 // sudoCmdPrefix accounts for sudo only being necessary when UID != 0 (i.e. when not
 // root).
 func sudoCmdPrefix() ([]string, error) {
-	u, err := user.Current()
+	uid, err := exec.Command("id", "--user").Output()
 	if err != nil {
 		return nil, err
 	}
-	if u.Uid != "0" {
+	if strings.Trim(string(uid), "\n") != "0" {
 		return []string{"sudo", "-n"}, nil
 	}
 	return nil, nil
