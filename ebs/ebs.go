@@ -409,10 +409,6 @@ func (d *Driver) BuildFromSnapshot(oldVolume *ec2.Volume, snapshot *ec2.Snapshot
 		return volumeID, volumeSize, err
 	}
 	log.Debugf("Created volume=%v from EBS snapshot=%v", volumeID, *snapshot.SnapshotId)
-	log.Debugf("Launching snapshot creation for new volume=%v", volumeID)
-	if _, err := d.ebsService.LaunchSnapshot(volumeID, fmt.Sprintf("Initial snapshot of Convoy volume: %v", volumeID), convertEc2TagsToMap(snapshot.Tags)); err != nil {
-		return "", -1, err
-	}
 	return volumeID, volumeSize, nil
 }
 
@@ -640,12 +636,6 @@ func (d *Driver) CreateVolume(req Request) error {
 		log.Debugf("Formatting device=%v with filesystem type=%v", volume.Device, d.DefaultFSType)
 		if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
 			return err
-		}
-		log.Debugf("Launching snapshot creation for brand new volume name=%v", volumeName)
-		// This is purposefully non-blocking. Create snapshot is an optimization.
-		// Snapshotting immediately after creation allows for quicker subsequent snapshots.
-		if _, err := d.ebsService.LaunchSnapshot(volumeID, fmt.Sprintf("Initial snapshot of Convoy volume %v", volumeName), newTags); err != nil {
-			log.Debugf("Failed to create snapshot for name=%v: %+v - This is a non-fatal issue, so continuing on", volumeName, err)
 		}
 	}
 
