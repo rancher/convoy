@@ -14,4 +14,4 @@ fi
 
 PACKAGES=". $(find -name '*.go' | xargs -I{} dirname {} |  cut -f2 -d/ | sort -u | grep -Ev '(^\.$|.git|.trash-cache|vendor|bin)' | sed -e 's!^!./!' -e 's!$!/...!')"
 
-go test -race -cover -tags "libdm_no_deferred_remove s3test" -ldflags "-linkmode external -extldflags -static" ${PACKAGES}
+go test -v -race -cover -tags "libdm_no_deferred_remove s3test" -ldflags "-linkmode external -extldflags -static" ${PACKAGES}

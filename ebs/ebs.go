@@ -50,7 +50,7 @@ const (
 
 type Driver struct {
 	mutex      *sync.RWMutex
-	ebsService *ebsService
+	ebsService EBS
 	Device
 }
 
@@ -96,6 +96,13 @@ func getTagValue(key string, tags []*ec2.Tag) string {
 		}
 	}
 	return ""
+}
+
+func shouldFailover(tags []*ec2.Tag) bool {
+	if strings.ToLower(getTagValue("Failover", tags)) == "false" {
+		return false
+	}
+	return true
 }
 
 func (d *Driver) blankVolume(name string) *Volume {
@@ -175,6 +182,68 @@ func (d *Driver) remountVolumes() error {
 	return err
 }
 
+func getDefaultDevice(root string, config map[string]string) (*Device, error) {
+	if config[EBS_DEFAULT_VOLUME_SIZE] == "" {
+		config[EBS_DEFAULT_VOLUME_SIZE] = DEFAULT_VOLUME_SIZE
+	}
+	size, err := util.ParseSize(config[EBS_DEFAULT_VOLUME_SIZE])
+	if err != nil {
+		return nil, err
+	}
+	if config[EBS_DEFAULT_VOLUME_TYPE] == "" {
+		config[EBS_DEFAULT_VOLUME_TYPE] = DEFAULT_VOLUME_TYPE
+	}
+	volumeType := config[EBS_DEFAULT_VOLUME_TYPE]
+	if err := checkVolumeType(volumeType); err != nil {
+		return nil, err
+	}
+	if config[EBS_CLUSTER_NAME] == "" {
+		config[EBS_CLUSTER_NAME] = DEFAULT_CLUSTER_NAME
+	}
+	log.Debugf("Setting driver DCName=%q", config[EBS_CLUSTER_NAME])
+	dcName := config[EBS_CLUSTER_NAME]
+	if config[EBS_DEFAULT_FILESYSTEM] == "" {
+		config[EBS_DEFAULT_FILESYSTEM] = DEFAULT_FILESYSTEM
+	} else {
+		log.Debugf("Setting driver default filesystem type=%q", config[EBS_DEFAULT_FILESYSTEM])
+	}
+	fsType := config[EBS_DEFAULT_FILESYSTEM]
+	kmsKeyId := config[EBS_DEFAULT_VOLUME_KEY]
+	var encrypted bool
+	if encryptedStr, ok := config[EBS_DEFAULT_ENCRYPTED]; ok {
+		if encrypted, err = strconv.ParseBool(encryptedStr); err != nil {
+			return nil, err
+		}
+	}
+
+	autoFormat := true
+	autoResizefs := true
+	if autoFormatStr, ok := config[EBS_AUTOFORMAT]; ok {
+		if autoFormat, err = strconv.ParseBool(autoFormatStr); err != nil {
+			return nil, err
+		}
+	}
+	if autoResizeStr, ok := config[EBS_AUTORESIZEFS]; ok {
+		if autoResizefs, err = strconv.ParseBool(autoResizeStr); err != nil {
+			return nil, err
+		}
+	}
+	log.Debugf("Setting driver flags for autoFormat=%v autoResizefs=%v", autoFormat, autoResizefs)
+
+	dev := &Device{
+		Root:              root,
+		DefaultVolumeSize: size,
+		DefaultVolumeType: volumeType,
+		DefaultDCName:     dcName,
+		DefaultFSType:     fsType,
+		DefaultKmsKeyID:   kmsKeyId,
+		DefaultEncrypted:  encrypted,
+		AutoFormat:        autoFormat,
+		AutoResizeFS:      autoResizefs,
+	}
+	return dev, nil
+}
+
 func Init(root string, config map[string]string) (ConvoyDriver, error) {
 	ebsService, err := NewEBSService()
 	if err != nil {
@@ -196,64 +265,11 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			return nil, err
 		}
 
-		if config[EBS_DEFAULT_VOLUME_SIZE] == "" {
-			config[EBS_DEFAULT_VOLUME_SIZE] = DEFAULT_VOLUME_SIZE
-		}
-		size, err := util.ParseSize(config[EBS_DEFAULT_VOLUME_SIZE])
+		dev, err := getDefaultDevice(root, config)
 		if err != nil {
 			return nil, err
 		}
-		if config[EBS_DEFAULT_VOLUME_TYPE] == "" {
-			config[EBS_DEFAULT_VOLUME_TYPE] = DEFAULT_VOLUME_TYPE
-		}
-		volumeType := config[EBS_DEFAULT_VOLUME_TYPE]
-		if err := checkVolumeType(volumeType); err != nil {
-			return nil, err
-		}
-		if config[EBS_CLUSTER_NAME] == "" {
-			config[EBS_CLUSTER_NAME] = DEFAULT_CLUSTER_NAME
-		}
-		log.Debugf("Setting driver DCName=%q", config[EBS_CLUSTER_NAME])
-		dcName := config[EBS_CLUSTER_NAME]
-		if config[EBS_DEFAULT_FILESYSTEM] == "" {
-			config[EBS_DEFAULT_FILESYSTEM] = DEFAULT_FILESYSTEM
-		} else {
-			log.Debugf("Setting driver default filesystem type=%q", config[EBS_DEFAULT_FILESYSTEM])
-		}
-		fsType := config[EBS_DEFAULT_FILESYSTEM]
-		kmsKeyId := config[EBS_DEFAULT_VOLUME_KEY]
-		var encrypted bool
-		if encryptedStr, ok := config[EBS_DEFAULT_ENCRYPTED]; ok {
-			if encrypted, err = strconv.ParseBool(encryptedStr); err != nil {
-				return nil, err
-			}
-		}
 
-		autoFormat := true
-		autoResizefs := true
-		if autoFormatStr, ok := config[EBS_AUTOFORMAT]; ok {
-			if autoFormat, err = strconv.ParseBool(autoFormatStr); err != nil {
-				return nil, err
-			}
-		}
-		if autoResizeStr, ok := config[EBS_AUTORESIZEFS]; ok {
-			if autoResizefs, err = strconv.ParseBool(autoResizeStr); err != nil {
-				return nil, err
-			}
-		}
-		log.Debugf("Setting driver flags for autoFormat=%v autoResizefs=%v", autoFormat, autoResizefs)
-
-		dev = &Device{
-			Root:              root,
-			DefaultVolumeSize: size,
-			DefaultVolumeType: volumeType,
-			DefaultDCName:     dcName,
-			DefaultFSType:     fsType,
-			DefaultKmsKeyID:   kmsKeyId,
-			DefaultEncrypted:  encrypted,
-			AutoFormat:        autoFormat,
-			AutoResizeFS:      autoResizefs,
-		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
 		}
@@ -281,9 +297,9 @@ func (d *Driver) Info() (map[string]string, error) {
 	infos["DefaultKmsKey"] = d.DefaultKmsKeyID
 	infos["DefaultFSType"] = d.DefaultFSType
 	infos["DefaultEncrypted"] = fmt.Sprint(d.DefaultEncrypted)
-	infos["InstanceID"] = d.ebsService.InstanceID
-	infos["Region"] = d.ebsService.Region
-	infos["AvailiablityZone"] = d.ebsService.AvailabilityZone
+	infos["InstanceID"] = d.ebsService.GetInstanceID()
+	infos["Region"] = d.ebsService.GetRegion()
+	infos["AvailiablityZone"] = d.ebsService.GetAvailabilityZone()
 	infos["AutoResizeFS"] = fmt.Sprint(d.AutoResizeFS)
 	infos["AutoFormat"] = fmt.Sprint(d.AutoFormat)
 	return infos, nil
@@ -336,63 +352,50 @@ func convertEc2TagsToMap(tags []*ec2.Tag) map[string]string {
 	return tagMap
 }
 
-func (d *Driver) MarkVolumeForGC(volume *ec2.Volume) error {
-	if volume == nil {
+func (d *Driver) MarkVolumeForGC(volumeId string) error {
+	if volumeId == "" {
 		return nil
 	}
 	gcTag := make(map[string]string)
 	gcTag["GarbageCollection"] = time.Now().String()
-	if err := d.ebsService.AddTags(*volume.VolumeId, gcTag); err != nil {
+	if err := d.ebsService.AddTags(volumeId, gcTag); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (d *Driver) CreateAndBuildFromSnapshot(oldVolume *ec2.Volume, snapshotVolume *ec2.Volume, opts map[string]string) (string, int64, error) {
-	// If the volume I would snapshot off of is the same as the one that I need to create then just return
-	if oldVolume != nil && *oldVolume.VolumeId == *snapshotVolume.VolumeId {
-		return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
-	}
+func (d *Driver) CreateAndBuildFromSnapshot(volume *ec2.Volume, args *BuildArgs) (*BuildReturn, error) {
 	// Create snapshot from volume in other AZ
-	snapshotId, err := d.ebsService.LaunchSnapshot(*snapshotVolume.VolumeId, fmt.Sprintf("Creating snaphot from volume=%v", *snapshotVolume.VolumeId), convertEc2TagsToMap(snapshotVolume.Tags))
+	log.Debugf("Creating new snapshot from volumeId=%v", *volume.VolumeId)
+	snapshotId, err := d.ebsService.LaunchSnapshot(*volume.VolumeId, fmt.Sprintf("Convoy: Creating snapshot from volume=%v", *volume.VolumeId), convertEc2TagsToMap(volume.Tags))
 	if err != nil {
-		return "", -1, err
+		return nil, err
 	}
-
+	log.Debugf("SnapshotId=%v was successfully created from volumeId=%v", snapshotId, *volume.VolumeId)
 	snapshot, err := d.ebsService.GetSnapshot(snapshotId)
 	if err != nil {
-		return "", -1, err
+		return nil, err
 	}
-	return d.BuildFromSnapshot(oldVolume, snapshot, opts)
+	return d.BuildFromSnapshot(snapshot, args)
 }
 
-func (d *Driver) BuildFromSnapshot(oldVolume *ec2.Volume, snapshot *ec2.Snapshot, opts map[string]string) (string, int64, error) {
-	// If the snapshot to rebuild off of was created from the oldVolume then update tags and move on
-	if oldVolume != nil && *oldVolume.VolumeId == *snapshot.VolumeId {
-		return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
-	}
-
-	// If there is an old volume then we will mark is for GarbageCollection
-	if err := d.MarkVolumeForGC(oldVolume); err != nil {
-		return "", -1, err
-	}
-
+func (d *Driver) BuildFromSnapshot(snapshot *ec2.Snapshot, args *BuildArgs) (*BuildReturn, error) {
 	if err := d.ebsService.WaitForSnapshotComplete(*snapshot.SnapshotId); err != nil {
-		return "", -1, err
+		return nil, err
 	}
 	log.Debugf("Snapshot=%v is ready", *snapshot.SnapshotId)
 	snapshotVolumeSize := *snapshot.VolumeSize * GB
-	volumeSize, err := d.getSize(opts, snapshotVolumeSize)
+	volumeSize, err := d.getSize(args.opts, snapshotVolumeSize)
 	if err != nil {
-		return "", volumeSize, err
+		return nil, err
 	}
 	if volumeSize < snapshotVolumeSize {
-		return "", volumeSize, util.NewConvoyDriverErr(fmt.Errorf("Volume size cannot be less than snapshot size=%v", snapshotVolumeSize), util.ErrInvalidRequestCode)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("Volume size cannot be less than snapshot size=%v", snapshotVolumeSize), util.ErrInvalidRequestCode)
 	}
 
-	volumeType, iops, err := d.getTypeAndIOPS(opts)
+	volumeType, iops, err := d.getTypeAndIOPS(args.opts)
 	if err != nil {
-		return "", volumeSize, err
+		return nil, err
 	}
 
 	r := &CreateEBSVolumeRequest{
@@ -403,13 +406,20 @@ func (d *Driver) BuildFromSnapshot(oldVolume *ec2.Volume, snapshot *ec2.Snapshot
 		Tags:       convertEc2TagsToMap(snapshot.Tags),
 		Encrypted:  *snapshot.Encrypted,
 	}
-
+	log.Debugf("Creating new volume from snapshotId=%v ", *snapshot.SnapshotId)
 	volumeID, err := d.ebsService.CreateVolume(r)
 	if err != nil {
-		return volumeID, volumeSize, err
+		return nil, err
 	}
 	log.Debugf("Created volume=%v from EBS snapshot=%v", volumeID, *snapshot.SnapshotId)
-	return volumeID, volumeSize, nil
+	// If there is an old volume then we will mark is for GarbageCollection
+	if err := d.MarkVolumeForGC(args.volumeId); err != nil {
+		return nil, err
+	}
+	return &BuildReturn {
+		volumeId: volumeID,
+		volumeSize: volumeSize,
+	}, nil
 }
 
 func (d *Driver) UpdateTags(volumeID string, newTags map[string]string) error {
@@ -420,9 +430,115 @@ func (d *Driver) UpdateTags(volumeID string, newTags map[string]string) error {
 	return nil
 }
 
-func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[string]string, newTags map[string]string, needsFS *bool) (string, int64, error) {
+func (d *Driver) BuildNewVolume(args *BuildArgs) (*BuildReturn, error) {
+	volumeSize, err := d.getSize(args.opts, d.DefaultVolumeSize)
+	if err != nil {
+		return nil, err
+	}
+	volumeType, iops, err := d.getTypeAndIOPS(args.opts)
+	if err != nil {
+		return nil, err
+	}
+	r := &CreateEBSVolumeRequest{
+		Size:       volumeSize,
+		VolumeType: volumeType,
+		IOPS:       iops,
+		KmsKeyID:   d.DefaultKmsKeyID,
+		Encrypted:  d.DefaultEncrypted,
+	}
+	volumeID, err := d.ebsService.CreateVolume(r)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("Created new volume name=%v from EBS volume=%v", args.volumeName, volumeID)
+	return &BuildReturn{
+		volumeId: volumeID, 
+		volumeSize: volumeSize,
+	}, nil
+}
 
-	var volumeSize int64
+func (d *Driver) BuildVolumeFromScratch(volume *ec2.Volume, snapshot *ec2.Snapshot, args *BuildArgs) (*BuildReturn, error) {
+	// If there is no current reference to the volumeName or the snapshot has opted out of failover the build a volume from scratch
+	if snapshot == nil && volume == nil {
+		log.Debugf("No recent snapshot or recent volume - Building name=%v from scratch", args.volumeName)
+		buildReturn, err := d.BuildNewVolume(args)
+		return buildReturn, err
+	} else if snapshot != nil && !shouldFailover(snapshot.Tags) {
+		// If there is a snapshot, but it opted out of failover then build from scratch
+		log.Debugf("A recent snapshot=%v exists for name=%v, but it has opted out of failover", *snapshot.SnapshotId, args.volumeName)
+		buildReturn, err := d.BuildNewVolume(args)
+		return buildReturn, err
+	} else if volume != nil && !d.isVolumeInLocalAz(volume) && !shouldFailover(volume.Tags) {
+		log.Debugf("A recent volume=%v exists for name=%v in AZ=%v, but it has opted out of failover", *volume.VolumeId, args.volumeName, *volume.AvailabilityZone)
+		buildReturn, err := d.BuildNewVolume(args)
+		return buildReturn, err
+	}
+	// The other scenarios where a volume exists would never trigger a build from scratch
+	// If a snapshot exists and it doesn't opt-out of failover then it would run BuildFromSnapshot
+	return nil, nil
+}
+
+func (d *Driver) isVolumeInLocalAz(volume *ec2.Volume) bool {
+	if volume == nil {
+		return false
+	}
+	return *volume.AvailabilityZone == d.ebsService.GetAvailabilityZone()
+}
+
+func (d *Driver) MountLocalVolume(volume *ec2.Volume, snapshot *ec2.Snapshot, args *BuildArgs) (*BuildReturn, error) {
+	// Nothing we can do if a most recent volume does not exist
+	if volume != nil && d.isVolumeInLocalAz(volume) {
+		// If the most recent volume is in the current availability zone, then the only time we would not mount
+		// is if the snapshot is of a different volume and is more up to date
+		if snapshot == nil || (*snapshot.VolumeId) == (*volume.VolumeId) || (*snapshot.StartTime).Before(*volume.CreateTime) {
+			log.Debugf("Taking MountLocalVolume path for volumeId=%v", *volume.VolumeId)
+			return &BuildReturn {
+				volumeId: *volume.VolumeId,
+				volumeSize: *volume.Size * GB,
+			}, nil
+		}
+	}
+	return nil, nil
+}
+
+func (d *Driver) RebuildFromRemoteVolume(volume *ec2.Volume, snapshot *ec2.Snapshot, args *BuildArgs) (*BuildReturn, error) {
+	// If a most recent volume exists and it's in another AZ the rebuild from it
+	if volume != nil && !d.isVolumeInLocalAz(volume) && shouldFailover(volume.Tags) {
+		log.Debugf("Taking RebuildFromRemoteVolume path for name=%v, volumeId=%v", args.volumeName, *volume.VolumeId)
+		buildReturn, err := d.CreateAndBuildFromSnapshot(volume, args)
+		return buildReturn, err
+	}
+	return nil, nil
+}
+
+func (d *Driver) RebuildFromSnapshot(volume *ec2.Volume, snapshot *ec2.Snapshot, args *BuildArgs) (*BuildReturn, error) {
+	if snapshot != nil && shouldFailover(snapshot.Tags) {
+		// There is a snapshot but no volume then build from snapshot
+		if volume == nil {
+			log.Debugf("Taking RebuildFromSnapshot path for volume name=%v and snapshotId=%v", args.volumeName, *snapshot.SnapshotId)
+			return d.BuildFromSnapshot(snapshot, args)
+		} else if d.isVolumeInLocalAz(volume) && (*snapshot.VolumeId) != (*volume.VolumeId) && (*snapshot.StartTime).After(*volume.CreateTime) {
+			// If the most recent volume is local AND the snapshot is not of the local volume AND the snapshot is newer
+			log.Debugf("Taking RebuildFromSnapshot path for volume name=%v and snapshotId=%v", args.volumeName, *volume.VolumeId)
+			return d.BuildFromSnapshot(snapshot, args)
+		}
+	}
+	return nil, nil
+}
+
+type BuildArgs struct {
+	volumeName string
+	volumeId   string
+	opts       map[string]string
+	tags       map[string]string
+}
+
+type BuildReturn struct {
+	volumeId   string
+	volumeSize int64
+}
+
+func (d *Driver) BuildVolume(volumeName string, volumeID string, opts map[string]string, newTags map[string]string) (*BuildReturn, error) {
 	liveAvailabilityZones, err := d.ebsService.GetAvailabilityZones(
 		&ec2.Filter{
 			Name: aws.String("state"),
@@ -432,9 +548,9 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 		},
 	)
 	if err != nil {
-		return volumeID, volumeSize, err
+		return nil, err
 	} else if len(liveAvailabilityZones) == 0 {
-		return volumeID, volumeSize, util.NewConvoyDriverErr(errors.New("AWS is reporting not any Availablity Zones in \"available\" state"), util.ErrGenericFailureCode)
+		return nil, util.NewConvoyDriverErr(errors.New("AWS is reporting not any Availablity Zones in \"available\" state"), util.ErrGenericFailureCode)
 	}
 
 	// Need to specify the volume and the filter for availability-zones
@@ -447,87 +563,85 @@ func (d *Driver) FailoverLogic(volumeName string, volumeID string, opts map[stri
 		},
 	)
 	if err != nil {
-		return volumeID, volumeSize, err
+		return nil, err
 	}
 
 	mostRecentSnapshot, err := d.ebsService.GetMostRecentSnapshot(volumeName, d.DefaultDCName)
 	if err != nil {
-		return volumeID, volumeSize, err
+		return nil, err
 	}
 
 	// if volumeID is empty and most recent volume is empty then blow up
 	if volumeID != "" && mostRecentVolume == nil {
-		return volumeID, volumeSize, util.NewConvoyDriverErr(fmt.Errorf("No available volume for volume=%v", volumeID), util.ErrVolumeNotAvailableCode)
+		return nil, util.NewConvoyDriverErr(fmt.Errorf("No available volume for volume=%v", volumeID), util.ErrVolumeNotAvailableCode)
 	}
 
 	var oldVolume *ec2.Volume
 	if volumeID != "" {
 		if oldVolume, err = d.ebsService.GetVolume(volumeID); err != nil {
-			return volumeID, volumeSize, err
+			return nil, err
 		}
 		// If Failover is False, then return from failover logic
-		if getTagValue("Failover", oldVolume.Tags) == "False" {
-			return *oldVolume.VolumeId, *oldVolume.Size * GB, nil
+		if !shouldFailover(oldVolume.Tags) {
+			return &BuildReturn {
+				volumeId: *oldVolume.VolumeId, 
+				volumeSize: *oldVolume.Size * GB,
+			}, nil
 		}
 	}
 
-	// Scenarios:
-	// If both are nil, then create a new volume from scratch
-	// If there is a snapshot, but it's opted-out with Failover = False then build from scratch
-	if (mostRecentSnapshot == nil && mostRecentVolume == nil) || (mostRecentSnapshot != nil && getTagValue("Failover", mostRecentSnapshot.Tags) == "False") {
-		log.Debugf("No recent snapshot or recent volume - Building name=%v from scratch", volumeName)
-		volumeSize, err := d.getSize(opts, d.DefaultVolumeSize)
-		if err != nil {
-			return volumeID, volumeSize, err
-		}
-		volumeType, iops, err := d.getTypeAndIOPS(opts)
-		if err != nil {
-			return volumeID, volumeSize, err
-		}
-		r := &CreateEBSVolumeRequest{
-			Size:       volumeSize,
-			VolumeType: volumeType,
-			IOPS:       iops,
-			KmsKeyID:   d.DefaultKmsKeyID,
-			Encrypted:  d.DefaultEncrypted,
-		}
-		volumeID, err = d.ebsService.CreateVolume(r)
-		if err != nil {
-			return volumeID, volumeSize, err
-		}
-		log.Debugf("Created volume name=%v from EBS volume=%v", volumeName, volumeID)
-		needsFS = aws.Bool(true)
-		return volumeID, volumeSize, nil
-	} else if mostRecentSnapshot == nil {
-		log.Debugf("No most recent snapshot for name=%v - Creating and building from snapshot", volumeName)
-		// If snapshot is nil then rebuild from most recent volume
-		return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
-	} else if mostRecentVolume == nil {
-		log.Debugf("Most recent volume is nil for name=%v - Building from snapshot", volumeName)
-		return d.BuildFromSnapshot(oldVolume, mostRecentSnapshot, opts)
-	} else if (*mostRecentVolume.CreateTime).After(*mostRecentSnapshot.StartTime) {
-		log.Debugf("Most recent volume create time (%s) is after most recent snapshot start time (%s) for name=%v", *mostRecentVolume.CreateTime, *mostRecentSnapshot.StartTime, volumeName)
-		return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
+	args := &BuildArgs{
+		volumeName: volumeName,
+		volumeId:   volumeID,
+		opts:       opts,
+		tags:       newTags,
+	}
+
+	// Debug statements only
+	if mostRecentVolume != nil {
+		log.Debugf("MostRecentVolume was found for (name=%v, volumeId=%v)", volumeName, *mostRecentVolume.VolumeId) 
 	} else {
-		// If we branched here it means the mostRecentSnapshot is newer than the most recent volume
-		if (*mostRecentVolume.VolumeId) == (*mostRecentSnapshot.VolumeId) {
-			log.Debugf("Most recent snapshot is built from the most recent volume for name=%v", volumeName)
-			// If the most recent snapshot is based off the most recent volume, then the volume could have more up to date data so build from it
-			return d.CreateAndBuildFromSnapshot(oldVolume, mostRecentVolume, opts)
-		} else {
-			log.Debugf("Snapshot is from a volume which no longer exists; building from name=%v", volumeName)
-			// The snapshot is from a volume that no longer exists so build from it
-			return d.BuildFromSnapshot(oldVolume, mostRecentSnapshot, opts)
-		}
+		log.Debugf("MostRecentVolume is nil for (name=%v)", volumeName)
+	}
+	if mostRecentSnapshot != nil {
+		log.Debugf("MostRecentSnapshot was found for (name=%v, volumeId=%v)", volumeName, *mostRecentSnapshot.SnapshotId) 
+	} else {
+		log.Debugf("MostRecentSnapshot is nil for (name=%v)", volumeName)
 	}
 
+	buildReturn, err := d.BuildVolumeFromScratch(mostRecentVolume, mostRecentSnapshot, args)
+	if err != nil {
+		return nil, err
+	} else if buildReturn != nil {
+		return buildReturn, nil
+	}
+	buildReturn, err = d.MountLocalVolume(mostRecentVolume, mostRecentSnapshot, args)
+	if err != nil {
+		return nil, err
+	} else if buildReturn != nil {
+		return buildReturn, nil
+	}
+
+	buildReturn, err = d.RebuildFromRemoteVolume(mostRecentVolume, mostRecentSnapshot, args)
+	if err != nil {
+		return nil, err
+	} else if buildReturn != nil {
+		return buildReturn, nil
+	}
+
+	buildReturn, err= d.RebuildFromSnapshot(mostRecentVolume, mostRecentSnapshot, args)
+	if err != nil {
+		return nil, err
+	} else if buildReturn != nil {
+		return buildReturn, nil
+	}
+	return nil, fmt.Errorf("This scenario was not captured by any failover logic. Volume=%+v. Snapshot=%+v", mostRecentVolume, mostRecentSnapshot)
 }
 
 func (d *Driver) CreateVolume(req Request) error {
 	var (
 		err        error
 		volumeSize int64
-		needsFS    bool
 	)
 
 	d.mutex.Lock()
@@ -594,10 +708,12 @@ func (d *Driver) CreateVolume(req Request) error {
 	}
 
 	// If Failover Tag is false, will be designated inside this logic and return the proper values
-	volumeID, volumeSize, err = d.FailoverLogic(volumeName, volumeID, opts, newTags, &needsFS)
+	buildReturn, err := d.BuildVolume(volumeName, volumeID, opts, newTags)
 	if err != nil {
 		return err
 	}
+	volumeID = buildReturn.volumeId
+	volumeSize = buildReturn.volumeSize
 	if err := d.UpdateTags(volumeID, newTags); err != nil {
 		return err
 	}
@@ -613,21 +729,20 @@ func (d *Driver) CreateVolume(req Request) error {
 	volume.Device = dev
 	volume.Snapshots = make(map[string]Snapshot)
 
-	if !needsFS {
-		if fsType, err := fs.Detect(volume.Device); err != nil {
-			if err == fs.ErrNoFilesystemDetected {
-				needsFS = true
-			} else {
-				return err
-			}
+	var needsFS bool
+	if fsType, err := fs.Detect(volume.Device); err != nil {
+		if err == fs.ErrNoFilesystemDetected {
+			needsFS = true
 		} else {
-			log.Debugf("Detected existing filesystem type=%v for device=%v", fsType, volume.Device)
-			if d.AutoResizeFS {
-				log.Debugf("Ensuring filesystem size and device=%v size match", volume.Device)
-				if err := fs.Resize(volume.Device); err != nil {
-					log.Debugf("Syncing device=%s sizes error: %s", volume.Device, err)
-					return err
-				}
+			return err
+		}
+	} else {
+		log.Debugf("Detected existing filesystem type=%v for device=%v", fsType, volume.Device)
+		if d.AutoResizeFS {
+			log.Debugf("Ensuring filesystem size and device=%v size match", volume.Device)
+			if err := fs.Resize(volume.Device); err != nil {
+				log.Debugf("Syncing device=%s sizes error: %s", volume.Device, err)
+				return err
 			}
 		}
 	}
@@ -1095,7 +1210,7 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 	if err := d.ebsService.WaitForSnapshotComplete(snapshot.EBSID); err != nil {
 		return "", err
 	}
-	return encodeURL(d.ebsService.Region, snapshot.EBSID), nil
+	return encodeURL(d.ebsService.GetRegion(), snapshot.EBSID), nil
 }
 
 func (d *Driver) DeleteBackup(backupURL string) error {
