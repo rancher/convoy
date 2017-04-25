@@ -1,35 +1,35 @@
 package profitbricks
 
-import(
-  "fmt"
-  "errors"
-  "sync"
-  "path/filepath"
-  "strconv"
+import (
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strconv"
+	"sync"
 
-  "github.com/rancher/convoy/util"
-  . "github.com/rancher/convoy/convoydriver"
+	. "github.com/rancher/convoy/convoydriver"
+	"github.com/rancher/convoy/util"
 )
 
-const(
+const (
 	DRIVER_NAME        = "profitbricks"
 	DRIVER_CONFIG_FILE = "profitbricks.cfg"
 
 	VOLUME_CFG_PREFIX = "volume_"
 	CFG_PREFIX        = DRIVER_NAME + "_"
-	CFG_SUFFIX       = ".json"
+	CFG_SUFFIX        = ".json"
 
 	PB_DEFAULT_VOLUME_SIZE = "profitbricks.defaultvolumesize"
 	PB_DEFAULT_VOLUME_TYPE = "profitbricks.defaultvolumetype"
-	DEFAULT_VOLUME_SIZE = "5G"
-	DEFAULT_VOLUME_TYPE = "HDD"
+	DEFAULT_VOLUME_SIZE    = "5G"
+	DEFAULT_VOLUME_TYPE    = "HDD"
 
-  BASE_DEVICE_PATH = "/dev/vd"
-  PB_VOLUME_FS = "ext4"
+	BASE_DEVICE_PATH = "/dev/vd"
+	PB_VOLUME_FS     = "ext4"
 
-  MOUNTS_DIR    = "mounts"
+	MOUNTS_DIR = "mounts"
 
-  GB = int(1073741824)
+	GB = int(1073741824)
 )
 
 type Driver struct {
@@ -50,7 +50,7 @@ func (d *Driver) blankVolume(name string) *Volume {
 }
 
 func (d *Driver) remountVolumes() error {
-  volumes, err := util.ListConfigIDs(d.Root, CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_SUFFIX)
+	volumes, err := util.ListConfigIDs(d.Root, CFG_PREFIX+VOLUME_CFG_PREFIX, CFG_SUFFIX)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (d *Driver) remountVolumes() error {
 type Device struct {
 	Root              string
 	DefaultVolumeSize int
-  DefaultVolumeType string
+	DefaultVolumeType string
 }
 
 func (d *Device) ConfigFile() (string, error) {
@@ -117,12 +117,12 @@ func init() {
 }
 
 func Init(root string, config map[string]string) (ConvoyDriver, error) {
-  client, err := InitClient()
+	client, err := InitClient()
 	if err != nil {
 		return nil, err
 	}
 
-  dev := &Device{
+	dev := &Device{
 		Root: root,
 	}
 	exists, err := util.ObjectExists(dev)
@@ -146,18 +146,18 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 		if err != nil {
 			return nil, err
 		}
-    if config[PB_DEFAULT_VOLUME_TYPE] == "" {
+		if config[PB_DEFAULT_VOLUME_TYPE] == "" {
 			config[PB_DEFAULT_VOLUME_TYPE] = DEFAULT_VOLUME_TYPE
 		}
 		volumeType := config[PB_DEFAULT_VOLUME_TYPE]
 		if err := checkVolumeType(volumeType); err != nil {
-      return nil, err
+			return nil, err
 		}
 
 		dev = &Device{
 			Root:              root,
 			DefaultVolumeSize: int(size),
-      DefaultVolumeType: volumeType,
+			DefaultVolumeType: volumeType,
 		}
 		if err := util.ObjectSave(dev); err != nil {
 			return nil, err
@@ -178,8 +178,8 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 
 func checkVolumeType(volumeType string) error {
 	validVolumeType := map[string]bool{
-		"HDD":      true,
-		"SSD":      true,
+		"HDD": true,
+		"SSD": true,
 	}
 	if !validVolumeType[volumeType] {
 		return fmt.Errorf("Invalid volume type %v", volumeType)
@@ -199,7 +199,7 @@ func (d *Driver) VolumeOps() (VolumeOperations, error) {
 }
 
 func (d *Driver) CreateVolume(req Request) error {
-  d.mutex.Lock()
+	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
 	id := req.Name
@@ -214,75 +214,75 @@ func (d *Driver) CreateVolume(req Request) error {
 		return fmt.Errorf("volume %s already exists", id)
 	}
 
-  var (
-    snapshotId string
-    volumeId string
-    size   int
-    deviceSuffix string
-		format bool
+	var (
+		snapshotId   string
+		volumeId     string
+		size         int
+		deviceSuffix string
+		format       bool
 	)
-  snapshotId = opt[OPT_BACKUP_URL]
-  volumeId = opt[OPT_VOLUME_DRIVER_ID]
-  size, err = d.getSize(opt, d.DefaultVolumeSize)
-  if err != nil {
-    return err
-  }
+	snapshotId = opt[OPT_BACKUP_URL]
+	volumeId = opt[OPT_VOLUME_DRIVER_ID]
+	size, err = d.getSize(opt, d.DefaultVolumeSize)
+	if err != nil {
+		return err
+	}
 
-  if volumeId != "" {
-    _, err := d.client.CreateVolume(CreateVolumeParams{
-      Name: id,
-      Size: (size / GB),
-      Id: volumeId,
-      SnapshotId: snapshotId,
-    })
-    if err != nil {
-      return err
-    }
+	if volumeId != "" {
+		_, err := d.client.CreateVolume(CreateVolumeParams{
+			Name:       id,
+			Size:       (size / GB),
+			Id:         volumeId,
+			SnapshotId: snapshotId,
+		})
+		if err != nil {
+			return err
+		}
 
-    volume, err := d.client.AttachVolume(volumeId)
-    if err != nil {
-  		return err
-  	}
-    size = (volume.Size * GB)
-    deviceSuffix = d.client.GetDeviceSuffix(volume.DeviceNumber)
-  } else {
-    volumeType := opt[OPT_VOLUME_TYPE]
-    if volumeType != "" {
-      err = checkVolumeType(volumeType)
-      if err != nil {
-        volumeType = d.DefaultVolumeType
-      }
-    } else {
-      volumeType = d.DefaultVolumeType
-    }
+		volume, err := d.client.AttachVolume(volumeId)
+		if err != nil {
+			return err
+		}
+		size = (volume.Size * GB)
+		deviceSuffix = d.client.GetDeviceSuffix(volume.DeviceNumber)
+	} else {
+		volumeType := opt[OPT_VOLUME_TYPE]
+		if volumeType != "" {
+			err = checkVolumeType(volumeType)
+			if err != nil {
+				volumeType = d.DefaultVolumeType
+			}
+		} else {
+			volumeType = d.DefaultVolumeType
+		}
 
-  	volume, err := d.client.CreateVolume(CreateVolumeParams{
-      Name: id,
-      Size: (size / GB),
-      Type: volumeType,
-      SnapshotId: snapshotId,
-    })
-    if err != nil {
-      return err
-    }
+		volume, err := d.client.CreateVolume(CreateVolumeParams{
+			Name:       id,
+			Size:       (size / GB),
+			Type:       volumeType,
+			SnapshotId: snapshotId,
+		})
+		if err != nil {
+			return err
+		}
 
-    if volume, err = d.client.AttachVolume(volume.Id); err != nil {
-  		return err
-  	}
-    volumeId = volume.Id
-    size = (volume.Size * GB)
-    deviceSuffix = d.client.GetDeviceSuffix(volume.DeviceNumber)
-    format = true
-  }
+		if volume, err = d.client.AttachVolume(volume.Id); err != nil {
+			return err
+		}
+		volumeId = volume.Id
+		size = (volume.Size * GB)
+		deviceSuffix = d.client.GetDeviceSuffix(volume.DeviceNumber)
+		format = true
+	}
 
-  vol.Name = id
-  vol.Id = volumeId
+	vol.Name = id
+	vol.Id = volumeId
 	vol.Device = BASE_DEVICE_PATH + deviceSuffix
 	vol.Size = size
-  vol.Snapshots = make(map[string]Snapshot)
+	vol.Snapshots = make(map[string]Snapshot)
 
 	if format {
-    if _, err := util.Execute("mkfs", []string{"-t", PB_VOLUME_FS, vol.Device}); err != nil {
+		if _, err := util.Execute("mkfs", []string{"-t", PB_VOLUME_FS, vol.Device}); err != nil {
 			return err
 		}
 	}
@@ -294,11 +294,11 @@ func (d *Driver) getSize(opts map[string]string, defaultVolumeSize int) (int, er
 	if size == "" || size == "0" {
 		size = strconv.FormatInt(int64(defaultVolumeSize), 10)
 	}
-  parsedSize, err := util.ParseSize(size)
-  if err != nil {
-    return 0, err
-  }
-  return int(parsedSize), nil
+	parsedSize, err := util.ParseSize(size)
+	if err != nil {
+		return 0, err
+	}
+	return int(parsedSize), nil
 }
 
 func (d *Driver) DeleteVolume(req Request) error {
@@ -314,12 +314,12 @@ func (d *Driver) DeleteVolume(req Request) error {
 	}
 
 	reference, _ := strconv.ParseBool(opts[OPT_REFERENCE_ONLY])
-  if !reference {
-    err := d.client.DeleteVolume(vol.Id)
-    if err != nil {
-      return err
-    }
-  }
+	if !reference {
+		err := d.client.DeleteVolume(vol.Id)
+		if err != nil {
+			return err
+		}
+	}
 
 	return util.ObjectDelete(vol)
 }
@@ -328,27 +328,27 @@ func (d *Driver) GetVolumeInfo(name string) (map[string]string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-  vol := d.blankVolume(name)
+	vol := d.blankVolume(name)
 	if err := util.ObjectLoad(vol); err != nil {
 		return nil, err
 	}
 
-  volume, err := d.client.GetVolume(vol.Id)
+	volume, err := d.client.GetVolume(vol.Id)
 	if err != nil {
 		return nil, err
 	}
-  size := strconv.FormatInt(int64((volume.Size * GB)), 10)
+	size := strconv.FormatInt(int64((volume.Size * GB)), 10)
 
 	info := map[string]string{
-		"Device": vol.Device,
-		"MountPoint": vol.MountPoint,
-		"Id": vol.Id,
-		OPT_VOLUME_NAME: name,
-		"Size": size,
-    "Type": volume.Type,
-    "State": volume.State,
-    "AvailabilityZone": volume.AvailabilityZone,
-    OPT_VOLUME_CREATED_TIME: volume.CreationTime,
+		"Device":                vol.Device,
+		"MountPoint":            vol.MountPoint,
+		"Id":                    vol.Id,
+		OPT_VOLUME_NAME:         name,
+		"Size":                  size,
+		"Type":                  volume.Type,
+		"State":                 volume.State,
+		"AvailabilityZone":      volume.AvailabilityZone,
+		OPT_VOLUME_CREATED_TIME: volume.CreationTime,
 	}
 	return info, nil
 }
@@ -439,21 +439,21 @@ func (d *Driver) CreateSnapshot(req Request) error {
 		return fmt.Errorf("This volume already has a snapshot with UUID %s", id)
 	}
 
-  snapshot, err := d.client.CreateSnapshot(vol.Id, id)
-  if err != nil {
-    return err
-  }
-
-	snapshot = Snapshot{
-		Name: id,
-		Id: snapshot.Id,
-    Description: snapshot.Description,
-    Size: snapshot.Size,
-    State: snapshot.State,
-    Location: snapshot.Location,
+	snapshot, err := d.client.CreateSnapshot(vol.Id, id)
+	if err != nil {
+		return err
 	}
 
-  vol.Snapshots[id] = snapshot
+	snapshot = Snapshot{
+		Name:        id,
+		Id:          snapshot.Id,
+		Description: snapshot.Description,
+		Size:        snapshot.Size,
+		State:       snapshot.State,
+		Location:    snapshot.Location,
+	}
+
+	vol.Snapshots[id] = snapshot
 	return util.ObjectSave(vol)
 }
 
@@ -467,15 +467,15 @@ func (d *Driver) DeleteSnapshot(req Request) error {
 		return err
 	}
 
-  vol := d.blankVolume(volumeName)
+	vol := d.blankVolume(volumeName)
 	if err := util.ObjectLoad(vol); err != nil {
 		return err
 	}
 
-  _, exists := vol.Snapshots[id]
-  if !exists {
-    return fmt.Errorf("Snapshot %s does not exist for volume %s.", id, volumeName)
-  }
+	_, exists := vol.Snapshots[id]
+	if !exists {
+		return fmt.Errorf("Snapshot %s does not exist for volume %s.", id, volumeName)
+	}
 
 	delete(vol.Snapshots, id)
 	return util.ObjectSave(vol)
@@ -491,31 +491,31 @@ func (d *Driver) GetSnapshotInfo(req Request) (map[string]string, error) {
 		return nil, err
 	}
 
-  vol := d.blankVolume(volumeName)
+	vol := d.blankVolume(volumeName)
 	if err := util.ObjectLoad(vol); err != nil {
 		return nil, err
 	}
 
-  snapshot, exists := vol.Snapshots[id]
-  if exists {
-    snapshot, err = d.client.GetSnapshot(snapshot.Id)
-    if err != nil {
-      return nil, err
-    }
+	snapshot, exists := vol.Snapshots[id]
+	if exists {
+		snapshot, err = d.client.GetSnapshot(snapshot.Id)
+		if err != nil {
+			return nil, err
+		}
 
-  	info := map[string]string{
-      OPT_SNAPSHOT_NAME: id,
-  		"Id": snapshot.Id,
-      "Description": snapshot.Description,
-      OPT_SIZE: strconv.FormatInt(int64((snapshot.Size * GB)), 10),
-      "State": snapshot.State,
-      "Location": snapshot.Location,
-      OPT_SNAPSHOT_CREATED_TIME: snapshot.CreationTime,
-  	}
-    return info, nil
-  } else {
-    return nil, fmt.Errorf("Snapshot %s does not exist for volume %s.", id, volumeName)
-  }
+		info := map[string]string{
+			OPT_SNAPSHOT_NAME:         id,
+			"Id":                      snapshot.Id,
+			"Description":             snapshot.Description,
+			OPT_SIZE:                  strconv.FormatInt(int64((snapshot.Size * GB)), 10),
+			"State":                   snapshot.State,
+			"Location":                snapshot.Location,
+			OPT_SNAPSHOT_CREATED_TIME: snapshot.CreationTime,
+		}
+		return info, nil
+	} else {
+		return nil, fmt.Errorf("Snapshot %s does not exist for volume %s.", id, volumeName)
+	}
 }
 
 func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]string, error) {
@@ -544,23 +544,23 @@ func (d *Driver) ListSnapshot(opts map[string]string) (map[string]map[string]str
 			return nil, err
 		}
 		for snapshotID := range volume.Snapshots {
-      snapshot, err := d.client.GetSnapshot(volume.Snapshots[snapshotID].Id)
+			snapshot, err := d.client.GetSnapshot(volume.Snapshots[snapshotID].Id)
 			if err != nil {
 				return nil, err
 			}
 
-      info := map[string]string{
-        OPT_SNAPSHOT_NAME: snapshot.Name,
-        "VolumeName": volumeID,
-    		"Id": snapshot.Id,
-        "Description": snapshot.Description,
-        OPT_SIZE: strconv.FormatInt(int64((snapshot.Size * GB)), 10),
-        "State": snapshot.State,
-        "Location": snapshot.Location,
-        OPT_SNAPSHOT_CREATED_TIME: snapshot.CreationTime,
-      }
+			info := map[string]string{
+				OPT_SNAPSHOT_NAME:         snapshot.Name,
+				"VolumeName":              volumeID,
+				"Id":                      snapshot.Id,
+				"Description":             snapshot.Description,
+				OPT_SIZE:                  strconv.FormatInt(int64((snapshot.Size * GB)), 10),
+				"State":                   snapshot.State,
+				"Location":                snapshot.Location,
+				OPT_SNAPSHOT_CREATED_TIME: snapshot.CreationTime,
+			}
 
-      snapshots[snapshotID] = info
+			snapshots[snapshotID] = info
 		}
 	}
 	return snapshots, nil
