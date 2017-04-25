@@ -84,3 +84,9 @@ import:
 
 - package: golang.org/x/oauth2
   version: 3c3a985cb79f52a3190fbc056984415ca6763d01
+
+- package: github.com/profitbricks/profitbricks-sdk-go
+  version: bede198c761c0333994050a3f11a56469b22938c
+
+- package: github.com/dselans/dmidecode
+  version: 08eabb429b4ad1353e56dd634048b05d811ba062
