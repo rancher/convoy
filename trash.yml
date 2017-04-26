@@ -5,7 +5,7 @@ import:
   version: 6ba91e24c498b49d0363c723e9e2ab2b5b8fd012
 
 - package: github.com/aws/aws-sdk-go/aws
-  version: 8649d278323ebf6bd20c9cd56ecb152b1c617375
+  version: baba9e786eae5ba978f2007f8e718557b29157c8
 
 - package: github.com/aws/aws-sdk-go/private/protocol
   version: 8649d278323ebf6bd20c9cd56ecb152b1c617375
@@ -90,3 +90,6 @@ import:
 
 - package: golang.org/x/oauth2
   version: 3c3a985cb79f52a3190fbc056984415ca6763d01
+
+- package: github.com/stretchr/testify
+  version: 4d4bfba8f1d1027c4fdbe371823030df51419987

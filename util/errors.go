@@ -16,6 +16,8 @@ const (
 	ErrVolumeTransitionCode
 	ErrInvalidRequestCode
 	ErrGenericFailureCode //prefer if no other error type suffices
+
+	ErrNoActionTakenCode
 )
 
 type ConvoyDriverErr struct {

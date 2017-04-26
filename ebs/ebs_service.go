@@ -27,6 +27,35 @@ var (
 	log = logrus.WithFields(logrus.Fields{"pkg": "ebs"})
 )
 
+type EBS interface {
+	GetInstanceID() string
+	GetRegion() string
+	GetAvailabilityZone() string
+	GetAvailabilityZones(...*ec2.Filter) ([]*string, error)
+	CreateVolume(*CreateEBSVolumeRequest) (string, error)
+	DeleteVolume(string) error
+	GetVolumes([]string) ([]*ec2.Volume, error)
+	GetVolume(string) (*ec2.Volume, error)
+	GetVolumeByName(string, string) (*ec2.Volume, error)
+	FindFreeDeviceForAttach() (string, error)
+	AttachVolume(string, int64) (string, error)
+	DetachVolume(string) error
+	GetMostRecentSnapshot(string, string, ...*ec2.Filter) (*ec2.Snapshot, error)
+	GetMostRecentAvailableVolume(string, string, ...*ec2.Filter) (*ec2.Volume, error)
+	LaunchSnapshot(string, string, map[string]string) (string, error)
+	GetSnapshots(string, string, ...*ec2.Filter) ([]*ec2.Snapshot, error)
+	GetSnapshotWithRegion(string, string) (*ec2.Snapshot, error)
+	GetSnapshot(string) (*ec2.Snapshot, error)
+	WaitForSnapshotComplete(snapshotID string) error
+	CreateSnapshot(*CreateSnapshotRequest) (string, error)
+	DeleteSnapshotWithRegion(string, string) error
+	DeleteSnapshot(string) error
+	CopySnapshot(string, string) (string, error)
+	AddTags(string, map[string]string) error
+	DeleteTags(string, map[string]string) error
+	GetTags(string) (map[string]string, error)
+}
+
 type ebsService struct {
 	metadataClient *ec2metadata.EC2Metadata
 	ec2Client      *ec2.EC2
@@ -120,6 +149,18 @@ func NewEBSService() (*ebsService, error) {
 	config := aws.NewConfig().WithRegion(s.Region)
 	s.ec2Client = ec2.New(session.New(), config)
 	return s, nil
+}
+
+func (s *ebsService) GetInstanceID() string {
+	return s.InstanceID
+}
+
+func (s *ebsService) GetRegion() string {
+	return s.Region
+}
+
+func (s *ebsService) GetAvailabilityZone() string {
+	return s.AvailabilityZone
 }
 
 func (s *ebsService) isEC2Instance() bool {
