@@ -265,7 +265,7 @@ func Init(root string, config map[string]string) (ConvoyDriver, error) {
 			return nil, err
 		}
 
-		dev, err := getDefaultDevice(root, config)
+		dev, err = getDefaultDevice(root, config)
 		if err != nil {
 			return nil, err
 		}
