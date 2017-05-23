@@ -625,7 +625,7 @@ func (s *ebsService) DetachVolume(volumeID string) error {
 		}
 
 		fdTag := make(map[string]string)
-		fdTag["ForceDetached"] = "true"
+		fdTag["ForceDetached"] = time.Now().String()
 		if tagErr := s.AddTags(s.InstanceID, fdTag); tagErr != nil {
 			log.Warnf("Problem adding force-detach tags=%+v to instance=%v for volume=%v: %s - Continuing despite this error", fdTag, s.InstanceID, volumeID, tagErr)
 		}
