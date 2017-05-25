@@ -784,6 +784,16 @@ func (d *Driver) DeleteVolume(req Request) error {
 		log.Debugf("Successfully detached id=%v/ebsid=%v from dev=%v", id, volume.EBSID, volume.Device)
 	}
 
+	//Add some tracking information
+	detachTags := map[string]string{
+		"DetachedFrom": d.ebsService.GetInstanceID(),
+		"DetachedAt": time.Now().String(),
+	}
+	err := d.UpdateTags(volume.EBSID, detachTags)
+	if err != nil {
+		return err
+	}
+
 	// Don't delete as per Medallia design, just remove reference
 	/*
 		if !referenceOnly {
