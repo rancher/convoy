@@ -35,6 +35,11 @@ var (
 				Usage: "driver specific volume type if driver supports",
 			},
 			cli.StringFlag{
+				Name:  "fs",
+				Usage: "filesystem type to format volume with",
+				Value: "ext4",
+			},
+			cli.StringFlag{
 				Name:  "iops",
 				Usage: "IOPS if driver supports",
 			},
@@ -120,10 +125,13 @@ func doVolumeCreate(c *cli.Context) error {
 		return err
 	}
 
-	driverVolumeID := c.String("id")
-	volumeType := c.String("type")
-	iops := c.Int("iops")
-	prepareForVM := c.Bool("vm")
+	var (
+		driverVolumeID = c.String("id")
+		volumeType     = c.String("type")
+		fsType         = c.String("fs")
+		iops           = c.Int("iops")
+		prepareForVM   = c.Bool("vm")
+	)
 
 	request := &api.VolumeCreateRequest{
 		Name:           name,
@@ -132,6 +140,7 @@ func doVolumeCreate(c *cli.Context) error {
 		BackupURL:      backupURL,
 		DriverVolumeID: driverVolumeID,
 		Type:           volumeType,
+		FSType:         fsType,
 		IOPS:           int64(iops),
 		PrepareForVM:   prepareForVM,
 		Verbose:        c.GlobalBool(verboseFlag),

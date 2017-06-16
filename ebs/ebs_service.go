@@ -540,7 +540,7 @@ func (s *ebsService) AttachVolume(volumeID string, size int64) (string, error) {
 		return "", err
 	}
 
-	log.Debugf("Attaching volume=%v to isntance=%v via dev=%v", volumeID, s.InstanceID, dev)
+	log.Debugf("Attaching volume=%v to instance=%v via dev=%v", volumeID, s.InstanceID, dev)
 	params := &ec2.AttachVolumeInput{
 		Device:     aws.String(dev),
 		InstanceId: aws.String(s.InstanceID),

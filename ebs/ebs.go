@@ -416,8 +416,8 @@ func (d *Driver) BuildFromSnapshot(snapshot *ec2.Snapshot, args *BuildArgs) (*Bu
 	if err := d.MarkVolumeForGC(args.volumeId); err != nil {
 		return nil, err
 	}
-	return &BuildReturn {
-		volumeId: volumeID,
+	return &BuildReturn{
+		volumeId:   volumeID,
 		volumeSize: volumeSize,
 	}, nil
 }
@@ -452,7 +452,7 @@ func (d *Driver) BuildNewVolume(args *BuildArgs) (*BuildReturn, error) {
 	}
 	log.Debugf("Created new volume name=%v from EBS volume=%v", args.volumeName, volumeID)
 	return &BuildReturn{
-		volumeId: volumeID, 
+		volumeId:   volumeID,
 		volumeSize: volumeSize,
 	}, nil
 }
@@ -492,8 +492,8 @@ func (d *Driver) MountLocalVolume(volume *ec2.Volume, snapshot *ec2.Snapshot, ar
 		// is if the snapshot is of a different volume and is more up to date
 		if snapshot == nil || (*snapshot.VolumeId) == (*volume.VolumeId) || (*snapshot.StartTime).Before(*volume.CreateTime) {
 			log.Debugf("Taking MountLocalVolume path for volumeId=%v", *volume.VolumeId)
-			return &BuildReturn {
-				volumeId: *volume.VolumeId,
+			return &BuildReturn{
+				volumeId:   *volume.VolumeId,
 				volumeSize: *volume.Size * GB,
 			}, nil
 		}
@@ -583,8 +583,8 @@ func (d *Driver) BuildVolume(volumeName string, volumeID string, opts map[string
 		}
 		// If Failover is False, then return from failover logic
 		if !shouldFailover(oldVolume.Tags) {
-			return &BuildReturn {
-				volumeId: *oldVolume.VolumeId, 
+			return &BuildReturn{
+				volumeId:   *oldVolume.VolumeId,
 				volumeSize: *oldVolume.Size * GB,
 			}, nil
 		}
@@ -599,12 +599,12 @@ func (d *Driver) BuildVolume(volumeName string, volumeID string, opts map[string
 
 	// Debug statements only
 	if mostRecentVolume != nil {
-		log.Debugf("MostRecentVolume was found for (name=%v, volumeId=%v)", volumeName, *mostRecentVolume.VolumeId) 
+		log.Debugf("MostRecentVolume was found for (name=%v, volumeId=%v)", volumeName, *mostRecentVolume.VolumeId)
 	} else {
 		log.Debugf("MostRecentVolume is nil for (name=%v)", volumeName)
 	}
 	if mostRecentSnapshot != nil {
-		log.Debugf("MostRecentSnapshot was found for (name=%v, volumeId=%v)", volumeName, *mostRecentSnapshot.SnapshotId) 
+		log.Debugf("MostRecentSnapshot was found for (name=%v, volumeId=%v)", volumeName, *mostRecentSnapshot.SnapshotId)
 	} else {
 		log.Debugf("MostRecentSnapshot is nil for (name=%v)", volumeName)
 	}
@@ -629,7 +629,7 @@ func (d *Driver) BuildVolume(volumeName string, volumeID string, opts map[string
 		return buildReturn, nil
 	}
 
-	buildReturn, err= d.RebuildFromSnapshot(mostRecentVolume, mostRecentSnapshot, args)
+	buildReturn, err = d.RebuildFromSnapshot(mostRecentVolume, mostRecentSnapshot, args)
 	if err != nil {
 		return nil, err
 	} else if buildReturn != nil {
@@ -747,9 +747,13 @@ func (d *Driver) CreateVolume(req Request) error {
 		}
 	}
 
+	fsType := d.DefaultFSType
+	if typ, ok := opts[OPT_VOLUME_FS_TYPE]; ok {
+		fsType = typ
+	}
 	if needsFS && d.AutoFormat {
-		log.Debugf("Formatting device=%v with filesystem type=%v", volume.Device, d.DefaultFSType)
-		if err := fs.FormatDevice(volume.Device, d.DefaultFSType); err != nil {
+		log.Debugf("Formatting device=%v with filesystem type=%v", volume.Device, fsType)
+		if err := fs.FormatDevice(volume.Device, fsType); err != nil {
 			return err
 		}
 	}
@@ -787,7 +791,7 @@ func (d *Driver) DeleteVolume(req Request) error {
 	//Add some tracking information
 	detachTags := map[string]string{
 		"DetachedFrom": d.ebsService.GetInstanceID(),
-		"DetachedAt": time.Now().String(),
+		"DetachedAt":   time.Now().String(),
 	}
 	err := d.UpdateTags(volume.EBSID, detachTags)
 	if err != nil {

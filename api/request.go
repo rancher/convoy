@@ -17,6 +17,7 @@ type VolumeCreateRequest struct {
 	BackupURL      string
 	DriverVolumeID string
 	Type           string
+	FSType         string
 	IOPS           int64
 	PrepareForVM   bool
 	Verbose        bool
