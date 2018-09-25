@@ -13,7 +13,7 @@ sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > /etc/docker/plugins/co
 Any existing Convoy volume would be refered by it's name in Docker.
 
 ### Create Container
-Docker can specify volumes to be associate with when creating a container, represented by it's name. If the specified volume name doesn't exist in Convoy, it would create a volume using that name, with [default driver and options](https://github.com/rancher/convoy/blob/master/docs/cli_reference.md#daemon), then hand it to Docker. So after:
+Docker can specify volumes to be associate with when creating a container, represented by its name. If the specified volume name doesn't exist in Convoy, it would create a volume using that name, with [default driver and options](https://github.com/rancher/convoy/blob/master/docs/cli_reference.md#daemon), then hand it to Docker. So after:
 ```
 sudo docker run -it -v new_volume:/vol1 --volume-driver=convoy ubuntu
 ```
