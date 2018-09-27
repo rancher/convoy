@@ -97,14 +97,15 @@ func createRouter(s *daemon) *mux.Router {
 
 	pluginMap := map[string]map[string]http.HandlerFunc{
 		"POST": {
-			"/Plugin.Activate":      s.dockerActivate,
-			"/VolumeDriver.Create":  s.dockerCreateVolume,
-			"/VolumeDriver.Remove":  s.dockerRemoveVolume,
-			"/VolumeDriver.Mount":   s.dockerMountVolume,
-			"/VolumeDriver.Unmount": s.dockerUnmountVolume,
-			"/VolumeDriver.Path":    s.dockerVolumePath,
-			"/VolumeDriver.Get":     s.dockerGetVolume,
-			"/VolumeDriver.List":    s.dockerListVolume,
+			"/Plugin.Activate":           s.dockerActivate,
+			"/VolumeDriver.Create":       s.dockerCreateVolume,
+			"/VolumeDriver.Remove":       s.dockerRemoveVolume,
+			"/VolumeDriver.Mount":        s.dockerMountVolume,
+			"/VolumeDriver.Unmount":      s.dockerUnmountVolume,
+			"/VolumeDriver.Path":         s.dockerVolumePath,
+			"/VolumeDriver.Get":          s.dockerGetVolume,
+			"/VolumeDriver.List":         s.dockerListVolume,
+			"/VolumeDriver.Capabilities": s.dockerCapabilities,
 		},
 	}
 	for method, routes := range pluginMap {

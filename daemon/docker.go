@@ -16,16 +16,25 @@ type pluginInfo struct {
 }
 
 type pluginResponse struct {
-	Mountpoint string          `json:",omitempty"`
-	Err        string          `json:",omitempty"`
-	Volumes    []*DockerVolume `json:",omitempty"`
-	Volume     *DockerVolume   `json:",omitempty"`
+	Mountpoint   string              `json:",omitempty"`
+	Err          string              `json:",omitempty"`
+	Volumes      []*DockerVolume     `json:",omitempty"`
+	Volume       *DockerVolume       `json:",omitempty"`
+	Capabilities *DockerCapabilities `json:",omitempty"`
 }
 
 type DockerVolume struct {
 	Name       string `json:",omitempty"`
 	Mountpoint string `json:",omitempty"`
 }
+
+type DockerCapabilities struct {
+	Scope string `json:",omitempty"`
+}
+
+const (
+	DockerCapabilitiesScopeLocal = "local"
+)
 
 type pluginRequest struct {
 	Name string
@@ -321,6 +330,20 @@ func (s *daemon) dockerListVolume(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Debugf("Successfully got volume list for docker.")
+
+	writeResponseOutput(w, response)
+}
+
+func (s *daemon) dockerCapabilities(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("Handle plugin capabilities: %v %v", r.Method, r.RequestURI)
+
+	response := pluginResponse{
+		Capabilities: &DockerCapabilities{
+			Scope: DockerCapabilitiesScopeLocal,
+		},
+	}
+
+	log.Debugf("Successfully return plugin capabilities for docker.")
 
 	writeResponseOutput(w, response)
 }
