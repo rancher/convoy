@@ -28,7 +28,7 @@ curl -sSL https://get.docker.com/ | sh
 ```
 Once we have made sure we have the right Docker daemon running, we can install and configure Convoy volume plugin as follows:
 ```
-wget https://github.com/rancher/convoy/releases/download/v0.5.0/convoy.tar.gz
+wget https://github.com/rancher/convoy/releases/download/v0.5.1/convoy.tar.gz
 tar xvzf convoy.tar.gz
 sudo cp convoy/convoy convoy/convoy-pdata_tools /usr/local/bin/
 sudo mkdir -p /etc/docker/plugins/
@@ -68,9 +68,9 @@ You should see the recovered file ```/res1/foo```.
 ## Installation
 Ensure you have Docker 1.8 or above installed.
 
-Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.5.0/convoy.tar.gz) and unzip it. Put the binaries in a directory in the execution ```$PATH``` of sudo and root users (e.g. /usr/local/bin).
+Download latest version of [convoy](https://github.com/rancher/convoy/releases/download/v0.5.1/convoy.tar.gz) and unzip it. Put the binaries in a directory in the execution ```$PATH``` of sudo and root users (e.g. /usr/local/bin).
 ```
-wget https://github.com/rancher/convoy/releases/download/v0.5.0/convoy.tar.gz
+wget https://github.com/rancher/convoy/releases/download/v0.5.1/convoy.tar.gz
 tar xvzf convoy.tar.gz
 sudo cp convoy/convoy convoy/convoy-pdata_tools /usr/local/bin/
 ```
