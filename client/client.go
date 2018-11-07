@@ -38,7 +38,7 @@ func (c *convoyClient) call(method, path string, data interface{}, headers map[s
 		if headers == nil {
 			headers = make(map[string][]string)
 		}
-		headers["Context-Type"] = []string{"application/json"}
+		headers["Content-Type"] = []string{"application/json"}
 	}
 
 	body, _, statusCode, err := c.clientRequest(method, path, params, headers)
@@ -77,11 +77,11 @@ func (c *convoyClient) clientRequest(method, path string, in io.Reader, headers 
 			return nil, "", statusCode, err
 		}
 		if len(body) == 0 {
-			return nil, "", statusCode, fmt.Errorf("Incompatable version")
+			return nil, "", statusCode, fmt.Errorf("Incompatible version")
 		}
 		return nil, "", statusCode, fmt.Errorf("Error response from server, %v", string(body))
 	}
-	return resp.Body, resp.Header.Get("Context-Type"), statusCode, nil
+	return resp.Body, resp.Header.Get("Content-Type"), statusCode, nil
 }
 
 func sendRequest(method, request string, data interface{}) (io.ReadCloser, error) {
