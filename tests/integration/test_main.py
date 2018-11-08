@@ -106,7 +106,7 @@ def setup_module():
     test_container = pytest.config.getoption("container")
 
     if os.path.exists(TEST_ROOT):
-	subprocess.check_call(["rm", "-rf", TEST_ROOT])
+        subprocess.check_call(["rm", "-rf", TEST_ROOT])
 
     os.makedirs(TEST_ROOT)
     assert os.path.exists(TEST_ROOT)
@@ -138,8 +138,8 @@ def setup_module():
         "--log", LOG_FILE,
         "--drivers=" + DM,
         "--driver-opts", "dm.datadev=" + data_dev,
-	"--driver-opts", "dm.metadatadev=" + metadata_dev,
-	"--driver-opts", "dm.thinpoolname=" + POOL_NAME,
+        "--driver-opts", "dm.metadatadev=" + metadata_dev,
+        "--driver-opts", "dm.thinpoolname=" + POOL_NAME,
         "--driver-opts", "dm.defaultvolumesize=" + DEFAULT_VOLUME_SIZE,
         "--drivers=" + VFS,
         "--driver-opts", "vfs.path=" + VFS_VOLUME_PATH]
@@ -338,7 +338,7 @@ def test_vfs_delete_volume_ref_only():
     filename = "testfile"
     test_file = os.path.join(path,filename)
     with open(test_file, "w") as f:
-	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
+        subprocess.check_call(["echo", "This is volume test file"], stdout=f)
     assert os.path.exists(test_file)
 
     delete_volume(name, ref_only = True)
@@ -385,7 +385,7 @@ def mount_volume_and_create_file(name, filename):
 
     test_file = os.path.join(volume_mount_dir,filename)
     with open(test_file, "w") as f:
-	subprocess.check_call(["echo", "This is volume test file"], stdout=f)
+        subprocess.check_call(["echo", "This is volume test file"], stdout=f)
     assert os.path.exists(test_file)
 
     umount_volume(name, volume_mount_dir)
@@ -452,17 +452,17 @@ def volume_list_driver_test(drv, check_size = True):
     vol1 = create_volume(driver=drv)
     vol2 = create_volume(driver=drv)
     if check_size:
-	vol3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
-	vol4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
+        vol3 = create_volume(VOLUME_SIZE_BIG, driver=drv)
+        vol4 = create_volume(VOLUME_SIZE_SMALL, driver=drv)
 
     volume = v.inspect_volume(vol1)
     assert volume["Name"] == vol1
     if check_size:
-	assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
+        assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
     volume = v.inspect_volume(vol2)
     assert volume["Name"] == vol2
     if check_size:
-	assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
+        assert volume["DriverInfo"]["Size"] == DEFAULT_VOLUME_SIZE
 
     if check_size:
         volumes = v.list_volumes()
@@ -471,8 +471,8 @@ def volume_list_driver_test(drv, check_size = True):
         assert volumes[vol3]["DriverInfo"]["Size"] == VOLUME_SIZE_BIG_Bytes
         assert volumes[vol4]["DriverInfo"]["Size"] == VOLUME_SIZE_SMALL
 
-	delete_volume(vol4)
-	delete_volume(vol3)
+        delete_volume(vol4)
+        delete_volume(vol3)
 
     delete_volume(vol2)
     delete_volume(vol1)
@@ -517,7 +517,7 @@ def snapshot_name_test(driver):
     assert s["CreatedTime"] != ""
 
     with pytest.raises(subprocess.CalledProcessError):
-	    new_name = v.create_snapshot(volume_name, name=snap1_name)
+            new_name = v.create_snapshot(volume_name, name=snap1_name)
 
     v.delete_snapshot(snap1)
     delete_volume(volume_name)
@@ -635,7 +635,7 @@ def test_create_volume_in_parallel():
 
 def test_create_volume_in_sequence():
     for i in range(TEST_LOOP_COUNT):
-	create_delete_volume()
+        create_delete_volume()
 
 def compress_volume(volume_name):
     mountpoint = mount_volume(volume_name)
@@ -678,7 +678,7 @@ def process_restore_with_original_removed(driver, dest = ""):
     if driver == DM:
         #cannot specify different size with backup
         with pytest.raises(subprocess.CalledProcessError):
-	    res_volume1_name = create_volume(VOLUME_SIZE_SMALL, "res-vol1", bak,
+            res_volume1_name = create_volume(VOLUME_SIZE_SMALL, "res-vol1", bak,
                     driver = driver)
 
     res_volume1_name = create_volume(name = "res-vol1", backup = bak, driver =
