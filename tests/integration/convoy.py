@@ -10,16 +10,17 @@ class VolumeManager:
         self.mount_root = mount_root
 
     def start_server(self, pidfile, cmdline):
-        start_cmdline = ["start-stop-daemon", "-S", "-b", "-m", "-p", pidfile,
+        start_cmdline = ["start-stop-daemon", "--start", "--background",
+                        "--make-pidfile", "--pidfile", pidfile,
                         "--exec"] + self.base_cmdline + ["--"] + cmdline
         subprocess.check_call(start_cmdline)
 
     def stop_server(self, pidfile):
-        stop_cmdline = ["start-stop-daemon", "-K", "-p", pidfile, "-x"] + self.base_cmdline
+        stop_cmdline = ["start-stop-daemon", "--stop", "--pidfile", pidfile, "--exec"] + self.base_cmdline
         return subprocess.call(stop_cmdline)
 
     def check_server(self, pidfile):
-        check_cmdline = ["start-stop-daemon", "-T", "-p", pidfile]
+        check_cmdline = ["start-stop-daemon", "--status", "--pidfile", pidfile]
         return subprocess.call(check_cmdline)
 
     def start_server_container(self, name, cfg_root, file_root, container, cmdline):
