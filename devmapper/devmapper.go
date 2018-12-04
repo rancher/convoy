@@ -437,8 +437,9 @@ func (d *Driver) CreateVolume(req Request) error {
 	opts := req.Options
 
 	backupURL := opts[OPT_BACKUP_URL]
+	endpointURL := opts[OPT_ENDPOINT_URL]
 	if backupURL != "" {
-		objVolume, err := objectstore.LoadVolume(backupURL)
+		objVolume, err := objectstore.LoadVolume(backupURL, endpointURL)
 		if err != nil {
 			return err
 		}
@@ -538,7 +539,7 @@ func (d *Driver) CreateVolume(req Request) error {
 			return err
 		}
 	} else {
-		if err := objectstore.RestoreDeltaBlockBackup(backupURL, dev); err != nil {
+		if err := objectstore.RestoreDeltaBlockBackup(backupURL, endpointURL, dev); err != nil {
 			return err
 		}
 	}

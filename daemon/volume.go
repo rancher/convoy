@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
@@ -91,6 +92,25 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		}
 	}
 
+	if request.Endpoint != "" && request.BackupURL == "" {
+		return nil, fmt.Errorf("Endpoint option can only be used when creating a volume from a backup.")
+	}
+	if request.BackupURL != "" {
+		u, backupErr := url.Parse(request.BackupURL)
+		if backupErr != nil {
+			return nil, fmt.Errorf("Invalid format for backup URL: %s", request.BackupURL)
+		}
+		if request.Endpoint != "" {
+			if u.Scheme != "s3" {
+				return nil, fmt.Errorf("Unsupported backup protocol for custom endpoint: %s. Only s3:// is supported.", u.Scheme)
+			}
+			_, endpointErr := url.Parse(request.Endpoint)
+			if endpointErr != nil {
+				return nil, fmt.Errorf("Invalid endpoint URL: %s", endpointErr.Error())
+			}
+		}
+	}
+
 	if driverName == "" {
 		driverName = s.DefaultDriver
 	}
@@ -108,6 +128,7 @@ func (s *daemon) processVolumeCreate(request *api.VolumeCreateRequest) (*Volume,
 		Options: map[string]string{
 			OPT_SIZE:             strconv.FormatInt(request.Size, 10),
 			OPT_BACKUP_URL:       util.UnescapeURL(request.BackupURL),
+			OPT_ENDPOINT_URL:     request.Endpoint,
 			OPT_VOLUME_NAME:      volumeName,
 			OPT_VOLUME_DRIVER_ID: request.DriverVolumeID,
 			OPT_VOLUME_TYPE:      request.Type,

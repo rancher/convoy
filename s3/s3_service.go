@@ -11,12 +11,21 @@ import (
 )
 
 type S3Service struct {
-	Region string
-	Bucket string
+	Region   string
+	Bucket   string
+	Endpoint string
 }
 
 func (s *S3Service) New() (*s3.S3, error) {
-	return s3.New(session.New(), &aws.Config{Region: &s.Region}), nil
+	config := aws.NewConfig().
+		WithRegion(s.Region)
+
+	if s.Endpoint != "" {
+		config = config.
+			WithEndpoint(s.Endpoint).
+			WithS3ForcePathStyle(true)
+	}
+	return s3.New(session.New(), config), nil
 }
 
 func (s *S3Service) Close() {

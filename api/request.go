@@ -15,6 +15,7 @@ type VolumeCreateRequest struct {
 	DriverName     string
 	Size           int64
 	BackupURL      string
+	Endpoint       string
 	DriverVolumeID string
 	Type           string
 	IOPS           int64
@@ -47,16 +48,19 @@ type SnapshotInspectRequest struct {
 
 type BackupListRequest struct {
 	URL          string
+	Endpoint     string
 	VolumeName   string
 	SnapshotName string
 }
 
 type BackupCreateRequest struct {
 	URL          string
+	Endpoint     string
 	SnapshotName string
 	Verbose      bool
 }
 
 type BackupDeleteRequest struct {
-	URL string
+	URL      string
+	Endpoint string
 }

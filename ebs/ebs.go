@@ -31,11 +31,11 @@ const (
 	EBS_DEFAULT_VOLUME_TYPE = "ebs.defaultvolumetype"
 	EBS_DEFAULT_VOLUME_KEY  = "ebs.defaultkmskeyid"
 	EBS_DEFAULT_ENCRYPTED   = "ebs.defaultencrypted"
-	EBS_FSFREEZE = "ebs.fsfreeze"
+	EBS_FSFREEZE            = "ebs.fsfreeze"
 
 	DEFAULT_VOLUME_SIZE = "4G"
 	DEFAULT_VOLUME_TYPE = "gp2"
-	DEFAULT_FSFREEZE = "false"
+	DEFAULT_FSFREEZE    = "false"
 
 	MOUNTS_DIR    = "mounts"
 	MOUNT_BINARY  = "mount"
@@ -601,7 +601,7 @@ func (d *Driver) CreateSnapshot(req Request) error {
 
 		if d.FsFreeze == "true" {
 			log.Debugf("freezing %v", volume.MountPoint)
-			if err := util.Freeze( volume.MountPoint ); err != nil {
+			if err := util.Freeze(volume.MountPoint); err != nil {
 				return err
 			}
 		}
@@ -624,12 +624,12 @@ func (d *Driver) CreateSnapshot(req Request) error {
 	if volume.MountPoint != "" {
 		if d.FsFreeze == "true" {
 			log.Debugf("unfreezing %v", volume.MountPoint)
-			if err := util.UnFreeze( volume.MountPoint ); err != nil {
+			if err := util.UnFreeze(volume.MountPoint); err != nil {
 				return err
 			}
 		}
 	}
-	
+
 	log.Debugf("Creating snapshot %v(%v) of volume %v(%v)", id, ebsSnapshotID, volumeID, volume.EBSID)
 
 	snapshot = Snapshot{
@@ -780,7 +780,7 @@ func decodeURL(backupURL string) (string, string, error) {
 	return region, ebsSnapshotID, nil
 }
 
-func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error) {
+func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string, opts map[string]string) (string, error) {
 	//destURL is not necessary in EBS case
 	snapshot, _, err := d.getSnapshotAndVolume(snapshotID, volumeID)
 	if err != nil {
@@ -793,7 +793,7 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL string, opts map[str
 	return encodeURL(d.ebsService.Region, snapshot.EBSID), nil
 }
 
-func (d *Driver) DeleteBackup(backupURL string) error {
+func (d *Driver) DeleteBackup(backupURL, endpointURL string) error {
 	// Would remove the snapshot
 	region, ebsSnapshotID, err := decodeURL(backupURL)
 	if err != nil {
@@ -805,7 +805,7 @@ func (d *Driver) DeleteBackup(backupURL string) error {
 	return nil
 }
 
-func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
+func (d *Driver) GetBackupInfo(backupURL, endpointURL string) (map[string]string, error) {
 	region, ebsSnapshotID, err := decodeURL(backupURL)
 	if err != nil {
 		return nil, err
@@ -828,10 +828,10 @@ func (d *Driver) GetBackupInfo(backupURL string) (map[string]string, error) {
 	return info, nil
 }
 
-func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error) {
+func (d *Driver) ListBackup(destURL, endpointURL string, opts map[string]string) (map[string]map[string]string, error) {
 	// In EBS, the backups are really the snapshots.  So list the snapshots and reformat the output
 	// for its consistent with the other drivers
-	snapshots, err := d.ListSnapshot( opts )
+	snapshots, err := d.ListSnapshot(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -839,21 +839,21 @@ func (d *Driver) ListBackup(destURL string, opts map[string]string) (map[string]
 	backups := make(map[string]map[string]string)
 	for k, v := range snapshots {
 		if v["State"] != "removed" {
-			backupUrl := encodeURL(d.ebsService.Region,v["EBSSnapshotID"]);
+			backupUrl := encodeURL(d.ebsService.Region, v["EBSSnapshotID"])
 			info := map[string]string{
-				"BackupName": v["EBSSnapshotID"],
-				"BackupURL": backupUrl,
-				"CreatedTime": v["SnapshotCreatedAt"],
-				"DriverName": "ebs",
+				"BackupName":        v["EBSSnapshotID"],
+				"BackupURL":         backupUrl,
+				"CreatedTime":       v["SnapshotCreatedAt"],
+				"DriverName":        "ebs",
 				"SnapshotCreatedAt": v["SnapshotCreatedAt"],
-				"SnapshotName": k,
-				"VolumeCreatedAt": "",
-				"VolumeName": v["VolumeName"],
-				"VolumeSize": v["Size"],
+				"SnapshotName":      k,
+				"VolumeCreatedAt":   "",
+				"VolumeName":        v["VolumeName"],
+				"VolumeSize":        v["Size"],
 			}
-			backups[ backupUrl ] = info
+			backups[backupUrl] = info
 		}
 	}
-	
+
 	return backups, nil
 }

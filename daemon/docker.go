@@ -89,6 +89,7 @@ func (s *daemon) createDockerVolume(request *pluginRequest) (*Volume, error) {
 		DriverName:     request.Opts["driver"],
 		Size:           size,
 		BackupURL:      request.Opts["backup"],
+		Endpoint:       request.Opts["endpoint"],
 		DriverVolumeID: request.Opts["id"],
 		Type:           request.Opts["type"],
 		PrepareForVM:   prepareForVM,

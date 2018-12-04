@@ -26,6 +26,7 @@ var (
 				Name:  "backup",
 				Usage: "create a volume of backup if driver supports",
 			},
+			S3EndpointFlag,
 			cli.StringFlag{
 				Name:  "id",
 				Usage: "driver specific volume ID if driver supports",
@@ -120,6 +121,7 @@ func doVolumeCreate(c *cli.Context) error {
 		return err
 	}
 
+	endpointURL := c.String("s3-endpoint")
 	driverVolumeID := c.String("id")
 	volumeType := c.String("type")
 	iops := c.Int("iops")
@@ -130,6 +132,7 @@ func doVolumeCreate(c *cli.Context) error {
 		DriverName:     driverName,
 		Size:           size,
 		BackupURL:      backupURL,
+		Endpoint:       endpointURL,
 		DriverVolumeID: driverVolumeID,
 		Type:           volumeType,
 		IOPS:           int64(iops),

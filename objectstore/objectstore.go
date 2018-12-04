@@ -113,8 +113,8 @@ func addListVolume(resp map[string]map[string]string, volumeName string, driver 
 	return nil
 }
 
-func List(volumeName, destURL, storageDriverName string) (map[string]map[string]string, error) {
-	driver, err := GetObjectStoreDriver(destURL)
+func List(volumeName, destURL, endpointURL, storageDriverName string) (map[string]map[string]string, error) {
+	driver, err := GetObjectStoreDriver(destURL, endpointURL)
 	if err != nil {
 		return nil, err
 	}
@@ -151,8 +151,8 @@ func fillBackupInfo(backup *Backup, volume *Volume, destURL string) map[string]s
 	}
 }
 
-func GetBackupInfo(backupURL string) (map[string]string, error) {
-	driver, err := GetObjectStoreDriver(backupURL)
+func GetBackupInfo(backupURL, endpointURL string) (map[string]string, error) {
+	driver, err := GetObjectStoreDriver(backupURL, endpointURL)
 	if err != nil {
 		return nil, err
 	}
@@ -173,12 +173,12 @@ func GetBackupInfo(backupURL string) (map[string]string, error) {
 	return fillBackupInfo(backup, volume, driver.GetURL()), nil
 }
 
-func LoadVolume(backupURL string) (*Volume, error) {
+func LoadVolume(backupURL, endpointURL string) (*Volume, error) {
 	_, volumeName, err := decodeBackupURL(backupURL)
 	if err != nil {
 		return nil, err
 	}
-	driver, err := GetObjectStoreDriver(backupURL)
+	driver, err := GetObjectStoreDriver(backupURL, endpointURL)
 	if err != nil {
 		return nil, err
 	}

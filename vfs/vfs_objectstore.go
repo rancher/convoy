@@ -36,7 +36,7 @@ func init() {
 	}
 }
 
-func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {
+func initFunc(destURL, endpoint string) (objectstore.ObjectStoreDriver, error) {
 	b := &VfsObjectStoreDriver{}
 	u, err := url.Parse(destURL)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	. "github.com/rancher/convoy/logging"
 )
 
-type InitFunc func(destURL string) (ObjectStoreDriver, error)
+type InitFunc func(destURL, endpoint string) (ObjectStoreDriver, error)
 
 type ObjectStoreDriver interface {
 	Kind() string
@@ -49,16 +49,25 @@ func RegisterDriver(kind string, initFunc InitFunc) error {
 	return nil
 }
 
-func GetObjectStoreDriver(destURL string) (ObjectStoreDriver, error) {
+func GetObjectStoreDriver(destURL, endpoint string) (ObjectStoreDriver, error) {
 	if destURL == "" {
 		return nil, fmt.Errorf("Destination URL hasn't been specified")
 	}
-	u, err := url.Parse(destURL)
-	if err != nil {
-		return nil, err
+	u, destErr := url.Parse(destURL)
+	if destErr != nil {
+		return nil, destErr
 	}
 	if _, exists := initializers[u.Scheme]; !exists {
 		return nil, fmt.Errorf("Driver %v is not supported!", u.Scheme)
 	}
-	return initializers[u.Scheme](destURL)
+	if endpoint != "" {
+		if u.Scheme != "s3" { // TODO change "s3" to use s3.KIND somehow? this causes import cycle at time of writing
+			// only the S3 driver supports custom endpoints
+			return nil, fmt.Errorf("Driver %v does not support custom endpoints", u.Scheme)
+		}
+		if _, err := url.Parse(endpoint); err != nil {
+			return nil, err
+		}
+	}
+	return initializers[u.Scheme](destURL, endpoint)
 }

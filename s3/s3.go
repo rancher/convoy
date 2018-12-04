@@ -32,13 +32,25 @@ func init() {
 	}
 }
 
-func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {
+func initFunc(destURL, endpoint string) (objectstore.ObjectStoreDriver, error) {
+	return initFuncWithConnectionCheck(destURL, endpoint, func(d objectstore.ObjectStoreDriver) error {
+		_, err := d.List("")
+		return err
+	})
+}
+
+func initFuncWithConnectionCheck(destURL, endpoint string, connectionTest func(d objectstore.ObjectStoreDriver) error) (objectstore.ObjectStoreDriver, error) {
 	b := &S3ObjectStoreDriver{}
 
 	u, err := url.Parse(destURL)
 	if err != nil {
 		return nil, err
 	}
+
+	if _, err := url.Parse(endpoint); err != nil {
+		return nil, err
+	}
+	b.service.Endpoint = endpoint
 
 	if u.Scheme != KIND {
 		return nil, fmt.Errorf("BUG: Why dispatch %v to %v?", u.Scheme, KIND)
@@ -60,7 +72,7 @@ func initFunc(destURL string) (objectstore.ObjectStoreDriver, error) {
 	b.path = strings.TrimLeft(b.path, "/")
 
 	//Test connection
-	if _, err := b.List(""); err != nil {
+	if err := connectionTest(b); err != nil {
 		return nil, err
 	}
 

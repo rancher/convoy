@@ -7,6 +7,11 @@ import (
 )
 
 var (
+	S3EndpointFlag = cli.StringFlag{
+		Name:  "s3-endpoint",
+		Usage: "custom S3 endpoint URL, like http://minio.example.com:9000",
+	}
+
 	backupCreateCmd = cli.Command{
 		Name:  "create",
 		Usage: "create a backup in objectstore: create <snapshot>",
@@ -52,6 +57,9 @@ var (
 			backupListCmd,
 			backupInspectCmd,
 		},
+		Flags: []cli.Flag{
+			S3EndpointFlag,
+		},
 	}
 )
 
@@ -70,8 +78,10 @@ func doBackupList(c *cli.Context) error {
 		return err
 	}
 
+	endpointURL := c.GlobalString("s3-endpoint")
 	request := &api.BackupListRequest{
 		URL:        destURL,
+		Endpoint:   endpointURL,
 		VolumeName: volumeName,
 	}
 	url := "/backups/list"
@@ -92,8 +102,10 @@ func doBackupInspect(c *cli.Context) error {
 		return err
 	}
 
+	endpointURL := c.GlobalString("s3-endpoint")
 	request := &api.BackupListRequest{
-		URL: backupURL,
+		URL:      backupURL,
+		Endpoint: endpointURL,
 	}
 	url := "/backups/inspect"
 	return sendRequestAndPrint("GET", url, request)
@@ -118,8 +130,10 @@ func doBackupCreate(c *cli.Context) error {
 		return err
 	}
 
+	endpointURL := c.GlobalString("s3-endpoint")
 	request := &api.BackupCreateRequest{
 		URL:          destURL,
+		Endpoint:     endpointURL,
 		SnapshotName: snapshotName,
 		Verbose:      c.GlobalBool(verboseFlag),
 	}
@@ -141,8 +155,10 @@ func doBackupDelete(c *cli.Context) error {
 		return err
 	}
 
+	endpointURL := c.GlobalString("s3-endpoint")
 	request := &api.BackupDeleteRequest{
-		URL: backupURL,
+		URL:      backupURL,
+		Endpoint: endpointURL,
 	}
 	url := "/backups"
 	return sendRequestAndPrint("DELETE", url, request)
