@@ -32,7 +32,7 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 			// Not support backup ops
 			continue
 		}
-		infos, err := backupOps.ListBackup(request.URL, opts)
+		infos, err := backupOps.ListBackup(request.URL, request.Endpoint, opts)
 		if err != nil {
 			return err
 		}
@@ -55,12 +55,12 @@ func (s *daemon) doBackupInspect(version string, w http.ResponseWriter, r *http.
 		return err
 	}
 	request.URL = util.UnescapeURL(request.URL)
-	backupOps, err := s.getBackupOpsForBackup(request.URL)
+	backupOps, err := s.getBackupOpsForBackup(request.URL, request.Endpoint)
 	if err != nil {
 		return err
 	}
 
-	info, err := backupOps.GetBackupInfo(request.URL)
+	info, err := backupOps.GetBackupInfo(request.URL, request.Endpoint)
 	if err != nil {
 		return err
 	}
@@ -113,26 +113,28 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotName,
-		LOG_FIELD_VOLUME:   volumeName,
-		LOG_FIELD_DRIVER:   backupOps.Name(),
-		LOG_FIELD_DEST_URL: request.URL,
+		LOG_FIELD_REASON:       LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:        LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:       LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:     snapshotName,
+		LOG_FIELD_VOLUME:       volumeName,
+		LOG_FIELD_DRIVER:       backupOps.Name(),
+		LOG_FIELD_DEST_URL:     request.URL,
+		LOG_FIELD_ENDPOINT_URL: request.Endpoint,
 	}).Debug()
-	backupURL, err := backupOps.CreateBackup(snapshotName, volumeName, request.URL, opts)
+	backupURL, err := backupOps.CreateBackup(snapshotName, volumeName, request.URL, request.Endpoint, opts)
 	if err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:    LOG_EVENT_BACKUP,
-		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_SNAPSHOT: snapshotName,
-		LOG_FIELD_VOLUME:   volumeName,
-		LOG_FIELD_DRIVER:   backupOps.Name(),
-		LOG_FIELD_DEST_URL: request.URL,
+		LOG_FIELD_REASON:       LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:        LOG_EVENT_BACKUP,
+		LOG_FIELD_OBJECT:       LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_SNAPSHOT:     snapshotName,
+		LOG_FIELD_VOLUME:       volumeName,
+		LOG_FIELD_DRIVER:       backupOps.Name(),
+		LOG_FIELD_DEST_URL:     request.URL,
+		LOG_FIELD_ENDPOINT_URL: request.Endpoint,
 	}).Debug()
 
 	backup := &api.BackupURLResponse{
@@ -152,37 +154,39 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	}
 	request.URL = util.UnescapeURL(request.URL)
 
-	backupOps, err := s.getBackupOpsForBackup(request.URL)
+	backupOps, err := s.getBackupOpsForBackup(request.URL, request.Endpoint)
 	if err != nil {
 		return err
 	}
 
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:   LOG_REASON_PREPARE,
-		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_DEST_URL: request.URL,
-		LOG_FIELD_DRIVER:   backupOps.Name(),
+		LOG_FIELD_REASON:       LOG_REASON_PREPARE,
+		LOG_FIELD_EVENT:        LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:       LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_DEST_URL:     request.URL,
+		LOG_FIELD_ENDPOINT_URL: request.Endpoint,
+		LOG_FIELD_DRIVER:       backupOps.Name(),
 	}).Debug()
-	if err := backupOps.DeleteBackup(request.URL); err != nil {
+	if err := backupOps.DeleteBackup(request.URL, request.Endpoint); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
-		LOG_FIELD_REASON:   LOG_REASON_COMPLETE,
-		LOG_FIELD_EVENT:    LOG_EVENT_REMOVE,
-		LOG_FIELD_OBJECT:   LOG_OBJECT_SNAPSHOT,
-		LOG_FIELD_DEST_URL: request.URL,
-		LOG_FIELD_DRIVER:   backupOps.Name(),
+		LOG_FIELD_REASON:       LOG_REASON_COMPLETE,
+		LOG_FIELD_EVENT:        LOG_EVENT_REMOVE,
+		LOG_FIELD_OBJECT:       LOG_OBJECT_SNAPSHOT,
+		LOG_FIELD_DEST_URL:     request.URL,
+		LOG_FIELD_ENDPOINT_URL: request.Endpoint,
+		LOG_FIELD_DRIVER:       backupOps.Name(),
 	}).Debug()
 	return nil
 }
 
-func (s *daemon) getBackupOpsForBackup(requestURL string) (BackupOperations, error) {
+func (s *daemon) getBackupOpsForBackup(requestURL, endpointURL string) (BackupOperations, error) {
 	driverName := ""
 
-	if _, err := objectstore.GetObjectStoreDriver(requestURL); err == nil {
+	if _, err := objectstore.GetObjectStoreDriver(requestURL, endpointURL); err == nil {
 		// Known objectstore driver
-		objVolume, err := objectstore.LoadVolume(requestURL)
+		objVolume, err := objectstore.LoadVolume(requestURL, endpointURL)
 		if err != nil {
 			return nil, err
 		}

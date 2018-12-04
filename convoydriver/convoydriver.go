@@ -75,10 +75,10 @@ VolumeOperations.CreateVolume() with opts[OPT_BACKUP_URL]
 */
 type BackupOperations interface {
 	Name() string
-	CreateBackup(snapshotID, volumeID, destURL string, opts map[string]string) (string, error)
-	DeleteBackup(backupURL string) error
-	GetBackupInfo(backupURL string) (map[string]string, error)
-	ListBackup(destURL string, opts map[string]string) (map[string]map[string]string, error)
+	CreateBackup(snapshotID, volumeID, destURL, endpointURL string, opts map[string]string) (string, error)
+	DeleteBackup(backupURL, endpointURL string) error
+	GetBackupInfo(backupURL, endpointURL string) (map[string]string, error)
+	ListBackup(destURL, endpointURL string, opts map[string]string) (map[string]map[string]string, error)
 }
 
 const (
@@ -93,6 +93,7 @@ const (
 	OPT_SNAPSHOT_NAME         = "SnapshotName"
 	OPT_SNAPSHOT_CREATED_TIME = "SnapshotCreatedAt"
 	OPT_BACKUP_URL            = "BackupURL"
+	OPT_ENDPOINT_URL          = "EndpointURL"
 	OPT_REFERENCE_ONLY        = "ReferenceOnly"
 	OPT_PREPARE_FOR_VM        = "PrepareForVM"
 	OPT_FILESYSTEM            = "Filesystem"

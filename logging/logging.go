@@ -16,6 +16,7 @@ const (
 	LOG_FIELD_LAST_SNAPSHOT = "last_snapshot"
 	LOG_FIELD_BACKUP_URL    = "backup_url"
 	LOG_FIELD_DEST_URL      = "dest_url"
+	LOG_FIELD_ENDPOINT_URL  = "endpoint_url"
 	LOG_FIELD_MOUNTPOINT    = "mountpoint"
 	LOG_FIELD_NAMESPACE     = "namespace"
 	LOG_FIELD_CFG           = "config_file"

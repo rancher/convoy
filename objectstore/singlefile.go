@@ -23,8 +23,8 @@ func getSingleFileBackupFilePath(sfBackup *Backup) string {
 	return filepath.Join(getVolumePath(sfBackup.VolumeName), BACKUP_FILES_DIRECTORY, backupFileName)
 }
 
-func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destURL string) (string, error) {
-	driver, err := GetObjectStoreDriver(destURL)
+func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destURL, endpoint string) (string, error) {
+	driver, err := GetObjectStoreDriver(destURL, endpoint)
 	if err != nil {
 		return "", err
 	}
@@ -73,8 +73,8 @@ func CreateSingleFileBackup(volume *Volume, snapshot *Snapshot, filePath, destUR
 	return encodeBackupURL(backup.Name, volume.Name, destURL), nil
 }
 
-func RestoreSingleFileBackup(backupURL, path string) (string, error) {
-	driver, err := GetObjectStoreDriver(backupURL)
+func RestoreSingleFileBackup(backupURL, endpoint, path string) (string, error) {
+	driver, err := GetObjectStoreDriver(backupURL, endpoint)
 	if err != nil {
 		return "", err
 	}
@@ -104,8 +104,8 @@ func RestoreSingleFileBackup(backupURL, path string) (string, error) {
 	return dstFile, nil
 }
 
-func DeleteSingleFileBackup(backupURL string) error {
-	driver, err := GetObjectStoreDriver(backupURL)
+func DeleteSingleFileBackup(backupURL, endpoint string) error {
+	driver, err := GetObjectStoreDriver(backupURL, endpoint)
 	if err != nil {
 		return err
 	}
