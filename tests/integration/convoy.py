@@ -23,7 +23,7 @@ class VolumeManager:
         check_cmdline = ["start-stop-daemon", "--status", "--pidfile", pidfile]
         return subprocess.call(check_cmdline)
 
-    def start_server_container(self, name, cfg_root, file_root, container, cmdline):
+    def start_server_container(self, name, cfg_root, file_root, container_opts, image, cmdline):
         start_cmdline = ["docker", "run", "--privileged",
                         "--name", name, "-d",
                         "-v", "/etc/ssl/certs:/etc/ssl/certs",
@@ -32,8 +32,7 @@ class VolumeManager:
                         "-v", "/proc:/host/proc",
                         "-v", cfg_root + ":" + cfg_root,
                         "-v", file_root + ":" + file_root,
-                        container,
-                        ] + cmdline
+                        ] + container_opts + [image] + cmdline
         return subprocess.check_call(start_cmdline)
 
     def stop_server_container(self, name):
@@ -48,7 +47,7 @@ class VolumeManager:
     def server_info(self):
         return subprocess.check_output(self.base_cmdline + ["info"])
 
-    def create_volume(self, size = "", name = "", backup = "", driver = "",
+    def create_volume(self, size = "", name = "", backup = "", endpoint = "", driver = "",
                     volume_id = "", volume_type = "", iops = "", forvm = False):
         cmd = ["create"]
         if name != "":
@@ -57,6 +56,8 @@ class VolumeManager:
             cmd = cmd + ["--size", size]
         if backup != "":
             cmd = cmd + ["--backup", backup]
+        if endpoint != "":
+            cmd = cmd + ["--s3-endpoint", endpoint]
         if driver != "":
             cmd = cmd + ["--driver", driver]
         if volume_id != "":
@@ -123,26 +124,39 @@ class VolumeManager:
         snapshot = json.loads(output)
         return snapshot
 
-    def create_backup(self, snapshot, dest = ""):
-        cmdline = self.base_cmdline + ["backup", "create", snapshot]
+    def create_backup(self, snapshot, dest = "", endpoint = ""):
+        cmd = ["backup"]
+        if endpoint != "":
+            cmd += ["--s3-endpoint", endpoint]
+        cmd += ["create", snapshot]
         if dest != "":
-            cmdline += ["--dest", dest]
-        data = subprocess.check_output(cmdline)
+            cmd += ["--dest", dest]
+        data = subprocess.check_output(self.base_cmdline + cmd)
         return data.strip()
 
-    def delete_backup(self, backup):
-        subprocess.check_call(self.base_cmdline + ["backup", "delete", backup])
+    def delete_backup(self, backup, endpoint = ""):
+        cmd = ["backup"]
+        if endpoint != "":
+            cmd += ["--s3-endpoint", endpoint]
+        cmd += ["delete", backup]
+        subprocess.check_call(self.base_cmdline + cmd)
 
-    def list_backup(self, dest, volume_name = ""):
-        cmd = ["backup", "list", dest]
+    def list_backup(self, dest, endpoint = "", volume_name = ""):
+        cmd = ["backup"]
+        if endpoint != "":
+            cmd += ["--s3-endpoint", endpoint]
+        cmd += ["list", dest]
         if volume_name != "":
             cmd += ["--volume-name", volume_name]
         data = subprocess.check_output(self.base_cmdline + cmd)
         backups = json.loads(data)
         return backups
 
-    def inspect_backup(self, backup):
-        data = subprocess.check_output(self.base_cmdline + ["backup",
-            "inspect", backup])
+    def inspect_backup(self, backup, endpoint = ""):
+        cmd = ["backup"]
+        if endpoint != "":
+            cmd += ["--s3-endpoint", endpoint]
+        cmd += ["inspect", backup]
+        data = subprocess.check_output(self.base_cmdline + cmd)
         backups = json.loads(data)
         return backups

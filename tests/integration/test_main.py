@@ -11,6 +11,7 @@ import threading
 import shutil
 
 from convoy import VolumeManager
+from s3 import S3Server
 
 TEST_ROOT = "/tmp/convoy_test/"
 CFG_ROOT = os.path.join(TEST_ROOT, "convoy")
@@ -19,7 +20,7 @@ LOG_FILE= os.path.join(TEST_ROOT, "convoy.log")
 TEST_SNAPSHOT_FILE = "snapshot.test"
 
 CONTAINER_NAME = "convoy-test"
-CONTAINER = "yasker/convoy"
+CONTAINER_IMAGE = "yasker/convoy"
 CONVOY_CONTAINER_CMD = ["docker", "exec", CONTAINER_NAME, "convoy"]
 
 CONVOY_BINARY = [os.path.abspath("../../bin/convoy")]
@@ -39,8 +40,10 @@ VFS_VOLUME_PATH = os.path.join(TEST_ROOT, "vfs-volumes")
 
 EBS = "ebs"
 
-ENV_TEST_AWS_REGION     = "CONVOY_TEST_AWS_REGION"
-ENV_TEST_AWS_BUCKET     = "CONVOY_TEST_AWS_BUCKET"
+S3_REGION = os.environ.get("CONVOY_TEST_AWS_REGION")
+S3_BUCKET = os.environ.get("CONVOY_TEST_AWS_BUCKET")
+S3_ENDPOINT = os.environ.get("CONVOY_TEST_S3_ENDPOINT")
+S3_AUTO_SETUP = all(v is None for v in [S3_REGION, S3_BUCKET, S3_ENDPOINT])
 S3_PATH = "test/volume/"
 
 DD_BLOCK_SIZE = 4096
@@ -125,6 +128,7 @@ def setup_module():
     metadata_dev = attach_loopback_dev(metadata_file)
 
     global v
+    container_opts = []
     cmdline = []
     if test_container:
         v = VolumeManager(CONVOY_CONTAINER_CMD, TEST_ROOT)
@@ -149,8 +153,25 @@ def setup_module():
                 "ebs.defaultvolumesize=" + DEFAULT_VOLUME_SIZE,
                 "--driver-opts",
                 "ebs.defaultvolumetype=" + EBS_DEFAULT_VOLUME_TYPE]
+
+    global S3_AUTO_SETUP
+    if S3_AUTO_SETUP:
+        global s3_server, S3_BUCKET, S3_REGION, S3_ENDPOINT
+        access_key = "convoy"
+        secret_key = "password"
+        s3_server = S3Server(access_key=access_key, secret_key=secret_key)
+        s3_server.start()
+        S3_BUCKET = "test"
+        S3_REGION = "us-east-1"
+        S3_ENDPOINT = s3_server.connection_str()
+        s3_server.make_bucket(S3_BUCKET)
+        # ensure credentials for convoy server (both container and binary)
+        container_opts += ["--env", "AWS_ACCESS_KEY=" + access_key, "--env", "AWS_SECRET_KEY=" + secret_key]
+        os.environ["AWS_ACCESS_KEY"] = access_key
+        os.environ["AWS_SECRET_KEY"] = secret_key
+
     if test_container:
-        v.start_server_container(CONTAINER_NAME, CFG_ROOT, TEST_ROOT, CONTAINER, cmdline)
+        v.start_server_container(CONTAINER_NAME, CFG_ROOT, TEST_ROOT, container_opts, CONTAINER_IMAGE, cmdline)
     else:
         v.start_server(PID_FILE, cmdline)
     dm_cleanup_list.append(POOL_NAME)
@@ -164,6 +185,10 @@ def detach_all_lodev(keyword):
             detach_loopback_dev(line.split(":")[0].strip())
 
 def teardown_module():
+    global S3_AUTO_SETUP
+    if S3_AUTO_SETUP:
+        global s3_server
+        s3_server.stop()
     if test_container:
         code = v.stop_server_container(CONTAINER_NAME)
     else:
@@ -255,9 +280,9 @@ def cleanup_test():
         print leftover_volumes
         assert False
 
-def create_volume(size = "", name = "", backup = "", driver = "",
+def create_volume(size = "", name = "", backup = "", endpoint = "", driver = "",
             volume_id = "", volume_type = "", iops = "", forvm = False):
-    name = v.create_volume(size, name, backup, driver,
+    name = v.create_volume(size, name, backup, endpoint, driver,
                 volume_id, volume_type, iops, forvm)
     if driver == "" or driver == DM:
         dm_cleanup_list.append(name)
@@ -607,13 +632,15 @@ def test_ebs_snapshot_backup():
     assert snap1["DriverInfo"]["EBSVolumeID"] == volume["DriverInfo"]["EBSVolumeID"]
     assert snap1["DriverInfo"]["Size"] == volume["DriverInfo"]["Size"]
 
-    backup_url = v.create_backup(snap1_name)
-    backup = v.inspect_backup(backup_url)
+    global S3_ENDPOINT
+    endpoint = S3_ENDPOINT or ""
+    backup_url = v.create_backup(snap1_name, endpoint = endpoint)
+    backup = v.inspect_backup(backup_url, endpoint = endpoint)
     assert backup["EBSVolumeID"] == volume["DriverInfo"]["EBSVolumeID"]
     assert backup["EBSSnapshotID"] == snap1["DriverInfo"]["EBSSnapshotID"]
     assert backup["Size"] == snap1["DriverInfo"]["Size"]
 
-    v.delete_backup(backup_url)
+    v.delete_backup(backup_url, endpoint = endpoint)
     v.delete_snapshot("snap1")
     delete_volume(volume_name)
 
@@ -722,29 +749,28 @@ def test_vfs_objectstore():
     vfs_objectstore_test(DM)
 
 def vfs_objectstore_test(driver):
-    process_objectstore_test(VFS_DEST, driver)
+    process_objectstore_test(VFS_DEST, "", driver)
 
-@pytest.mark.skipif(not pytest.config.getoption("s3"),
-        reason="--s3 was not specified")
 def test_s3_objectstore():
-    s3_objectstore_test(VFS)
-    s3_objectstore_test(DM)
+    global S3_ENDPOINT
+    endpoint = S3_ENDPOINT or ""
+    s3_objectstore_test(endpoint, VFS)
+    s3_objectstore_test(endpoint, DM)
 
-def s3_objectstore_test(driver):
-    process_objectstore_test(get_s3_dest(), driver)
-    process_objectstore_test(get_s3_dest(S3_PATH), driver)
+def s3_objectstore_test(endpoint, driver):
+    process_objectstore_test(get_s3_dest(), endpoint, driver)
+    process_objectstore_test(get_s3_dest(S3_PATH), endpoint, driver)
 
 def get_s3_dest(path = ""):
-    region = os.environ[ENV_TEST_AWS_REGION]
-    bucket = os.environ[ENV_TEST_AWS_BUCKET]
-    return "s3://" + bucket + "@" + region + "/" + path
+    global S3_REGION, S3_BUCKET
+    return "s3://" + S3_BUCKET + "@" + S3_REGION + "/" + path
 
 def unescape_url(url):
     return url.replace("\\u0026", "&").replace("u0026","&")
 
-def process_objectstore_test(dest, driver):
+def process_objectstore_test(dest, endpoint, driver):
     #make sure objectstore is empty
-    backups = v.list_backup(dest)
+    backups = v.list_backup(dest, endpoint = endpoint)
     assert len(backups) == 0
 
     #add volume to objectstore
@@ -755,14 +781,14 @@ def process_objectstore_test(dest, driver):
     volume2_name = create_volume(VOLUME_SIZE_SMALL, name2, driver=driver)
 
     with pytest.raises(subprocess.CalledProcessError):
-        backups = v.list_backup(dest, volume1_name)
+        backups = v.list_backup(dest, endpoint = endpoint, volume_name = volume1_name)
 
     #first snapshots
     snap1_vol1_name = v.create_snapshot(volume1_name, "snap1_vol1")
     snap1_vol1 = v.inspect_snapshot("snap1_vol1")
-    snap1_vol1_bak = v.create_backup("snap1_vol1", dest)
+    snap1_vol1_bak = v.create_backup("snap1_vol1", dest, endpoint = endpoint)
 
-    backups = v.list_backup(dest, volume1_name)
+    backups = v.list_backup(dest, endpoint = endpoint, volume_name = volume1_name)
     assert len(backups) == 1
     backup = backups[unescape_url(snap1_vol1_bak)]
     assert backup["DriverName"] == driver
@@ -774,7 +800,7 @@ def process_objectstore_test(dest, driver):
     assert backup["SnapshotCreatedAt"] == snap1_vol1["CreatedTime"]
     assert backup["CreatedTime"] != ""
 
-    backup = v.inspect_backup(snap1_vol1_bak)
+    backup = v.inspect_backup(snap1_vol1_bak, endpoint = endpoint)
     assert backup["DriverName"] == driver
     assert backup["VolumeName"] == volume1["Name"]
     if "Size" in volume1["DriverInfo"]:
@@ -785,27 +811,27 @@ def process_objectstore_test(dest, driver):
     assert backup["CreatedTime"] != ""
 
     snap1_vol2_name = v.create_snapshot(volume2_name, "snap1_vol2")
-    snap1_vol2_bak = v.create_backup("snap1_vol2", dest)
+    snap1_vol2_bak = v.create_backup("snap1_vol2", dest, endpoint = endpoint)
 
     #list snapshots
-    backups = v.list_backup(dest, volume2_name)
+    backups = v.list_backup(dest, endpoint = endpoint, volume_name = volume2_name)
     assert len(backups) == 1
 
-    backup = v.inspect_backup(snap1_vol2_bak)
+    backup = v.inspect_backup(snap1_vol2_bak, endpoint = endpoint)
     assert backup["VolumeName"] == volume2_name
     assert backup["SnapshotName"] == snap1_vol2_name
 
     #second snapshots
     mount_volume_and_create_file(volume1_name, "test-vol1-v1")
     snap2_vol1_name = v.create_snapshot(volume1_name)
-    snap2_vol1_bak = v.create_backup(snap2_vol1_name, dest)
+    snap2_vol1_bak = v.create_backup(snap2_vol1_name, dest, endpoint = endpoint)
 
     mount_volume_and_create_file(volume2_name, "test-vol2-v2")
     snap2_vol2_name = v.create_snapshot(volume2_name)
-    snap2_vol2_bak = v.create_backup(snap2_vol2_name, dest)
+    snap2_vol2_bak = v.create_backup(snap2_vol2_name, dest, endpoint = endpoint)
 
     #list snapshots again
-    backups = v.list_backup(dest)
+    backups = v.list_backup(dest, endpoint = endpoint)
     assert len(backups) == 4
     assert backups[unescape_url(snap1_vol1_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap1_vol1_bak)]["VolumeName"] == volume1_name
@@ -820,14 +846,14 @@ def process_objectstore_test(dest, driver):
     assert backups[unescape_url(snap2_vol2_bak)]["VolumeName"] == volume2_name
     assert backups[unescape_url(snap2_vol2_bak)]["SnapshotName"] == snap2_vol2_name
 
-    backups = v.list_backup(dest, volume1_name)
+    backups = v.list_backup(dest, endpoint = endpoint, volume_name = volume1_name)
     assert len(backups) == 2
     assert backups[unescape_url(snap1_vol1_bak)]["VolumeName"] == volume1_name
     assert backups[unescape_url(snap1_vol1_bak)]["SnapshotName"] == snap1_vol1_name
     assert backups[unescape_url(snap2_vol1_bak)]["VolumeName"] == volume1_name
     assert backups[unescape_url(snap2_vol1_bak)]["SnapshotName"] == snap2_vol1_name
 
-    backups = v.list_backup(dest, volume2_name)
+    backups = v.list_backup(dest, endpoint = endpoint, volume_name = volume2_name)
     assert len(backups) == 2
     assert backups[unescape_url(snap1_vol2_bak)]["VolumeName"] == volume2_name
     assert backups[unescape_url(snap1_vol2_bak)]["SnapshotName"] == snap1_vol2_name
@@ -836,18 +862,18 @@ def process_objectstore_test(dest, driver):
 
     #restore snapshot
     res_volume1_name = create_volume(name = "res-vol1", backup = snap2_vol1_bak,
-            driver=driver)
+            endpoint = endpoint, driver = driver)
     check_restore(volume1_name, res_volume1_name, driver)
 
-    res_volume2_name = create_volume(backup = snap2_vol2_bak, driver=driver)
+    res_volume2_name = create_volume(backup = snap2_vol2_bak, endpoint=endpoint, driver=driver)
     check_restore(volume2_name, res_volume2_name, driver)
 
     #remove snapshots from objectstore
-    v.delete_backup(snap2_vol1_bak)
-    v.delete_backup(snap2_vol2_bak)
+    v.delete_backup(snap2_vol1_bak, endpoint = endpoint)
+    v.delete_backup(snap2_vol2_bak, endpoint = endpoint)
 
     #list snapshots again
-    backups = v.list_backup(dest)
+    backups = v.list_backup(dest, endpoint = endpoint)
     assert len(backups) == 2
     assert backups[unescape_url(snap1_vol1_bak)]["DriverName"] == driver
     assert backups[unescape_url(snap1_vol1_bak)]["VolumeName"] == volume1_name
@@ -856,33 +882,33 @@ def process_objectstore_test(dest, driver):
     assert backups[unescape_url(snap1_vol2_bak)]["VolumeName"] == volume2_name
     assert backups[unescape_url(snap1_vol2_bak)]["SnapshotName"] == snap1_vol2_name
 
-    backups = v.list_backup(dest, volume1_name)
+    backups = v.list_backup(dest, endpoint = endpoint, volume_name = volume1_name)
     assert len(backups) == 1
     backup = backups[unescape_url(snap1_vol1_bak)]
     assert backup["DriverName"] == driver
     assert backup["VolumeName"] == volume1_name
     assert backup["SnapshotName"] == snap1_vol1_name
 
-    backup = v.inspect_backup(snap1_vol1_bak)
+    backup = v.inspect_backup(snap1_vol1_bak, endpoint = endpoint)
     assert backup["DriverName"] == driver
     assert backup["VolumeName"] == volume1_name
     assert backup["SnapshotName"] == snap1_vol1_name
 
-    backups = v.list_backup(dest, volume2_name)
+    backups = v.list_backup(dest, endpoint = endpoint, volume_name = volume2_name)
     assert len(backups) == 1
     backup = backups[unescape_url(snap1_vol2_bak)]
     assert backup["DriverName"] == driver
     assert backup["VolumeName"] == volume2_name
     assert backup["SnapshotName"] == snap1_vol2_name
 
-    backup = v.inspect_backup(snap1_vol2_bak)
+    backup = v.inspect_backup(snap1_vol2_bak, endpoint = endpoint)
     assert backup["DriverName"] == driver
     assert backup["VolumeName"] == volume2_name
     assert backup["SnapshotName"] == snap1_vol2_name
 
     #remove snapshots from objectstore
-    v.delete_backup(snap1_vol2_bak)
-    v.delete_backup(snap1_vol1_bak)
+    v.delete_backup(snap1_vol2_bak, endpoint = endpoint)
+    v.delete_backup(snap1_vol1_bak, endpoint = endpoint)
 
     v.delete_snapshot(snap1_vol1_name)
     v.delete_snapshot(snap2_vol1_name)
