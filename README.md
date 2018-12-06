@@ -173,13 +173,17 @@ sudo convoy snapshot delete snap1vol1
 * Device Mapper: please make sure you keep [the latest backed-up snapshot](https://github.com/rancher/convoy/blob/master/docs/devicemapper.md#backup-create) for the same volume available to enable the incremental backup mechanism. Convoy needs it to calculate the differences between snapshots.
 
 #### Backup a Snapshot
-* Device Mapper or VFS: You can backup a snapshot to an S3 object store or an NFS mount/local directory:
+* Device Mapper or VFS: You can backup a snapshot to an NFS mount/local directory or an S3 object store:
 ```bash
-sudo convoy backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
+sudo convoy backup create snap1vol1 --dest vfs:///opt/backup/
 ```
 or
 ```bash
-sudo convoy backup create snap1vol1 --dest vfs:///opt/backup/
+sudo convoy backup create snap1vol1 --dest s3://backup-bucket@us-west-2/
+```
+or if you want to use a custom S3 endpoint (like [Minio](https://github.com/minio/minio))
+```bash
+sudo convoy backup --s3-endpoint http://s3.example.com:9000/ create snap1vol1 --dest s3://backup-bucket@us-west-2/
 ```
 
 The backup operation returns a URL string that uniquely identifies the backup dataset.
