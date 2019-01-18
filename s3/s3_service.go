@@ -3,22 +3,31 @@ package s3
 import (
 	"fmt"
 	"io"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+        "github.com/aws/aws-sdk-go/aws/credentials"
 )
 
 type S3Service struct {
 	Region   string
 	Bucket   string
 	Endpoint string
+	Accesskey string
+	Secretkey string
 }
 
 func (s *S3Service) New() (*s3.S3, error) {
-	config := aws.NewConfig().
+	config := aws.NewConfig()
+	if s.Accesskey != "" && s.Secretkey != "" {
+		config = aws.NewConfig().
+		WithRegion(s.Region).
+		WithCredentials(credentials.NewStaticCredentials(s.Accesskey, s.Secretkey, ""))
+	} else {
+		config = aws.NewConfig().
 		WithRegion(s.Region)
+	}
 
 	if s.Endpoint != "" {
 		config = config.

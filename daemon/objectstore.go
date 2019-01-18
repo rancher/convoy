@@ -32,7 +32,7 @@ func (s *daemon) doBackupList(version string, w http.ResponseWriter, r *http.Req
 			// Not support backup ops
 			continue
 		}
-		infos, err := backupOps.ListBackup(request.URL, request.Endpoint, opts)
+		infos, err := backupOps.ListBackup(request.URL, request.Endpoint,request.Accesskey,request.Secretkey, opts)
 		if err != nil {
 			return err
 		}
@@ -55,12 +55,12 @@ func (s *daemon) doBackupInspect(version string, w http.ResponseWriter, r *http.
 		return err
 	}
 	request.URL = util.UnescapeURL(request.URL)
-	backupOps, err := s.getBackupOpsForBackup(request.URL, request.Endpoint)
+	backupOps, err := s.getBackupOpsForBackup(request.URL, request.Endpoint,request.Accesskey,request.Secretkey)
 	if err != nil {
 		return err
 	}
 
-	info, err := backupOps.GetBackupInfo(request.URL, request.Endpoint)
+	info, err := backupOps.GetBackupInfo(request.URL, request.Endpoint,request.Accesskey,request.Secretkey)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (s *daemon) doBackupCreate(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_DEST_URL:     request.URL,
 		LOG_FIELD_ENDPOINT_URL: request.Endpoint,
 	}).Debug()
-	backupURL, err := backupOps.CreateBackup(snapshotName, volumeName, request.URL, request.Endpoint, opts)
+	backupURL, err := backupOps.CreateBackup(snapshotName, volumeName, request.URL, request.Endpoint,request.Accesskey,request.Secretkey, opts)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	}
 	request.URL = util.UnescapeURL(request.URL)
 
-	backupOps, err := s.getBackupOpsForBackup(request.URL, request.Endpoint)
+	backupOps, err := s.getBackupOpsForBackup(request.URL, request.Endpoint,request.Accesskey,request.Secretkey)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 		LOG_FIELD_ENDPOINT_URL: request.Endpoint,
 		LOG_FIELD_DRIVER:       backupOps.Name(),
 	}).Debug()
-	if err := backupOps.DeleteBackup(request.URL, request.Endpoint); err != nil {
+	if err := backupOps.DeleteBackup(request.URL, request.Endpoint,request.Accesskey,request.Secretkey); err != nil {
 		return err
 	}
 	log.WithFields(logrus.Fields{
@@ -181,12 +181,12 @@ func (s *daemon) doBackupDelete(version string, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-func (s *daemon) getBackupOpsForBackup(requestURL, endpointURL string) (BackupOperations, error) {
+func (s *daemon) getBackupOpsForBackup(requestURL, endpointURL string,accesskey string, secretkey string) (BackupOperations, error) {
 	driverName := ""
 
-	if _, err := objectstore.GetObjectStoreDriver(requestURL, endpointURL); err == nil {
+	if _, err := objectstore.GetObjectStoreDriver(requestURL, endpointURL,accesskey, secretkey); err == nil {
 		// Known objectstore driver
-		objVolume, err := objectstore.LoadVolume(requestURL, endpointURL)
+		objVolume, err := objectstore.LoadVolume(requestURL, endpointURL,accesskey,secretkey)
 		if err != nil {
 			return nil, err
 		}

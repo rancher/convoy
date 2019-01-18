@@ -16,6 +16,8 @@ type VolumeCreateRequest struct {
 	Size           int64
 	BackupURL      string
 	Endpoint       string
+	Accesskey 	 string
+	Secretkey	 string
 	DriverVolumeID string
 	Type           string
 	IOPS           int64
@@ -51,11 +53,15 @@ type BackupListRequest struct {
 	Endpoint     string
 	VolumeName   string
 	SnapshotName string
+	Accesskey 	 string
+	Secretkey	 string
 }
 
 type BackupCreateRequest struct {
 	URL          string
 	Endpoint     string
+	Accesskey 	 string
+	Secretkey	 string
 	SnapshotName string
 	Verbose      bool
 }
@@ -63,4 +69,6 @@ type BackupCreateRequest struct {
 type BackupDeleteRequest struct {
 	URL      string
 	Endpoint string
+	Accesskey 	 string
+	Secretkey	 string
 }

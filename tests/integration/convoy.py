@@ -124,27 +124,39 @@ class VolumeManager:
         snapshot = json.loads(output)
         return snapshot
 
-    def create_backup(self, snapshot, dest = "", endpoint = ""):
+    def create_backup(self, snapshot, dest = "", endpoint = "", accesskey = "", secretkey = ""):
         cmd = ["backup"]
         if endpoint != "":
             cmd += ["--s3-endpoint", endpoint]
+        if accesskey != "":
+            cmd += ["--s3-accesskey", accesskey]
+        if secretkey != "":
+            cmd += ["--s3-secretkey", secretkey]
         cmd += ["create", snapshot]
         if dest != "":
             cmd += ["--dest", dest]
         data = subprocess.check_output(self.base_cmdline + cmd)
         return data.strip()
 
-    def delete_backup(self, backup, endpoint = ""):
+    def delete_backup(self, backup, endpoint = "", accesskey = "", secretkey = ""):
         cmd = ["backup"]
         if endpoint != "":
             cmd += ["--s3-endpoint", endpoint]
+        if accesskey != "":
+            cmd += ["--s3-accesskey", accesskey]
+        if secretkey != "":
+            cmd += ["--s3-secretkey", secretkey]
         cmd += ["delete", backup]
         subprocess.check_call(self.base_cmdline + cmd)
 
-    def list_backup(self, dest, endpoint = "", volume_name = ""):
+    def list_backup(self, dest, endpoint = "", accesskey = "", secretkey = "", volume_name = ""):
         cmd = ["backup"]
         if endpoint != "":
             cmd += ["--s3-endpoint", endpoint]
+        if accesskey != "":
+            cmd += ["--s3-accesskey", accesskey]
+        if secretkey != "":
+            cmd += ["--s3-secretkey", secretkey]
         cmd += ["list", dest]
         if volume_name != "":
             cmd += ["--volume-name", volume_name]
@@ -152,10 +164,14 @@ class VolumeManager:
         backups = json.loads(data)
         return backups
 
-    def inspect_backup(self, backup, endpoint = ""):
+    def inspect_backup(self, backup, endpoint = "", accesskey = "", secretkey = ""):
         cmd = ["backup"]
         if endpoint != "":
             cmd += ["--s3-endpoint", endpoint]
+        if accesskey != "":
+            cmd += ["--s3-accesskey", accesskey]
+        if secretkey != "":
+            cmd += ["--s3-secretkey", secretkey]
         cmd += ["inspect", backup]
         data = subprocess.check_output(self.base_cmdline + cmd)
         backups = json.loads(data)

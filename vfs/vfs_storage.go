@@ -195,8 +195,10 @@ func (d *Driver) CreateVolume(req Request) error {
 
 	backupURL := opts[OPT_BACKUP_URL]
 	endpointURL := opts[OPT_ENDPOINT_URL]
+	accesskey := opts[OPT_ACCESS_KEY]
+	secretkey := opts[OPT_SECRET_KEY]
 	if backupURL != "" {
-		objVolume, err := objectstore.LoadVolume(backupURL, endpointURL)
+		objVolume, err := objectstore.LoadVolume(backupURL, endpointURL,accesskey,secretkey)
 		if err != nil {
 			return err
 		}
@@ -234,7 +236,7 @@ func (d *Driver) CreateVolume(req Request) error {
 	volume.Name = id
 
 	if backupURL != "" {
-		file, err := objectstore.RestoreSingleFileBackup(backupURL, endpointURL, volumePath)
+		file, err := objectstore.RestoreSingleFileBackup(backupURL, endpointURL,accesskey,secretkey, volumePath)
 		if err != nil {
 			return err
 		}
@@ -553,7 +555,7 @@ func (d *Driver) BackupOps() (BackupOperations, error) {
 	return d, nil
 }
 
-func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string, opts map[string]string) (string, error) {
+func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string,accesskey string,secretkey string, opts map[string]string) (string, error) {
 	volume := d.blankVolume(volumeID)
 	if err := util.ObjectLoad(volume); err != nil {
 		return "", err
@@ -571,33 +573,33 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string,
 		Name:        snapshotID,
 		CreatedTime: opts[OPT_SNAPSHOT_CREATED_TIME],
 	}
-	return objectstore.CreateSingleFileBackup(objVolume, objSnapshot, snapshot.FilePath, destURL, endpointURL)
+	return objectstore.CreateSingleFileBackup(objVolume, objSnapshot, snapshot.FilePath, destURL, endpointURL, accesskey, secretkey)
 }
 
-func (d *Driver) DeleteBackup(backupURL, endpointURL string) error {
-	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL)
+func (d *Driver) DeleteBackup(backupURL, endpointURL string,accesskey string,secretkey string) error {
+	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL, accesskey, secretkey)
 	if err != nil {
 		return err
 	}
 	if objVolume.Driver != d.Name() {
 		return fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
 	}
-	return objectstore.DeleteSingleFileBackup(backupURL, endpointURL)
+	return objectstore.DeleteSingleFileBackup(backupURL, endpointURL, accesskey, secretkey)
 }
 
-func (d *Driver) GetBackupInfo(backupURL, endpointURL string) (map[string]string, error) {
-	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL)
+func (d *Driver) GetBackupInfo(backupURL, endpointURL string,accesskey string,secretkey string) (map[string]string, error) {
+	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL, accesskey, secretkey)
 	if err != nil {
 		return nil, err
 	}
 	if objVolume.Driver != d.Name() {
 		return nil, fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
 	}
-	return objectstore.GetBackupInfo(backupURL, endpointURL)
+	return objectstore.GetBackupInfo(backupURL, endpointURL, accesskey, secretkey)
 }
 
-func (d *Driver) ListBackup(destURL, endpointURL string, opts map[string]string) (map[string]map[string]string, error) {
-	return objectstore.List(opts[OPT_VOLUME_NAME], destURL, endpointURL, d.Name())
+func (d *Driver) ListBackup(destURL, endpointURL string,accesskey string,secretkey string, opts map[string]string) (map[string]map[string]string, error) {
+	return objectstore.List(opts[OPT_VOLUME_NAME], destURL, endpointURL, accesskey, secretkey, d.Name())
 }
 
 func flock(volume *Volume) (*os.File, error) {

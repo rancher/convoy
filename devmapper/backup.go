@@ -122,7 +122,7 @@ func (d *Driver) ReadSnapshot(id, volumeID string, offset int64, data []byte) er
 	return nil
 }
 
-func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string, opts map[string]string) (string, error) {
+func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string, accesskey string, secretkey string, opts map[string]string) (string, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -141,40 +141,40 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string,
 		Name:        snapshotID,
 		CreatedTime: opts[convoydriver.OPT_SNAPSHOT_CREATED_TIME],
 	}
-	return objectstore.CreateDeltaBlockBackup(objVolume, objSnapshot, destURL, endpointURL, d)
+	return objectstore.CreateDeltaBlockBackup(objVolume, objSnapshot, destURL, endpointURL,accesskey, secretkey, d)
 }
 
-func (d *Driver) DeleteBackup(backupURL, endpointURL string) error {
+func (d *Driver) DeleteBackup(backupURL, endpointURL string, accesskey string, secretkey string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL)
+	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL,accesskey, secretkey)
 	if err != nil {
 		return err
 	}
 	if objVolume.Driver != d.Name() {
 		return fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
 	}
-	return objectstore.DeleteDeltaBlockBackup(backupURL, endpointURL)
+	return objectstore.DeleteDeltaBlockBackup(backupURL, endpointURL,accesskey, secretkey)
 }
 
-func (d *Driver) GetBackupInfo(backupURL, endpointURL string) (map[string]string, error) {
+func (d *Driver) GetBackupInfo(backupURL, endpointURL string, accesskey string, secretkey string) (map[string]string, error) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
-	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL)
+	objVolume, err := objectstore.LoadVolume(backupURL, endpointURL,accesskey, secretkey)
 	if err != nil {
 		return nil, err
 	}
 	if objVolume.Driver != d.Name() {
 		return nil, fmt.Errorf("BUG: Wrong driver handling DeleteBackup(), driver should be %v but is %v", objVolume.Driver, d.Name())
 	}
-	return objectstore.GetBackupInfo(backupURL, endpointURL)
+	return objectstore.GetBackupInfo(backupURL, endpointURL,accesskey, secretkey)
 }
 
-func (d *Driver) ListBackup(destURL, endpointURL string, opts map[string]string) (map[string]map[string]string, error) {
+func (d *Driver) ListBackup(destURL, endpointURL string, accesskey string, secretkey string, opts map[string]string) (map[string]map[string]string, error) {
 	d.mutex.RLock()
 	defer d.mutex.RUnlock()
 
-	return objectstore.List(opts[convoydriver.OPT_VOLUME_NAME], destURL, endpointURL, d.Name())
+	return objectstore.List(opts[convoydriver.OPT_VOLUME_NAME], destURL, endpointURL,accesskey, secretkey, d.Name())
 }

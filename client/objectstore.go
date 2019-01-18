@@ -7,6 +7,16 @@ import (
 )
 
 var (
+	S3AccessKey = cli.StringFlag{
+		Name:  "s3-accesskey",
+		Usage: "S3 access key",
+	}
+
+	S3SecretKey = cli.StringFlag{
+		Name:  "s3-secretkey",
+		Usage: "S3 secret key",
+	}
+
 	S3EndpointFlag = cli.StringFlag{
 		Name:  "s3-endpoint",
 		Usage: "custom S3 endpoint URL, like http://minio.example.com:9000",
@@ -59,6 +69,8 @@ var (
 		},
 		Flags: []cli.Flag{
 			S3EndpointFlag,
+			S3AccessKey,
+			S3SecretKey,
 		},
 	}
 )
@@ -131,9 +143,13 @@ func doBackupCreate(c *cli.Context) error {
 	}
 
 	endpointURL := c.GlobalString("s3-endpoint")
+	accesskey := c.GlobalString("s3-accesskey")
+	secretkey := c.GlobalString("s3-secretkey")
 	request := &api.BackupCreateRequest{
 		URL:          destURL,
 		Endpoint:     endpointURL,
+		Accesskey: 	  accesskey,
+		Secretkey: 	  secretkey,
 		SnapshotName: snapshotName,
 		Verbose:      c.GlobalBool(verboseFlag),
 	}
@@ -156,9 +172,13 @@ func doBackupDelete(c *cli.Context) error {
 	}
 
 	endpointURL := c.GlobalString("s3-endpoint")
+	accesskey := c.GlobalString("s3-accesskey")
+	secretkey := c.GlobalString("s3-secretkey")
 	request := &api.BackupDeleteRequest{
 		URL:      backupURL,
 		Endpoint: endpointURL,
+		Accesskey: 	  accesskey,
+		Secretkey: 	  secretkey,
 	}
 	url := "/backups"
 	return sendRequestAndPrint("DELETE", url, request)

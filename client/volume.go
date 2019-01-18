@@ -27,6 +27,8 @@ var (
 				Usage: "create a volume of backup if driver supports",
 			},
 			S3EndpointFlag,
+			S3AccessKey,
+			S3SecretKey,
 			cli.StringFlag{
 				Name:  "id",
 				Usage: "driver specific volume ID if driver supports",

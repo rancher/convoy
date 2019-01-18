@@ -780,7 +780,7 @@ func decodeURL(backupURL string) (string, string, error) {
 	return region, ebsSnapshotID, nil
 }
 
-func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string, opts map[string]string) (string, error) {
+func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string,accesskey string, secretkey string, opts map[string]string) (string, error) {
 	//destURL is not necessary in EBS case
 	snapshot, _, err := d.getSnapshotAndVolume(snapshotID, volumeID)
 	if err != nil {
@@ -793,7 +793,7 @@ func (d *Driver) CreateBackup(snapshotID, volumeID, destURL, endpointURL string,
 	return encodeURL(d.ebsService.Region, snapshot.EBSID), nil
 }
 
-func (d *Driver) DeleteBackup(backupURL, endpointURL string) error {
+func (d *Driver) DeleteBackup(backupURL, endpointURL string,accesskey string, secretkey string) error {
 	// Would remove the snapshot
 	region, ebsSnapshotID, err := decodeURL(backupURL)
 	if err != nil {
@@ -805,7 +805,7 @@ func (d *Driver) DeleteBackup(backupURL, endpointURL string) error {
 	return nil
 }
 
-func (d *Driver) GetBackupInfo(backupURL, endpointURL string) (map[string]string, error) {
+func (d *Driver) GetBackupInfo(backupURL, endpointURL string,accesskey string, secretkey string) (map[string]string, error) {
 	region, ebsSnapshotID, err := decodeURL(backupURL)
 	if err != nil {
 		return nil, err
@@ -828,7 +828,7 @@ func (d *Driver) GetBackupInfo(backupURL, endpointURL string) (map[string]string
 	return info, nil
 }
 
-func (d *Driver) ListBackup(destURL, endpointURL string, opts map[string]string) (map[string]map[string]string, error) {
+func (d *Driver) ListBackup(destURL, endpointURL string,accesskey string, secretkey string, opts map[string]string) (map[string]map[string]string, error) {
 	// In EBS, the backups are really the snapshots.  So list the snapshots and reformat the output
 	// for its consistent with the other drivers
 	snapshots, err := d.ListSnapshot(opts)

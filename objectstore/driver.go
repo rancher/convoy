@@ -10,7 +10,7 @@ import (
 	. "github.com/rancher/convoy/logging"
 )
 
-type InitFunc func(destURL, endpoint string) (ObjectStoreDriver, error)
+type InitFunc func(destURL, endpoint string,accesskey string, secretkey string) (ObjectStoreDriver, error)
 
 type ObjectStoreDriver interface {
 	Kind() string
@@ -49,7 +49,7 @@ func RegisterDriver(kind string, initFunc InitFunc) error {
 	return nil
 }
 
-func GetObjectStoreDriver(destURL, endpoint string) (ObjectStoreDriver, error) {
+func GetObjectStoreDriver(destURL, endpoint string, accesskey string, secretkey string) (ObjectStoreDriver, error) {
 	if destURL == "" {
 		return nil, fmt.Errorf("Destination URL hasn't been specified")
 	}
@@ -69,5 +69,5 @@ func GetObjectStoreDriver(destURL, endpoint string) (ObjectStoreDriver, error) {
 			return nil, err
 		}
 	}
-	return initializers[u.Scheme](destURL, endpoint)
+	return initializers[u.Scheme](destURL, endpoint, accesskey, secretkey)
 }

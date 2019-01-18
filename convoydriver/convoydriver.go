@@ -75,10 +75,10 @@ VolumeOperations.CreateVolume() with opts[OPT_BACKUP_URL]
 */
 type BackupOperations interface {
 	Name() string
-	CreateBackup(snapshotID, volumeID, destURL, endpointURL string, opts map[string]string) (string, error)
-	DeleteBackup(backupURL, endpointURL string) error
-	GetBackupInfo(backupURL, endpointURL string) (map[string]string, error)
-	ListBackup(destURL, endpointURL string, opts map[string]string) (map[string]map[string]string, error)
+	CreateBackup(snapshotID, volumeID, destURL, endpointURL string,accesskey string, secretkey string, opts map[string]string) (string, error)
+	DeleteBackup(backupURL, endpointURL string,accesskey string, secretkey string) error
+	GetBackupInfo(backupURL, endpointURL string,accesskey string, secretkey string) (map[string]string, error)
+	ListBackup(destURL, endpointURL string,accesskey string, secretkey string,opts map[string]string) (map[string]map[string]string, error)
 }
 
 const (
@@ -97,6 +97,8 @@ const (
 	OPT_REFERENCE_ONLY        = "ReferenceOnly"
 	OPT_PREPARE_FOR_VM        = "PrepareForVM"
 	OPT_FILESYSTEM            = "Filesystem"
+	OPT_ACCESS_KEY			  = "Accesskey"
+	OPT_SECRET_KEY			  = "Secretkey"
 )
 
 var (

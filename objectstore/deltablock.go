@@ -34,12 +34,12 @@ const (
 	BLOCK_SEPARATE_LAYER2 = 4
 )
 
-func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL, endpoint string, deltaOps DeltaBlockBackupOperations) (string, error) {
+func CreateDeltaBlockBackup(volume *Volume, snapshot *Snapshot, destURL, endpoint string,accesskey string, secretkey string, deltaOps DeltaBlockBackupOperations) (string, error) {
 	if deltaOps == nil {
 		return "", fmt.Errorf("Missing DeltaBlockBackupOperations")
 	}
 
-	bsDriver, err := GetObjectStoreDriver(destURL, endpoint)
+	bsDriver, err := GetObjectStoreDriver(destURL, endpoint,accesskey, secretkey)
 	if err != nil {
 		return "", err
 	}
@@ -229,8 +229,8 @@ func mergeSnapshotMap(deltaBackup, lastBackup *Backup) *Backup {
 	return backup
 }
 
-func RestoreDeltaBlockBackup(backupURL, endpoint, volDevName string) error {
-	bsDriver, err := GetObjectStoreDriver(backupURL, endpoint)
+func RestoreDeltaBlockBackup(backupURL, endpoint,accesskey string, secretkey string, volDevName string) error {
+	bsDriver, err := GetObjectStoreDriver(backupURL, endpoint,accesskey,secretkey)
 	if err != nil {
 		return err
 	}
@@ -309,8 +309,8 @@ func RestoreDeltaBlockBackup(backupURL, endpoint, volDevName string) error {
 	return nil
 }
 
-func DeleteDeltaBlockBackup(backupURL, endpoint string) error {
-	bsDriver, err := GetObjectStoreDriver(backupURL, endpoint)
+func DeleteDeltaBlockBackup(backupURL, endpoint string,accesskey string, secretkey string) error {
+	bsDriver, err := GetObjectStoreDriver(backupURL, endpoint, accesskey, secretkey)
 	if err != nil {
 		return err
 	}
