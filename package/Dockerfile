@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:xenial-20210416
 MAINTAINER Sheng Yang <sheng.yang@rancher.com>
 
 RUN apt-get install -y \
