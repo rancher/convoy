@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:xenial-20210416
 
 ARG DAPPER_HOST_ARCH=amd64
 ARG http_proxy
